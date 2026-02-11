@@ -63,3 +63,14 @@
   - `apps/backend/src/registry/*`
   - `apps/backend/src/users/users.service.ts`
 - **Commit**: `Task 1.2: Modul Matrika (Registry) - School Data`
+
+## Task 2.1: Modul Klasifikace (Grading) - Education
+- **Popis**: Implementace klasifikace a výpočtu průměrů.
+  - Přidány modely `Subject` a `Grade` do schématu.
+  - Vytvořen `GradingModule`, `GradingService`, `GradingController`.
+  - Implementován výpočet váženého průměru: `GET /api/grades/average/:studentId/:subjectId`.
+  - Migrace `init_grading`.
+- **Soubory**:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/src/grading/*`
+- **Commit**: `Task 2.1: Modul Klasifikace (Grading) - Education`
