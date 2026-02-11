@@ -36,3 +36,17 @@
   - `README.md`
   - `docker-compose.yml`
 - **Commit**: `Task 0.5: Rename Project to Edu stack sandbox`
+
+## Task 1.1: Modul Evidence (Users & Roles) - Identity
+- **Popis**: Implementace správy uživatelů a rolí.
+  - Přidán model `User` a enum `Role` do schématu.
+  - Vytvořen `UsersModule`, `UsersService`, `UsersController`.
+  - Implementovány endpointy POST /users a GET /users.
+  - Vytvořena migrace `init_users`.
+  - Aktualizován `docker-compose.yml` pro automatickou instalaci závislostí.
+- **Soubory**:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/src/users/*`
+  - `apps/backend/src/prisma/*`
+  - `docker-compose.yml`
+- **Commit**: `Task 1.1: Modul Evidence (Users & Roles) - Identity`
