@@ -50,3 +50,16 @@
   - `apps/backend/src/prisma/*`
   - `docker-compose.yml`
 - **Commit**: `Task 1.1: Modul Evidence (Users & Roles) - Identity`
+
+## Task 1.2: Modul Matrika (Registry) - School Data
+- **Popis**: Rozšíření datového modelu o školní matriku.
+  - Přidány modely `Classroom`, `StudentProfile`, `TeacherProfile`.
+  - Definice vazeb mezi uživateli, profily a třídami.
+  - Vytvořen `RegistryModule`, `RegistryService`, `RegistryController`.
+  - Aktualizován `UsersService` pro načítání profilů.
+  - Migrace `init_registry`.
+- **Soubory**:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/src/registry/*`
+  - `apps/backend/src/users/users.service.ts`
+- **Commit**: `Task 1.2: Modul Matrika (Registry) - School Data`
