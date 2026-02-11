@@ -156,6 +156,40 @@ export class AuthService {
             });
         }
 
+
+        // ... validateOAuthLogin implementation ...
+
         return this.login(user);
+    }
+
+    async impersonate(adminId: string, targetUserId: string) {
+        const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+        if (!targetUser) throw new NotFoundException('Target user not found');
+
+        if (targetUser.role === 'ADMIN') {
+            throw new UnauthorizedException('Cannot impersonate an Admin.');
+        }
+
+        // Audit Log
+        await this.prisma.auditLog.create({
+            data: {
+                action: 'IMPERSONATE',
+                actorId: adminId,
+                targetId: targetUserId,
+                metadata: { timestamp: new Date(), reason: 'Support' },
+            },
+        });
+
+        const payload = {
+            sub: targetUser.id,
+            email: targetUser.email,
+            role: targetUser.role,
+            isImpersonated: true,
+            actorId: adminId,
+        };
+
+        return {
+            access_token: this.jwtService.sign(payload),
+        };
     }
 }

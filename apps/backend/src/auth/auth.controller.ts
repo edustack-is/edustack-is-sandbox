@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -22,5 +22,17 @@ export class AuthController {
         // and populates req.user. Here we simulate it with query params for demonstration/testing logic.
         if (!email || !id) throw new Error('Missing email or id');
         return this.authService.validateOAuthLogin(email, 'google', id, firstName, lastName);
+    }
+
+    @Post('impersonate/:id')
+    async impersonate(@Param('id') targetUserId: string, @Body('adminId') adminId: string) {
+        // In real app: Use @UseGuards(RolesGuard), @Roles('ADMIN', 'DIRECTOR')
+        // and get adminId from req.user.id
+        if (!adminId) throw new BadRequestException('Admin ID required (simulated)');
+
+        // Evaluate if adminId is valid/has rights (mock check)
+        // const admin = await this.prisma.user.findUnique(...)
+
+        return this.authService.impersonate(adminId, targetUserId);
     }
 }
