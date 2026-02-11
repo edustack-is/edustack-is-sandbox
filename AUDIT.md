@@ -108,3 +108,9 @@
 - **Soubory**:
   - `apps/frontend/*`
 - **Commit**: `Task 4.1 & 4.2: Frontend (Layout & API)`
+
+## Fix: Docker Node.js Version Update
+- **Popis**: Změna verze Node.js v `docker-compose.yml` z `18-alpine` na `22-alpine`.
+  - Důvod: Prisma v7.4.0 vyžaduje Node.js v20+, což způsobovalo pád backend kontejneru.
+- **Soubory**:
+  - `docker-compose.yml`
