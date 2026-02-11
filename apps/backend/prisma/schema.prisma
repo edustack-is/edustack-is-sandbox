@@ -32,4 +32,36 @@ model User {
   role         Role      @default(STUDENT)
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
+  
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+}
+
+model Classroom {
+  id              String          @id @default(uuid())
+  name            String
+  grade           Int
+  students        StudentProfile[]
+  homeroomTeacher TeacherProfile? @relation("HomeroomTeacher")
+}
+
+model StudentProfile {
+  id          String     @id @default(uuid())
+  user        User       @relation(fields: [userId], references: [id])
+  userId      String     @unique
+  firstName   String
+  lastName    String
+  rc          String?
+  classroom   Classroom? @relation(fields: [classroomId], references: [id])
+  classroomId String?
+}
+
+model TeacherProfile {
+  id            String     @id @default(uuid())
+  user          User       @relation(fields: [userId], references: [id])
+  userId        String     @unique
+  degree        String?
+  approbation   String?
+  homeroomClass Classroom? @relation("HomeroomTeacher", fields: [homeroomClassId], references: [id]) // Changed relation definition
+  homeroomClassId String? @unique
 }

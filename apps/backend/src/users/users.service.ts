@@ -15,6 +15,10 @@ export class UsersService {
     async findAll(): Promise<User[]> {
         return this.prisma.user.findMany({
             where: { deletedAt: null },
+            include: {
+                studentProfile: true,
+                teacherProfile: true,
+            },
         });
     }
 }
