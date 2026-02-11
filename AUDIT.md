@@ -74,3 +74,37 @@
   - `apps/backend/prisma/schema.prisma`
   - `apps/backend/src/grading/*`
 - **Commit**: `Task 2.1: Modul Klasifikace (Grading) - Education`
+
+## Task 2.2: Modul Rozvrh (Schedule) - Education
+- **Popis**: Implementace správy rozvrhu a validace kolizí.
+  - Přidán model `ScheduleEvent`.
+  - Vytvořen `ScheduleModule`.
+  - Implementována validace: `POST /api/schedule/validate` (kontrola kolizí učitele a třídy).
+  - Migrace `init_schedule`.
+- **Soubory**:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/src/schedule/*`
+- **Commit**: `Task 2.2: Modul Rozvrh (Schedule) - Education`
+
+## Task 3.1 & 3.2: AI Integration (Service & Seeder)
+- **Popis**: Integrace Google Generative AI pro generování dat.
+  - Instalace `@google/generative-ai`.
+  - Vytvořen `AiModule`, `AiService`, `AiController`.
+  - Implementována metoda `seedClassroom` pro generování fiktivních studentů pomocí AI.
+  - Endpoint `POST /api/ai/seed/:classroomId`.
+- **Soubory**:
+  - `apps/backend/package.json`
+  - `apps/backend/src/ai/*`
+  - `.env.example`
+- **Commit**: `Task 3.1 & 3.2: AI Integration (Service & Seeder)`
+
+## Task 4.1 & 4.2: Frontend (Layout & API)
+- **Popis**: Inicializace frontendové aplikace (Vite + React).
+  - Vytvořen základní layout se postranním menu (`Sidebar`).
+  - Nastaven React Router pro navigaci mezi moduly.
+  - Vytvořeny stránky pro jednotlivé moduly (Registry, Grading, Schedule).
+  - Konfigurace Vite proxy pro komunikaci s backendem.
+  - Implementován API klient (`axios`) a základní funkce pro načítání dat.
+- **Soubory**:
+  - `apps/frontend/*`
+- **Commit**: `Task 4.1 & 4.2: Frontend (Layout & API)`
