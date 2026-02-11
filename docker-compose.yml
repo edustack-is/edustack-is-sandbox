@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fiktivni_is_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-student}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
+      POSTGRES_DB: ${POSTGRES_DB:-skola_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    container_name: fiktivni_is_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  backend:
+    image: node:18-alpine
+    container_name: fiktivni_is_backend
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./apps/backend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: npm run start:dev
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-student}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
+      POSTGRES_DB: ${POSTGRES_DB:-skola_db}
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
