@@ -28,3 +28,11 @@
   - `apps/backend/prisma/schema.prisma`
   - `apps/backend/.env`
 - **Commit**: `Task 0.4: Databáze a Prisma ORM Setup`
+
+## Task 0.5: Rename Project to Edu stack sandbox
+- **Popis**: Přejmenování projektu z "Fiktivní IS" na "Edu stack sandbox".
+- **Soubory**:
+  - `package.json`
+  - `README.md`
+  - `docker-compose.yml`
+- **Commit**: `Task 0.5: Rename Project to Edu stack sandbox`

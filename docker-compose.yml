@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: fiktivni_is_postgres
+    container_name: edu_stack_sandbox_postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-student}
@@ -16,7 +16,7 @@ services:
 
   adminer:
     image: adminer
-    container_name: fiktivni_is_adminer
+    container_name: edu_stack_sandbox_adminer
     restart: always
     ports:
       - "8080:8080"
@@ -25,7 +25,7 @@ services:
 
   backend:
     image: node:18-alpine
-    container_name: fiktivni_is_backend
+    container_name: edu_stack_sandbox_backend
     restart: always
     working_dir: /app
     volumes:
