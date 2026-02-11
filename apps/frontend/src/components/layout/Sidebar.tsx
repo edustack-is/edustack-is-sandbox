@@ -1,14 +1,14 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, GraduationCap, Calendar, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, GraduationCap, Calendar, Users, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import './Sidebar.css';
 
 const navItems = [
     { path: '/', label: 'Overview', icon: LayoutDashboard },
-    { path: '/registry', label: 'Registry', icon: Users },
-    { path: '/grading', label: 'Grading', icon: GraduationCap },
-    { path: '/schedule', label: 'Schedule', icon: Calendar },
+    { path: '/registry', label: 'Matrika', icon: BookOpen },
+    { path: '/grading', label: 'Klasifikace', icon: GraduationCap },
+    { path: '/schedule', label: 'Rozvrh', icon: Calendar },
+    { path: '/users', label: 'Uživatelé', icon: Users },
     { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

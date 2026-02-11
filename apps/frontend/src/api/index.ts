@@ -7,9 +7,31 @@ export const api = axios.create({
     },
 });
 
-export const getUsers = async () => {
-    const response = await api.get('/users');
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+export const getUsers = async (params?: { page?: number; limit?: number; role?: string; status?: string }) => {
+    const response = await api.get('/users', { params });
+    return response.data; // { data: User[], total: number }
+};
+
+export const importUsers = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/users/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
+};
+
+export const impersonateUser = async (targetId: string, adminId: string) => {
+    const response = await api.post(`/auth/impersonate/${targetId}`, { adminId });
+    return response.data; // { access_token }
 };
 
 export const getClassrooms = async () => {
