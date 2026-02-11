@@ -43,6 +43,7 @@ model Classroom {
   grade           Int
   students        StudentProfile[]
   homeroomTeacher TeacherProfile? @relation("HomeroomTeacher")
+  scheduleEvents  ScheduleEvent[]
 }
 
 model StudentProfile {
@@ -66,12 +67,14 @@ model TeacherProfile {
   homeroomClass Classroom? @relation("HomeroomTeacher", fields: [homeroomClassId], references: [id])
   homeroomClassId String? @unique
   createdGrades Grade[]
+  scheduleEvents ScheduleEvent[]
 }
 
 model Subject {
   id        String   @id @default(uuid())
   name      String   @unique
   grades    Grade[]
+  scheduleEvents ScheduleEvent[]
 }
 
 model Grade {
@@ -91,4 +94,20 @@ model Grade {
   teacherId       String
   
   createdAt       DateTime       @default(now())
+}
+
+model ScheduleEvent {
+  id              String         @id @default(uuid())
+  dayOfWeek       Int            // 0=Sunday, 1=Monday...
+  startTime       String         // "HH:mm"
+  endTime         String         // "HH:mm"
+  
+  subject         Subject        @relation(fields: [subjectId], references: [id])
+  subjectId       String
+  
+  classroom       Classroom      @relation(fields: [classroomId], references: [id])
+  classroomId     String
+  
+  teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
+  teacherId       String
 }
