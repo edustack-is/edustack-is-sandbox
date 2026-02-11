@@ -105,4 +105,57 @@ export class AuthService {
             access_token: this.jwtService.sign(payload),
         };
     }
+
+    async validateOAuthLogin(email: string, provider: string, providerId: string, firstName?: string, lastName?: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+            include: { identities: true },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('User not found - you must be invited by the school first.');
+        }
+
+        if (user.status === 'SUSPENDED' || user.status === 'ARCHIVED') {
+            throw new UnauthorizedException('User account is suspended or archived.');
+        }
+
+        // Check if identity exists
+        const existingIdentity = user.identities.find(
+            (id) => id.provider === provider && id.providerId === providerId,
+        );
+
+        if (!existingIdentity) {
+            await this.prisma.identity.create({
+                data: {
+                    provider,
+                    providerId,
+                    userId: user.id,
+                },
+            });
+        }
+
+        // Activate user if pending
+        if (user.status === 'PENDING') {
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    status: 'ACTIVE',
+                    invitationToken: null,
+                    invitationExpires: null,
+                    lastLogin: new Date(),
+                    // Update name if missing
+                    ...((!user.firstName && firstName) ? { firstName } : {}),
+                    ...((!user.lastName && lastName) ? { lastName } : {}),
+                },
+            });
+        } else {
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: { lastLogin: new Date() },
+            });
+        }
+
+        return this.login(user);
+    }
 }
