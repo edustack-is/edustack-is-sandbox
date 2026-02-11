@@ -39,6 +39,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-student}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
       POSTGRES_DB: ${POSTGRES_DB:-skola_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-student}:${POSTGRES_PASSWORD:-student}@postgres:5432/${POSTGRES_DB:-skola_db}
     depends_on:
       - postgres
 
