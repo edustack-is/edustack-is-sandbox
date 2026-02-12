@@ -138,3 +138,13 @@
   - `apps/backend/prisma/schema.prisma`
   - `apps/backend/prisma/migrations/20260212190229_add_school_config/`
 - **Commit**: `Task 1.7: Application Initialization Schema`
+
+## Task 1.8: Inicializační Modul (InitModule)
+- **Popis**: Implementace modulu pro inicializaci aplikace.
+  - `InitService`: Metody `getStatus` a `setup`. Setup probíhá v transakci (vytvoření školy + admina).
+  - `InitController`: Public endpointy `GET /api/init/status` a `POST /api/init/setup`.
+  - Registrace v `AppModule`.
+- **Soubory**:
+  - `apps/backend/src/init/*`
+  - `apps/backend/src/app.module.ts`
+- **Commit**: `Task 1.8: Initialization Module`
