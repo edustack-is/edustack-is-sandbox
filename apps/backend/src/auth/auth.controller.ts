@@ -57,6 +57,18 @@ export class AuthController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('schools')
+    async getSchools(@Req() req: any) {
+        return this.authService.getSchools(req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('select-school/:schoolId')
+    async selectSchool(@Param('schoolId') schoolId: string, @Req() req: any) {
+        return this.authService.selectSchool(req.user.userId, schoolId);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('me')
     async getMe(@Req() req: any) {
         return this.authService.getMe(req.user.userId);

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as crypto from 'crypto';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class AiService {
@@ -38,6 +38,16 @@ export class AiService {
 
         const createdStudents = [];
 
+        // Fetch classroom to get schoolId
+        const classroom = await this.prisma.classroom.findUnique({
+            where: { id: classroomId },
+            select: { schoolId: true }
+        });
+
+        if (!classroom) {
+            throw new Error('Classroom not found');
+        }
+
         for (const student of studentsData) {
             const email = `${student.firstName.toLowerCase()}.${student.lastName.toLowerCase()}.${crypto.randomBytes(2).toString('hex')}@skola.cz`;
 
@@ -47,7 +57,13 @@ export class AiService {
                     firstName: student.firstName,
                     lastName: student.lastName,
                     passwordHash: 'seeded_password', // In real app, hash this
-                    role: UserRole.STUDENT,
+                    schoolMemberships: {
+                        create: {
+                            schoolId: classroom.schoolId,
+                            role: UserRole.STUDENT,
+                            status: UserStatus.ACTIVE
+                        }
+                    },
                     studentProfile: {
                         create: {
                             firstName: student.firstName,
@@ -58,6 +74,7 @@ export class AiService {
                 },
                 include: {
                     studentProfile: true,
+                    schoolMemberships: true,
                 },
             });
             createdStudents.push(user);

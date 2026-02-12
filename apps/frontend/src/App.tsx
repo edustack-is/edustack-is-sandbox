@@ -7,6 +7,8 @@ import { Grading } from './pages/Grading';
 import { Schedule } from './pages/Schedule';
 import Users from './pages/Users';
 import { Setup } from './pages/Setup';
+import { SystemAdminSchools } from './pages/SystemAdminSchools';
+import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { Login } from './pages/Login';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { getInitStatus } from './api';
@@ -32,7 +34,7 @@ function App() {
       .then((res) => setInitialized(res.initialized))
       .catch((err) => {
         console.error('Failed to get init status', err);
-        setInitialized(false); // Fallback to setup if check fails (e.g. backend down or 404)
+        setInitialized(false);
       });
   }, []);
 
@@ -44,9 +46,9 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={!initialized ? <Navigate to="/setup" /> : <Login />} />
 
-        <Route element={<ProtectedRoute />}>
+        <Route element={!initialized ? <Navigate to="/setup" replace /> : <ProtectedRoute />}>
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -54,6 +56,8 @@ function App() {
             <Route path="grading" element={<Grading />} />
             <Route path="schedule" element={<Schedule />} />
             <Route path="users" element={<Users />} />
+            <Route path="system/schools" element={<SystemAdminSchools />} />
+            <Route path="system/users" element={<SystemAdminUsers />} />
           </Route>
         </Route>
 

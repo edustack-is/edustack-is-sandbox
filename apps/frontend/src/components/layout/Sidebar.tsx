@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, GraduationCap, Calendar, Users, LogOut, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, BookOpen, GraduationCap, Calendar, Users, LogOut, User as UserIcon, Building2, Users2 } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { Button } from '@/components/ui/button';
@@ -57,6 +57,39 @@ export const Sidebar: React.FC = () => {
                         <span>{item.label}</span>
                     </NavLink>
                 ))}
+
+                {/* System Admin Section */}
+                {user?.isSystemAdmin && (
+                    <>
+                        <div className="mt-4 mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            System Admin
+                        </div>
+                        <NavLink
+                            to="/system/schools"
+                            className={({ isActive }) => clsx(
+                                'nav-item flex items-center space-x-3 px-4 py-3 rounded-md transition-colors duration-200',
+                                'hover:bg-accent hover:text-accent-foreground',
+                                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                                { 'bg-accent text-accent-foreground font-medium': isActive }
+                            )}
+                        >
+                            <Building2 size={20} />
+                            <span>Školy</span>
+                        </NavLink>
+                        <NavLink
+                            to="/system/users"
+                            className={({ isActive }) => clsx(
+                                'nav-item flex items-center space-x-3 px-4 py-3 rounded-md transition-colors duration-200',
+                                'hover:bg-accent hover:text-accent-foreground',
+                                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                                { 'bg-accent text-accent-foreground font-medium': isActive }
+                            )}
+                        >
+                            <Users2 size={20} />
+                            <span>Uživatelé</span>
+                        </NavLink>
+                    </>
+                )}
             </nav>
 
             <div className="p-4 border-t border-border">

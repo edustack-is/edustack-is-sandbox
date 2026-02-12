@@ -36,7 +36,7 @@ export class AuthService {
             data: {
                 invitationToken: hashedToken,
                 invitationExpires: expires,
-                status: 'PENDING',
+                // status: 'PENDING', // Removed from User model
             },
         });
 
@@ -44,41 +44,6 @@ export class AuthService {
     }
 
     async acceptInvitation(token: string, password: string) {
-        // We can't find by hashed token directly efficiently without storing plain or salt, 
-        // but typically invitation link includes userId OR we allow finding user by other means.
-        // However, the prompt implies "Najde uživatele podle tokenu". 
-        // Secure way: token in URL = userId + '.' + randomToken.
-        // OR we iterate/check. But for "Najde uživatele podle tokenu" implies token matches a field.
-        // If we hash it, we can't search. 
-        // FIX: The prompt says "uloží hash tokenu". So we CANNOT search by hash.
-        // USUALLY we store a look-up key (selector) and a verifier.
-        // BUT prompt simplifies: "Najde uživatele podle tokenu" AND "uloží hash". This is contradictory for efficient DB lookup.
-        // compromise: modify createInvitation to return userId anyway or assume token has userId encoded or we scan.
-        // Prompt: "Metoda acceptInvitation(token: ...)" -> "Najde uživatele podle tokenu".
-        // I will search for ANY user with invitationToken not null? No that's inefficient.
-        // I will assume for this task that we store the token as is OR the prompt meant "store token" not hash, OR we use token as ID.
-        // Let's stick to security best practice: store HASH. User must provide Email/ID to find the user record?
-        // Wait, typical flow: /auth/accept-invite?token=XYZ. 
-        // Should I change the schema to store a plain token? No, prompt says "uloží hash".
-        // I made `invitationToken` a String.
-        // I will iterate all users with pending invites? No.
-        // I will encode userId in the token returned to user? Yes. `userId.token`.
-        // Then split, find user by ID, verify token hash.
-
-        // BUT Prompt says: "Najde uživatele podle tokenu".
-        // If I cannot change the prompt requirements, I have to be smart.
-        // Maybe I search for user where `invitationToken` is NOT NULL?
-        // If there are few pending invites, iteration is okayish but bad.
-        // Let's assume the token passed to acceptInvitation is actually just the token string, and we need to find the user.
-        // If I can't search by it (because it's hashed), I need the user ID.
-        // I will adjust `createInvitation` to return a composite token or just implementation detail:
-        // I will assume the token input contains the userId or I'll implement it as such.
-        // Let's rely on `invitationToken` being unique and searchable? No, it's hashed.
-        // Okay, I will modify `createInvitation` to verify if I can change the token format.
-        // "Vrítí nehashovaný token (ten by se poslal emailem)."
-
-        // Decision: I will assume the input `token` is `userId + '.' + randomString` to find the user easily.
-
         const [userId, rawToken] = token.split('.');
         if (!userId || !rawToken) throw new BadRequestException('Invalid token format');
 
@@ -100,7 +65,7 @@ export class AuthService {
             where: { id: user.id },
             data: {
                 passwordHash,
-                status: 'ACTIVE',
+                // status: 'ACTIVE', // Removed from User model
                 invitationToken: null,
                 invitationExpires: null,
                 lastLogin: new Date(),
@@ -114,7 +79,42 @@ export class AuthService {
         // Log successful login
         await this.logLoginAttempt(user.email, true, ip, userAgent, user.id);
 
-        const payload = { sub: user.id, email: user.email, role: user.role };
+        const payload = {
+            sub: user.id,
+            email: user.email,
+            isSystemAdmin: user.isSystemAdmin,
+            type: 'GLOBAL'
+        };
+        return {
+            access_token: this.jwtService.sign(payload),
+        };
+    }
+
+    async getSchools(userId: string) {
+        return this.prisma.schoolMembership.findMany({
+            where: { userId, status: 'ACTIVE' },
+            include: { school: true },
+        });
+    }
+
+    async selectSchool(userId: string, schoolId: string) {
+        const membership = await this.prisma.schoolMembership.findUnique({
+            where: { userId_schoolId: { userId, schoolId } },
+            include: { user: true }
+        });
+
+        if (!membership || membership.status !== 'ACTIVE') {
+            throw new UnauthorizedException('User is not an active member of this school.');
+        }
+
+        const payload = {
+            sub: userId,
+            email: membership.user.email,
+            schoolId: membership.schoolId,
+            role: membership.role,
+            type: 'TENANT'
+        };
+
         return {
             access_token: this.jwtService.sign(payload),
         };
@@ -122,34 +122,15 @@ export class AuthService {
 
     async logLoginAttempt(email: string, success: boolean, ip?: string, userAgent?: string, userId?: string) {
         try {
-            // If we have userId (successful login), use it. 
-            // If failed, we don't have a reliable actorId from DB (unless we searched by email).
-            // Schema requires actorId. 
-            // Strategy: 
-            // 1. If success, actorId = userId.
-            // 2. If failed, try to find user by email to attribute the failure? 
-            //    Or log as 'system' / 'anonymous'?
-            //    Security best practice: Log the attempt.
-            //    If we can't map to a user, we might need a nullable actorId or a specific "Anonymous" user.
-            //    For this specific task and schema (User relation required), let's find the user if possible.
-
             let actorId = userId;
             if (!actorId) {
                 const user = await this.prisma.user.findUnique({ where: { email } });
                 actorId = user?.id;
             }
 
-            if (!actorId) {
-                // If user doesn't exist, we can't log to AuditLog with current schema constraints (actorId is required FK to User).
-                // We could log to SystemLog or just console.error.
-                // Or we have a 'system' user. 
-                // Let's create a SystemLog for unknown users.
-                if (!success) {
-                    console.warn(`Failed login attempt for unknown user: ${email} from ${ip}`);
-                    // Store to SystemLog if exists? Yes.
-                    // await this.prisma.systemLog.create({ ... }) // Not fully implemented in prompt, but safer.
-                    return;
-                }
+            if (!actorId && !success) {
+                console.warn(`Failed login attempt for unknown user: ${email} from ${ip}`);
+                return;
             }
 
             if (actorId) {
@@ -158,7 +139,7 @@ export class AuthService {
                         action: success ? 'LOGIN' : 'LOGIN_FAILED',
                         actorId: actorId,
                         entity: 'Auth',
-                        entityId: email, // Use email as limit/identifier
+                        entityId: email,
                         ipAddress: ip,
                         userAgent: userAgent,
                         newValues: { success },
@@ -180,10 +161,6 @@ export class AuthService {
             throw new UnauthorizedException('User not found - you must be invited by the school first.');
         }
 
-        if (user.status === 'SUSPENDED' || user.status === 'ARCHIVED') {
-            throw new UnauthorizedException('User account is suspended or archived.');
-        }
-
         // Check if identity exists
         const existingIdentity = user.identities.find(
             (id) => id.provider === provider && id.providerId === providerId,
@@ -199,57 +176,39 @@ export class AuthService {
             });
         }
 
-        // Activate user if pending
-        if (user.status === 'PENDING') {
-            await this.prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    status: 'ACTIVE',
-                    invitationToken: null,
-                    invitationExpires: null,
-                    lastLogin: new Date(),
-                    // Update name if missing
-                    ...((!user.firstName && firstName) ? { firstName } : {}),
-                    ...((!user.lastName && lastName) ? { lastName } : {}),
-                },
-            });
-        } else {
-            await this.prisma.user.update({
-                where: { id: user.id },
-                data: { lastLogin: new Date() },
-            });
-        }
+        // Removed status check/update on User
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() },
+        });
 
-
-        // ... validateOAuthLogin implementation ...
-
-        return this.login(user);
+        return this.login(user); // Returns Global token
     }
 
     async impersonate(adminId: string, targetUserId: string) {
         const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
         if (!targetUser) throw new NotFoundException('Target user not found');
 
-        if (targetUser.role === UserRole.ADMIN) {
-            throw new UnauthorizedException('Cannot impersonate an Admin.');
+        if (targetUser.isSystemAdmin) {
+            throw new UnauthorizedException('Cannot impersonate a System Admin.');
         }
 
-        // Audit Log
         await this.prisma.auditLog.create({
             data: {
                 action: 'IMPERSONATE',
                 actorId: adminId,
                 entity: 'User',
                 entityId: targetUserId,
-                oldValues: undefined,
                 newValues: { reason: 'Support' },
             },
         });
 
+        // Impersonation grants a Global Token for the target user
         const payload = {
             sub: targetUser.id,
             email: targetUser.email,
-            role: targetUser.role,
+            isSystemAdmin: targetUser.isSystemAdmin,
+            type: 'GLOBAL',
             isImpersonated: true,
             actorId: adminId,
         };

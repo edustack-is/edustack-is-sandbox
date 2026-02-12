@@ -68,3 +68,23 @@ export const getMe = async () => {
     const response = await api.get('/api/auth/me');
     return response.data; // User object
 };
+
+// System Admin API
+export const getSystemSchools = async () => {
+    const response = await api.get('/api/system/schools');
+    return response.data;
+};
+
+export const createSystemSchool = async (payload: {
+    schoolName: string;
+    address?: string;
+    admin: { type: 'EXISTING'; userId: string } | { type: 'NEW'; firstName: string; lastName: string; email: string };
+}) => {
+    const response = await api.post('/api/system/schools', payload);
+    return response.data;
+};
+
+export const searchUsers = async (query: string) => {
+    const response = await api.get('/api/users', { params: { search: query, limit: 20 } });
+    return response.data;
+};

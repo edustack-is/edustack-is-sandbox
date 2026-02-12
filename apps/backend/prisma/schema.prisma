@@ -34,14 +34,33 @@ enum UserStatus {
   ARCHIVED
 }
 
+model School {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  contactEmail String?
+  ssoConfig   Json?
+  aiConfig    Json?
+  
+  members     SchoolMembership[]
+  classrooms  Classroom[]
+  subjects    Subject[]
+  grades      Grade[]
+  scheduleEvents ScheduleEvent[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model User {
   id                String      @id @default(uuid())
   email             String      @unique
   firstName         String
   lastName          String
   passwordHash      String?
-  role              UserRole    @default(STUDENT)
-  status            UserStatus  @default(PENDING)
+  // role and status moved to SchoolMembership
+  isSystemAdmin     Boolean     @default(false)
+  
   invitationToken   String?
   invitationExpires DateTime?
   lastLogin         DateTime?
@@ -52,7 +71,24 @@ model User {
   teacherProfile    TeacherProfile?
   identities        Identity[]
   
+  schoolMemberships SchoolMembership[]
   auditLogsAsActor  AuditLog[]  @relation("AuditActor")
+}
+
+model SchoolMembership {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  schoolId  String
+  school    School     @relation(fields: [schoolId], references: [id])
+  
+  role      UserRole   @default(STUDENT)
+  status    UserStatus @default(PENDING)
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([userId, schoolId])
 }
 
 model Identity {
@@ -84,6 +120,10 @@ model Classroom {
   id              String          @id @default(uuid())
   name            String
   grade           Int
+  
+  schoolId        String
+  school          School          @relation(fields: [schoolId], references: [id])
+
   students        StudentProfile[]
   homeroomTeacher TeacherProfile? @relation("HomeroomTeacher")
   scheduleEvents  ScheduleEvent[]
@@ -115,9 +155,16 @@ model TeacherProfile {
 
 model Subject {
   id        String   @id @default(uuid())
-  name      String   @unique
+  name      String   
+  // Note: removed @unique from name because it should be unique per school, not global
+  
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+
   grades    Grade[]
   scheduleEvents ScheduleEvent[]
+
+  @@unique([name, schoolId])
 }
 
 model Grade {
@@ -126,6 +173,9 @@ model Grade {
   weight          Float          // 0.1 - 1.0
   description     String?
   date            DateTime       @default(now())
+  
+  schoolId        String
+  school          School         @relation(fields: [schoolId], references: [id])
   
   studentProfile  StudentProfile @relation(fields: [studentId], references: [id])
   studentId       String
@@ -145,6 +195,9 @@ model ScheduleEvent {
   startTime       String         // "HH:mm"
   endTime         String         // "HH:mm"
   
+  schoolId        String
+  school          School         @relation(fields: [schoolId], references: [id])
+  
   subject         Subject        @relation(fields: [subjectId], references: [id])
   subjectId       String
   
@@ -153,14 +206,4 @@ model ScheduleEvent {
   
   teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
   teacherId       String
-}
-
-model SchoolConfig {
-  id            String   @id @default(uuid())
-  schoolName    String
-  address       String
-  contactEmail  String
-  isInitialized Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 }

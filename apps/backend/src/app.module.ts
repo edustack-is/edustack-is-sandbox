@@ -11,6 +11,7 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { InitModule } from './init/init.module';
+import { SystemAdminModule } from './system-admin/system-admin.module';
 import { ClsModule } from 'nestjs-cls';
 import { UserContextInterceptor } from './auth/user-context.interceptor';
 
@@ -20,7 +21,7 @@ import { UserContextInterceptor } from './auth/user-context.interceptor';
       global: true,
       middleware: { mount: true },
     }),
-    UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule
+    UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule, SystemAdminModule
   ],
   controllers: [AppController],
   providers: [

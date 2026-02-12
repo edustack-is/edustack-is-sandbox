@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { UserRole, UserStatus } from '@prisma/client';
@@ -18,8 +18,17 @@ export class InitService {
     constructor(private prisma: PrismaService) { }
 
     async getStatus() {
-        const config = await this.prisma.schoolConfig.findFirst();
-        return { initialized: config?.isInitialized ?? false };
+        try {
+            const schoolCount = await this.prisma.school.count();
+            const userCount = await this.prisma.user.count();
+            return { initialized: schoolCount > 0 && userCount > 0 };
+        } catch (error: any) {
+            // Tables may not exist yet (fresh DB before prisma db push)
+            if (error?.code === 'P2021') {
+                return { initialized: false };
+            }
+            throw error;
+        }
     }
 
     async setup(data: SetupDto) {
@@ -30,31 +39,37 @@ export class InitService {
 
         const hashedPassword = await bcrypt.hash(data.adminPassword, 10);
 
-        return await this.prisma.$transaction(async (tx) => {
-            // Create School Config
-            const schoolConfig = await tx.schoolConfig.create({
+        return await this.prisma.$transaction(async (tx: any) => {
+            // Create First School (tenant)
+            const school = await tx.school.create({
                 data: {
-                    schoolName: data.schoolName,
+                    name: data.schoolName,
                     address: data.address,
                     contactEmail: data.contactEmail,
-                    isInitialized: true,
                 },
             });
 
-            // Create Admin User
+            // Create Admin User with System Admin privileges
             const adminUser = await tx.user.create({
                 data: {
                     email: data.adminEmail,
                     firstName: data.adminFirstName,
                     lastName: data.adminLastName,
                     passwordHash: hashedPassword,
-                    role: UserRole.ADMIN,
-                    status: UserStatus.ACTIVE,
+                    isSystemAdmin: true,
+                    schoolMemberships: {
+                        create: {
+                            schoolId: school.id,
+                            role: UserRole.ADMIN,
+                            status: UserStatus.ACTIVE,
+                        },
+                    },
                 },
+                include: { schoolMemberships: true },
             });
 
             return {
-                school: schoolConfig,
+                school,
                 admin: {
                     id: adminUser.id,
                     email: adminUser.email,

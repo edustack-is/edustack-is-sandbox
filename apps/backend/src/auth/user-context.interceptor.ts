@@ -12,6 +12,10 @@ export class UserContextInterceptor implements NestInterceptor {
 
         if (user) {
             this.cls.set('user', user);
+            // If this is a Tenant JWT, propagate schoolId for data isolation
+            if (user.schoolId) {
+                this.cls.set('schoolId', user.schoolId);
+            }
         }
 
         return next.handle();
