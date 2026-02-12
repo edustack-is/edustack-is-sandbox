@@ -161,3 +161,18 @@
   - `apps/backend/src/auth/*`
   - `apps/backend/src/app.module.ts`
 - **Commit**: `Task 1.9 & 1.10: JWT Authentication & Guards`
+
+## Phase 2: Frontend Wizard & Auth (Tasks 2.1 - 2.4)
+- **Popis**: Implementace frontendového průvodce a přihlašování.
+  - Vytvořeny stránky `Setup.tsx` (inicializace aplikace) a `Login.tsx`.
+  - Implementována logika v `App.tsx` pro kontrolu stavu inicializace a přesměrování.
+  - Přidány metody do API klienta.
+  - Ošetření chybových stavů při načítání.
+- **Soubory**:
+  - `apps/frontend/src/api/index.ts`
+  - `apps/frontend/src/pages/Setup.tsx`
+  - `apps/frontend/src/pages/Login.tsx`
+  - `apps/frontend/src/App.tsx`
+  - `apps/frontend/src/components/layout/Layout.tsx`
+  - `apps/frontend/vite.config.ts`
+- **Commit**: `Phase 2: Frontend Wizard & Auth`

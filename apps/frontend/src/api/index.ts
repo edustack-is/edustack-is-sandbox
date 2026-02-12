@@ -48,3 +48,18 @@ export const validateSchedule = async (data: any) => {
     const response = await api.post('/api/schedule/validate', data);
     return response.data;
 };
+
+export const getInitStatus = async () => {
+    const response = await api.get('/api/init/status');
+    return response.data; // { initialized: boolean }
+};
+
+export const setupApp = async (data: any) => {
+    const response = await api.post('/api/init/setup', data);
+    return response.data; // { school: SchoolConfig, admin: User }
+};
+
+export const login = async (credentials: { email: string; password: string }) => {
+    const response = await api.post('/auth/login', credentials);
+    return response.data; // { access_token: string }
+};
