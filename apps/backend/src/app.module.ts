@@ -6,9 +6,10 @@ import { RegistryModule } from './registry/registry.module';
 import { GradingModule } from './grading/grading.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { AiModule } from './ai/ai.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule],
+  imports: [UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })
