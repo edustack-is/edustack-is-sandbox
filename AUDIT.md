@@ -176,3 +176,40 @@
   - `apps/frontend/src/components/layout/Layout.tsx`
   - `apps/frontend/vite.config.ts`
 - **Commit**: `Phase 2: Frontend Wizard & Auth`
+
+## Task 4.3 & 4.4: Frontend Infrastructure (Tailwind CSS & Shadcn/ui)
+- **Popis**: Nastavení stylování a UI komponent.
+  - Instalace Tailwind CSS, PostCSS, Autoprefixer.
+  - Konfigurace `tailwind.config.js` a `postcss.config.js`.
+  - Inicializace `shadcn/ui` a instalace základních komponent (Button, Card, Input, Label, Form, Dialog).
+  - Konfigurace aliasů `@/*` v `tsconfig.app.json` a `vite.config.ts`.
+- **Soubory**:
+  - `apps/frontend/package.json`
+  - `apps/frontend/tailwind.config.js`
+  - `apps/frontend/postcss.config.js`
+  - `apps/frontend/src/index.css`
+  - `apps/frontend/components.json`
+  - `apps/frontend/src/lib/utils.ts`
+  - `apps/frontend/src/components/ui/*`
+- **Commit**: `Task 4.3 & 4.4: Frontend Infrastructure (Tailwind CSS & Shadcn/ui)`
+
+## Task 4.5: Main Layout & Dashboard
+- **Popis**: Implementace hlavního layoutu a dashboardu.
+  - `MainLayout`: Responzivní layout s postranním panelem.
+  - `Sidebar`: Navigace (Nástěnka, Uživatelé, Rozvrh, Klasifikace, AI Tutor).
+  - `Dashboard`: Úvodní stránka s přehledovými kartami.
+  - `App.tsx`: Routing pro `/dashboard`.
+  - Fix: Přidání proxy pro `/auth` do `vite.config.ts`.
+- **Soubory**:
+  - `apps/frontend/src/components/layout/MainLayout.tsx`
+  - `apps/frontend/src/components/layout/Sidebar.tsx`
+  - `apps/frontend/src/pages/Dashboard.tsx`
+  - `apps/frontend/src/App.tsx`
+  - `apps/frontend/vite.config.ts`
+- **Commit**: `Task 4.5: Main Layout, Sidebar & Dashboard`
+
+## Fix: AI Seeder UserRole
+- **Popis**: Oprava používání `UserRole` enumu v `AiService` a vyplňování `firstName`/`lastName` v tabulce User.
+- **Soubory**:
+  - `apps/backend/src/ai/ai.service.ts`
+- **Commit**: `Fix: AI Seeder UserRole & User fields`
