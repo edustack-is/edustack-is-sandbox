@@ -114,3 +114,27 @@
   - Důvod: Prisma v7.4.0 vyžaduje Node.js v20+, což způsobovalo pád backend kontejneru.
 - **Soubory**:
   - `docker-compose.yml`
+
+## Task 1.1 - 1.6: Phase 1 Enhanced (Identity & User Management)
+- **Popis**: Rozšíření správy identit.
+  - Vylepšený User model (status, invitations).
+  - Přidány modely Identity (SSO) a AuditLog.
+  - Implementován Invitation flow a SSO linking.
+  - Implementována Impersonace uživatelů.
+  - Frontend: User Management tabulka, CSV Import, Impersonation Banner.
+- **Soubory**:
+  - `apps/backend/prisma/migrations/20260212185920_advanced_identity_fix/`
+  - `apps/backend/src/users/*`
+  - `apps/backend/src/auth/auth.service.ts`
+  - `apps/backend/src/auth/auth.controller.ts`
+  - `apps/frontend/src/pages/Users.tsx`
+  - `apps/frontend/src/components/ImpersonationBanner.tsx`
+  - `apps/frontend/src/components/layout/Sidebar.tsx`
+- **Commit**: `Phase 1 Enhanced: Identity, Invitations, Impersonation`
+
+## Task 1.7: Application Initialization Schema
+- **Popis**: Rozšíření schématu o `SchoolConfig` pro uložení globálního nastavení školy a stavu inicializace.
+- **Soubory**:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/prisma/migrations/20260212190229_add_school_config/`
+- **Commit**: `Task 1.7: Application Initialization Schema`
