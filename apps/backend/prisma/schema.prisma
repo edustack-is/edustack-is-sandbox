@@ -19,12 +19,12 @@ model SystemLog {
   createdAt DateTime @default(now())
 }
 
-enum Role {
-  STUDENT
-  TEACHER
-  PARENT
+enum UserRole {
   ADMIN
   DIRECTOR
+  TEACHER
+  STUDENT
+  PARENT
 }
 
 enum UserStatus {
@@ -37,10 +37,10 @@ enum UserStatus {
 model User {
   id                String      @id @default(uuid())
   email             String      @unique
-  firstName         String?
-  lastName          String?
+  firstName         String
+  lastName          String
   passwordHash      String?
-  role              Role        @default(STUDENT)
+  role              UserRole    @default(STUDENT)
   status            UserStatus  @default(PENDING)
   invitationToken   String?
   invitationExpires DateTime?
@@ -51,6 +51,9 @@ model User {
   studentProfile    StudentProfile?
   teacherProfile    TeacherProfile?
   identities        Identity[]
+  
+  auditLogsAsActor  AuditLog[]  @relation("AuditActor")
+  auditLogsAsTarget AuditLog[]  @relation("AuditTarget")
 }
 
 model Identity {
@@ -68,8 +71,13 @@ model AuditLog {
   id        Int      @id @default(autoincrement())
   action    String
   metadata  Json?
+  
+  actor     User     @relation("AuditActor", fields: [actorId], references: [id])
   actorId   String
+  
+  target    User?    @relation("AuditTarget", fields: [targetId], references: [id])
   targetId  String?
+  
   createdAt DateTime @default(now())
 }
 
@@ -146,4 +154,14 @@ model ScheduleEvent {
   
   teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
   teacherId       String
+}
+
+model SchoolConfig {
+  id            String   @id @default(uuid())
+  schoolName    String
+  address       String
+  contactEmail  String
+  isInitialized Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
