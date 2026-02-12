@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, User, Role, UserStatus } from '@prisma/client';
+import { Prisma, User, UserRole, UserStatus } from '@prisma/client';
 import { Readable } from 'stream';
 import csv from 'csv-parser';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ const CreateUserSchema = z.object({
     email: z.string().email(),
     firstName: z.string().min(1),
     lastName: z.string().min(1),
-    role: z.nativeEnum(Role),
+    role: z.nativeEnum(UserRole),
 });
 
 @Injectable()
@@ -25,7 +25,7 @@ export class UsersService {
     async findAll(params: {
         skip?: number;
         take?: number;
-        role?: Role;
+        role?: UserRole;
         status?: UserStatus;
     }): Promise<{ data: User[]; total: number }> {
         const { skip, take, role, status } = params;
@@ -71,7 +71,7 @@ export class UsersService {
                                 email: row.email,
                                 firstName: row.firstName,
                                 lastName: row.lastName,
-                                role: row.role as Role,
+                                role: row.role as UserRole,
                             };
 
                             const validated = CreateUserSchema.parse(userDto);

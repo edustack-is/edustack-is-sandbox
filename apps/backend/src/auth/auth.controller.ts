@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Param, Get, Query, BadRequestException } from '@nestjs/common';
+import { Public } from './public.decorator';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -34,5 +35,15 @@ export class AuthController {
         // const admin = await this.prisma.user.findUnique(...)
 
         return this.authService.impersonate(adminId, targetUserId);
+    }
+
+    @Public()
+    @Post('login')
+    async login(@Body() body: Record<string, string>) {
+        const user = await this.authService.validateUser(body.email, body.password);
+        if (!user) {
+            throw new BadRequestException('Invalid credentials');
+        }
+        return this.authService.login(user);
     }
 }

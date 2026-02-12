@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -10,6 +11,16 @@ export class AuthService {
         private prisma: PrismaService,
         private jwtService: JwtService,
     ) { }
+
+    async validateUser(email: string, pass: string): Promise<any> {
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        // Check if user exists AND has a password (SSO users might not have one)
+        if (user && user.passwordHash && (await bcrypt.compare(pass, user.passwordHash))) {
+            const { passwordHash, ...result } = user;
+            return result;
+        }
+        return null;
+    }
 
     async createInvitation(userId: string) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -166,7 +177,7 @@ export class AuthService {
         const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
         if (!targetUser) throw new NotFoundException('Target user not found');
 
-        if (targetUser.role === 'ADMIN') {
+        if (targetUser.role === UserRole.ADMIN) {
             throw new UnauthorizedException('Cannot impersonate an Admin.');
         }
 
