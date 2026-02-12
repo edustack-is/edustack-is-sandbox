@@ -148,3 +148,16 @@
   - `apps/backend/src/init/*`
   - `apps/backend/src/app.module.ts`
 - **Commit**: `Task 1.8: Initialization Module`
+
+## Task 1.9 & 1.10: JWT Auth & Guards
+- **Popis**: Implementace JWT autentizace a autorizace.
+  - `JwtStrategy`: Strategie pro validaci JWT.
+  - `JwtAuthGuard`: Globální guard (vyžaduje token).
+  - `RolesGuard`: Globální guard pro kontrolu rolí (`@Roles`).
+  - Dekorátor `@Public`: Pro public endpointy (login, init).
+  - AuthController: `POST /login`.
+- **Soubory**:
+  - `apps/backend/package.json`
+  - `apps/backend/src/auth/*`
+  - `apps/backend/src/app.module.ts`
+- **Commit**: `Task 1.9 & 1.10: JWT Authentication & Guards`
