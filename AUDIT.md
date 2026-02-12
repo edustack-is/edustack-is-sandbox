@@ -229,4 +229,19 @@
   - `apps/backend/src/registry/registry.controller.ts`
   - `apps/frontend/src/api/index.ts`
   - `apps/frontend/vite.config.ts`
-- **Commit**: `Phase 5: Audit Logging, Security & Routing Fix`
+## Phase 6: User Profile & Logout
+- **Popis**: Implementace zobrazení profilu přihlášeného uživatele a odhlášení.
+  - **Backend**: Endpoint `GET /api/auth/me` (guarded) vrací detail uživatele.
+  - **Frontend**:
+    - API metoda `getMe`.
+    - `Sidebar`: Zobrazení avatara, jména, emailu a role.
+    - `Sidebar`: Tlačítko "Odhlásit se" (clear token + redirect).
+    - Fix: Instalace chybějících komponent `avatar` a `badge` (shadcn) do správného adresáře.
+- **Soubory**:
+  - `apps/backend/src/auth/auth.controller.ts`
+  - `apps/backend/src/auth/auth.service.ts`
+  - `apps/frontend/src/api/index.ts`
+  - `apps/frontend/src/components/layout/Sidebar.tsx`
+  - `apps/frontend/src/components/ui/avatar.tsx`
+  - `apps/frontend/src/components/ui/badge.tsx`
+- **Commit**: `Phase 6: User Profile, Logout & UI Components`

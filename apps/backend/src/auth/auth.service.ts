@@ -258,4 +258,19 @@ export class AuthService {
             access_token: this.jwtService.sign(payload),
         };
     }
+
+    async getMe(userId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                studentProfile: true,
+                teacherProfile: true,
+            },
+        });
+
+        if (!user) throw new NotFoundException('User not found');
+
+        const { passwordHash, ...result } = user;
+        return result;
+    }
 }

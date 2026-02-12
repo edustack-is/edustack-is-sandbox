@@ -2,6 +2,8 @@ import { Controller, Post, Body, Param, Get, Query, BadRequestException, Req } f
 import type { Request } from 'express';
 import { Public } from './public.decorator';
 import { AuthService } from './auth.service';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('api/auth')
 export class AuthController {
@@ -52,5 +54,11 @@ export class AuthController {
             throw new BadRequestException('Invalid credentials');
         }
         return this.authService.login(user, ip as string, userAgent);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    async getMe(@Req() req: any) {
+        return this.authService.getMe(req.user.userId);
     }
 }

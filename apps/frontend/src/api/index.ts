@@ -63,3 +63,8 @@ export const login = async (credentials: { email: string; password: string }) =>
     const response = await api.post('/api/auth/login', credentials);
     return response.data; // { access_token: string }
 };
+
+export const getMe = async () => {
+    const response = await api.get('/api/auth/me');
+    return response.data; // User object
+};
