@@ -89,6 +89,34 @@ export class SystemAdminService {
         });
     }
 
+    async getDashboardStats() {
+        const [schoolCount, userCount, activeUserCount, recentLogins] = await Promise.all([
+            this.prisma.school.count(),
+            this.prisma.user.count(),
+            this.prisma.schoolMembership.count({ where: { status: UserStatus.ACTIVE } }),
+            this.prisma.auditLog.findMany({
+                where: { action: 'LOGIN_SUCCESS' },
+                orderBy: { createdAt: 'desc' },
+                take: 10,
+                select: {
+                    id: true,
+                    createdAt: true,
+                    newValues: true,
+                    actor: {
+                        select: { id: true, email: true, firstName: true, lastName: true },
+                    },
+                },
+            }),
+        ]);
+
+        return {
+            schoolCount,
+            userCount,
+            activeUserCount,
+            recentLogins,
+        };
+    }
+
     async updateSchoolSettings(schoolId: string, aiConfig?: any, ssoConfig?: any) {
         const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
         if (!school) throw new NotFoundException('School not found');

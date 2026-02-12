@@ -4,12 +4,17 @@ import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
 
-@Controller('api/system/schools')
+@Controller('api/system')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class SystemAdminController {
     constructor(private readonly systemAdminService: SystemAdminService) { }
 
-    @Post()
+    @Get('dashboard')
+    getDashboard() {
+        return this.systemAdminService.getDashboardStats();
+    }
+
+    @Post('schools')
     createSchool(@Body() body: any) {
         try {
             const dto = validateCreateSchoolDto(body);
@@ -19,12 +24,12 @@ export class SystemAdminController {
         }
     }
 
-    @Get()
+    @Get('schools')
     getSchools() {
         return this.systemAdminService.getSchools();
     }
 
-    @Patch(':id/settings')
+    @Patch('schools/:id/settings')
     updateSettings(
         @Param('id') id: string,
         @Body('aiConfig') aiConfig?: any,
@@ -33,7 +38,7 @@ export class SystemAdminController {
         return this.systemAdminService.updateSchoolSettings(id, aiConfig, ssoConfig);
     }
 
-    @Post(':id/admins')
+    @Post('schools/:id/admins')
     assignAdmin(
         @Param('id') id: string,
         @Body('email') email: string,

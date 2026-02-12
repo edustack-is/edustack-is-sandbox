@@ -98,6 +98,29 @@ export class AuthService {
     }
 
     async selectSchool(userId: string, schoolId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new UnauthorizedException('User not found');
+
+        // System admins can select any school without membership
+        if (user.isSystemAdmin) {
+            const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+            if (!school) throw new NotFoundException('School not found');
+
+            const payload = {
+                sub: userId,
+                email: user.email,
+                isSystemAdmin: true,
+                schoolId: school.id,
+                role: 'ADMIN',
+                type: 'TENANT'
+            };
+
+            return {
+                access_token: this.jwtService.sign(payload),
+            };
+        }
+
+        // Regular users need active membership
         const membership = await this.prisma.schoolMembership.findUnique({
             where: { userId_schoolId: { userId, schoolId } },
             include: { user: true }

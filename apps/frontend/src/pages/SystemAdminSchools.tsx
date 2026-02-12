@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getSystemSchools, createSystemSchool, getUsers } from '../api';
+import { useSchool } from '@/context/SchoolContext';
+import { LogIn } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,10 +80,13 @@ type CreateSchoolFormValues = z.infer<typeof createSchoolSchema>;
 
 // ---- Component ----
 export function SystemAdminSchools() {
+    const navigate = useNavigate();
+    const { selectSchool } = useSchool();
     const [schools, setSchools] = useState<School[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [selecting, setSelecting] = useState<string | null>(null);
 
     // User search state
     const [users, setUsers] = useState<UserOption[]>([]);
@@ -177,6 +183,18 @@ export function SystemAdminSchools() {
         if (!open) {
             form.reset();
             setSelectedUser(null);
+        }
+    };
+
+    const handleSelectSchool = async (schoolId: string) => {
+        setSelecting(schoolId);
+        try {
+            await selectSchool(schoolId);
+            navigate('/dashboard');
+        } catch (err: any) {
+            alert('Failed to select school: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setSelecting(null);
         }
     };
 
@@ -421,18 +439,19 @@ export function SystemAdminSchools() {
                             <TableHead>Address</TableHead>
                             <TableHead>Admin(s)</TableHead>
                             <TableHead>Created At</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                                     Loading...
                                 </TableCell>
                             </TableRow>
                         ) : schools.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                                     No schools yet. Create your first one.
                                 </TableCell>
                             </TableRow>
@@ -453,6 +472,17 @@ export function SystemAdminSchools() {
                                     </TableCell>
                                     <TableCell>
                                         {new Date(school.createdAt).toLocaleDateString('cs-CZ')}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleSelectSchool(school.id)}
+                                            disabled={selecting === school.id}
+                                        >
+                                            <LogIn className="mr-1 h-3.5 w-3.5" />
+                                            {selecting === school.id ? 'Přepínání...' : 'Vybrat'}
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))
