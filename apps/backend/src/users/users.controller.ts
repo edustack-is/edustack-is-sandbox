@@ -1,11 +1,11 @@
-import { Controller, Post, UseInterceptors, UploadedFile, Get, Query } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, Get, Query, Param } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
-import { Prisma, User, UserRole, UserStatus } from '@prisma/client';
-import { Express } from 'express';
-import { Multer } from 'multer';
+import { UserRole, UserStatus } from '@prisma/client';
+import { LogSensitiveRead } from '../auth/log-sensitive-read.decorator';
+import { LogSensitiveReadInterceptor } from '../auth/log-sensitive-read.interceptor';
 
-@Controller('users')
+@Controller('api/users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) { }
 
@@ -30,4 +30,10 @@ export class UsersController {
         });
     }
 
+    @Get(':id')
+    @UseInterceptors(LogSensitiveReadInterceptor)
+    @LogSensitiveRead()
+    async findOne(@Param('id') id: string) {
+        return this.usersService.findOne(id);
+    }
 }

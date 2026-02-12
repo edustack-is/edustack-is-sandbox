@@ -1,8 +1,9 @@
-import { Controller, Post, Body, Param, Get, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query, BadRequestException, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { Public } from './public.decorator';
 import { AuthService } from './auth.service';
 
-@Controller('auth')
+@Controller('api/auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
@@ -39,11 +40,17 @@ export class AuthController {
 
     @Public()
     @Post('login')
-    async login(@Body() body: Record<string, string>) {
+    async login(@Body() body: Record<string, string>, @Req() req: Request) {
+        // Extract IP and User-Agent
+        const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+
         const user = await this.authService.validateUser(body.email, body.password);
         if (!user) {
+            // Log failed attempt
+            await this.authService.logLoginAttempt(body.email, false, ip as string, userAgent);
             throw new BadRequestException('Invalid credentials');
         }
-        return this.authService.login(user);
+        return this.authService.login(user, ip as string, userAgent);
     }
 }

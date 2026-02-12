@@ -52,6 +52,17 @@ export class UsersService {
         return { data, total };
     }
 
+    async findOne(id: string): Promise<User | null> {
+        return this.prisma.user.findUnique({
+            where: { id },
+            include: {
+                studentProfile: true,
+                teacherProfile: true,
+                identities: true,
+            },
+        });
+    }
+
     async importUsersFromCsv(fileBuffer: Buffer) {
         const results: any[] = [];
         const stream = Readable.from(fileBuffer);

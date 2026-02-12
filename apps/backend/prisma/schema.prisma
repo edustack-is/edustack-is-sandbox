@@ -53,7 +53,6 @@ model User {
   identities        Identity[]
   
   auditLogsAsActor  AuditLog[]  @relation("AuditActor")
-  auditLogsAsTarget AuditLog[]  @relation("AuditTarget")
 }
 
 model Identity {
@@ -68,17 +67,17 @@ model Identity {
 }
 
 model AuditLog {
-  id        Int      @id @default(autoincrement())
-  action    String
-  metadata  Json?
-  
-  actor     User     @relation("AuditActor", fields: [actorId], references: [id])
-  actorId   String
-  
-  target    User?    @relation("AuditTarget", fields: [targetId], references: [id])
-  targetId  String?
-  
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  actor       User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorId     String
+  action      String   // e.g., 'LOGIN', 'UPDATE', 'READ_SENSITIVE'
+  entity      String   // the table name
+  entityId    String   // the record ID
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
 }
 
 model Classroom {

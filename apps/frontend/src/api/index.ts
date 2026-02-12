@@ -16,26 +16,26 @@ api.interceptors.request.use((config) => {
 });
 
 export const getUsers = async (params?: { page?: number; limit?: number; role?: string; status?: string }) => {
-    const response = await api.get('/users', { params });
+    const response = await api.get('/api/users', { params });
     return response.data; // { data: User[], total: number }
 };
 
 export const importUsers = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/users/import', formData, {
+    const response = await api.post('/api/users/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
 };
 
 export const impersonateUser = async (targetId: string, adminId: string) => {
-    const response = await api.post(`/auth/impersonate/${targetId}`, { adminId });
+    const response = await api.post(`/api/auth/impersonate/${targetId}`, { adminId });
     return response.data; // { access_token }
 };
 
 export const getClassrooms = async () => {
-    const response = await api.get('/registry/classrooms');
+    const response = await api.get('/api/registry/classrooms');
     return response.data;
 };
 
@@ -60,6 +60,6 @@ export const setupApp = async (data: any) => {
 };
 
 export const login = async (credentials: { email: string; password: string }) => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/api/auth/login', credentials);
     return response.data; // { access_token: string }
 };

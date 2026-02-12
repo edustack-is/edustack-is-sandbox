@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body } from '@nestjs/common';
 import { RegistryService } from './registry.service';
 import { Prisma, Classroom, StudentProfile, TeacherProfile } from '@prisma/client';
 
-@Controller('registry')
+@Controller('api/registry')
 export class RegistryController {
     constructor(private readonly registryService: RegistryService) { }
 

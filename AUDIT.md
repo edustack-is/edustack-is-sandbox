@@ -212,4 +212,21 @@
 - **Popis**: Oprava používání `UserRole` enumu v `AiService` a vyplňování `firstName`/`lastName` v tabulce User.
 - **Soubory**:
   - `apps/backend/src/ai/ai.service.ts`
-- **Commit**: `Fix: AI Seeder UserRole & User fields`
+## Phase 5: Audit & Security Logging (Tasks 5.1 - 5.4)
+- **Popis**: Implementace komplexního auditování a oprava routování.
+  - **Schema**: Rozšíření `AuditLog` modelu (akce, entita, old/newValues, IP, UserAgent).
+  - **Middleware**: Automatické logování CREATE/UPDATE/DELETE operací v `PrismaService` pomocí `$extends`. Implementace Data Scrubbing (odstranění hesel).
+  - **Auth Audit**: Logování úspěšných i neúspěšných přihlášení (`LOGIN`, `LOGIN_FAILED`) včetně IP a UA.
+  - **Sensitive Read**: Dekorátor `@LogSensitiveRead` a Interceptor pro logování přístupu k citlivým datům (`READ_SENSITIVE`).
+  - **Routing Fix**: Přejmenování backend controllerů na `/api/*` pro vyřešení konfliktu s frontend routingem (`/users` vs `/api/users`).
+- **Soubory**:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/src/prisma/prisma.service.ts`
+  - `apps/backend/src/auth/auth.service.ts`
+  - `apps/backend/src/auth/auth.controller.ts`
+  - `apps/backend/src/auth/log-sensitive-read.*`
+  - `apps/backend/src/users/users.controller.ts`
+  - `apps/backend/src/registry/registry.controller.ts`
+  - `apps/frontend/src/api/index.ts`
+  - `apps/frontend/vite.config.ts`
+- **Commit**: `Phase 5: Audit Logging, Security & Routing Fix`

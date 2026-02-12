@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -10,12 +10,25 @@ import { GradingModule } from './grading/grading.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
-
 import { InitModule } from './init/init.module';
+import { ClsModule } from 'nestjs-cls';
+import { UserContextInterceptor } from './auth/user-context.interceptor';
 
 @Module({
-  imports: [UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule],
+  imports: [
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+    }),
+    UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UserContextInterceptor,
+    },
+  ],
 })
 export class AppModule { }

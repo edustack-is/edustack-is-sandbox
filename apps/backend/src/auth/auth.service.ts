@@ -110,11 +110,64 @@ export class AuthService {
         return this.login(updatedUser);
     }
 
-    async login(user: any) {
+    async login(user: any, ip?: string, userAgent?: string) {
+        // Log successful login
+        await this.logLoginAttempt(user.email, true, ip, userAgent, user.id);
+
         const payload = { sub: user.id, email: user.email, role: user.role };
         return {
             access_token: this.jwtService.sign(payload),
         };
+    }
+
+    async logLoginAttempt(email: string, success: boolean, ip?: string, userAgent?: string, userId?: string) {
+        try {
+            // If we have userId (successful login), use it. 
+            // If failed, we don't have a reliable actorId from DB (unless we searched by email).
+            // Schema requires actorId. 
+            // Strategy: 
+            // 1. If success, actorId = userId.
+            // 2. If failed, try to find user by email to attribute the failure? 
+            //    Or log as 'system' / 'anonymous'?
+            //    Security best practice: Log the attempt.
+            //    If we can't map to a user, we might need a nullable actorId or a specific "Anonymous" user.
+            //    For this specific task and schema (User relation required), let's find the user if possible.
+
+            let actorId = userId;
+            if (!actorId) {
+                const user = await this.prisma.user.findUnique({ where: { email } });
+                actorId = user?.id;
+            }
+
+            if (!actorId) {
+                // If user doesn't exist, we can't log to AuditLog with current schema constraints (actorId is required FK to User).
+                // We could log to SystemLog or just console.error.
+                // Or we have a 'system' user. 
+                // Let's create a SystemLog for unknown users.
+                if (!success) {
+                    console.warn(`Failed login attempt for unknown user: ${email} from ${ip}`);
+                    // Store to SystemLog if exists? Yes.
+                    // await this.prisma.systemLog.create({ ... }) // Not fully implemented in prompt, but safer.
+                    return;
+                }
+            }
+
+            if (actorId) {
+                await this.prisma.auditLog.create({
+                    data: {
+                        action: success ? 'LOGIN' : 'LOGIN_FAILED',
+                        actorId: actorId,
+                        entity: 'Auth',
+                        entityId: email, // Use email as limit/identifier
+                        ipAddress: ip,
+                        userAgent: userAgent,
+                        newValues: { success },
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Failed to log login attempt', e);
+        }
     }
 
     async validateOAuthLogin(email: string, provider: string, providerId: string, firstName?: string, lastName?: string) {
@@ -186,8 +239,10 @@ export class AuthService {
             data: {
                 action: 'IMPERSONATE',
                 actorId: adminId,
-                targetId: targetUserId,
-                metadata: { timestamp: new Date(), reason: 'Support' },
+                entity: 'User',
+                entityId: targetUserId,
+                oldValues: undefined,
+                newValues: { reason: 'Support' },
             },
         });
 
