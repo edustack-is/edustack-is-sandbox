@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Layout } from './components/layout/Layout';
+import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Registry } from './pages/Registry';
 import { Grading } from './pages/Grading';
@@ -47,8 +47,9 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="registry" element={<Registry />} />
             <Route path="grading" element={<Grading />} />
             <Route path="schedule" element={<Schedule />} />
@@ -56,7 +57,7 @@ function App() {
           </Route>
         </Route>
 
-        <Route path="*" element={!initialized ? <Navigate to="/setup" /> : <Navigate to="/" />} />
+        <Route path="*" element={!initialized ? <Navigate to="/setup" /> : <Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>
   );

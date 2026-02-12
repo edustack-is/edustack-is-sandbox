@@ -1,29 +1,33 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, GraduationCap, Calendar, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, GraduationCap, Calendar, Users } from 'lucide-react';
 import clsx from 'clsx';
-import './Sidebar.css';
+
 
 const navItems = [
-    { path: '/', label: 'Overview', icon: LayoutDashboard },
-    { path: '/registry', label: 'Matrika', icon: BookOpen },
-    { path: '/grading', label: 'Klasifikace', icon: GraduationCap },
-    { path: '/schedule', label: 'Rozvrh', icon: Calendar },
+    { path: '/dashboard', label: 'Nástěnka', icon: LayoutDashboard },
     { path: '/users', label: 'Uživatelé', icon: Users },
-    { path: '/settings', label: 'Settings', icon: Settings },
+    { path: '/schedule', label: 'Rozvrh', icon: Calendar },
+    { path: '/grading', label: 'Klasifikace', icon: GraduationCap },
+    { path: '/ai-tutor', label: 'AI Tutor', icon: BookOpen },
 ];
 
 export const Sidebar: React.FC = () => {
     return (
-        <aside className="sidebar">
-            <div className="sidebar-header">
-                <h1>EduStack</h1>
+        <aside className="sidebar w-64 border-r border-border bg-card text-card-foreground flex flex-col h-screen">
+            <div className="sidebar-header p-6 border-b border-border">
+                <h1 className="text-xl font-bold text-primary">EduStack</h1>
             </div>
-            <nav className="sidebar-nav">
+            <nav className="sidebar-nav flex-1 p-4 space-y-2" aria-label="Main Navigation">
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}
                         to={item.path}
-                        className={({ isActive }) => clsx('nav-item', { active: isActive })}
+                        className={({ isActive }) => clsx(
+                            'nav-item flex items-center space-x-3 px-4 py-3 rounded-md transition-colors duration-200',
+                            'hover:bg-accent hover:text-accent-foreground',
+                            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                            { 'bg-accent text-accent-foreground font-medium': isActive }
+                        )}
                     >
                         <item.icon size={20} />
                         <span>{item.label}</span>
