@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as crypto from 'crypto';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AiService {
@@ -43,8 +44,10 @@ export class AiService {
             const user = await this.prisma.user.create({
                 data: {
                     email,
+                    firstName: student.firstName,
+                    lastName: student.lastName,
                     passwordHash: 'seeded_password', // In real app, hash this
-                    role: 'STUDENT',
+                    role: UserRole.STUDENT,
                     studentProfile: {
                         create: {
                             firstName: student.firstName,
