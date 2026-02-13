@@ -10,9 +10,11 @@ export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
     @Post('invite/:userId')
-    async inviteUser(@Param('userId') userId: string) {
-        // In real app, check for Admin role here using Guards
-        return this.authService.createInvitation(userId);
+    async inviteUser(
+        @Param('userId') userId: string,
+        @Body('studentId') studentId?: string,
+    ) {
+        return this.authService.createInvitation(userId, studentId);
     }
 
     @Post('accept-invite')

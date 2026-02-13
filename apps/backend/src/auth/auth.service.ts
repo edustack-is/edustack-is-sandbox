@@ -22,9 +22,15 @@ export class AuthService {
         return null;
     }
 
-    async createInvitation(userId: string) {
+    async createInvitation(userId: string, studentId?: string) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
+
+        // If studentId is provided (parent invitation), validate the student exists
+        if (studentId) {
+            const student = await this.prisma.user.findUnique({ where: { id: studentId } });
+            if (!student) throw new NotFoundException('Student not found');
+        }
 
         const token = crypto.randomBytes(32).toString('hex');
         const hashedToken = await bcrypt.hash(token, 10);
@@ -36,15 +42,23 @@ export class AuthService {
             data: {
                 invitationToken: hashedToken,
                 invitationExpires: expires,
-                // status: 'PENDING', // Removed from User model
             },
         });
 
-        return { token }; // Send this via email
+        // Composite token: userId.rawToken[.studentId]
+        const fullToken = studentId
+            ? `${userId}.${token}.${studentId}`
+            : `${userId}.${token}`;
+
+        return { token: fullToken };
     }
 
     async acceptInvitation(token: string, password: string) {
-        const [userId, rawToken] = token.split('.');
+        const parts = token.split('.');
+        const userId = parts[0];
+        const rawToken = parts[1];
+        const linkedStudentId = parts[2] || null; // Optional: for parent invitations
+
         if (!userId || !rawToken) throw new BadRequestException('Invalid token format');
 
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -75,7 +89,7 @@ export class AuthService {
 
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Update user and activate all PENDING memberships in a transaction
+        // Update user, activate memberships, and create parent-student link in a transaction
         const updatedUser = await this.prisma.$transaction(async (tx: any) => {
             const updated = await tx.user.update({
                 where: { id: user.id },
@@ -92,6 +106,21 @@ export class AuthService {
                 where: { userId: user.id, status: 'PENDING' },
                 data: { status: 'ACTIVE' },
             });
+
+            // Auto-create ParentStudent link for parent invitations
+            if (linkedStudentId) {
+                const existingLink = await tx.parentStudent.findFirst({
+                    where: { parentId: user.id, studentId: linkedStudentId },
+                });
+                if (!existingLink) {
+                    await tx.parentStudent.create({
+                        data: {
+                            parentId: user.id,
+                            studentId: linkedStudentId,
+                        },
+                    });
+                }
+            }
 
             return updated;
         });
