@@ -15,6 +15,25 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Auto-logout on 401 (expired or invalid token)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            const currentPath = window.location.pathname;
+            // Don't redirect if already on login/setup to avoid loops
+            if (currentPath !== '/login' && currentPath !== '/setup') {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('global_token');
+                localStorage.removeItem('original_admin_token');
+                localStorage.removeItem('impersonation_original_token');
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const getUsers = async (params?: { page?: number; limit?: number; role?: string; status?: string }) => {
     const response = await api.get('/api/users', { params });
     return response.data; // { data: User[], total: number }
