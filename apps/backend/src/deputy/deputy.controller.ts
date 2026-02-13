@@ -10,7 +10,7 @@ import { DeputyService } from './deputy.service';
 
 @Controller('api/deputy')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.DEPUTY)
+@Roles(UserRole.DEPUTY, UserRole.PRINCIPAL)
 export class DeputyController {
     constructor(private readonly deputyService: DeputyService) { }
 

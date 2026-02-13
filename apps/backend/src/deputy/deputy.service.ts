@@ -146,8 +146,18 @@ export class DeputyService {
             workloadPercentage?: number;
         },
     ) {
-        if (!['TEACHER', 'STUDENT'].includes(data.role)) {
-            throw new BadRequestException('Deputy can only invite TEACHER or STUDENT roles.');
+        if (!['TEACHER', 'STUDENT', 'DEPUTY', 'PRINCIPAL'].includes(data.role)) {
+            throw new BadRequestException('Can only invite TEACHER, STUDENT, DEPUTY, or PRINCIPAL roles.');
+        }
+
+        // PRINCIPAL uniqueness: only one per school
+        if (data.role === 'PRINCIPAL') {
+            const existingPrincipal = await this.prisma.schoolMembership.findFirst({
+                where: { schoolId, role: 'PRINCIPAL' },
+            });
+            if (existingPrincipal) {
+                throw new BadRequestException('This school already has a principal. Only one principal per school is allowed.');
+            }
         }
 
         // Check if user already exists

@@ -16,6 +16,7 @@ import { StudentModule } from './student/student.module';
 import { ParentModule } from './parent/parent.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { DeputyModule } from './deputy/deputy.module';
+import { PrincipalModule } from './principal/principal.module';
 import { ClsModule } from 'nestjs-cls';
 import { UserContextInterceptor } from './auth/user-context.interceptor';
 
@@ -26,7 +27,7 @@ import { UserContextInterceptor } from './auth/user-context.interceptor';
       middleware: { mount: true },
     }),
     UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
-    SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule
+    SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule
   ],
   controllers: [AppController],
   providers: [
