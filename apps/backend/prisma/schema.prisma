@@ -22,6 +22,8 @@ model SystemLog {
 enum UserRole {
   ADMIN
   DIRECTOR
+  PRINCIPAL
+  DEPUTY
   TEACHER
   STUDENT
   PARENT
@@ -73,6 +75,10 @@ model User {
   
   schoolMemberships SchoolMembership[]
   auditLogsAsActor  AuditLog[]  @relation("AuditActor")
+
+  // Family relations
+  parentOf          ParentStudent[] @relation("ParentUser")
+  childOf           ParentStudent[] @relation("StudentUser")
 }
 
 model SchoolMembership {
@@ -84,11 +90,27 @@ model SchoolMembership {
   
   role      UserRole   @default(STUDENT)
   status    UserStatus @default(PENDING)
-  
+
+  workloadPercentage Float?  // Teacher workload, e.g. 1.0 = 100%
+
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
   @@unique([userId, schoolId])
+}
+
+model ParentStudent {
+  id        String   @id @default(uuid())
+
+  parent    User     @relation("ParentUser", fields: [parentId], references: [id])
+  parentId  String
+
+  student   User     @relation("StudentUser", fields: [studentId], references: [id])
+  studentId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([parentId, studentId])
 }
 
 model Identity {
