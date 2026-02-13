@@ -51,6 +51,8 @@ model School {
   grades      Grade[]
   attendances Attendance[]
   rooms       Room[]
+  academicYears AcademicYear[]
+  gradeLevels   GradeLevel[]
   scheduleEvents ScheduleEvent[]
 
   createdAt   DateTime @default(now())
@@ -263,10 +265,11 @@ model Attendance {
 }
 
 model Room {
-  id          String   @id @default(uuid())
-  name        String
-  capacity    Int      @default(30)
-  equipment   Json?    // e.g. ["projector", "whiteboard", "computers"]
+  id               String   @id @default(uuid())
+  name             String
+  capacity         Int      @default(30)
+  isComputerLab    Boolean  @default(false)
+  specialEquipment Json?    // e.g. ["projector", "whiteboard", "3D printer"]
 
   schoolId    String
   school      School   @relation(fields: [schoolId], references: [id])
@@ -275,4 +278,34 @@ model Room {
   updatedAt   DateTime @updatedAt
 
   @@unique([name, schoolId])
+}
+
+model AcademicYear {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "2025/2026"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, schoolId])
+}
+
+model GradeLevel {
+  id          String @id @default(uuid())
+  name        String // e.g. "1. ročník", "Prima"
+  levelNumber Int    // for sorting
+
+  schoolId    String
+  school      School @relation(fields: [schoolId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([levelNumber, schoolId])
 }

@@ -101,12 +101,13 @@ export class DeputyService {
         });
     }
 
-    async createRoom(actorId: string, schoolId: string, data: { name: string; capacity?: number; equipment?: string[] }) {
+    async createRoom(actorId: string, schoolId: string, data: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
         const room = await this.prisma.room.create({
             data: {
                 name: data.name,
                 capacity: data.capacity ?? 30,
-                equipment: data.equipment ?? [],
+                isComputerLab: data.isComputerLab ?? false,
+                specialEquipment: data.specialEquipment ?? [],
                 schoolId,
             },
         });
@@ -115,7 +116,7 @@ export class DeputyService {
         return room;
     }
 
-    async updateRoom(actorId: string, schoolId: string, id: string, data: { name?: string; capacity?: number; equipment?: string[] }) {
+    async updateRoom(actorId: string, schoolId: string, id: string, data: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
         const existing = await this.prisma.room.findFirst({ where: { id, schoolId } });
         if (!existing) throw new NotFoundException('Room not found');
 

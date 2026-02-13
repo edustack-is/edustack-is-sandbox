@@ -75,13 +75,13 @@ export class DeputyController {
     }
 
     @Post('rooms')
-    async createRoom(@Req() req: any, @Body() body: { name: string; capacity?: number; equipment?: string[] }) {
+    async createRoom(@Req() req: any, @Body() body: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
         this.ensureTenant(req);
         return this.deputyService.createRoom(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('rooms/:id')
-    async updateRoom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; capacity?: number; equipment?: string[] }) {
+    async updateRoom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
         this.ensureTenant(req);
         return this.deputyService.updateRoom(req.user.userId, req.user.schoolId, id, body);
     }
