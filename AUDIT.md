@@ -245,3 +245,26 @@
   - `apps/frontend/src/components/ui/avatar.tsx`
   - `apps/frontend/src/components/ui/badge.tsx`
 - **Commit**: `Phase 6: User Profile, Logout & UI Components`
+
+## Task 8.8: System Admin UI - Multi-Provider Settings
+- **Popis**: Implementace správy API klíčů pro více AI providerů.
+  - Backend: Update `SystemAdminAiService` (šifrování klíčů, usage stats per provider).
+  - Backend: Update `PUT /api/system/settings/ai` (validator).
+  - Frontend: Formulář pro zadání klíčů (Gemini, OpenAI, Anthropic).
+  - Frontend: Grafy spotřeby tokenů podle providera.
+- **Soubory**:
+  - `apps/backend/src/system-admin/system-admin-ai.*`
+  - `apps/frontend/src/pages/SystemAdminAi.tsx`
+- **Commit**: `feat: System Admin UI - Multi-Provider Settings`
+
+## Task 8.9: AI Chat UI - Provider Selection
+- **Popis**: Implementace výběru AI modelu přímo v chatu.
+  - Backend: Endpoint `GET /api/ai/providers` (vrací dostupné modely).
+  - Frontend: Dropdown `Select` v hlavičce chatu.
+  - Frontend: Ukládání volby a odesílání `provider` ID v payloadu.
+- **Soubory**:
+  - `apps/backend/src/ai/ai.controller.ts`
+  - `apps/backend/src/ai/ai-chat.service.ts`
+  - `apps/frontend/src/api/ai.ts`
+  - `apps/frontend/src/components/AiChatDrawer.tsx`
+- **Commit**: `feat: AI Chat Provider Selection (Task 8.9)`
