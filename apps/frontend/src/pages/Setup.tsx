@@ -129,7 +129,3 @@ export const Setup = () => {
         </div>
     );
 };
-            </div >
-        </div >
-    );
-};
