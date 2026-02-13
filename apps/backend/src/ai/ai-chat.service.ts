@@ -5,19 +5,22 @@ import { decrypt } from './ai-crypto.util';
 
 // ─── Role-based system instructions ─────────────────────────────
 
+const BASE_INSTRUCTION =
+    'Jsi AI asistent v rámci školního systému EduStack. Tvým úkolem je pomáhat uživatelům s používáním aplikace, vysvětlováním funkcí, popisem dat v systému nebo (pro technické role) s architekturou a API. Odmítni odpovídat na obecné dotazy netýkající se EduStacku, školní agendy nebo uložených dat. Komunikuj vždy česky.';
+
 const SYSTEM_INSTRUCTIONS: Record<string, string> = {
     SYSTEM_ADMIN:
-        'Jsi AI asistent pro správce systému EduStack. Můžeš odpovídat na dotazy ohledně architektury systému (Node.js, Prisma, NestJS) a správy škol. Komunikuj česky, stručně a profesionálně.',
+        `${BASE_INSTRUCTION} Jsi expertní asistent pro správce. Můžeš detailně popisovat architekturu (NestJS, Prisma, React, Tailwind), vysvětlovat API endpointy a pomáhat s SQL dotazy či debugováním.`,
     PRINCIPAL:
-        'Jsi AI asistent pro ředitele školy. Můžeš pomoci s organizací školy, analýzou dat a přípravou dokumentů. Komunikuj česky.',
+        `${BASE_INSTRUCTION} Pomáhej řediteli s orientací v datech školy, vysvětlováním statistik a reportů.`,
     DEPUTY:
-        'Jsi AI asistent zástupce ředitele. Můžeš pomoci s kurikulem, rozvrhem a organizací výuky. Komunikuj česky.',
+        `${BASE_INSTRUCTION} Pomáhej zástupci s tvorbou úvazků a správou rozvrhu v aplikaci.`,
     TEACHER:
-        'Jsi AI asistent učitele. Můžeš pomoci generovat testy, analyzovat prospěch žáků a připravovat výukové materiály. Když tě někdo požádá o prospěch žáka, použij funkci fetchStudentGrades. Komunikuj česky.',
+        `${BASE_INSTRUCTION} Pomáhej učitelům s ovládáním klasifikace a prací s jejich žáky. Pokud se zeptají na známky konkrétního žáka, použij funkci fetchStudentGrades.`,
     STUDENT:
-        'Jsi AI tutor pro studenty. Pomáháš s učením, vysvětluješ látku a odpovídáš na otázky. Neposkytuj odpovědi na testy, ale navádej studenta ke správnému řešení. Komunikuj česky.',
+        `${BASE_INSTRUCTION} Pomáhej studentům pochopit jejich hodnocení a orientovat se v rozvrhu. Pokud chtějí vysvětlit látku, odkaž je na studijní materiály v systému, ale negeneruj za ně úkoly.`,
     PARENT:
-        'Jsi AI asistent pro rodiče. Můžeš odpovídat na dotazy ohledně prospěchu a docházky dítěte. Komunikuj česky.',
+        `${BASE_INSTRUCTION} Pomáhej rodičům najít informace o docházce a známkách jejich dětí.`,
 };
 
 // ─── Function declarations for Gemini ───────────────────────────
@@ -70,14 +73,23 @@ export class AiChatService {
         }));
 
         // 6. Call Gemini
-        let response = await genAI.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents,
-            config: {
-                systemInstruction,
-                tools,
-            },
-        });
+        let response;
+        try {
+            response = await genAI.models.generateContent({
+                model: 'gemini-2.0-flash',
+                contents,
+                config: {
+                    systemInstruction,
+                    tools,
+                },
+            });
+        } catch (error: any) {
+            console.error('Gemini API Error:', error);
+            if (error.status === 429 || error.code === 429 || error.message?.includes('429')) {
+                throw new ServiceUnavailableException('AI je momentálně přetížená (Rate Limit). Zkuste to prosím za chvíli.');
+            }
+            throw new ServiceUnavailableException('Chyba při komunikaci s AI službou.');
+        }
 
         // 7. Handle function calling loop
         let loopCount = 0;

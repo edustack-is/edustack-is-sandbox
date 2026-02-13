@@ -9,6 +9,7 @@ interface SchoolInfo {
 
 interface SchoolContextType {
     tokenType: 'GLOBAL' | 'TENANT';
+    userId: string | null;
     schoolId: string | null;
     isSystemAdmin: boolean;
     role: string | null;
@@ -19,6 +20,7 @@ interface SchoolContextType {
 
 const SchoolContext = createContext<SchoolContextType>({
     tokenType: 'GLOBAL',
+    userId: null,
     schoolId: null,
     isSystemAdmin: false,
     role: null,
@@ -39,11 +41,12 @@ function decodeJwtPayload(token: string): any {
 function getTokenInfo() {
     const token = localStorage.getItem('access_token');
     if (!token) {
-        return { tokenType: 'GLOBAL' as const, schoolId: null, isSystemAdmin: false, role: null };
+        return { tokenType: 'GLOBAL' as const, userId: null, schoolId: null, isSystemAdmin: false, role: null };
     }
     const payload = decodeJwtPayload(token);
     return {
         tokenType: (payload.type === 'TENANT' ? 'TENANT' : 'GLOBAL') as 'GLOBAL' | 'TENANT',
+        userId: payload.sub || null,
         schoolId: payload.schoolId || null,
         isSystemAdmin: payload.isSystemAdmin || false,
         role: payload.role || null,

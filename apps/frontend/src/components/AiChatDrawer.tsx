@@ -5,10 +5,11 @@ import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, Send, Loader2, Bot, User, Trash2 } from 'lucide-react';
 import { api } from '@/api';
 import { cn } from '@/lib/utils';
+import { useSchool } from '@/context/SchoolContext';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -27,14 +28,41 @@ export function AiChatDrawer() {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const { userId } = useSchool();
+
+    // Storage key based on userId
+    const storageKey = userId ? `ai-chat-history-${userId}` : null;
+
+    // Load history from localStorage on mount or when userId changes
+    useEffect(() => {
+        if (storageKey) {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                try {
+                    setMessages(JSON.parse(saved));
+                } catch (e) {
+                    console.error('Failed to parse chat history', e);
+                }
+            } else {
+                setMessages([]);
+            }
+        }
+    }, [storageKey]);
+
+    // Save history to localStorage whenever messages change
+    useEffect(() => {
+        if (storageKey) {
+            localStorage.setItem(storageKey, JSON.stringify(messages));
+        }
+    }, [messages, storageKey]);
 
     // Auto-scroll on new messages
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages, loading]);
+    }, [messages, loading, open]);
 
     // Focus input when drawer opens
     useEffect(() => {
@@ -52,6 +80,11 @@ export function AiChatDrawer() {
         setMessages(newHistory);
         setInput('');
         setLoading(true);
+
+        // Reset height content
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+        }
 
         try {
             const res = await api.post('/api/ai/chat', { messages: newHistory });
@@ -74,6 +107,9 @@ export function AiChatDrawer() {
 
     const clearChat = () => {
         setMessages([]);
+        if (storageKey) {
+            localStorage.removeItem(storageKey);
+        }
     };
 
     return (
@@ -149,21 +185,22 @@ export function AiChatDrawer() {
 
                     {/* Input area */}
                     <div className="border-t bg-muted/30 p-4">
-                        <div className="flex gap-2">
-                            <Input
+                        <div className="flex gap-2 items-end">
+                            <Textarea
                                 ref={inputRef}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Napište zprávu..."
                                 disabled={loading}
-                                className="flex-1 bg-background"
+                                className="flex-1 bg-background min-h-[44px] max-h-[150px] resize-none py-3"
+                                rows={1}
                             />
                             <Button
                                 onClick={sendMessage}
                                 disabled={loading || !input.trim()}
                                 size="icon"
-                                className="bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shrink-0"
+                                className="bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shrink-0 h-10 w-10 mb-[2px]"
                             >
                                 {loading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -236,14 +273,14 @@ function EmptyState() {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-600/10 to-indigo-600/10 mb-4">
                 <Sparkles className="h-8 w-8 text-violet-500" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Ahoj! 👋</h3>
+            <h3 className="text-lg font-semibold mb-2">EduStack AI 👋</h3>
             <p className="text-sm text-muted-foreground max-w-[260px]">
-                Jsem tvůj AI asistent. Mohu ti pomoci s učením, odpovídat na otázky, nebo generovat materiály.
+                Jsem průvodce aplikací. Ptej se na fungování systému, architekturu (API, DB) nebo na data v aplikaci.
             </p>
             <div className="mt-6 space-y-2 text-xs text-muted-foreground">
-                <SuggestionPill text="Vysvětli mi Pythagorovu větu" />
-                <SuggestionPill text="Jaký je prospěch studenta?" />
-                <SuggestionPill text="Připrav kvíz z dějepisu" />
+                <SuggestionPill text="Jak vytvořím školu?" />
+                <SuggestionPill text="Vysvětli mi databázové schéma" />
+                <SuggestionPill text="Jaké technologie používá backend?" />
             </div>
         </div>
     );
