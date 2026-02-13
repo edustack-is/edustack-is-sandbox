@@ -37,7 +37,7 @@ export class TeacherController {
     @Post('grades')
     async createGrade(
         @Req() req: any,
-        @Body() body: { studentId: string; subjectId: string; value: string; weight: number; description?: string },
+        @Body() body: { studentId: string; subjectInstanceId: string; value: string; weight: number; description?: string },
     ) {
         this.ensureTenantContext(req);
         return this.teacherService.createGrade(req.user.userId, req.user.schoolId, body);

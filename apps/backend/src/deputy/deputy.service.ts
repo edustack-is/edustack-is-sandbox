@@ -59,36 +59,36 @@ export class DeputyService {
     // ─── SUBJECT CRUD ────────────────────────────────────────────────
 
     async getSubjects(schoolId: string) {
-        return this.prisma.subject.findMany({
+        return this.prisma.subjectTemplate.findMany({
             where: { schoolId },
             orderBy: { name: 'asc' },
         });
     }
 
-    async createSubject(actorId: string, schoolId: string, data: { name: string }) {
-        const subject = await this.prisma.subject.create({
-            data: { name: data.name, schoolId },
+    async createSubject(actorId: string, schoolId: string, data: { name: string; code: string; svpDescription?: string }) {
+        const subject = await this.prisma.subjectTemplate.create({
+            data: { name: data.name, code: data.code, svpDescription: data.svpDescription, schoolId },
         });
 
-        await this.audit(actorId, 'CREATE_SUBJECT', 'Subject', subject.id, data);
+        await this.audit(actorId, 'CREATE_SUBJECT', 'SubjectTemplate', subject.id, data);
         return subject;
     }
 
-    async updateSubject(actorId: string, schoolId: string, id: string, data: { name?: string }) {
-        const existing = await this.prisma.subject.findFirst({ where: { id, schoolId } });
-        if (!existing) throw new NotFoundException('Subject not found');
+    async updateSubject(actorId: string, schoolId: string, id: string, data: { name?: string; code?: string; svpDescription?: string }) {
+        const existing = await this.prisma.subjectTemplate.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Subject template not found');
 
-        const updated = await this.prisma.subject.update({ where: { id }, data });
-        await this.audit(actorId, 'UPDATE_SUBJECT', 'Subject', id, data, existing);
+        const updated = await this.prisma.subjectTemplate.update({ where: { id }, data });
+        await this.audit(actorId, 'UPDATE_SUBJECT', 'SubjectTemplate', id, data, existing);
         return updated;
     }
 
     async deleteSubject(actorId: string, schoolId: string, id: string) {
-        const existing = await this.prisma.subject.findFirst({ where: { id, schoolId } });
-        if (!existing) throw new NotFoundException('Subject not found');
+        const existing = await this.prisma.subjectTemplate.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Subject template not found');
 
-        await this.prisma.subject.delete({ where: { id } });
-        await this.audit(actorId, 'DELETE_SUBJECT', 'Subject', id, null, existing);
+        await this.prisma.subjectTemplate.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_SUBJECT', 'SubjectTemplate', id, null, existing);
         return { deleted: true };
     }
 

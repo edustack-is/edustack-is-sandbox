@@ -24,7 +24,7 @@ export class TeacherService {
         const events = await this.prisma.scheduleEvent.findMany({
             where: { teacherId: teacherProfile.id },
             include: {
-                subject: true,
+                subject: { include: { template: true } },
                 classroom: true,
                 school: { select: { id: true, name: true } },
             },
@@ -53,7 +53,7 @@ export class TeacherService {
                 teacherId: teacherProfile.id,
                 schoolId,
             },
-            select: { classroomId: true, subjectId: true },
+            select: { classroomId: true, subjectInstanceId: true },
             distinct: ['classroomId'],
         });
 
@@ -71,7 +71,7 @@ export class TeacherService {
                 },
                 scheduleEvents: {
                     where: { teacherId: teacherProfile.id },
-                    include: { subject: true },
+                    include: { subject: { include: { template: true } } },
                 },
             },
         });
@@ -86,7 +86,7 @@ export class TeacherService {
     async createGrade(
         userId: string,
         schoolId: string,
-        data: { studentId: string; subjectId: string; value: string; weight: number; description?: string },
+        data: { studentId: string; subjectInstanceId: string; value: string; weight: number; description?: string },
     ) {
         const teacherProfile = await this.prisma.teacherProfile.findUnique({
             where: { userId },
@@ -106,7 +106,7 @@ export class TeacherService {
                 teacherId: teacherProfile.id,
                 schoolId,
                 classroomId: student.classroomId ?? undefined,
-                subjectId: data.subjectId,
+                subjectInstanceId: data.subjectInstanceId,
             },
         });
 
@@ -124,10 +124,10 @@ export class TeacherService {
                 description: data.description,
                 schoolId,
                 studentId: data.studentId,
-                subjectId: data.subjectId,
+                subjectInstanceId: data.subjectInstanceId,
                 teacherId: teacherProfile.id,
             },
-            include: { subject: true, studentProfile: true },
+            include: { subjectInstance: { include: { template: true } }, studentProfile: true },
         });
 
         // Audit log
@@ -141,7 +141,7 @@ export class TeacherService {
                     value: data.value,
                     weight: data.weight,
                     studentId: data.studentId,
-                    subjectId: data.subjectId,
+                    subjectInstanceId: data.subjectInstanceId,
                     description: data.description,
                 },
             },

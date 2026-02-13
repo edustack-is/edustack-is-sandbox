@@ -47,7 +47,8 @@ model School {
   
   members     SchoolMembership[]
   classrooms  Classroom[]
-  subjects    Subject[]
+  subjectTemplates SubjectTemplate[]
+  subjectInstances SubjectInstance[]
   grades      Grade[]
   attendances Attendance[]
   rooms       Room[]
@@ -187,18 +188,43 @@ model TeacherProfile {
   scheduleEvents ScheduleEvent[]
 }
 
-model Subject {
-  id        String   @id @default(uuid())
-  name      String   
-  // Note: removed @unique from name because it should be unique per school, not global
+model SubjectTemplate {
+  id              String   @id @default(uuid())
+  name            String   // e.g. "Informatika"
+  code            String   // e.g. "INF"
+  svpDescription  String?  // Link to ŠVP description
   
   schoolId  String
   school    School   @relation(fields: [schoolId], references: [id])
 
-  grades    Grade[]
-  scheduleEvents ScheduleEvent[]
+  instances SubjectInstance[]
 
-  @@unique([name, schoolId])
+  @@unique([code, schoolId])
+}
+
+model SubjectInstance {
+  id              String          @id @default(uuid())
+  hoursPerWeek    Int
+
+  templateId      String
+  template        SubjectTemplate @relation(fields: [templateId], references: [id])
+
+  academicYearId  String
+  academicYear    AcademicYear    @relation(fields: [academicYearId], references: [id])
+
+  gradeLevelId    String
+  gradeLevel      GradeLevel      @relation(fields: [gradeLevelId], references: [id])
+
+  schoolId        String
+  school          School          @relation(fields: [schoolId], references: [id])
+
+  grades          Grade[]
+  scheduleEvents  ScheduleEvent[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([templateId, academicYearId, gradeLevelId])
 }
 
 model Grade {
@@ -214,8 +240,8 @@ model Grade {
   studentProfile  StudentProfile @relation(fields: [studentId], references: [id])
   studentId       String
   
-  subject         Subject        @relation(fields: [subjectId], references: [id])
-  subjectId       String
+  subjectInstance SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  subjectInstanceId String
   
   teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
   teacherId       String
@@ -235,8 +261,8 @@ model ScheduleEvent {
   schoolId        String
   school          School         @relation(fields: [schoolId], references: [id])
   
-  subject         Subject        @relation(fields: [subjectId], references: [id])
-  subjectId       String
+  subject         SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  subjectInstanceId String
   
   classroom       Classroom      @relation(fields: [classroomId], references: [id])
   classroomId     String
@@ -301,6 +327,7 @@ model AcademicYear {
   grades              Grade[]
   studentEnrollments  StudentEnrollment[]
   teacherWorkloads    TeacherWorkload[]
+  subjectInstances    SubjectInstance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -317,6 +344,7 @@ model GradeLevel {
   school      School @relation(fields: [schoolId], references: [id])
 
   studentEnrollments StudentEnrollment[]
+  subjectInstances   SubjectInstance[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

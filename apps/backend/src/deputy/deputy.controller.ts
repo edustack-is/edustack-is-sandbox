@@ -49,13 +49,13 @@ export class DeputyController {
     }
 
     @Post('subjects')
-    async createSubject(@Req() req: any, @Body() body: { name: string }) {
+    async createSubject(@Req() req: any, @Body() body: { name: string; code: string; svpDescription?: string }) {
         this.ensureTenant(req);
         return this.deputyService.createSubject(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('subjects/:id')
-    async updateSubject(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string }) {
+    async updateSubject(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; code?: string; svpDescription?: string }) {
         this.ensureTenant(req);
         return this.deputyService.updateSubject(req.user.userId, req.user.schoolId, id, body);
     }

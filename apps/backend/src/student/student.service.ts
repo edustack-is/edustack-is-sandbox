@@ -23,7 +23,7 @@ export class StudentService {
                 },
                 classroom: true,
                 grades: {
-                    include: { subject: true },
+                    include: { subjectInstance: { include: { template: true } } },
                     orderBy: { date: 'desc' },
                     take: 20,
                 },
@@ -36,13 +36,14 @@ export class StudentService {
 
         // Get subjects the student has via their classroom schedule
         const subjects = studentProfile.classroomId
-            ? await this.prisma.subject.findMany({
+            ? await this.prisma.subjectInstance.findMany({
                 where: {
                     schoolId,
                     scheduleEvents: {
                         some: { classroomId: studentProfile.classroomId },
                     },
                 },
+                include: { template: true },
             })
             : [];
 
@@ -75,7 +76,7 @@ export class StudentService {
                 classroomId: studentProfile.classroomId,
             },
             include: {
-                subject: true,
+                subject: { include: { template: true } },
                 teacherProfile: {
                     include: {
                         user: {

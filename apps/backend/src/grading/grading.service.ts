@@ -5,11 +5,11 @@ import { PrismaService } from '../prisma/prisma.service';
 export class GradingService {
     constructor(private prisma: PrismaService) { }
 
-    async calculateWeightedAverage(studentId: string, subjectId: string): Promise<number> {
+    async calculateWeightedAverage(studentId: string, subjectInstanceId: string): Promise<number> {
         const grades = await this.prisma.grade.findMany({
             where: {
                 studentId,
-                subjectId,
+                subjectInstanceId,
             },
         });
 

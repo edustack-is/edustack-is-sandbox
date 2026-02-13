@@ -73,7 +73,7 @@ export class ParentService {
                 classroom: true,
                 grades: {
                     include: {
-                        subject: true,
+                        subjectInstance: { include: { template: true } },
                         teacherProfile: {
                             include: {
                                 user: { select: { firstName: true, lastName: true } },
@@ -95,7 +95,7 @@ export class ParentService {
             ? await this.prisma.scheduleEvent.findMany({
                 where: { classroomId: studentProfile.classroomId },
                 include: {
-                    subject: true,
+                    subject: { include: { template: true } },
                     teacherProfile: {
                         include: {
                             user: { select: { firstName: true, lastName: true } },
@@ -109,12 +109,13 @@ export class ParentService {
 
         // Get subjects
         const subjects = studentProfile.classroomId
-            ? await this.prisma.subject.findMany({
+            ? await this.prisma.subjectInstance.findMany({
                 where: {
                     scheduleEvents: {
                         some: { classroomId: studentProfile.classroomId },
                     },
                 },
+                include: { template: true },
             })
             : [];
 
