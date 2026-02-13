@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, Zap } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -14,7 +14,6 @@ const schoolNavItems = [
     { path: '/schedule', label: 'Rozvrh', icon: Calendar },
     { path: '/grading', label: 'Klasifikace', icon: GraduationCap },
     { path: '/year-setup', label: 'Příprava roku', icon: Settings },
-    { path: '/ai-tutor', label: 'AI Tutor', icon: BookOpen },
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) => clsx(
