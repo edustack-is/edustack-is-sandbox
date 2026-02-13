@@ -41,6 +41,7 @@ model School {
   name        String
   address     String?
   contactEmail String?
+  allowStudentSelfRegistration Boolean @default(false)
   ssoConfig   Json?
   aiConfig    Json?
   

@@ -59,17 +59,41 @@ export class AuthService {
         const isMatch = await bcrypt.compare(rawToken, user.invitationToken);
         if (!isMatch) throw new BadRequestException('Invalid token');
 
+        // Check student self-registration permission
+        const memberships = await this.prisma.schoolMembership.findMany({
+            where: { userId: user.id },
+            include: { school: true },
+        });
+
+        for (const membership of memberships) {
+            if (membership.role === 'STUDENT' && !membership.school.allowStudentSelfRegistration) {
+                throw new BadRequestException(
+                    `School "${membership.school.name}" does not allow student self-registration.`
+                );
+            }
+        }
+
         const passwordHash = await bcrypt.hash(password, 10);
 
-        const updatedUser = await this.prisma.user.update({
-            where: { id: user.id },
-            data: {
-                passwordHash,
-                // status: 'ACTIVE', // Removed from User model
-                invitationToken: null,
-                invitationExpires: null,
-                lastLogin: new Date(),
-            },
+        // Update user and activate all PENDING memberships in a transaction
+        const updatedUser = await this.prisma.$transaction(async (tx: any) => {
+            const updated = await tx.user.update({
+                where: { id: user.id },
+                data: {
+                    passwordHash,
+                    invitationToken: null,
+                    invitationExpires: null,
+                    lastLogin: new Date(),
+                },
+            });
+
+            // Activate all PENDING memberships for this user
+            await tx.schoolMembership.updateMany({
+                where: { userId: user.id, status: 'PENDING' },
+                data: { status: 'ACTIVE' },
+            });
+
+            return updated;
         });
 
         return this.login(updatedUser);
