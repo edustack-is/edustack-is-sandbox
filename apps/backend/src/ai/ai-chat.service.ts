@@ -1,7 +1,11 @@
-import { Injectable, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { GoogleGenAI, Type } from '@google/genai';
 import { decrypt } from './ai-crypto.util';
+import { generateText, tool, ToolSet } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { z } from 'zod';
 
 // ─── Role-based system instructions ─────────────────────────────
 
@@ -23,25 +27,10 @@ const SYSTEM_INSTRUCTIONS: Record<string, string> = {
         `${BASE_INSTRUCTION} Pomáhej rodičům najít informace o docházce a známkách jejich dětí.`,
 };
 
-// ─── Function declarations for Gemini ───────────────────────────
-
-const FETCH_STUDENT_GRADES_DECLARATION = {
-    name: 'fetchStudentGrades',
-    description: 'Načte známky studenta z databáze. Vrací předmět, známku, váhu a datum.',
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            studentId: {
-                type: Type.STRING,
-                description: 'UUID identifikátor studenta (StudentProfile ID)',
-            },
-        },
-        required: ['studentId'],
-    },
-};
-
 @Injectable()
 export class AiChatService {
+    private readonly logger = new Logger(AiChatService.name);
+
     constructor(private readonly prisma: PrismaService) { }
 
     // ─── CHAT ───────────────────────────────────────────────────
@@ -51,116 +40,164 @@ export class AiChatService {
         role: string,
         schoolId: string | null,
         messages: Array<{ role: 'user' | 'model'; text: string }>,
+        provider: 'google' | 'openai' | 'anthropic' = 'google',
     ) {
-        // 1. Fetch API key from SystemSettings
-        const apiKey = await this.getApiKey();
+        // 1. Get API Keys & Initialize Provider
+        const languageModel = await this.getModelProvider(provider);
 
         // 2. Build system instruction
-        const systemInstruction = SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.STUDENT;
+        const system = SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.STUDENT;
 
-        // 3. Build tools list — teachers and above get function calling
-        const tools = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'SYSTEM_ADMIN'].includes(role)
-            ? [{ functionDeclarations: [FETCH_STUDENT_GRADES_DECLARATION] }]
-            : [];
+        // 3. Define Tools
+        const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'SYSTEM_ADMIN'];
+        const hasTools = validRoles.includes(role);
 
-        // 4. Initialize Gemini client
-        const genAI = new GoogleGenAI({ apiKey });
+        const tools: ToolSet = {
+            fetchStudentGrades: tool({
+                description: 'Načte známky studenta z databáze.',
+                parameters: z.object({
+                    studentId: z.string().describe('UUID identifikátor studenta (StudentProfile ID)'),
+                }),
+                execute: async ({ studentId }: { studentId: string }) => {
+                    return this.executeFetchStudentGrades(studentId);
+                },
+            } as any),
+        };
 
-        // 5. Convert message history to Gemini format
-        const contents = messages.map((m) => ({
-            role: m.role === 'model' ? ('model' as const) : ('user' as const),
-            parts: [{ text: m.text }],
-        }));
+        // 4. Convert messages for SDK
+        const history = messages.map(m => ({
+            role: m.role === 'model' ? 'assistant' : 'user',
+            content: m.text,
+        })) as any[];
 
-        // 6. Call Gemini
-        let response;
+        // 5. Generate Text with Retry (Exponential Backoff)
         try {
-            response = await genAI.models.generateContent({
-                model: 'gemini-2.0-flash',
-                contents,
-                config: {
-                    systemInstruction,
-                    tools,
-                },
+            const result = await this.generateWithRetry(async () => {
+                const options: any = {
+                    model: languageModel,
+                    system,
+                    messages: history,
+                };
+
+                if (hasTools) {
+                    options.tools = tools;
+                    options.maxSteps = 5;
+                }
+
+                return generateText(options);
             });
+
+            // 6. Track Usage
+            await this.trackUsage(userId, schoolId, provider, languageModel.modelId, result.usage);
+
+            return {
+                response: result.text,
+                usage: result.usage,
+            };
+
         } catch (error: any) {
-            console.error('Gemini API Error:', error);
-            if (error.status === 429 || error.code === 429 || error.message?.includes('429')) {
-                throw new ServiceUnavailableException('AI je momentálně přetížená (Rate Limit). Zkuste to prosím za chvíli.');
+            this.logger.error(`AI Error (${provider}):`, error);
+            if (error.status === 429 || error.statusCode === 429 || error.message?.includes('429')) {
+                throw new ServiceUnavailableException('AI je momentálně přetížená (Rate Limit). Zkuste to za chvíli.');
             }
-            throw new ServiceUnavailableException('Chyba při komunikaci s AI službou.');
+            throw new ServiceUnavailableException(`Chyba AI služby: ${error.message}`);
         }
+    }
 
-        // 7. Handle function calling loop
-        let loopCount = 0;
-        while (response.functionCalls && response.functionCalls.length > 0 && loopCount < 3) {
-            loopCount++;
-            const functionCall = response.functionCalls[0];
+    // ─── STRATEGY & PROVIDER SETUP ──────────────────────────────
 
-            if (functionCall.name === 'fetchStudentGrades') {
-                const args = functionCall.args as { studentId: string };
-                const gradesData = await this.executeFetchStudentGrades(args.studentId);
+    private async getModelProvider(provider: 'google' | 'openai' | 'anthropic') {
+        const keys = await this.getApiKeys();
 
-                // Add the model's function call and the function response to contents
-                contents.push({
-                    role: 'model' as const,
-                    parts: [{ functionCall: { name: functionCall.name, args: functionCall.args } }] as any,
-                });
-                contents.push({
-                    role: 'user' as const,
-                    parts: [{
-                        functionResponse: {
-                            name: functionCall.name,
-                            response: { result: gradesData },
-                        },
-                    }] as any,
-                });
+        switch (provider) {
+            case 'openai':
+                if (!keys.openAiApiKey) throw new ServiceUnavailableException('OpenAI API key is missing.');
+                const openai = createOpenAI({ apiKey: keys.openAiApiKey });
+                return openai('gpt-4o'); // Default OpenAI model
 
-                // Call Gemini again with the function response
-                response = await genAI.models.generateContent({
-                    model: 'gemini-2.0-flash',
-                    contents,
-                    config: {
-                        systemInstruction,
-                        tools,
-                    },
-                });
-            } else {
-                break; // Unknown function, stop loop
-            }
+            case 'anthropic':
+                if (!keys.anthropicApiKey) throw new ServiceUnavailableException('Anthropic API key is missing.');
+                const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
+                return anthropic('claude-3-5-sonnet-20240620'); // Default Anthropic model
+
+            case 'google':
+            default:
+                if (!keys.geminiApiKey) throw new ServiceUnavailableException('Gemini API key is missing.');
+                const google = createGoogleGenerativeAI({ apiKey: keys.geminiApiKey });
+                return google('gemini-2.0-flash'); // Default Google model
         }
+    }
 
-        // 8. Extract response text
-        const responseText = response.text ?? '';
+    async getAvailableProviders() {
+        const keys = await this.getApiKeys();
+        const providers = [
+            { id: 'google', name: 'Google Gemini 2.0 Flash', enabled: !!keys.geminiApiKey },
+            { id: 'openai', name: 'OpenAI GPT-4o', enabled: !!keys.openAiApiKey },
+            { id: 'anthropic', name: 'Anthropic Claude 3.5 Sonnet', enabled: !!keys.anthropicApiKey },
+        ];
+        return providers.filter(p => p.enabled).map(p => ({ id: p.id, name: p.name }));
+    }
 
-        // 9. Track token usage
-        const usage = response.usageMetadata;
-        if (usage) {
-            await this.prisma.aiTokenUsage.create({
-                data: {
-                    userId,
-                    schoolId,
-                    inputTokens: usage.promptTokenCount ?? 0,
-                    outputTokens: usage.candidatesTokenCount ?? 0,
-                    totalTokens: usage.totalTokenCount ?? 0,
-                    promptType: 'CHAT',
-                },
-            });
-        }
+    private async getApiKeys() {
+        const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
+
+        // Decrypt keys if present
+        const decryptKey = (key?: string | null) => {
+            if (!key) return null;
+            try { return decrypt(key); } catch { return key; }
+        };
 
         return {
-            response: responseText,
-            usage: usage
-                ? {
-                    inputTokens: usage.promptTokenCount ?? 0,
-                    outputTokens: usage.candidatesTokenCount ?? 0,
-                    totalTokens: usage.totalTokenCount ?? 0,
-                }
-                : null,
+            geminiApiKey: decryptKey(settings?.geminiApiKey) || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
+            openAiApiKey: decryptKey(settings?.openAiApiKey) || process.env.OPENAI_API_KEY,
+            anthropicApiKey: decryptKey(settings?.anthropicApiKey) || process.env.ANTHROPIC_API_KEY,
         };
     }
 
-    // ─── FUNCTION IMPLEMENTATIONS ───────────────────────────────
+    // ─── RESILIENCY (Exponential Backoff) ───────────────────────
+
+    private async generateWithRetry<T>(operation: () => Promise<T>, retries = 3, baseDelay = 1000): Promise<T> {
+        let lastError: any;
+
+        for (let i = 0; i < retries; i++) {
+            try {
+                return await operation();
+            } catch (error: any) {
+                lastError = error;
+                const isRateLimit = error.status === 429 || error.statusCode === 429 || error.message?.includes('429');
+
+                if (isRateLimit && i < retries - 1) {
+                    const delay = baseDelay * Math.pow(2, i); // 1s, 2s, 4s
+                    this.logger.warn(`Rate limit hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
+                    await new Promise(res => setTimeout(res, delay));
+                    continue;
+                }
+                throw error; // Not a rate limit or retries exhausted
+            }
+        }
+        throw lastError;
+    }
+
+    // ─── USAGE TRACKING ─────────────────────────────────────────
+
+    private async trackUsage(userId: string, schoolId: string | null, provider: string, model: string, usage: any) {
+        if (!usage) return;
+
+        await this.prisma.aiTokenUsage.create({
+            data: {
+                userId,
+                schoolId,
+                provider,
+                modelName: model,
+                inputTokens: usage.promptTokens,
+                outputTokens: usage.completionTokens,
+                totalTokens: usage.totalTokens,
+                promptType: 'CHAT',
+            },
+        });
+    }
+
+    // ─── TOOLS IMPLEMENTATION ───────────────────────────────────
 
     private async executeFetchStudentGrades(studentId: string) {
         const grades = await this.prisma.grade.findMany({
@@ -181,31 +218,5 @@ export class AiChatService {
             description: g.description,
             gradedAt: g.date.toISOString(),
         }));
-    }
-
-    // ─── HELPERS ────────────────────────────────────────────────
-
-    private async getApiKey(): Promise<string> {
-        // Decrypt from SystemSettings
-        const settings = await this.prisma.systemSettings.findUnique({
-            where: { id: 'global' },
-        });
-
-        if (settings?.geminiApiKey) {
-            try {
-                return decrypt(settings.geminiApiKey);
-            } catch {
-                // If decryption fails, try as plain text
-                return settings.geminiApiKey;
-            }
-        }
-
-        // Fallback to env variable
-        const envKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
-        if (envKey) return envKey;
-
-        throw new ServiceUnavailableException(
-            'AI is not configured. Ask your System Admin to set the Gemini API key.',
-        );
     }
 }

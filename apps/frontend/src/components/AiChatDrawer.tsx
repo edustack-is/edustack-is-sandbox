@@ -6,8 +6,12 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Sparkles, Send, Loader2, Bot, User, Trash2 } from 'lucide-react';
 import { api } from '@/api';
+import { getAvailableProviders, AiProvider } from '@/api/ai';
 import { cn } from '@/lib/utils';
 import { useSchool } from '@/context/SchoolContext';
 
@@ -27,6 +31,12 @@ export function AiChatDrawer() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Provider State
+    const [providers, setProviders] = useState<AiProvider[]>([]);
+    const [selectedProvider, setSelectedProvider] = useState<string>('google');
+    const [providersLoading, setProvidersLoading] = useState(false);
+
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { userId } = useSchool();
@@ -56,6 +66,33 @@ export function AiChatDrawer() {
             localStorage.setItem(storageKey, JSON.stringify(messages));
         }
     }, [messages, storageKey]);
+
+    // Fetch available providers on mount
+    useEffect(() => {
+        const fetchProviders = async () => {
+            try {
+                setProvidersLoading(true);
+                const available = await getAvailableProviders();
+                setProviders(available);
+
+                // Set default if current selection is not available, or just default to first
+                if (available.length > 0) {
+                    // If previously selected is not in list, reset to first
+                    if (!available.find(p => p.id === selectedProvider)) {
+                        setSelectedProvider(available[0].id);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch AI providers', err);
+            } finally {
+                setProvidersLoading(false);
+            }
+        };
+
+        if (open) {
+            fetchProviders();
+        }
+    }, [open]); // Re-fetch when opening drawer to ensure up-to-date keys
 
     // Auto-scroll on new messages
     useEffect(() => {
@@ -87,7 +124,10 @@ export function AiChatDrawer() {
         }
 
         try {
-            const res = await api.post('/api/ai/chat', { messages: newHistory });
+            const res = await api.post('/api/ai/chat', {
+                messages: newHistory,
+                provider: selectedProvider
+            });
             const aiText = res.data?.response || 'Omlouvám se, nemám odpověď.';
             setMessages((prev) => [...prev, { role: 'model', text: aiText }]);
         } catch (err: any) {
@@ -96,7 +136,7 @@ export function AiChatDrawer() {
         } finally {
             setLoading(false);
         }
-    }, [input, loading, messages]);
+    }, [input, loading, messages, selectedProvider]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -143,7 +183,7 @@ export function AiChatDrawer() {
                     className="flex flex-col p-0 w-full sm:max-w-md"
                 >
                     {/* Header */}
-                    <SheetHeader className="px-5 pt-5 pb-3 border-b bg-gradient-to-r from-violet-600/5 to-indigo-600/5">
+                    <SheetHeader className="px-5 pt-5 pb-3 border-b bg-gradient-to-r from-violet-600/5 to-indigo-600/5 space-y-4">
                         <div className="flex items-center justify-between pr-8">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
@@ -164,6 +204,30 @@ export function AiChatDrawer() {
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             )}
+                        </div>
+
+                        {/* Model Selector */}
+                        <div className="flex items-center gap-2">
+                            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                                <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-input/50">
+                                    <SelectValue placeholder="Vyberte model" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {providersLoading ? (
+                                        <div className="flex items-center justify-center p-2 text-xs text-muted-foreground">
+                                            <Loader2 className="h-3 w-3 animate-spin mr-2" /> Načítám modely...
+                                        </div>
+                                    ) : providers.length > 0 ? (
+                                        providers.map(p => (
+                                            <SelectItem key={p.id} value={p.id} className="text-xs">
+                                                {p.name}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="p-2 text-xs text-muted-foreground">Žádné modely k dispozici</div>
+                                    )}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </SheetHeader>
 
