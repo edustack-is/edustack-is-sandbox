@@ -10,6 +10,7 @@ import { Setup } from './pages/Setup';
 import { DeputyYearSetup } from './pages/DeputyYearSetup';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
+import { SystemAdminAi } from './pages/SystemAdminAi';
 import { SelectSchool } from './pages/SelectSchool';
 import { Login } from './pages/Login';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
@@ -64,6 +65,7 @@ function App() {
               <Route path="year-setup" element={<DeputyYearSetup />} />
               <Route path="system/schools" element={<SystemAdminSchools />} />
               <Route path="system/users" element={<SystemAdminUsers />} />
+              <Route path="system/ai" element={<SystemAdminAi />} />
             </Route>
           </Route>
 
