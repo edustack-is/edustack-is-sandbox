@@ -69,7 +69,7 @@ export class SystemAdminAiService {
             where: { id: SETTINGS_ID },
         });
 
-        const maskKey = (key: string | null) => {
+        const maskKey = (key: string | null | undefined) => {
             if (!key) return null;
             try {
                 const decrypted = decrypt(key);
