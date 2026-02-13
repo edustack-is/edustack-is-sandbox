@@ -33,18 +33,31 @@ export class SystemAdminAiService {
 
     // ─── PUT SETTINGS ───────────────────────────────────────────
 
-    async upsertAiSettings(geminiApiKey: string) {
-        const encryptedKey = encrypt(geminiApiKey);
+    async upsertAiSettings(keys: { geminiApiKey?: string; openAiApiKey?: string; anthropicApiKey?: string }) {
+        const updateData: any = {};
+        const response: any = { isConfigured: {}, updatedAt: new Date() };
+
+        if (keys.geminiApiKey) {
+            updateData.geminiApiKey = encrypt(keys.geminiApiKey);
+            response.isConfigured.gemini = true;
+        }
+        if (keys.openAiApiKey) {
+            updateData.openAiApiKey = encrypt(keys.openAiApiKey);
+            response.isConfigured.openai = true;
+        }
+        if (keys.anthropicApiKey) {
+            updateData.anthropicApiKey = encrypt(keys.anthropicApiKey);
+            response.isConfigured.anthropic = true;
+        }
 
         const settings = await this.prisma.systemSettings.upsert({
             where: { id: SETTINGS_ID },
-            create: { id: SETTINGS_ID, geminiApiKey: encryptedKey },
-            update: { geminiApiKey: encryptedKey },
+            create: { id: SETTINGS_ID, ...updateData },
+            update: updateData,
         });
 
         return {
-            isConfigured: true,
-            keyHint: '****' + geminiApiKey.slice(-4),
+            ...await this.getAiSettings(),
             updatedAt: settings.updatedAt,
         };
     }
@@ -56,26 +69,39 @@ export class SystemAdminAiService {
             where: { id: SETTINGS_ID },
         });
 
-        if (!settings || !settings.geminiApiKey) {
-            return { isConfigured: false, keyHint: null, updatedAt: settings?.updatedAt ?? null };
-        }
+        const maskKey = (key: string | null) => {
+            if (!key) return null;
+            try {
+                const decrypted = decrypt(key);
+                return '****' + decrypted.slice(-4);
+            } catch {
+                return '****';
+            }
+        };
 
-        try {
-            const decryptedKey = decrypt(settings.geminiApiKey);
-            return {
-                isConfigured: true,
-                keyHint: '****' + decryptedKey.slice(-4),
-                updatedAt: settings.updatedAt,
-            };
-        } catch {
-            return { isConfigured: true, keyHint: '****', updatedAt: settings.updatedAt };
-        }
+        return {
+            gemini: {
+                isConfigured: !!settings?.geminiApiKey,
+                keyHint: maskKey(settings?.geminiApiKey),
+            },
+            openai: {
+                isConfigured: !!settings?.openAiApiKey,
+                keyHint: maskKey(settings?.openAiApiKey),
+            },
+            anthropic: {
+                isConfigured: !!settings?.anthropicApiKey,
+                keyHint: maskKey(settings?.anthropicApiKey),
+            },
+            updatedAt: settings?.updatedAt ?? null,
+        };
     }
 
     /**
      * Retrieve the decrypted API key for internal use (e.g., by AI services).
      */
     async getDecryptedApiKey(): Promise<string | null> {
+        // This method might be deprecated in favor of AiChatService's own key retrieval, 
+        // but keeping it for backward compatibility if needed.
         const settings = await this.prisma.systemSettings.findUnique({
             where: { id: SETTINGS_ID },
         });
@@ -93,15 +119,11 @@ export class SystemAdminAiService {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Per-school aggregation for current month
+        // 1. Per-school aggregation
         const bySchool = await this.prisma.aiTokenUsage.groupBy({
             by: ['schoolId'],
             where: { createdAt: { gte: startOfMonth } },
-            _sum: {
-                inputTokens: true,
-                outputTokens: true,
-                totalTokens: true,
-            },
+            _sum: { totalTokens: true, inputTokens: true, outputTokens: true },
             _count: true,
         });
 
@@ -124,7 +146,21 @@ export class SystemAdminAiService {
             requestCount: row._count,
         }));
 
-        // Daily breakdown for current month (for charting)
+        // 2. Per-provider aggregation
+        const byProvider = await this.prisma.aiTokenUsage.groupBy({
+            by: ['provider'],
+            where: { createdAt: { gte: startOfMonth } },
+            _sum: { totalTokens: true },
+            _count: true,
+        });
+
+        const perProvider = byProvider.map(p => ({
+            provider: p.provider || 'unknown',
+            totalTokens: p._sum.totalTokens ?? 0,
+            requestCount: p._count,
+        }));
+
+        // 3. Daily breakdown
         const dailyRaw = await this.prisma.$queryRawUnsafe<
             { day: string; total_tokens: bigint; request_count: bigint }[]
         >(
@@ -142,14 +178,10 @@ export class SystemAdminAiService {
             requestCount: Number(row.request_count),
         }));
 
-        // Grand totals
+        // 4. Grand totals
         const totals = await this.prisma.aiTokenUsage.aggregate({
             where: { createdAt: { gte: startOfMonth } },
-            _sum: {
-                inputTokens: true,
-                outputTokens: true,
-                totalTokens: true,
-            },
+            _sum: { totalTokens: true, inputTokens: true, outputTokens: true },
             _count: true,
         });
 
@@ -162,6 +194,7 @@ export class SystemAdminAiService {
                 requestCount: totals._count,
             },
             perSchool,
+            perProvider,
             daily,
         };
     }

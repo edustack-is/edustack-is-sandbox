@@ -13,11 +13,25 @@ export class SystemAdminAiController {
      * Upserts the Gemini API key (encrypted at rest).
      */
     @Put('settings/ai')
-    async updateAiSettings(@Body() body: { geminiApiKey: string }) {
-        if (!body.geminiApiKey || typeof body.geminiApiKey !== 'string' || body.geminiApiKey.trim().length < 10) {
-            throw new BadRequestException('A valid geminiApiKey is required (min 10 characters).');
+    async updateAiSettings(@Body() body: {
+        geminiApiKey?: string;
+        openAiApiKey?: string;
+        anthropicApiKey?: string;
+    }) {
+        if (
+            (!body.geminiApiKey && !body.openAiApiKey && !body.anthropicApiKey) ||
+            (body.geminiApiKey && body.geminiApiKey.length < 10) ||
+            (body.openAiApiKey && body.openAiApiKey.length < 10) ||
+            (body.anthropicApiKey && body.anthropicApiKey.length < 10)
+        ) {
+            throw new BadRequestException('At least one valid API key (min 10 chars) is required.');
         }
-        return this.aiService.upsertAiSettings(body.geminiApiKey.trim());
+
+        return this.aiService.upsertAiSettings({
+            geminiApiKey: body.geminiApiKey?.trim(),
+            openAiApiKey: body.openAiApiKey?.trim(),
+            anthropicApiKey: body.anthropicApiKey?.trim(),
+        });
     }
 
     /**

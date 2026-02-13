@@ -7,8 +7,12 @@ export const getAiSettings = async () => {
     return response.data; // { isConfigured, keyHint, updatedAt }
 };
 
-export const updateAiSettings = async (geminiApiKey: string) => {
-    const response = await api.put('/api/system/settings/ai', { geminiApiKey });
+export const updateAiSettings = async (keys: {
+    geminiApiKey?: string;
+    openAiApiKey?: string;
+    anthropicApiKey?: string;
+}) => {
+    const response = await api.put('/api/system/settings/ai', keys);
     return response.data;
 };
 

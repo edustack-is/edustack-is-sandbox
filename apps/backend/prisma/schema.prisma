@@ -399,10 +399,12 @@ model TeacherWorkload {
 // ─── AI CONFIGURATION & BILLING ─────────────────────────────────
 
 model SystemSettings {
-  id            String   @id @default("global")
-  geminiApiKey  String?
+  id              String   @id @default("global")
+  geminiApiKey    String?
+  openAiApiKey    String?
+  anthropicApiKey String?
 
-  updatedAt     DateTime @updatedAt
+  updatedAt       DateTime @updatedAt
 }
 
 model AiTokenUsage {
@@ -414,6 +416,8 @@ model AiTokenUsage {
   school        School?  @relation(fields: [schoolId], references: [id])
   schoolId      String?
 
+  provider      String   // e.g. 'google', 'openai', 'anthropic'
+  modelName     String   // e.g. 'gemini-1.5-pro', 'gpt-4o'
   inputTokens   Int
   outputTokens  Int
   totalTokens   Int

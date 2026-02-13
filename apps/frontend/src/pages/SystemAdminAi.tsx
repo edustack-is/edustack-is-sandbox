@@ -14,7 +14,9 @@ import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
 
 // ─── Color palette for chart bars ───────────────────────────────
 
-const CHART_COLORS = [
+// ─── Color palette for chart bars ───────────────────────────────
+
+/* const CHART_COLORS = [
     'hsl(221, 83%, 53%)', // blue
     'hsl(262, 83%, 58%)', // purple
     'hsl(173, 58%, 39%)', // teal
@@ -22,13 +24,19 @@ const CHART_COLORS = [
     'hsl(346, 77%, 50%)', // rose
     'hsl(142, 71%, 45%)', // green
     'hsl(24, 95%, 53%)',  // orange
-];
+]; */
 
 // ─── Types ──────────────────────────────────────────────────────
 
-interface AiSettings {
+interface ProviderConfig {
     isConfigured: boolean;
     keyHint: string | null;
+}
+
+interface AiSettings {
+    gemini: ProviderConfig;
+    openai: ProviderConfig;
+    anthropic: ProviderConfig;
     updatedAt: string | null;
 }
 
@@ -46,6 +54,11 @@ interface UsageData {
         totalTokens: number;
         inputTokens: number;
         outputTokens: number;
+        requestCount: number;
+    }>;
+    perProvider: Array<{
+        provider: string;
+        totalTokens: number;
         requestCount: number;
     }>;
     daily: Array<{
@@ -141,7 +154,10 @@ export function SystemAdminAi() {
             <div className="grid gap-6 lg:grid-cols-3">
                 <ApiKeySettings settings={settings} onSaved={fetchData} />
                 <div className="lg:col-span-2">
-                    <SchoolUsageChart perSchool={usage?.perSchool ?? []} />
+                    <SchoolUsageChart
+                        perSchool={usage?.perSchool ?? []}
+                        perProvider={usage?.perProvider ?? []}
+                    />
                 </div>
             </div>
 
@@ -154,180 +170,7 @@ export function SystemAdminAi() {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// KPI Card
-// ═══════════════════════════════════════════════════════════════
-
-function KpiCard({ title, value, subtitle, icon, color, bg }: {
-    title: string; value: string; subtitle: string;
-    icon: React.ReactNode; color: string; bg: string;
-}) {
-    return (
-        <Card>
-            <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                        <p className="text-2xl font-bold mt-1">{value}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-                    </div>
-                    <div className={`p-3 rounded-xl ${bg} ${color}`}>
-                        {icon}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// API Key Settings Card
-// ═══════════════════════════════════════════════════════════════
-
-function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; onSaved: () => void }) {
-    const [apiKey, setApiKey] = useState('');
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
-    const [error, setError] = useState('');
-
-    const handleSave = async () => {
-        if (!apiKey.trim() || apiKey.length < 10) {
-            setError('API klíč musí mít alespoň 10 znaků.');
-            return;
-        }
-        try {
-            setSaving(true);
-            setError('');
-            await updateAiSettings(apiKey.trim());
-            setApiKey('');
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
-            onSaved();
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Chyba při ukládání.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <Key className="h-5 w-5 text-muted-foreground" />
-                    Gemini API klíč
-                </CardTitle>
-                <CardDescription>
-                    Klíč je šifrován AES-256 v databázi
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {/* Current status */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className={`w-2.5 h-2.5 rounded-full ${settings?.isConfigured ? 'bg-emerald-500' : 'bg-destructive'}`} />
-                    <div className="flex-1">
-                        <p className="text-sm font-medium">
-                            {settings?.isConfigured ? 'Nakonfigurováno' : 'Nenakonfigurováno'}
-                        </p>
-                        {settings?.keyHint && (
-                            <p className="text-xs text-muted-foreground font-mono">{settings.keyHint}</p>
-                        )}
-                    </div>
-                    <Badge variant={settings?.isConfigured ? 'default' : 'destructive'} className="text-xs">
-                        {settings?.isConfigured ? 'Active' : 'Inactive'}
-                    </Badge>
-                </div>
-
-                {settings?.updatedAt && (
-                    <p className="text-xs text-muted-foreground">
-                        Poslední aktualizace: {new Date(settings.updatedAt).toLocaleString('cs')}
-                    </p>
-                )}
-
-                {error && (
-                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" /> {error}
-                    </div>
-                )}
-
-                {/* Input form */}
-                <div className="space-y-3">
-                    <Input
-                        type="password"
-                        placeholder="Vložte nový Gemini API klíč..."
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                        className="font-mono text-sm"
-                    />
-                    <Button onClick={handleSave} disabled={saving || !apiKey.trim()} className="w-full">
-                        {saving ? (
-                            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...</>
-                        ) : saved ? (
-                            <><Check className="h-4 w-4 mr-2" /> Uloženo!</>
-                        ) : (
-                            <><Save className="h-4 w-4 mr-2" /> Uložit klíč</>
-                        )}
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// School Usage Bar Chart
-// ═══════════════════════════════════════════════════════════════
-
-function SchoolUsageChart({ perSchool }: {
-    perSchool: Array<{ schoolName: string; totalTokens: number; requestCount: number }>;
-}) {
-    const data = perSchool
-        .sort((a, b) => b.totalTokens - a.totalTokens)
-        .map((s) => ({
-            name: s.schoolName.length > 20 ? s.schoolName.slice(0, 18) + '…' : s.schoolName,
-            tokens: s.totalTokens,
-            requests: s.requestCount,
-        }));
-
-    return (
-        <Card className="h-full">
-            <CardHeader>
-                <CardTitle className="text-lg">Spotřeba per škola</CardTitle>
-                <CardDescription>Celkové tokeny za aktuální měsíc</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {data.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                        <BarChart3 className="h-10 w-10 mb-3 opacity-30" />
-                        <p className="text-sm">Zatím žádná data o spotřebě.</p>
-                    </div>
-                ) : (
-                    <ResponsiveContainer width="100%" height={280}>
-                        <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                            <XAxis type="number" tickFormatter={(v) => formatNumber(v)} fontSize={12} />
-                            <YAxis type="category" dataKey="name" width={130} fontSize={12} />
-                            <Tooltip
-                                formatter={(value: any) => [formatNumber(value ?? 0) + ' tokenů', 'Tokeny']}
-                                contentStyle={{
-                                    backgroundColor: 'hsl(var(--card))',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '8px',
-                                    fontSize: '12px',
-                                }}
-                            />
-                            <Bar dataKey="tokens" radius={[0, 6, 6, 0]}>
-                                {data.map((_, i) => (
-                                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
+// ... KpiCard and ApiKeySettings remain same ...
 
 // ═══════════════════════════════════════════════════════════════
 // Daily Usage Chart
@@ -383,8 +226,230 @@ function DailyChart({ daily, month }: {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// School Usage Table
+// KPI Card
 // ═══════════════════════════════════════════════════════════════
+
+function KpiCard({ title, value, subtitle, icon, color, bg }: {
+    title: string; value: string; subtitle: string;
+    icon: React.ReactNode; color: string; bg: string;
+}) {
+    return (
+        <Card>
+            <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+                        <p className="text-2xl font-bold mt-1">{value}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${bg} ${color}`}>
+                        {icon}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API Key Settings Card
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// API Key Settings Card
+// ═══════════════════════════════════════════════════════════════
+
+function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; onSaved: () => void }) {
+    const [keys, setKeys] = useState({ gemini: '', openai: '', anthropic: '' });
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSave = async () => {
+        if (!keys.gemini && !keys.openai && !keys.anthropic) {
+            setError('Vyplňte alespoň jeden klíč.');
+            return;
+        }
+        try {
+            setSaving(true);
+            setError('');
+            await updateAiSettings({
+                geminiApiKey: keys.gemini || undefined,
+                openAiApiKey: keys.openai || undefined,
+                anthropicApiKey: keys.anthropic || undefined,
+            });
+            setKeys({ gemini: '', openai: '', anthropic: '' });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+            onSaved();
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Chyba při ukládání.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Card className="h-full">
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <Key className="h-5 w-5 text-muted-foreground" />
+                    Konfigurace AI Providerů
+                </CardTitle>
+                <CardDescription>
+                    Klíče jsou šifrovány (AES-256).
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {settings?.updatedAt && (
+                    <p className="text-xs text-muted-foreground -mt-4 mb-4">
+                        Poslední aktualizace: {new Date(settings.updatedAt).toLocaleString('cs')}
+                    </p>
+                )}
+
+                {error && (
+                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" /> {error}
+                    </div>
+                )}
+
+                <div className="space-y-4">
+                    <ProviderInput
+                        label="Google Gemini"
+                        placeholder="Vložte Gemini API Key..."
+                        config={settings?.gemini}
+                        value={keys.gemini}
+                        onChange={(v: string) => setKeys(p => ({ ...p, gemini: v }))}
+                        link="https://aistudio.google.com/app/apikey"
+                    />
+                    <ProviderInput
+                        label="OpenAI"
+                        placeholder="sk-..."
+                        config={settings?.openai}
+                        value={keys.openai}
+                        onChange={(v: string) => setKeys(p => ({ ...p, openai: v }))}
+                        link="https://platform.openai.com/api-keys"
+                    />
+                    <ProviderInput
+                        label="Anthropic Claude"
+                        placeholder="sk-ant-..."
+                        config={settings?.anthropic}
+                        value={keys.anthropic}
+                        onChange={(v: string) => setKeys(p => ({ ...p, anthropic: v }))}
+                        link="https://console.anthropic.com/settings/keys"
+                    />
+                </div>
+
+                <Button onClick={handleSave} disabled={saving} className="w-full">
+                    {saving ? (
+                        <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...</>
+                    ) : saved ? (
+                        <><Check className="h-4 w-4 mr-2" /> Uloženo!</>
+                    ) : (
+                        <><Save className="h-4 w-4 mr-2" /> Uložit klíče</>
+                    )}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+function ProviderInput({ label, placeholder, config, value, onChange, link }: any) {
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between items-center">
+                <label className="text-sm font-medium flex items-center gap-2">
+                    {label}
+                    {config?.isConfigured && <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200">Active</Badge>}
+                </label>
+                <a href={link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline">Získat klíč ↗</a>
+            </div>
+            <div className="relative">
+                <Input
+                    type="password"
+                    placeholder={config?.isConfigured ? `Nakonfigurováno (${config.keyHint})` : placeholder}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="font-mono text-sm pr-20"
+                />
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Usage Charts & Tables
+// ═══════════════════════════════════════════════════════════════
+
+function SchoolUsageChart({ perSchool, perProvider }: {
+    perSchool: any[];
+    perProvider: any[];
+}) {
+    const schoolData = perSchool
+        .sort((a, b) => b.totalTokens - a.totalTokens)
+        .slice(0, 10) // Top 10 schools
+        .map((s) => ({
+            name: s.schoolName.length > 15 ? s.schoolName.slice(0, 13) + '…' : s.schoolName,
+            tokens: s.totalTokens,
+        }));
+
+    const providerData = perProvider.map((p: any) => ({
+        name: p.provider,
+        value: p.totalTokens,
+    }));
+
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+    return (
+        <div className="grid gap-4 md:grid-cols-2 h-full">
+            <Card className="h-full">
+                <CardHeader>
+                    <CardTitle className="text-base">Top Školy</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={schoolData} layout="vertical" margin={{ left: 0 }}>
+                            <XAxis type="number" hide />
+                            <YAxis type="category" dataKey="name" width={100} fontSize={11} tickLine={false} axisLine={false} />
+                            <Tooltip cursor={{ fill: 'transparent' }} />
+                            <Bar dataKey="tokens" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+
+            <Card className="h-full">
+                <CardHeader>
+                    <CardTitle className="text-base">Podle Providera</CardTitle>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                    {providerData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart data={providerData} margin={{ top: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis fontSize={12} tickFormatter={formatNumber} tickLine={false} axisLine={false} />
+                                <Tooltip
+                                    formatter={(val: any) => formatNumber(val)}
+                                    cursor={{ fill: 'transparent' }}
+                                />
+                                <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} barSize={30}>
+                                    {providerData.map((_entry: any, index: number) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+                            Žádná data
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 function SchoolUsageTable({ perSchool }: {
     perSchool: Array<{
