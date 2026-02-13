@@ -7,6 +7,7 @@ import { Grading } from './pages/Grading';
 import { Schedule } from './pages/Schedule';
 import Users from './pages/Users';
 import { Setup } from './pages/Setup';
+import { DeputyYearSetup } from './pages/DeputyYearSetup';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { SelectSchool } from './pages/SelectSchool';
@@ -60,6 +61,7 @@ function App() {
               <Route path="grading" element={<Grading />} />
               <Route path="schedule" element={<Schedule />} />
               <Route path="users" element={<Users />} />
+              <Route path="year-setup" element={<DeputyYearSetup />} />
               <Route path="system/schools" element={<SystemAdminSchools />} />
               <Route path="system/users" element={<SystemAdminUsers />} />
             </Route>
