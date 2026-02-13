@@ -50,6 +50,7 @@ model School {
   subjects    Subject[]
   grades      Grade[]
   attendances Attendance[]
+  rooms       Room[]
   scheduleEvents ScheduleEvent[]
 
   createdAt   DateTime @default(now())
@@ -259,4 +260,19 @@ model Attendance {
   createdAt       DateTime         @default(now())
 
   @@unique([studentId, date, schoolId])
+}
+
+model Room {
+  id          String   @id @default(uuid())
+  name        String
+  capacity    Int      @default(30)
+  equipment   Json?    // e.g. ["projector", "whiteboard", "computers"]
+
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, schoolId])
 }
