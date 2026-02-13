@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { SystemAdminController } from './system-admin.controller';
 import { SystemAdminService } from './system-admin.service';
+import { SystemAdminAiController } from './system-admin-ai.controller';
+import { SystemAdminAiService } from './system-admin-ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
-    controllers: [SystemAdminController],
-    providers: [SystemAdminService, PrismaService],
+    controllers: [SystemAdminController, SystemAdminAiController],
+    providers: [SystemAdminService, SystemAdminAiService, PrismaService],
+    exports: [SystemAdminAiService],
 })
 export class SystemAdminModule { }
