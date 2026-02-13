@@ -4,11 +4,7 @@ import { setupApp } from '../api';
 
 export const Setup = () => {
     const navigate = useNavigate();
-    const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
-        schoolName: '',
-        address: '',
-        contactEmail: '',
         adminFirstName: '',
         adminLastName: '',
         adminEmail: '',
@@ -16,22 +12,20 @@ export const Setup = () => {
         confirmPassword: '',
     });
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleNext = (e: React.FormEvent) => {
-        e.preventDefault();
-        setStep(2);
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
         if (formData.adminPassword !== formData.confirmPassword) {
             setError('Passwords do not match');
+            setLoading(false);
             return;
         }
 
@@ -40,6 +34,8 @@ export const Setup = () => {
             navigate('/login');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Setup failed');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -51,142 +47,89 @@ export const Setup = () => {
                         System Setup
                     </h2>
                     <p className="mt-2 text-center text-sm text-gray-600">
-                        Step {step} of 2
+                        Create System Administrator
                     </p>
                 </div>
                 {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
-                {step === 1 ? (
-                    <form className="mt-8 space-y-6" onSubmit={handleNext}>
-                        <div className="rounded-md shadow-sm -space-y-px">
-                            <div className="mb-4">
-                                <label htmlFor="schoolName" className="block text-sm font-medium text-gray-700">School Name</label>
-                                <input
-                                    id="schoolName"
-                                    name="schoolName"
-                                    type="text"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.schoolName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
-                                <input
-                                    id="address"
-                                    name="address"
-                                    type="text"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.address}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700">Contact Email</label>
-                                <input
-                                    id="contactEmail"
-                                    name="contactEmail"
-                                    type="email"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.contactEmail}
-                                    onChange={handleChange}
-                                />
-                            </div>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <div className="rounded-md shadow-sm -space-y-px">
+                        <div className="mb-4">
+                            <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                            <input
+                                id="adminFirstName"
+                                name="adminFirstName"
+                                type="text"
+                                required
+                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                value={formData.adminFirstName}
+                                onChange={handleChange}
+                            />
                         </div>
-                        <div>
-                            <button
-                                type="submit"
-                                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                Next
-                            </button>
+                        <div className="mb-4">
+                            <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                            <input
+                                id="adminLastName"
+                                name="adminLastName"
+                                type="text"
+                                required
+                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                value={formData.adminLastName}
+                                onChange={handleChange}
+                            />
                         </div>
-                    </form>
-                ) : (
-                    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                        <div className="rounded-md shadow-sm -space-y-px">
-                            <div className="mb-4">
-                                <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">First Name</label>
-                                <input
-                                    id="adminFirstName"
-                                    name="adminFirstName"
-                                    type="text"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.adminFirstName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">Last Name</label>
-                                <input
-                                    id="adminLastName"
-                                    name="adminLastName"
-                                    type="text"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.adminLastName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">Admin Email</label>
-                                <input
-                                    id="adminEmail"
-                                    name="adminEmail"
-                                    type="email"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.adminEmail}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700">Password</label>
-                                <input
-                                    id="adminPassword"
-                                    name="adminPassword"
-                                    type="password"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.adminPassword}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm Password</label>
-                                <input
-                                    id="confirmPassword"
-                                    name="confirmPassword"
-                                    type="password"
-                                    required
-                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={formData.confirmPassword}
-                                    onChange={handleChange}
-                                />
-                            </div>
+                        <div className="mb-4">
+                            <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">Admin Email</label>
+                            <input
+                                id="adminEmail"
+                                name="adminEmail"
+                                type="email"
+                                required
+                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                value={formData.adminEmail}
+                                onChange={handleChange}
+                            />
                         </div>
-                        <div className="flex space-x-4">
-                            <button
-                                type="button"
-                                onClick={() => setStep(1)}
-                                className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                Back
-                            </button>
-                            <button
-                                type="submit"
-                                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                Complete Setup
-                            </button>
+                        <div className="mb-4">
+                            <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700">Password</label>
+                            <input
+                                id="adminPassword"
+                                name="adminPassword"
+                                type="password"
+                                required
+                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                value={formData.adminPassword}
+                                onChange={handleChange}
+                            />
                         </div>
-                    </form>
-                )}
+                        <div className="mb-4">
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm Password</label>
+                            <input
+                                id="confirmPassword"
+                                name="confirmPassword"
+                                type="password"
+                                required
+                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                            {loading ? 'Creating...' : 'Create System Admin'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
+    );
+};
+            </div >
+        </div >
     );
 };
