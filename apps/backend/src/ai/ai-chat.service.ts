@@ -261,18 +261,22 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     private async trackUsage(userId: string, schoolId: string | null, provider: string, model: string, usage: any) {
         if (!usage) return;
 
-        await this.prisma.aiTokenUsage.create({
-            data: {
-                userId,
-                schoolId,
-                provider,
-                modelName: model,
-                inputTokens: usage.promptTokens ?? 0,
-                outputTokens: usage.completionTokens ?? 0,
-                totalTokens: usage.totalTokens ?? 0,
-                promptType: 'CHAT',
-            },
-        });
+        try {
+            await this.prisma.aiTokenUsage.create({
+                data: {
+                    userId,
+                    schoolId: schoolId || null, // normalize empty string to null
+                    provider,
+                    modelName: model,
+                    inputTokens: usage.promptTokens ?? 0,
+                    outputTokens: usage.completionTokens ?? 0,
+                    totalTokens: usage.totalTokens ?? 0,
+                    promptType: 'CHAT',
+                },
+            });
+        } catch (err) {
+            this.logger.error('Failed to track AI usage:', err);
+        }
     }
 
     // ─── UTILS ──────────────────────────────────────────────────
