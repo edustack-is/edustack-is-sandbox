@@ -29,7 +29,6 @@ interface ChatMessage {
 
 export function AiChatDrawer() {
     const [open, setOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const { t } = useTranslation();
@@ -46,8 +45,22 @@ export function AiChatDrawer() {
     // Storage key based on userId
     const storageKey = userId ? `ai-chat-history-${userId}` : null;
 
-    // Load history from localStorage on mount or when userId changes
+    // Lazy-initialize messages from localStorage
+    const [messages, setMessages] = useState<ChatMessage[]>(() => {
+        if (!userId) return [];
+        const key = `ai-chat-history-${userId}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            try { return JSON.parse(saved); } catch { /* ignore */ }
+        }
+        return [];
+    });
+
+    const initialized = useRef(false);
+
+    // Re-load history when userId changes (e.g. school switch)
     useEffect(() => {
+        initialized.current = false;
         if (storageKey) {
             const saved = localStorage.getItem(storageKey);
             if (saved) {
@@ -55,16 +68,21 @@ export function AiChatDrawer() {
                     setMessages(JSON.parse(saved));
                 } catch (e) {
                     console.error('Failed to parse chat history', e);
+                    setMessages([]);
                 }
             } else {
                 setMessages([]);
             }
+        } else {
+            setMessages([]);
         }
+        // Mark as initialized after the state update is queued
+        requestAnimationFrame(() => { initialized.current = true; });
     }, [storageKey]);
 
-    // Save history to localStorage whenever messages change
+    // Save history to localStorage whenever messages change (only after init)
     useEffect(() => {
-        if (storageKey) {
+        if (storageKey && initialized.current) {
             localStorage.setItem(storageKey, JSON.stringify(messages));
         }
     }, [messages, storageKey]);
