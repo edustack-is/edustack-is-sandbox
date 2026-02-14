@@ -173,13 +173,14 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
 
                 if (hasTools) {
                     options.tools = tools;
-                    options.maxSteps = 5;
+                    options.maxSteps = 10;
                 }
 
                 return generateText(options);
             });
 
             // Log tool usage
+            const toolResults: string[] = [];
             if (result.steps && result.steps.length > 0) {
                 this.logger.log(`AI used ${result.steps.length} step(s)`);
                 for (const step of result.steps) {
@@ -188,15 +189,53 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                             this.logger.log(`  Tool call: ${(tc as any).toolName}(${JSON.stringify((tc as any).args || {}).substring(0, 200)})`);
                         }
                     }
+                    // Collect tool results
+                    if (step.toolResults && step.toolResults.length > 0) {
+                        for (const tr of step.toolResults as any[]) {
+                            if (tr.result) {
+                                toolResults.push(String(tr.result));
+                            }
+                        }
+                    }
                 }
             }
-            this.logger.log(`AI response length: ${result.text?.length || 0} chars`);
+            this.logger.log(`AI response length: ${result.text?.length || 0} chars, toolResults: ${toolResults.length}`);
+
+            let finalText = result.text;
+
+            // If AI called tools but produced empty text, do a follow-up call
+            // to summarize the tool results into a human-readable response
+            if ((!finalText || finalText.trim().length === 0) && toolResults.length > 0) {
+                this.logger.log('AI returned empty text after tool calls, doing follow-up generation...');
+                const followUpMessages = [
+                    ...history,
+                    {
+                        role: 'assistant',
+                        content: `Zavolal jsem nástroje a získal tato data:\n\n${toolResults.join('\n\n')}`,
+                    },
+                    {
+                        role: 'user',
+                        content: 'Shrň a prezentuj výsledky z nástrojů uživateli srozumitelnou formou.',
+                    },
+                ];
+
+                const followUp = await this.generateWithRetry(async () => {
+                    return generateText({
+                        model: languageModel,
+                        system,
+                        messages: followUpMessages as any[],
+                    });
+                });
+
+                finalText = followUp.text;
+                this.logger.log(`Follow-up response length: ${finalText?.length || 0} chars`);
+            }
 
             // 6. Track Usage
             await this.trackUsage(userId, schoolId, provider, languageModel.modelId, result.usage);
 
             return {
-                response: result.text,
+                response: finalText || 'Nepodařilo se zpracovat výsledek.',
                 usage: result.usage,
             };
 
