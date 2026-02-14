@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { UserRole } from '@prisma/client';
+import { UserRole, SecretType } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +11,20 @@ export class AuthService {
         private prisma: PrismaService,
         private jwtService: JwtService,
     ) { }
+
+    async getSsoOptions() {
+        const activeSecrets = await this.prisma.systemSecret.findMany({
+            where: {
+                type: SecretType.SSO,
+                isActive: true,
+                key: 'CLIENT_ID' // Just check for existence of basic config
+            },
+            select: { service: true }
+        });
+
+        // Return unique service names in lowercase
+        return Array.from(new Set(activeSecrets.map((s: any) => s.service.toLowerCase())));
+    }
 
     async validateUser(email: string, pass: string): Promise<any> {
         const user = await this.prisma.user.findUnique({ where: { email } });
@@ -143,6 +157,41 @@ export class AuthService {
         };
     }
 
+    async verifyToken(token: string) {
+        return this.jwtService.verify(token);
+    }
+
+    async getIdentities(userId: string) {
+        const identities = await this.prisma.identity.findMany({
+            where: { userId },
+        });
+        return identities.map(id => ({
+            provider: id.provider,
+            providerId: id.providerId,
+            createdAt: id.createdAt
+        }));
+    }
+
+    async linkIdentity(userId: string, provider: string, providerId: string) {
+        // Check if this identity is already linked to someone else
+        const existing = await this.prisma.identity.findFirst({
+            where: { provider, providerId }
+        });
+
+        if (existing) {
+            if (existing.userId === userId) return; // Already linked to this user
+            throw new BadRequestException('This account is already linked to another user.');
+        }
+
+        return this.prisma.identity.create({
+            data: {
+                userId,
+                provider,
+                providerId
+            }
+        });
+    }
+
     async getSchools(userId: string) {
         return this.prisma.schoolMembership.findMany({
             where: { userId, status: 'ACTIVE' },
@@ -228,12 +277,16 @@ export class AuthService {
     }
 
     async validateOAuthLogin(email: string, provider: string, providerId: string, firstName?: string, lastName?: string) {
-        const user = await this.prisma.user.findUnique({
+        let user = await this.prisma.user.findUnique({
             where: { email },
             include: { identities: true },
         });
 
         if (!user) {
+            // Check if we should allow auto-registration or just reject
+            // For now, following the previous logic: "User not found - you must be invited by the school first."
+            // But we might want to auto-create if it's the first admin setup? 
+            // Let's stick to the current strict policy unless told otherwise.
             throw new UnauthorizedException('User not found - you must be invited by the school first.');
         }
 
@@ -252,7 +305,7 @@ export class AuthService {
             });
         }
 
-        // Removed status check/update on User
+        // Update last login
         await this.prisma.user.update({
             where: { id: user.id },
             data: { lastLogin: new Date() },

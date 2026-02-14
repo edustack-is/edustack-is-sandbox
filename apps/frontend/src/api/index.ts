@@ -92,6 +92,23 @@ export const getMe = async () => {
     return response.data; // User object
 };
 
+export const getSsoOptions = async (): Promise<string[]> => {
+    const response = await api.get('/api/auth/sso-options');
+    return response.data;
+};
+
+export const getUserIdentities = async () => {
+    const response = await api.get('/api/auth/identities');
+    return response.data;
+};
+
+export const linkIdentity = (provider: string) => {
+    // This needs to redirect to the backend SSO route WITH the current token
+    const token = localStorage.getItem('access_token');
+    const backendUrl = window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
+    window.location.href = `${backendUrl}/api/auth/sso/${provider}?token=${token}`;
+};
+
 // System Admin API
 export const getSystemSchools = async () => {
     const response = await api.get('/api/system/schools');

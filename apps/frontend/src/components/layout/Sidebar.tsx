@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, Zap, DoorOpen, BookOpen } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -113,9 +113,9 @@ export const Sidebar: React.FC = () => {
                             <Users2 size={18} />
                             <span>Uživatelé</span>
                         </NavLink>
-                        <NavLink to="/system/ai" className={navLinkClass}>
-                            <Zap size={18} />
-                            <span>AI Management</span>
+                        <NavLink to="/system/settings" className={navLinkClass}>
+                            <Settings size={18} />
+                            <span>Nastavení systému</span>
                         </NavLink>
                     </>
                 )}
@@ -174,11 +174,19 @@ export const Sidebar: React.FC = () => {
                                 <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={user.email}>{user.email}</span>
                             </div>
                         </div>
-                        <Badge variant="outline" className="w-fit">{user.role || (isSystemAdmin ? 'System Admin' : 'User')}</Badge>
-                        <Button variant="ghost" size="sm" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleLogout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Odhlásit se
-                        </Button>
+                        <div className="flex flex-col gap-2 w-full mt-2">
+                            <Badge variant="outline" className="w-fit">{user.role || (isSystemAdmin ? 'System Admin' : 'User')}</Badge>
+                            <div className="space-y-1 w-full">
+                                <Button variant="ghost" size="sm" className="w-full justify-start font-medium" onClick={() => navigate('/profile')}>
+                                    <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    Můj profil
+                                </Button>
+                                <Button variant="ghost" size="sm" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 font-medium" onClick={handleLogout}>
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    Odhlásit se
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <div className="text-center text-sm text-muted-foreground">Načítání profilu...</div>
