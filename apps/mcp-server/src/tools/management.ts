@@ -13,6 +13,17 @@ server.tool(
     },
     async ({ name, address }: { name: string; address?: string }) => {
         try {
+            // Check uniqueness among non-deleted schools
+            const existing = await prisma.school.findFirst({
+                where: { name, deletedAt: null },
+            });
+            if (existing) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Škola s názvem '${name}' již existuje.` }],
+                };
+            }
+
             const school = await prisma.school.create({
                 data: {
                     name,

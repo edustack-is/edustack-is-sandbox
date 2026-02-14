@@ -408,7 +408,7 @@ server.tool(
     },
     async ({ search }) => {
         try {
-            const where: any = {};
+            const where: any = { deletedAt: null };
             if (search) {
                 where.name = { contains: search, mode: "insensitive" };
             }
@@ -695,6 +695,185 @@ server.tool(
             return {
                 isError: true,
                 content: [{ type: "text", text: `Chyba při propojování rodiče a studenta: ${error.message}` }],
+            };
+        }
+    }
+);
+
+// ─── DELETE SCHOOL (SOFT DELETE) ────────────────────────────────
+
+server.tool(
+    "delete_school",
+    "Smaže školu (soft delete – nastaví deletedAt). Škola se přestane zobrazovat v seznamech, ale data zůstanou v databázi.",
+    {
+        schoolId: z.string().describe("ID školy ke smazání"),
+    },
+    async ({ schoolId }) => {
+        try {
+            const school = await prisma.school.findUnique({ where: { id: schoolId } });
+            if (!school) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Škola s ID '${schoolId}' nebyla nalezena.` }],
+                };
+            }
+            if (school.deletedAt) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Škola '${school.name}' je již smazaná.` }],
+                };
+            }
+
+            await prisma.school.update({
+                where: { id: schoolId },
+                data: { deletedAt: new Date() },
+            });
+
+            return {
+                content: [{
+                    type: "text",
+                    text: `Škola '${school.name}' byla úspěšně smazána (soft delete).`,
+                }],
+            };
+        } catch (error: any) {
+            return {
+                isError: true,
+                content: [{ type: "text", text: `Chyba při mazání školy: ${error.message}` }],
+            };
+        }
+    }
+);
+
+// ─── BATCH CREATE USERS ─────────────────────────────────────────
+
+server.tool(
+    "batch_create_users",
+    "Hromadně vytvoří uživatele a přiřadí je ke škole. Podporuje vytváření studentů, učitelů, rodičů a dalších rolí. U studentů automaticky vytváří StudentProfile, u učitelů TeacherProfile. Může propojit rodiče se studenty.",
+    {
+        schoolId: z.string().describe("ID školy, ke které budou uživatelé přiřazeni"),
+        users: z.array(z.object({
+            firstName: z.string().describe("Jméno"),
+            lastName: z.string().describe("Příjmení"),
+            email: z.string().describe("E-mail"),
+            role: z.enum(["ADMIN", "DIRECTOR", "PRINCIPAL", "DEPUTY", "TEACHER", "STUDENT", "PARENT"]).describe("Role ve škole"),
+            classroomId: z.string().optional().describe("ID třídy (pro studenty)"),
+            parentEmails: z.array(z.string()).optional().describe("E-maily rodičů, kteří mají být propojeni s tímto studentem (vytvoří se automaticky pokud neexistují)"),
+        })).describe("Seznam uživatelů k vytvoření"),
+    },
+    async ({ schoolId, users }) => {
+        try {
+            const result = await prisma.$transaction(async (tx) => {
+                const created: { id: string; name: string; role: string; email: string }[] = [];
+                const parentMap = new Map<string, string>(); // email -> userId
+
+                // First pass: create all users
+                for (const u of users) {
+                    // Check if user already exists
+                    let user = await tx.user.findUnique({ where: { email: u.email } });
+
+                    if (!user) {
+                        const data: any = {
+                            email: u.email,
+                            firstName: u.firstName,
+                            lastName: u.lastName,
+                            passwordHash: "awaiting_activation",
+                            schoolMemberships: {
+                                create: {
+                                    schoolId,
+                                    role: u.role,
+                                    status: "ACTIVE",
+                                },
+                            },
+                        };
+
+                        if (u.role === "STUDENT") {
+                            data.studentProfile = {
+                                create: {
+                                    firstName: u.firstName,
+                                    lastName: u.lastName,
+                                    ...(u.classroomId ? { classroomId: u.classroomId } : {}),
+                                },
+                            };
+                        }
+
+                        if (u.role === "TEACHER") {
+                            data.teacherProfile = { create: {} };
+                        }
+
+                        user = await tx.user.create({ data });
+                    } else {
+                        // User exists, just add membership if not already present
+                        const existingMembership = await tx.schoolMembership.findUnique({
+                            where: { userId_schoolId: { userId: user.id, schoolId } },
+                        });
+                        if (!existingMembership) {
+                            await tx.schoolMembership.create({
+                                data: { userId: user.id, schoolId, role: u.role, status: "ACTIVE" },
+                            });
+                        }
+                    }
+
+                    created.push({ id: user.id, name: `${u.firstName} ${u.lastName}`, role: u.role, email: u.email });
+
+                    if (u.role === "PARENT") {
+                        parentMap.set(u.email, user.id);
+                    }
+                }
+
+                // Second pass: create parent-student links
+                for (const u of users) {
+                    if (u.role === "STUDENT" && u.parentEmails && u.parentEmails.length > 0) {
+                        const studentUser = created.find(c => c.email === u.email);
+                        if (!studentUser) continue;
+
+                        for (const parentEmail of u.parentEmails) {
+                            let parentId = parentMap.get(parentEmail);
+
+                            if (!parentId) {
+                                // Try to find existing parent user
+                                const existingParent = await tx.user.findUnique({ where: { email: parentEmail } });
+                                if (existingParent) {
+                                    parentId = existingParent.id;
+                                }
+                            }
+
+                            if (parentId) {
+                                // Check if link already exists
+                                const existingLink = await tx.parentStudent.findUnique({
+                                    where: { parentId_studentId: { parentId, studentId: studentUser.id } },
+                                });
+                                if (!existingLink) {
+                                    await tx.parentStudent.create({
+                                        data: { parentId, studentId: studentUser.id },
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return created;
+            });
+
+            const summary = {
+                total: result.length,
+                byRole: result.reduce((acc, u) => {
+                    acc[u.role] = (acc[u.role] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>),
+                users: result,
+            };
+
+            return {
+                content: [{
+                    type: "text",
+                    text: `Úspěšně vytvořeno ${result.length} uživatelů.\n${JSON.stringify(summary, null, 2)}`,
+                }],
+            };
+        } catch (error: any) {
+            return {
+                isError: true,
+                content: [{ type: "text", text: `Chyba při hromadném vytváření uživatelů: ${error.message}` }],
             };
         }
     }
