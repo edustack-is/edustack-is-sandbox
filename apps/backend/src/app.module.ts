@@ -21,6 +21,7 @@ import { PrincipalModule } from './principal/principal.module';
 import { ClsModule } from 'nestjs-cls';
 import { UserContextInterceptor } from './auth/user-context.interceptor';
 import { MailModule } from './mail/mail.module';
+import { CryptoModule } from './shared/crypto/crypto.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MailModule } from './mail/mail.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    CryptoModule,
     MailModule,
     UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
     SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule

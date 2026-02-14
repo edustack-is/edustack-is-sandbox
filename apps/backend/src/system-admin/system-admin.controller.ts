@@ -3,11 +3,21 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
+import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 
 @Controller('api/system')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class SystemAdminController {
-    constructor(private readonly systemAdminService: SystemAdminService) { }
+    constructor(
+        private readonly systemAdminService: SystemAdminService,
+        private readonly ssoStrategyFactory: SsoStrategyFactoryService,
+    ) { }
+
+    @Post('sso/reload')
+    async reloadSso() {
+        await this.ssoStrategyFactory.reloadStrategies();
+        return { message: 'SSO strategies reloaded successfully' };
+    }
 
     @Get('dashboard')
     getDashboard() {
