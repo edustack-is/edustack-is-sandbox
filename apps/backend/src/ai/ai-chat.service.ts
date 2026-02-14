@@ -222,7 +222,7 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
             const modelMap: Record<string, string> = {
                 'google': 'gemini-2.0-flash',
                 'google-flash': 'gemini-2.0-flash',
-                'google-pro': 'gemini-2.5-pro-preview-05-06',
+                'google-pro': 'gemini-2.5-pro',
                 'google-flash-lite': 'gemini-2.0-flash-lite',
             };
             const modelId = modelMap[provider] || 'gemini-2.0-flash';
