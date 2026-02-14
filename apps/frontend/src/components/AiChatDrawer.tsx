@@ -14,6 +14,7 @@ import { api } from '@/api';
 import { getAvailableProviders, AiProvider } from '@/api/ai';
 import { cn } from '@/lib/utils';
 import { useSchool } from '@/context/SchoolContext';
+import { useTranslation } from 'react-i18next';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export function AiChatDrawer() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const { t } = useTranslation();
 
     // Provider State
     const [providers, setProviders] = useState<AiProvider[]>([]);
@@ -128,10 +130,10 @@ export function AiChatDrawer() {
                 messages: newHistory,
                 provider: selectedProvider
             });
-            const aiText = res.data?.response || 'Omlouvám se, nemám odpověď.';
+            const aiText = res.data?.response || t('aitutor.errors.no_answer');
             setMessages((prev) => [...prev, { role: 'model', text: aiText }]);
         } catch (err: any) {
-            const errMsg = err.response?.data?.message || 'Chyba při komunikaci s AI.';
+            const errMsg = err.response?.data?.message || t('aitutor.errors.communication');
             setMessages((prev) => [...prev, { role: 'model', text: `⚠️ ${errMsg}` }]);
         } finally {
             setLoading(false);
@@ -190,8 +192,8 @@ export function AiChatDrawer() {
                                     <Sparkles className="h-4 w-4" />
                                 </div>
                                 <div>
-                                    <SheetTitle>AI Asistent</SheetTitle>
-                                    <SheetDescription className="text-xs">EduStack AI Tutor</SheetDescription>
+                                    <SheetTitle>{t('aitutor.title')}</SheetTitle>
+                                    <SheetDescription className="text-xs">{t('aitutor.description')}</SheetDescription>
                                 </div>
                             </div>
                             {messages.length > 0 && (
@@ -206,16 +208,15 @@ export function AiChatDrawer() {
                             )}
                         </div>
 
-                        {/* Model Selector */}
                         <div className="flex items-center gap-2">
-                            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                            <Select value={selectedProvider} onValueChange={setSelectedProvider} disabled={providers.length === 0}>
                                 <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-input/50">
-                                    <SelectValue placeholder="Vyberte model" />
+                                    <SelectValue placeholder={t('aitutor.loading_models')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {providersLoading ? (
                                         <div className="flex items-center justify-center p-2 text-xs text-muted-foreground">
-                                            <Loader2 className="h-3 w-3 animate-spin mr-2" /> Načítám modely...
+                                            <Loader2 className="h-3 w-3 animate-spin mr-2" /> {t('aitutor.loading_models')}
                                         </div>
                                     ) : providers.length > 0 ? (
                                         providers.map(p => (
@@ -224,7 +225,7 @@ export function AiChatDrawer() {
                                             </SelectItem>
                                         ))
                                     ) : (
-                                        <div className="p-2 text-xs text-muted-foreground">Žádné modely k dispozici</div>
+                                        <div className="p-2 text-xs text-muted-foreground">{t('aitutor.no_models')}</div>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -255,14 +256,14 @@ export function AiChatDrawer() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Napište zprávu..."
-                                disabled={loading}
+                                placeholder={providers.length > 0 ? t('aitutor.placeholder') : t('aitutor.disabled_placeholder')}
+                                disabled={loading || providers.length === 0}
                                 className="flex-1 bg-background min-h-[44px] max-h-[150px] resize-none py-3"
                                 rows={1}
                             />
                             <Button
                                 onClick={sendMessage}
-                                disabled={loading || !input.trim()}
+                                disabled={loading || !input.trim() || providers.length === 0}
                                 size="icon"
                                 className="bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shrink-0 h-10 w-10 mb-[2px]"
                             >
@@ -274,7 +275,7 @@ export function AiChatDrawer() {
                             </Button>
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                            AI může dělat chyby. Ověřujte důležité informace.
+                            {t('aitutor.footer_note')}
                         </p>
                     </div>
                 </SheetContent>
@@ -332,19 +333,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 // ═══════════════════════════════════════════════════════════════
 
 function EmptyState() {
+    const { t } = useTranslation();
     return (
         <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-600/10 to-indigo-600/10 mb-4">
                 <Sparkles className="h-8 w-8 text-violet-500" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">EduStack AI 👋</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('aitutor.empty_state.title')}</h3>
             <p className="text-sm text-muted-foreground max-w-[260px]">
-                Jsem průvodce aplikací. Ptej se na fungování systému, architekturu (API, DB) nebo na data v aplikaci.
+                {t('aitutor.empty_state.description')}
             </p>
             <div className="mt-6 space-y-2 text-xs text-muted-foreground">
-                <SuggestionPill text="Jak vytvořím školu?" />
-                <SuggestionPill text="Vysvětli mi databázové schéma" />
-                <SuggestionPill text="Jaké technologie používá backend?" />
+                <SuggestionPill text={t('aitutor.empty_state.suggestions.school')} />
+                <SuggestionPill text={t('aitutor.empty_state.suggestions.schema')} />
+                <SuggestionPill text={t('aitutor.empty_state.suggestions.backend')} />
             </div>
         </div>
     );

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import i18n from '../i18n';
 
 export const api = axios.create({
     baseURL: '/',
@@ -12,6 +13,8 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    // Inject current language
+    config.headers['Accept-Language'] = i18n.language;
     return config;
 });
 
@@ -97,9 +100,28 @@ export const getSsoOptions = async (): Promise<string[]> => {
     return response.data;
 };
 
+export const updateProfile = async (data: { avatarUrl?: string }) => {
+    const response = await api.patch('/api/auth/profile', data);
+    return response.data;
+};
+
+export const uploadAvatar = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/auth/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+};
+
 export const getUserIdentities = async () => {
     const response = await api.get('/api/auth/identities');
     return response.data;
+};
+
+export const getUserSchools = async () => {
+    const response = await api.get('/api/auth/schools');
+    return response.data; // Array of school memberships
 };
 
 export const linkIdentity = (provider: string) => {

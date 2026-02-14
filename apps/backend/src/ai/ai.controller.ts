@@ -44,7 +44,8 @@ export class AiController {
         const role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
         const schoolId = req.user.schoolId || null;
         const provider = body.provider || 'google';
+        const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';
 
-        return this.aiChatService.chat(userId, role, schoolId, body.messages, provider);
+        return this.aiChatService.chat(userId, role, schoolId, body.messages, provider, preferredLanguage);
     }
 }

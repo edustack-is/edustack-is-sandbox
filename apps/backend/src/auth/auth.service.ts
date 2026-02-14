@@ -347,6 +347,19 @@ export class AuthService {
         };
     }
 
+    async updateProfile(userId: string, data: { avatarUrl?: string }) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        const updated = await this.prisma.user.update({
+            where: { id: userId },
+            data: { avatarUrl: data.avatarUrl },
+        });
+
+        const { passwordHash, ...result } = updated;
+        return result;
+    }
+
     async getMe(userId: string) {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },

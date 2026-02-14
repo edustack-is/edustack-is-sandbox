@@ -1,0 +1,37 @@
+{
+    "common": {
+        "dashboard": "Nástěnka",
+        "users": "Uživatelé",
+        "logout": "Odhlásit se",
+        "profile": "Můj profil",
+        "settings": "Nastavení",
+        "loading": "Načítání..."
+    },
+    "sidebar": {
+        "administration": "Administrace",
+        "school_management": "Správa školy",
+        "system_admin": "System Admin"
+    },
+    "aitutor": {
+        "title": "AI Asistent",
+        "description": "EduStack AI Tutor",
+        "placeholder": "Napište zprávu...",
+        "disabled_placeholder": "AI Tutor je vypnutý (chybí konfigurace)",
+        "no_models": "Žádné modely k dispozici",
+        "loading_models": "Načítám modely...",
+        "errors": {
+            "communication": "Chyba při komunikaci s AI.",
+            "no_answer": "Omlouvám se, nemám odpověď."
+        },
+        "empty_state": {
+            "title": "EduStack AI 👋",
+            "description": "Jsem průvodce aplikací. Ptej se na fungování systému, architekturu (API, DB) nebo na data v aplikaci.",
+            "suggestions": {
+                "school": "Jak vytvořím školu?",
+                "schema": "Vysvětli mi databázové schéma",
+                "backend": "Jaké technologie používá backend?"
+            }
+        },
+        "footer_note": "AI může dělat chyby. Ověřujte důležité informace."
+    }
+}

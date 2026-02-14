@@ -67,6 +67,7 @@ model User {
   firstName         String
   lastName          String
   passwordHash      String?
+  avatarUrl         String?
   // role and status moved to SchoolMembership
   isSystemAdmin     Boolean     @default(false)
   

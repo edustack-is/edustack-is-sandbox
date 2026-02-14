@@ -65,12 +65,21 @@ export class AiChatService {
         schoolId: string | null,
         messages: Array<{ role: 'user' | 'model'; text: string }>,
         provider: 'google' | 'openai' | 'anthropic' = 'google',
+        preferredLanguage: 'Czech' | 'English' = 'Czech',
     ) {
         // 1. Get API Keys & Initialize Provider
         const languageModel = await this.getModelProvider(provider);
 
         // 2. Build system instruction
-        const system = SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.STUDENT;
+        let system = SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.STUDENT;
+
+        // Inject language instruction
+        const languageRule = `
+DŮLEŽITÉ: Veškerá data v databázi a vstupy z nástrojů jsou v češtině. 
+Ty ale MUSÍŠ s uživatelem komunikovat, odpovídat na dotazy a formátovat výstupy striktně v jazyce: ${preferredLanguage}.
+Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je přelož a finální odpověď prezentuj v ${preferredLanguage}.
+`;
+        system = `${system}\n${languageRule}`;
 
         // 3. Define Tools (Local + Remote from MCP)
         const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'SYSTEM_ADMIN'];

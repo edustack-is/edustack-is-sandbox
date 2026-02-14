@@ -1,0 +1,37 @@
+{
+    "common": {
+        "dashboard": "Dashboard",
+        "users": "Users",
+        "logout": "Logout",
+        "profile": "My Profile",
+        "settings": "Settings",
+        "loading": "Loading..."
+    },
+    "sidebar": {
+        "administration": "Administration",
+        "school_management": "School Management",
+        "system_admin": "System Admin"
+    },
+    "aitutor": {
+        "title": "AI Assistant",
+        "description": "EduStack AI Tutor",
+        "placeholder": "Type a message...",
+        "disabled_placeholder": "AI Tutor is disabled (missing configuration)",
+        "no_models": "No models available",
+        "loading_models": "Loading models...",
+        "errors": {
+            "communication": "Error communicating with AI.",
+            "no_answer": "I'm sorry, I don't have an answer."
+        },
+        "empty_state": {
+            "title": "EduStack AI 👋",
+            "description": "I'm your application guide. Ask about how the system works, architecture (API, DB), or data in the application.",
+            "suggestions": {
+                "school": "How do I create a school?",
+                "schema": "Explain the database schema",
+                "backend": "What technologies does the backend use?"
+            }
+        },
+        "footer_note": "AI can make mistakes. Verify important information."
+    }
+}

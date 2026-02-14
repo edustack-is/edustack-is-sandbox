@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Param, Get, Query, BadRequestException, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query, BadRequestException, Req, Res, UseGuards, Patch, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
 import { AuthService } from './auth.service';
@@ -140,5 +141,35 @@ export class AuthController {
     @Get('me')
     async getMe(@Req() req: any) {
         return this.authService.getMe(req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch('profile')
+    async updateProfile(@Req() req: any, @Body() body: { avatarUrl?: string }) {
+        return this.authService.updateProfile(req.user.userId, { avatarUrl: body.avatarUrl });
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('avatar')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadAvatar(@Req() req: any, @UploadedFile() file: any) {
+        if (!file) throw new BadRequestException('No file uploaded');
+
+        // Validate file type
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowedMimes.includes(file.mimetype)) {
+            throw new BadRequestException('Invalid file type. Use JPEG, PNG, WebP, or GIF.');
+        }
+
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            throw new BadRequestException('File too large. Maximum 2MB.');
+        }
+
+        // Convert to base64 data URL for simple storage (no external file service needed)
+        const base64 = file.buffer.toString('base64');
+        const dataUrl = `data:${file.mimetype};base64,${base64}`;
+
+        return this.authService.updateProfile(req.user.userId, { avatarUrl: dataUrl });
     }
 }
