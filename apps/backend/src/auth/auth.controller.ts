@@ -146,6 +146,12 @@ export class AuthController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Post('refresh-global')
+    async refreshGlobal(@Req() req: any) {
+        return this.authService.refreshGlobalToken(req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('me')
     async getMe(@Req() req: any) {
         return this.authService.getMe(req.user.userId);

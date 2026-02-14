@@ -157,6 +157,25 @@ export class AuthService {
         };
     }
 
+    /**
+     * Re-issue a GLOBAL token for the given user (used when frontend
+     * lost the saved global_token, e.g. after page refresh in school context).
+     */
+    async refreshGlobalToken(userId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        const payload = {
+            sub: user.id,
+            email: user.email,
+            isSystemAdmin: user.isSystemAdmin,
+            type: 'GLOBAL'
+        };
+        return {
+            access_token: this.jwtService.sign(payload),
+        };
+    }
+
     async verifyToken(token: string) {
         return this.jwtService.verify(token);
     }
