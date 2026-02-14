@@ -12,6 +12,7 @@ app.use(cors());
 // Import tools (they register themselves on the server)
 import "./tools/management.js";
 import "./tools/analytics.js";
+import "./tools/users.js";
 
 // Store transports by session ID
 const transports = new Map<string, SSEServerTransport>();
