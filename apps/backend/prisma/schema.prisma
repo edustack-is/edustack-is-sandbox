@@ -38,7 +38,7 @@ enum UserStatus {
 
 model School {
   id          String   @id @default(uuid())
-  name        String
+  name        String   @unique
   address     String?
   contactEmail String?
   allowStudentSelfRegistration Boolean @default(false)
