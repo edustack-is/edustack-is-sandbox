@@ -83,7 +83,18 @@ DŮLEŽITÉ: Veškerá data v databázi a vstupy z nástrojů jsou v češtině.
 Ty ale MUSÍŠ s uživatelem komunikovat, odpovídat na dotazy a formátovat výstupy striktně v jazyce: ${preferredLanguage}.
 Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je přelož a finální odpověď prezentuj v ${preferredLanguage}.
 `;
-        system = `${system}\n${languageRule}`;
+
+        // Inject user/school context
+        const contextParts: string[] = [];
+        contextParts.push(`Aktuální uživatel: userId="${userId}", role="${role}".`);
+        if (schoolId) {
+            contextParts.push(`Uživatel pracuje v kontextu školy s ID: schoolId="${schoolId}". Pokud budeš volat nástroje (Tools) vyžadující schoolId, automaticky použij toto ID, pokud uživatel nespecifikuje jiné.`);
+        } else {
+            contextParts.push(`Uživatel není v kontextu žádné školy (globální režim). Pokud nástroj vyžaduje schoolId, zeptej se uživatele, jakou školu má na mysli, nebo nejprve použij list_schools.`);
+        }
+        const contextBlock = `\nKONTEXT UŽIVATELE:\n${contextParts.join('\n')}\n`;
+
+        system = `${system}\n${languageRule}\n${contextBlock}`;
 
         // 3. Define Tools (Local + Remote from MCP)
         const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'DIRECTOR', 'ADMIN', 'SYSTEM_ADMIN'];
