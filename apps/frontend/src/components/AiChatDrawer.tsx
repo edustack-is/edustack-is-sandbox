@@ -236,22 +236,22 @@ export function AiChatDrawer() {
                 break;
 
             case 'tool_start': {
-                const label = getToolLabel(data.name);
-                setStatusMessage(`Volám nástroj: ${label}...`);
+                const label = getToolLabel(t, data.name);
+                setStatusMessage(t('taskQueue.calling_tool', { name: label }));
                 setToolsUsed(prev => [...prev, { name: data.name, status: 'running' }]);
                 // Register in global task queue
-                const taskId = addTask(data.name, getToolLabel(data.name));
+                const taskId = addTask(data.name, getToolLabel(t, data.name));
                 taskIdsRef.current[data.name] = taskId;
                 break;
             }
 
             case 'tool_done': {
-                setToolsUsed(prev => prev.map(t =>
-                    t.name === data.name ? { ...t, status: data.success ? 'done' : 'error' } : t
+                setToolsUsed(prev => prev.map(item =>
+                    item.name === data.name ? { ...item, status: data.success ? 'done' : 'error' } : item
                 ));
                 setStatusMessage(data.success
-                    ? `✓ ${getToolLabel(data.name)} – hotovo`
-                    : `✗ ${getToolLabel(data.name)} – chyba`);
+                    ? `✓ ${getToolLabel(t, data.name)} – ${t('taskQueue.done_suffix')}`
+                    : `✗ ${getToolLabel(t, data.name)} – ${t('taskQueue.error_suffix')}`);
                 // Update global task queue
                 const taskId = taskIdsRef.current[data.name];
                 if (taskId) {
@@ -552,6 +552,7 @@ function TypingIndicator({ seconds, statusMessage, toolsUsed }: {
     statusMessage: string;
     toolsUsed: ToolProgress[];
 }) {
+    const { t } = useTranslation();
     return (
         <div className="flex gap-3">
             <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
@@ -594,7 +595,7 @@ function TypingIndicator({ seconds, statusMessage, toolsUsed }: {
                                     tool.status === 'done' && 'line-through opacity-60',
                                     tool.status === 'error' && 'text-red-400',
                                 )}>
-                                    {getToolLabel(tool.name)}
+                                    {getToolLabel(t, tool.name)}
                                 </span>
                             </div>
                         ))}

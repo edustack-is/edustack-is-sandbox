@@ -1,47 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTaskQueue, TaskItem, TaskStatus } from '@/context/TaskQueueContext';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import {
     ChevronUp, ChevronDown, Loader2,
     CheckCircle2, XCircle, ListTodo, Trash2,
 } from 'lucide-react';
 
-// ─── Tool name → human-readable Czech label ────────────────────
+// ─── Tool label helper (i18n-aware) ─────────────────────────────
 
-const TOOL_LABELS: Record<string, string> = {
-    // Seeding
-    seed_school_structure: 'Naplnění struktury školy',
-    seed_teaching_staff: 'Vytváření učitelského sboru',
-    // Users & Roles
-    list_users: 'Načítání seznamu uživatelů',
-    get_user_detail: 'Načítání detailu uživatele',
-    create_user: 'Vytváření uživatele',
-    update_user: 'Aktualizace uživatele',
-    assign_user_role: 'Přiřazení role uživateli',
-    remove_user_from_school: 'Odebrání uživatele ze školy',
-    batch_create_users: 'Hromadné vytváření uživatelů',
-    // Schools
-    list_schools: 'Načítání seznamu škol',
-    get_school_detail: 'Načítání detailů školy',
-    create_school: 'Vytváření školy',
-    update_school: 'Aktualizace školy',
-    delete_school: 'Mazání školy',
-    // Classrooms & Students
-    list_classrooms: 'Načítání seznamu tříd',
-    create_classroom: 'Vytváření třídy',
-    assign_student_to_classroom: 'Přiřazení studenta do třídy',
-    link_parent_to_student: 'Propojení rodiče se studentem',
-    create_student_and_parent: 'Vytváření studenta a rodiče',
-    // Analytics
-    get_attendance_summary: 'Načítání docházky',
-    get_academic_performance: 'Načítání studijních výsledků',
-    // Local
-    fetchStudentGrades: 'Načítání známek studenta',
-};
-
-export function getToolLabel(name: string): string {
-    if (TOOL_LABELS[name]) return TOOL_LABELS[name];
-    // Smart fallback: convert snake_case to readable Czech
+export function getToolLabel(t: (key: string, fallback?: any) => string, name: string): string {
+    const translated = t(`taskQueue.tools.${name}`, '');
+    if (translated) return translated;
+    // Smart fallback: convert snake_case to readable text
     return name
         .replace(/_/g, ' ')
         .replace(/^\w/, c => c.toUpperCase());
@@ -53,6 +24,7 @@ export function TaskQueuePanel() {
     const { tasks, clearFinished, hasRunning, runningCount } = useTaskQueue();
     const [expanded, setExpanded] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
+    const { t } = useTranslation();
 
     // Auto-expand when new tasks arrive
     useEffect(() => {
@@ -76,8 +48,8 @@ export function TaskQueuePanel() {
         const statusOrder: Record<TaskStatus, number> = { running: 0, error: 1, done: 2 };
         const sDiff = statusOrder[a.status] - statusOrder[b.status];
         if (sDiff !== 0) return sDiff;
-        if (a.status === 'running') return b.createdAt - a.createdAt; // newest running on top
-        return (b.finishedAt || b.createdAt) - (a.finishedAt || a.createdAt); // newest finished on top in their section
+        if (a.status === 'running') return b.createdAt - a.createdAt;
+        return (b.finishedAt || b.createdAt) - (a.finishedAt || a.createdAt);
     });
 
     const doneCount = tasks.filter(t => t.status === 'done').length;
@@ -114,13 +86,13 @@ export function TaskQueuePanel() {
                         )}
                     </div>
                     <span className="text-sm font-medium">
-                        Fronta úkolů
+                        {t('taskQueue.title')}
                     </span>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         {runningCount > 0 && (
                             <span className="flex items-center gap-1 text-violet-500">
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                {runningCount} probíhá
+                                {runningCount} {t('taskQueue.running')}
                             </span>
                         )}
                         {doneCount > 0 && (
@@ -143,7 +115,7 @@ export function TaskQueuePanel() {
                         <button
                             onClick={(e) => { e.stopPropagation(); clearFinished(); }}
                             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                            title="Vymazat dokončené"
+                            title={t('taskQueue.clear_finished')}
                         >
                             <Trash2 className="h-3 w-3" />
                         </button>
@@ -165,7 +137,7 @@ export function TaskQueuePanel() {
                 >
                     {sortedTasks.length === 0 ? (
                         <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                            Žádné úkoly ve frontě.
+                            {t('taskQueue.empty')}
                         </div>
                     ) : (
                         <div className="divide-y divide-border/30">
@@ -183,9 +155,11 @@ export function TaskQueuePanel() {
 // ─── Task Row ───────────────────────────────────────────────────
 
 function TaskRow({ task }: { task: TaskItem }) {
+    const { t } = useTranslation();
     const elapsed = task.finishedAt
         ? ((task.finishedAt - task.createdAt) / 1000).toFixed(1)
         : null;
+    const label = getToolLabel(t, task.name);
 
     return (
         <div
@@ -216,7 +190,7 @@ function TaskRow({ task }: { task: TaskItem }) {
                     task.status === 'done' && 'line-through text-muted-foreground',
                     task.status === 'error' && 'text-red-400',
                 )}>
-                    {task.label}
+                    {label}
                 </p>
                 {task.error && (
                     <p className="text-xs text-red-400 truncate mt-0.5">{task.error}</p>

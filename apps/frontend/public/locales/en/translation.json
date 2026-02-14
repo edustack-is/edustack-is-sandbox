@@ -490,5 +490,40 @@
         "upload_image": "Upload Image",
         "upload_hint": "JPEG, PNG, WebP, or GIF. Max 10 MB. The image will be cropped to a circle.",
         "user_role": "User"
+    },
+    "taskQueue": {
+        "title": "Task Queue",
+        "running": "running",
+        "empty": "No tasks in queue.",
+        "clear_finished": "Clear finished",
+        "done_suffix": "done",
+        "error_suffix": "error",
+        "calling_tool": "Calling tool: {{name}}...",
+        "preparing": "Preparing response...",
+        "processing_results": "Processing results...",
+        "tools": {
+            "seed_school_structure": "Seeding school structure",
+            "seed_teaching_staff": "Creating teaching staff",
+            "list_users": "Loading users",
+            "get_user_detail": "Loading user detail",
+            "create_user": "Creating user",
+            "update_user": "Updating user",
+            "assign_user_role": "Assigning user role",
+            "remove_user_from_school": "Removing user from school",
+            "batch_create_users": "Batch creating users",
+            "list_schools": "Loading schools",
+            "get_school_detail": "Loading school detail",
+            "create_school": "Creating school",
+            "update_school": "Updating school",
+            "delete_school": "Deleting school",
+            "list_classrooms": "Loading classrooms",
+            "create_classroom": "Creating classroom",
+            "assign_student_to_classroom": "Assigning student to classroom",
+            "link_parent_to_student": "Linking parent to student",
+            "create_student_and_parent": "Creating student and parent",
+            "get_attendance_summary": "Loading attendance summary",
+            "get_academic_performance": "Loading academic performance",
+            "fetchStudentGrades": "Loading student grades"
+        }
     }
 }
