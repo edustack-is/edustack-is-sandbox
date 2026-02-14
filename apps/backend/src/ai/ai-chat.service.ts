@@ -267,9 +267,9 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                 schoolId,
                 provider,
                 modelName: model,
-                inputTokens: usage.promptTokens,
-                outputTokens: usage.completionTokens,
-                totalTokens: usage.totalTokens,
+                inputTokens: usage.promptTokens ?? 0,
+                outputTokens: usage.completionTokens ?? 0,
+                totalTokens: usage.totalTokens ?? 0,
                 promptType: 'CHAT',
             },
         });
