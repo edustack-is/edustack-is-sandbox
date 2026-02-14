@@ -62,7 +62,10 @@
         "invalid_credentials": "Invalid credentials",
         "user_not_found": "User not found — you must be invited by the school first.",
         "account_not_activated": "Account not activated. Please check your email for the activation link.",
-        "account_locked": "Account is locked. Please contact the administrator."
+        "account_locked": "Account is locked. Please contact the administrator.",
+        "validation_email_required": "Email address is required",
+        "validation_email_invalid": "Invalid email format",
+        "validation_password_required": "Password is required"
     },
     "dashboard": {
         "system_admin_title": "System Admin Dashboard",

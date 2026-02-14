@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
+import { toast } from 'sonner';
 
 const SSO_ICONS: Record<string, any> = {
     google: Globe,
@@ -44,6 +45,11 @@ function translateBackendError(message: string, t: (key: string) => string): str
     return t('login.invalid_credentials');
 }
 
+interface FieldErrors {
+    email?: string;
+    password?: string;
+}
+
 export const Login = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -53,9 +59,10 @@ export const Login = () => {
         email: '',
         password: '',
     });
-    const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [ssoOptions, setSsoOptions] = useState<string[]>([]);
     const [loadingSso, setLoadingSso] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         // Handle SSO callback token
@@ -69,19 +76,44 @@ export const Login = () => {
         const ssoError = searchParams.get('error');
         if (ssoError) {
             const decoded = decodeURIComponent(ssoError);
-            setError(decoded === 'sso_failed' ? t('login.sso_failed') : translateBackendError(decoded, t));
+            toast.error(decoded === 'sso_failed' ? t('login.sso_failed') : translateBackendError(decoded, t));
         }
 
         getSsoOptions().then(setSsoOptions).finally(() => setLoadingSso(false));
     }, [searchParams, navigate, t]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+        // Clear error for this field on change
+        if (fieldErrors[name as keyof FieldErrors]) {
+            setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+        }
+    };
+
+    const validate = (): boolean => {
+        const errors: FieldErrors = {};
+
+        if (!formData.email.trim()) {
+            errors.email = t('login.validation_email_required', 'Email je povinný');
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = t('login.validation_email_invalid', 'Neplatný formát emailu');
+        }
+
+        if (!formData.password.trim()) {
+            errors.password = t('login.validation_password_required', 'Heslo je povinné');
+        }
+
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+
+        if (!validate()) return;
+
+        setSubmitting(true);
 
         try {
             const data = await login(formData);
@@ -90,11 +122,13 @@ export const Login = () => {
                 refreshTokenInfo();
                 navigate('/');
             } else {
-                setError(t('login.login_failed'));
+                toast.error(t('login.login_failed'));
             }
         } catch (err: any) {
             const backendMsg = err.response?.data?.message || '';
-            setError(translateBackendError(backendMsg, t));
+            toast.error(translateBackendError(backendMsg, t));
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -118,13 +152,7 @@ export const Login = () => {
                     </p>
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded text-red-700 text-sm animate-in fade-in slide-in-from-top-1">
-                        {error}
-                    </div>
-                )}
-
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
                     <div className="space-y-4">
                         <div className="grid gap-1.5">
                             <Label htmlFor="email">{t('login.email_label')}</Label>
@@ -132,11 +160,19 @@ export const Login = () => {
                                 id="email"
                                 name="email"
                                 type="email"
-                                required
+                                autoComplete="email"
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="name@example.com"
+                                className={fieldErrors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                                aria-invalid={!!fieldErrors.email}
+                                aria-describedby={fieldErrors.email ? 'email-error' : undefined}
                             />
+                            {fieldErrors.email && (
+                                <p id="email-error" className="text-sm text-red-600 mt-0.5">
+                                    {fieldErrors.email}
+                                </p>
+                            )}
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="password">{t('login.password_label')}</Label>
@@ -144,16 +180,31 @@ export const Login = () => {
                                 id="password"
                                 name="password"
                                 type="password"
-                                required
+                                autoComplete="current-password"
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
+                                className={fieldErrors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                                aria-invalid={!!fieldErrors.password}
+                                aria-describedby={fieldErrors.password ? 'password-error' : undefined}
                             />
+                            {fieldErrors.password && (
+                                <p id="password-error" className="text-sm text-red-600 mt-0.5">
+                                    {fieldErrors.password}
+                                </p>
+                            )}
                         </div>
                     </div>
 
-                    <Button type="submit" className="w-full h-11 text-md font-semibold">
-                        {t('login.sign_in')}
+                    <Button type="submit" className="w-full h-11 text-md font-semibold" disabled={submitting}>
+                        {submitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {t('login.sign_in')}
+                            </>
+                        ) : (
+                            t('login.sign_in')
+                        )}
                     </Button>
                 </form>
 
