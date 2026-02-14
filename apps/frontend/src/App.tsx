@@ -18,7 +18,7 @@ import { SelectSchool } from './pages/SelectSchool';
 import { UserProfile } from './pages/UserProfile';
 import { Login } from './pages/Login';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
-import { SchoolProvider } from './context/SchoolContext';
+import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { getInitStatus } from './api';
 import { Toaster } from 'sonner';
 import { FloatingLanguageSwitcher } from './components/FloatingLanguageSwitcher';
@@ -34,6 +34,32 @@ const ProtectedRoute = () => {
       <Outlet />
     </>
   );
+};
+
+/**
+ * Ensures system admin routes are always rendered in GLOBAL context.
+ * If the user is in a school (TENANT) context, it automatically leaves the school.
+ * Non-system-admins are redirected to /dashboard.
+ */
+const SystemAdminGuard = () => {
+  const { tokenType, isSystemAdmin, leaveSchool } = useSchool();
+
+  useEffect(() => {
+    if (tokenType === 'TENANT' && isSystemAdmin) {
+      leaveSchool();
+    }
+  }, [tokenType, isSystemAdmin, leaveSchool]);
+
+  if (!isSystemAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Still in TENANT mode – wait for leaveSchool effect
+  if (tokenType === 'TENANT') {
+    return null;
+  }
+
+  return <Outlet />;
 };
 
 function App() {
@@ -74,9 +100,11 @@ function App() {
               <Route path="school/rooms" element={<RoomsManagement />} />
               <Route path="school/curriculum" element={<CurriculumManagement />} />
               <Route path="year-setup" element={<DeputyYearSetup />} />
-              <Route path="system/schools" element={<SystemAdminSchools />} />
-              <Route path="system/users" element={<SystemAdminUsers />} />
-              <Route path="system/settings" element={<SystemAdminSettings />} />
+              <Route element={<SystemAdminGuard />}>
+                <Route path="system/schools" element={<SystemAdminSchools />} />
+                <Route path="system/users" element={<SystemAdminUsers />} />
+                <Route path="system/settings" element={<SystemAdminSettings />} />
+              </Route>
               <Route path="profile" element={<UserProfile />} />
             </Route>
           </Route>

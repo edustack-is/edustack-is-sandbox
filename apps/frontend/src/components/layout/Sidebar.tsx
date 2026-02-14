@@ -116,7 +116,11 @@ export const Sidebar: React.FC = () => {
                                     variant="outline"
                                     size="sm"
                                     className="h-7 px-2.5 text-xs flex-1"
-                                    onClick={() => { leaveSchool(); navigate('/dashboard'); }}
+                                    onClick={() => {
+                                        leaveSchool();
+                                        // Let React process the state update before navigating
+                                        setTimeout(() => navigate('/dashboard'), 0);
+                                    }}
                                 >
                                     <Settings size={12} className="mr-1" />
                                     {t('sidebar.system_admin_short', 'Systém')}
