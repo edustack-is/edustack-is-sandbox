@@ -1,0 +1,449 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  url = env("DATABASE_URL")
+  provider = "postgresql"
+}
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  message   String
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  ADMIN
+  DIRECTOR
+  PRINCIPAL
+  DEPUTY
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+model School {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  contactEmail String?
+  allowStudentSelfRegistration Boolean @default(false)
+  ssoConfig   Json?
+  aiConfig    Json?
+  
+  members     SchoolMembership[]
+  classrooms  Classroom[]
+  subjectTemplates SubjectTemplate[]
+  subjectInstances SubjectInstance[]
+  grades      Grade[]
+  attendances Attendance[]
+  rooms       Room[]
+  academicYears AcademicYear[]
+  gradeLevels   GradeLevel[]
+  scheduleEvents ScheduleEvent[]
+  aiTokenUsages   AiTokenUsage[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id                String      @id @default(uuid())
+  email             String      @unique
+  firstName         String
+  lastName          String
+  passwordHash      String?
+  avatarUrl         String?
+  // role and status moved to SchoolMembership
+  isSystemAdmin     Boolean     @default(false)
+  
+  invitationToken   String?
+  invitationExpires DateTime?
+  lastLogin         DateTime?
+  createdAt         DateTime    @default(now())
+  deletedAt         DateTime?
+  
+  studentProfile    StudentProfile?
+  teacherProfile    TeacherProfile?
+  identities        Identity[]
+  
+  schoolMemberships SchoolMembership[]
+  auditLogsAsActor  AuditLog[]  @relation("AuditActor")
+
+  // Family relations
+  parentOf          ParentStudent[] @relation("ParentUser")
+  childOf           ParentStudent[] @relation("StudentUser")
+
+  // Yearly records
+  studentEnrollments StudentEnrollment[]
+  teacherWorkloads   TeacherWorkload[]
+
+  // AI usage
+  aiTokenUsages      AiTokenUsage[]
+}
+
+model SchoolMembership {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  schoolId  String
+  school    School     @relation(fields: [schoolId], references: [id])
+  
+  role      UserRole   @default(STUDENT)
+  status    UserStatus @default(PENDING)
+
+  workloadPercentage Float?  // Teacher workload, e.g. 1.0 = 100%
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([userId, schoolId])
+}
+
+model ParentStudent {
+  id        String   @id @default(uuid())
+
+  parent    User     @relation("ParentUser", fields: [parentId], references: [id])
+  parentId  String
+
+  student   User     @relation("StudentUser", fields: [studentId], references: [id])
+  studentId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([parentId, studentId])
+}
+
+model Identity {
+  id          String   @id @default(uuid())
+  provider    String   // 'google', 'microsoft'
+  providerId  String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime @default(now())
+
+  @@unique([provider, providerId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actor       User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorId     String
+  action      String   // e.g., 'LOGIN', 'UPDATE', 'READ_SENSITIVE'
+  entity      String   // the table name
+  entityId    String   // the record ID
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model Classroom {
+  id              String          @id @default(uuid())
+  name            String
+  grade           Int
+  
+  schoolId        String
+  school          School          @relation(fields: [schoolId], references: [id])
+
+  students        StudentProfile[]
+  homeroomTeacher TeacherProfile? @relation("HomeroomTeacher")
+  scheduleEvents  ScheduleEvent[]
+  enrollments     StudentEnrollment[]
+}
+
+model StudentProfile {
+  id          String     @id @default(uuid())
+  user        User       @relation(fields: [userId], references: [id])
+  userId      String     @unique
+  firstName   String
+  lastName    String
+  rc          String?
+  classroom   Classroom? @relation(fields: [classroomId], references: [id])
+  classroomId String?
+  grades      Grade[]
+  attendances Attendance[]
+}
+
+model TeacherProfile {
+  id            String     @id @default(uuid())
+  user          User       @relation(fields: [userId], references: [id])
+  userId        String     @unique
+  degree        String?
+  approbation   String?
+  homeroomClass Classroom? @relation("HomeroomTeacher", fields: [homeroomClassId], references: [id])
+  homeroomClassId String? @unique
+  createdGrades Grade[]
+  attendances   Attendance[]
+  scheduleEvents ScheduleEvent[]
+}
+
+model SubjectTemplate {
+  id              String   @id @default(uuid())
+  name            String   // e.g. "Informatika"
+  code            String   // e.g. "INF"
+  svpDescription  String?  // Link to ŠVP description
+  
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+
+  instances SubjectInstance[]
+
+  @@unique([code, schoolId])
+}
+
+model SubjectInstance {
+  id              String          @id @default(uuid())
+  hoursPerWeek    Int
+
+  templateId      String
+  template        SubjectTemplate @relation(fields: [templateId], references: [id])
+
+  academicYearId  String
+  academicYear    AcademicYear    @relation(fields: [academicYearId], references: [id])
+
+  gradeLevelId    String
+  gradeLevel      GradeLevel      @relation(fields: [gradeLevelId], references: [id])
+
+  schoolId        String
+  school          School          @relation(fields: [schoolId], references: [id])
+
+  grades          Grade[]
+  scheduleEvents  ScheduleEvent[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([templateId, academicYearId, gradeLevelId])
+}
+
+model Grade {
+  id              String         @id @default(uuid())
+  value           String         // 1-5 or text
+  weight          Float          // 0.1 - 1.0
+  description     String?
+  date            DateTime       @default(now())
+  
+  schoolId        String
+  school          School         @relation(fields: [schoolId], references: [id])
+  
+  studentProfile  StudentProfile @relation(fields: [studentId], references: [id])
+  studentId       String
+  
+  subjectInstance SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  subjectInstanceId String
+  
+  teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
+  teacherId       String
+
+  academicYear    AcademicYear?  @relation(fields: [academicYearId], references: [id])
+  academicYearId  String?
+  
+  createdAt       DateTime       @default(now())
+}
+
+model ScheduleEvent {
+  id              String         @id @default(uuid())
+  dayOfWeek       Int            // 0=Sunday, 1=Monday...
+  startTime       String         // "HH:mm"
+  endTime         String         // "HH:mm"
+  
+  schoolId        String
+  school          School         @relation(fields: [schoolId], references: [id])
+  
+  subject         SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  subjectInstanceId String
+  
+  classroom       Classroom      @relation(fields: [classroomId], references: [id])
+  classroomId     String
+  
+  teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
+  teacherId       String
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model Attendance {
+  id              String           @id @default(uuid())
+  date            DateTime         @default(now())
+  status          AttendanceStatus
+  note            String?
+
+  schoolId        String
+  school          School           @relation(fields: [schoolId], references: [id])
+
+  studentProfile  StudentProfile   @relation(fields: [studentId], references: [id])
+  studentId       String
+
+  teacherProfile  TeacherProfile   @relation(fields: [teacherId], references: [id])
+  teacherId       String
+
+  createdAt       DateTime         @default(now())
+
+  @@unique([studentId, date, schoolId])
+}
+
+model Room {
+  id               String   @id @default(uuid())
+  name             String
+  capacity         Int      @default(30)
+  isComputerLab    Boolean  @default(false)
+  specialEquipment Json?    // e.g. ["projector", "whiteboard", "3D printer"]
+
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, schoolId])
+}
+
+model AcademicYear {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "2025/2026"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+
+  grades              Grade[]
+  studentEnrollments  StudentEnrollment[]
+  teacherWorkloads    TeacherWorkload[]
+  subjectInstances    SubjectInstance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, schoolId])
+}
+
+model GradeLevel {
+  id          String @id @default(uuid())
+  name        String // e.g. "1. ročník", "Prima"
+  levelNumber Int    // for sorting
+
+  schoolId    String
+  school      School @relation(fields: [schoolId], references: [id])
+
+  studentEnrollments StudentEnrollment[]
+  subjectInstances   SubjectInstance[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([levelNumber, schoolId])
+}
+
+model StudentEnrollment {
+  id                 String       @id @default(uuid())
+
+  student            User         @relation(fields: [studentId], references: [id])
+  studentId          String
+
+  academicYear       AcademicYear @relation(fields: [academicYearId], references: [id])
+  academicYearId     String
+
+  gradeLevel         GradeLevel   @relation(fields: [gradeLevelId], references: [id])
+  gradeLevelId       String
+
+  classroom          Classroom?   @relation(fields: [classroomId], references: [id])
+  classroomId        String?
+
+  residentialAddress String?
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([studentId, academicYearId])
+}
+
+model TeacherWorkload {
+  id                 String       @id @default(uuid())
+
+  teacher            User         @relation(fields: [teacherId], references: [id])
+  teacherId          String
+
+  academicYear       AcademicYear @relation(fields: [academicYearId], references: [id])
+  academicYearId     String
+
+  workloadPercentage Float        // e.g. 1.0 = 100%, 0.5 = 50%
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([teacherId, academicYearId])
+}
+
+// ─── AI CONFIGURATION & BILLING ─────────────────────────────────
+
+model SystemSettings {
+  id              String   @id @default("global")
+  geminiApiKey    String?
+  openAiApiKey    String?
+  anthropicApiKey String?
+
+  updatedAt       DateTime @updatedAt
+}
+
+enum SecretType {
+  AI
+  SSO
+}
+
+model SystemSecret {
+  id        String     @id @default(uuid())
+  type      SecretType
+  service   String     // e.g., 'GOOGLE', 'GITHUB', 'OPENAI'
+  key       String     // e.g., 'API_KEY', 'CLIENT_ID', 'CLIENT_SECRET'
+  value     String     // Encrypted (AES-256-GCM)
+  isActive  Boolean    @default(true)
+  metadata  Json?      // Optional provider-specific metadata
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([type, service, key])
+}
+
+model AiTokenUsage {
+  id            String   @id @default(uuid())
+
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+
+  school        School?  @relation(fields: [schoolId], references: [id])
+  schoolId      String?
+
+  provider      String   // e.g. 'google', 'openai', 'anthropic'
+  modelName     String   // e.g. 'gemini-1.5-pro', 'gpt-4o'
+  inputTokens   Int
+  outputTokens  Int
+  totalTokens   Int
+  promptType    String   // e.g. 'CHAT', 'SEEDING'
+
+  createdAt     DateTime @default(now())
+}

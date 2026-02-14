@@ -50,6 +50,26 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       MAIL_FROM: ${MAIL_FROM:-noreply@edustack.local}
+      MCP_SERVER_URL: http://mcp-server:3001/sse
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mcp-server:
+    image: node:22-alpine
+    container_name: edu_stack_sandbox_mcp
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./apps/mcp-server:/app
+      - ./apps/backend/prisma:/app/prisma
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+    command: sh /app/docker-entrypoint.sh
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-student}:${POSTGRES_PASSWORD:-student}@postgres:5432/${POSTGRES_DB:-skola_db}
+      MCP_PORT: 3001
     depends_on:
       postgres:
         condition: service_healthy

@@ -31,7 +31,7 @@ export const FloatingLanguageSwitcher: React.FC = () => {
     };
 
     return (
-        <div ref={ref} className="fixed top-4 right-4 z-[9999]">
+        <div ref={ref} className="fixed top-4 right-4 z-40">
             {/* Dropdown menu – opens downward */}
             {open && (
                 <div className="absolute top-full right-0 mt-2 w-40 rounded-xl border border-border bg-popover/95 backdrop-blur-lg shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200">

@@ -1,7 +1,8 @@
 import { Injectable, ServiceUnavailableException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { decrypt } from './ai-crypto.util';
-import { generateText, tool, ToolSet } from 'ai';
+import { CryptoService } from '../utils/crypto.service';
+import { SecretType } from '@prisma/client';
+import { generateText, tool, ToolSet, jsonSchema } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
@@ -36,7 +37,10 @@ export class AiChatService {
     private mcpClient: Client | null = null;
     private mcpTransport: SSEClientTransport | null = null;
 
-    constructor(private readonly prisma: PrismaService) {
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cryptoService: CryptoService,
+    ) {
         this.initializeMcp().catch(err => this.logger.error('Failed to initialize MCP Client:', err));
     }
 
@@ -88,8 +92,15 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
         let tools: ToolSet = {
             fetchStudentGrades: tool({
                 description: 'Načte známky studenta z databáze.',
-                parameters: z.object({
-                    studentId: z.string().describe('UUID identifikátor studenta (StudentProfile ID)'),
+                parameters: jsonSchema({
+                    type: 'object',
+                    properties: {
+                        studentId: {
+                            type: 'string',
+                            description: 'UUID identifikátor studenta (StudentProfile ID)',
+                        },
+                    },
+                    required: ['studentId'],
                 }),
                 execute: async ({ studentId }: { studentId: string }) => {
                     return this.executeFetchStudentGrades(studentId);
@@ -102,9 +113,14 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                 const mcpToolsResult = await this.mcpClient.listTools();
                 for (const t of mcpToolsResult.tools) {
                     // Map MCP tool to AI SDK tool
+                    const mcpSchema = t.inputSchema || {};
+                    const { type: _type, ...schemaRest } = mcpSchema as any;
                     tools[t.name] = tool({
                         description: t.description || '',
-                        parameters: this.mapMcpSchemaToZod(t.inputSchema),
+                        parameters: jsonSchema({
+                            type: 'object',
+                            ...schemaRest,
+                        }),
                         execute: async (args: any) => {
                             this.logger.log(`Executing MCP tool: ${t.name} with args: ${JSON.stringify(args)}`);
                             const result = await this.mcpClient!.callTool({
@@ -200,18 +216,26 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     }
 
     private async getApiKeys() {
-        const settings = await this.prisma.systemSettings.findUnique({ where: { id: 'global' } });
+        // Read API keys from systemSecret table (same place admin UI writes them)
+        const secrets = await this.prisma.systemSecret.findMany({
+            where: { type: SecretType.AI },
+        });
 
-        // Decrypt keys if present
-        const decryptKey = (key?: string | null) => {
-            if (!key) return null;
-            try { return decrypt(key); } catch { return key; }
+        const findAndDecrypt = (service: string, key: string): string | null => {
+            const secret = secrets.find(s => s.service === service && s.key === key);
+            if (!secret) return null;
+            try {
+                return this.cryptoService.decrypt(secret.value);
+            } catch (e) {
+                this.logger.error(`Failed to decrypt AI key for ${service}:`, e);
+                return null;
+            }
         };
 
         return {
-            geminiApiKey: decryptKey(settings?.geminiApiKey) || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
-            openAiApiKey: decryptKey(settings?.openAiApiKey) || process.env.OPENAI_API_KEY,
-            anthropicApiKey: decryptKey(settings?.anthropicApiKey) || process.env.ANTHROPIC_API_KEY,
+            geminiApiKey: findAndDecrypt('google', 'API_KEY') || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
+            openAiApiKey: findAndDecrypt('openai', 'API_KEY') || process.env.OPENAI_API_KEY,
+            anthropicApiKey: findAndDecrypt('anthropic', 'API_KEY') || process.env.ANTHROPIC_API_KEY,
         };
     }
 

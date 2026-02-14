@@ -1,4 +1,4 @@
-import { server } from "../index.js";
+import { server } from "../server.js";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
