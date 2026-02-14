@@ -310,8 +310,10 @@ export function SystemAdminSchools() {
     const handleSelectSchool = async (schoolId: string) => {
         setSelecting(schoolId);
         try {
-            await selectSchool(schoolId);
+            // Navigate away from the SystemAdminGuard FIRST to prevent it
+            // from calling leaveSchool() when it sees the TENANT token
             navigate('/dashboard');
+            await selectSchool(schoolId);
         } catch (err: any) {
             toast.error(t('system_schools.failed_select') + ': ' + (err.response?.data?.message || err.message));
         } finally {
