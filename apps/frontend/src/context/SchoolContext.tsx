@@ -107,36 +107,22 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin]);
 
     const selectSchool = useCallback(async (schoolId: string, role?: string) => {
-        console.log('[selectSchool] called with', { schoolId, role });
-        console.log('[selectSchool] current access_token type:', decodeJwtPayload(localStorage.getItem('access_token') || '').type);
-        console.log('[selectSchool] global_token exists:', !!localStorage.getItem('global_token'));
-
         // Save the current GLOBAL token before switching to TENANT
         if (!localStorage.getItem('global_token')) {
             const currentToken = localStorage.getItem('access_token');
             if (currentToken) {
                 const payload = decodeJwtPayload(currentToken);
-                console.log('[selectSchool] current token payload.type:', payload.type);
                 // Only save if it's actually a GLOBAL token
                 if (payload.type !== 'TENANT') {
                     localStorage.setItem('global_token', currentToken);
-                    console.log('[selectSchool] saved global_token ✓');
-                } else {
-                    console.log('[selectSchool] SKIPPED saving global_token (already TENANT)');
                 }
             }
         }
 
         const url = role ? `/api/auth/select-school/${schoolId}?role=${role}` : `/api/auth/select-school/${schoolId}`;
-        console.log('[selectSchool] calling API:', url);
         const response = await api.post(url);
         const { access_token } = response.data;
-        console.log('[selectSchool] received token type:', decodeJwtPayload(access_token).type);
         localStorage.setItem('access_token', access_token);
-        console.log('[selectSchool] localStorage after:', {
-            access_token_type: decodeJwtPayload(localStorage.getItem('access_token') || '').type,
-            global_token_exists: !!localStorage.getItem('global_token'),
-        });
         refreshTokenInfo();
     }, [refreshTokenInfo]);
 
