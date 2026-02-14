@@ -41,7 +41,9 @@ export class AiController {
         }
 
         const userId = req.user.userId;
-        const role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
+        let role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
+        // Map JWT 'ADMIN' role (from selectSchool) to 'SYSTEM_ADMIN' for AI instructions
+        if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
         const schoolId = req.user.schoolId || null;
         const provider = body.provider || 'google';
         const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';

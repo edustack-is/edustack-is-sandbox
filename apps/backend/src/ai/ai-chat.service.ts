@@ -86,7 +86,7 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
         system = `${system}\n${languageRule}`;
 
         // 3. Define Tools (Local + Remote from MCP)
-        const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'SYSTEM_ADMIN'];
+        const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'DIRECTOR', 'ADMIN', 'SYSTEM_ADMIN'];
         const hasTools = validRoles.includes(role);
 
         let tools: ToolSet = {
