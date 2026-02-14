@@ -81,8 +81,8 @@ export const Sidebar: React.FC = () => {
         navigate('/login');
     };
 
-    const handleLeaveSchool = () => {
-        leaveSchool();
+    const handleLeaveSchool = async () => {
+        await leaveSchool();
         navigate('/select-school');
     };
 
@@ -116,10 +116,9 @@ export const Sidebar: React.FC = () => {
                                     variant="outline"
                                     size="sm"
                                     className="h-7 px-2.5 text-xs flex-1"
-                                    onClick={() => {
-                                        leaveSchool();
-                                        // Let React process the state update before navigating
-                                        setTimeout(() => navigate('/dashboard'), 0);
+                                    onClick={async () => {
+                                        await leaveSchool();
+                                        navigate('/dashboard');
                                     }}
                                 >
                                     <Settings size={12} className="mr-1" />

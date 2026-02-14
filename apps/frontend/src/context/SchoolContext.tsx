@@ -15,7 +15,7 @@ interface SchoolContextType {
     role: string | null;
     currentSchool: SchoolInfo | null;
     selectSchool: (schoolId: string, role?: string) => Promise<void>;
-    leaveSchool: () => void;
+    leaveSchool: () => Promise<void>;
     refreshTokenInfo: () => void;
 }
 
@@ -27,7 +27,7 @@ const SchoolContext = createContext<SchoolContextType>({
     role: null,
     currentSchool: null,
     selectSchool: async () => { },
-    leaveSchool: () => { },
+    leaveSchool: async () => { },
     refreshTokenInfo: () => { },
 });
 
@@ -107,12 +107,15 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin]);
 
     const selectSchool = useCallback(async (schoolId: string, role?: string) => {
-        // Store GLOBAL token before switching — only if we don't already have one saved
-        // This prevents overwriting the real GLOBAL token when switching between schools
+        // Save the current GLOBAL token before switching to TENANT
         if (!localStorage.getItem('global_token')) {
             const currentToken = localStorage.getItem('access_token');
             if (currentToken) {
-                localStorage.setItem('global_token', currentToken);
+                const payload = decodeJwtPayload(currentToken);
+                // Only save if it's actually a GLOBAL token
+                if (payload.type !== 'TENANT') {
+                    localStorage.setItem('global_token', currentToken);
+                }
             }
         }
 
@@ -123,35 +126,30 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
         refreshTokenInfo();
     }, [refreshTokenInfo]);
 
-    const leaveSchool = useCallback(() => {
+    const leaveSchool = useCallback(async () => {
         const globalToken = localStorage.getItem('global_token');
         if (globalToken) {
+            // Fast path: restore saved GLOBAL token
             localStorage.setItem('access_token', globalToken);
             localStorage.removeItem('global_token');
+            setCurrentSchool(null);
+            refreshTokenInfo();
         } else {
-            // Fallback: no global_token saved — re-authenticate to get a fresh GLOBAL token
-            // Decode current TENANT token to get userId and call /api/auth/login again
-            // As a simple fallback, just request a new login
-            const currentToken = localStorage.getItem('access_token');
-            if (currentToken) {
-                // Call backend to get a fresh GLOBAL token from current TENANT token
-                api.post('/api/auth/refresh-global')
-                    .then((res) => {
-                        if (res.data?.access_token) {
-                            localStorage.setItem('access_token', res.data.access_token);
-                            refreshTokenInfo();
-                        }
-                    })
-                    .catch(() => {
-                        // Last resort: clear everything and force re-login
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('global_token');
-                        refreshTokenInfo();
-                    });
+            // Slow path: request a fresh GLOBAL token from the backend
+            try {
+                const res = await api.post('/api/auth/refresh-global');
+                if (res.data?.access_token) {
+                    localStorage.setItem('access_token', res.data.access_token);
+                    localStorage.removeItem('global_token');
+                }
+            } catch {
+                // Last resort: clear everything → forces re-login
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('global_token');
             }
+            setCurrentSchool(null);
+            refreshTokenInfo();
         }
-        setCurrentSchool(null);
-        refreshTokenInfo();
     }, [refreshTokenInfo]);
 
     return (

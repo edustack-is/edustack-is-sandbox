@@ -43,20 +43,22 @@ const ProtectedRoute = () => {
  */
 const SystemAdminGuard = () => {
   const { tokenType, isSystemAdmin, leaveSchool } = useSchool();
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
-    if (tokenType === 'TENANT' && isSystemAdmin) {
-      leaveSchool();
+    if (tokenType === 'TENANT' && isSystemAdmin && !switching) {
+      setSwitching(true);
+      leaveSchool().finally(() => setSwitching(false));
     }
-  }, [tokenType, isSystemAdmin, leaveSchool]);
+  }, [tokenType, isSystemAdmin, leaveSchool, switching]);
 
   if (!isSystemAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Still in TENANT mode – wait for leaveSchool effect
-  if (tokenType === 'TENANT') {
-    return null;
+  // Still in TENANT mode – wait for leaveSchool to complete
+  if (tokenType === 'TENANT' || switching) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
   return <Outlet />;
