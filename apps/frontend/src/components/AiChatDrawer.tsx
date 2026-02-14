@@ -28,16 +28,6 @@ interface ChatMessage {
 // AiChatDrawer — global chat side-panel
 // ═══════════════════════════════════════════════════════════════
 
-// Tool name → human-readable label
-const TOOL_LABELS: Record<string, string> = {
-    seed_school_structure: 'Naplnění struktury školy',
-    seed_teaching_staff: 'Vytváření učitelského sboru',
-    get_school_detail: 'Načítání detailů školy',
-    list_schools: 'Načítání seznamu škol',
-    list_users: 'Načítání uživatelů',
-    get_user_detail: 'Načítání detailu uživatele',
-    fetchStudentGrades: 'Načítání známek studenta',
-};
 
 interface ToolProgress {
     name: string;
@@ -246,7 +236,7 @@ export function AiChatDrawer() {
                 break;
 
             case 'tool_start': {
-                const label = TOOL_LABELS[data.name] || data.name;
+                const label = getToolLabel(data.name);
                 setStatusMessage(`Volám nástroj: ${label}...`);
                 setToolsUsed(prev => [...prev, { name: data.name, status: 'running' }]);
                 // Register in global task queue
@@ -260,8 +250,8 @@ export function AiChatDrawer() {
                     t.name === data.name ? { ...t, status: data.success ? 'done' : 'error' } : t
                 ));
                 setStatusMessage(data.success
-                    ? `✓ ${TOOL_LABELS[data.name] || data.name} – hotovo`
-                    : `✗ ${TOOL_LABELS[data.name] || data.name} – chyba`);
+                    ? `✓ ${getToolLabel(data.name)} – hotovo`
+                    : `✗ ${getToolLabel(data.name)} – chyba`);
                 // Update global task queue
                 const taskId = taskIdsRef.current[data.name];
                 if (taskId) {
@@ -604,7 +594,7 @@ function TypingIndicator({ seconds, statusMessage, toolsUsed }: {
                                     tool.status === 'done' && 'line-through opacity-60',
                                     tool.status === 'error' && 'text-red-400',
                                 )}>
-                                    {TOOL_LABELS[tool.name] || tool.name}
+                                    {getToolLabel(tool.name)}
                                 </span>
                             </div>
                         ))}
