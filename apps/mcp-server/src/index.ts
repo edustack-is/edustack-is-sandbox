@@ -13,6 +13,7 @@ app.use(cors());
 import "./tools/management.js";
 import "./tools/analytics.js";
 import "./tools/users.js";
+import "./tools/seeding.js";
 
 // Store transports by session ID
 const transports = new Map<string, SSEServerTransport>();

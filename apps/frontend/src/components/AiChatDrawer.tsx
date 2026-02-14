@@ -273,7 +273,41 @@ export function AiChatDrawer() {
                         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
                     >
                         {messages.length === 0 && !loading && (
-                            <EmptyState />
+                            <EmptyState onSuggestionClick={(text) => {
+                                setInput(text);
+                                // Use setTimeout to let state update, then send
+                                setTimeout(() => {
+                                    // Directly invoke the send logic
+                                    const userMsg: ChatMessage = { role: 'user', text };
+                                    const newHistory = [...messages, userMsg];
+                                    setMessages(newHistory);
+                                    setLoading(true);
+                                    setLoadingSeconds(0);
+                                    loadingTimerRef.current = setInterval(() => {
+                                        setLoadingSeconds(s => s + 1);
+                                    }, 1000);
+                                    setInput('');
+                                    api.post('/api/ai/chat', {
+                                        messages: newHistory,
+                                        provider: selectedProvider
+                                    }, { timeout: 120000 }).then(res => {
+                                        const aiText = res.data?.response || t('aitutor.errors.no_answer');
+                                        setMessages(prev => [...prev, { role: 'model', text: aiText }]);
+                                    }).catch((err: any) => {
+                                        const errMsg = err.code === 'ECONNABORTED'
+                                            ? 'AI odpověď trvala příliš dlouho. Zkuste to znovu.'
+                                            : err.response?.data?.message || t('aitutor.errors.communication');
+                                        setMessages(prev => [...prev, { role: 'model', text: `⚠️ ${errMsg}` }]);
+                                    }).finally(() => {
+                                        setLoading(false);
+                                        setLoadingSeconds(0);
+                                        if (loadingTimerRef.current) {
+                                            clearInterval(loadingTimerRef.current);
+                                            loadingTimerRef.current = null;
+                                        }
+                                    });
+                                }, 0);
+                            }} />
                         )}
 
                         {messages.map((msg, i) => (
@@ -367,31 +401,46 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 // Empty State
 // ═══════════════════════════════════════════════════════════════
 
-function EmptyState() {
+function EmptyState({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
     const { t } = useTranslation();
+
+    const suggestions = [
+        { emoji: '🏫', text: 'Zobraz mi detaily vybrané školy' },
+        { emoji: '📚', text: 'Naplň školu strukturou pro ZŠ (1.–9. třída)' },
+        { emoji: '👩‍🏫', text: 'Vytvoř ukázkový učitelský sbor' },
+        { emoji: '📋', text: 'Kolik uživatelů je v systému?' },
+        { emoji: '🎓', text: 'Naplň školu jako osmileté gymnázium' },
+        { emoji: '👥', text: 'Vypiš seznam učitelů ve škole' },
+    ];
+
     return (
         <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-600/10 to-indigo-600/10 mb-4">
                 <Sparkles className="h-8 w-8 text-violet-500" />
             </div>
             <h3 className="text-lg font-semibold mb-2">{t('aitutor.empty_state.title')}</h3>
-            <p className="text-sm text-muted-foreground max-w-[260px]">
+            <p className="text-sm text-muted-foreground max-w-[260px] mb-4">
                 {t('aitutor.empty_state.description')}
             </p>
-            <div className="mt-6 space-y-2 text-xs text-muted-foreground">
-                <SuggestionPill text={t('aitutor.empty_state.suggestions.school')} />
-                <SuggestionPill text={t('aitutor.empty_state.suggestions.schema')} />
-                <SuggestionPill text={t('aitutor.empty_state.suggestions.backend')} />
+            <p className="text-xs text-muted-foreground/70 mb-3">Vyzkoušejte:</p>
+            <div className="flex flex-wrap gap-2 justify-center max-w-[320px]">
+                {suggestions.map((s, i) => (
+                    <SuggestionPill key={i} emoji={s.emoji} text={s.text} onClick={() => onSuggestionClick(s.text)} />
+                ))}
             </div>
         </div>
     );
 }
 
-function SuggestionPill({ text }: { text: string }) {
+function SuggestionPill({ emoji, text, onClick }: { emoji: string; text: string; onClick: () => void }) {
     return (
-        <div className="inline-block px-3 py-1.5 rounded-full bg-muted/80 text-muted-foreground text-xs">
-            💡 {text}
-        </div>
+        <button
+            onClick={onClick}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground text-xs transition-colors cursor-pointer hover:text-foreground hover:shadow-sm"
+        >
+            <span>{emoji}</span>
+            <span>{text}</span>
+        </button>
     );
 }
 
