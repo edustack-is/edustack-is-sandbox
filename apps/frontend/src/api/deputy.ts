@@ -96,6 +96,29 @@ export const getSubjectTemplates = async () => {
     return response.data;
 };
 
+export const createSubject = async (data: {
+    name: string;
+    code: string;
+    svpDescription?: string;
+}) => {
+    const response = await api.post('/api/deputy/subjects', data);
+    return response.data;
+};
+
+export const updateSubject = async (id: string, data: {
+    name?: string;
+    code?: string;
+    svpDescription?: string;
+}) => {
+    const response = await api.put(`/api/deputy/subjects/${id}`, data);
+    return response.data;
+};
+
+export const deleteSubject = async (id: string) => {
+    const response = await api.delete(`/api/deputy/subjects/${id}`);
+    return response.data;
+};
+
 // ─── SUBJECT INSTANCES (CURRICULUM) ─────────────────────────────
 
 export const getSubjectInstances = async (academicYearId: string) => {
