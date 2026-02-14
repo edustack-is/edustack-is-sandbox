@@ -61,11 +61,7 @@ export const Sidebar: React.FC = () => {
 
     const handleLeaveSchool = () => {
         leaveSchool();
-        if (isSystemAdmin) {
-            navigate('/system/schools');
-        } else {
-            navigate('/select-school');
-        }
+        navigate('/select-school');
     };
 
     const hasSchoolContext = tokenType === 'TENANT';
@@ -94,44 +90,19 @@ export const Sidebar: React.FC = () => {
             </div>
 
             <nav className="sidebar-nav flex-1 p-4 space-y-2 overflow-y-auto" aria-label="Main Navigation">
-                {/* School-specific items — only when a school is selected */}
-                {hasSchoolContext && (
-                    <>
-                        {schoolNavItems.map((item) => (
-                            <NavLink key={item.path} to={item.path} className={navLinkClass}>
-                                <item.icon size={18} />
-                                <span>{item.label}</span>
-                            </NavLink>
-                        ))}
-
-                        {/* Admin Section for Deputy/Principal */}
-                        {isSchoolAdmin && (
-                            <Accordion type="single" collapsible className="w-full border-none">
-                                <AccordionItem value="school-admin" className="border-none">
-                                    <AccordionTrigger className="py-2.5 px-4 hover:no-underline hover:bg-accent rounded-md text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                                        Správa školy
-                                    </AccordionTrigger>
-                                    <AccordionContent className="pt-1 pb-0 space-y-1">
-                                        {schoolAdminItems.map((item) => (
-                                            <NavLink key={item.path} to={item.path} className={navLinkClass}>
-                                                <item.icon size={18} />
-                                                <span>{item.label}</span>
-                                            </NavLink>
-                                        ))}
-                                    </AccordionContent>
-                                </AccordionItem>
-                            </Accordion>
-                        )}
-                    </>
-                )}
-
-                {/* System Admin Section — only visible when no school is selected */}
+                {/* System Admin Global Navigation */}
                 {isSystemAdmin && !hasSchoolContext && (
                     <>
-                        <div className={clsx(
-                            'px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider',
-                            hasSchoolContext ? 'mt-4' : ''
-                        )}>
+                        <NavLink to="/dashboard" className={navLinkClass}>
+                            <LayoutDashboard size={18} />
+                            <span>Nástěnka</span>
+                        </NavLink>
+                        <NavLink to="/select-school" className={navLinkClass}>
+                            <Building2 size={18} />
+                            <span>Výběr školy</span>
+                        </NavLink>
+
+                        <div className="px-4 py-2.5 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             System Admin
                         </div>
                         <NavLink to="/system/schools" className={navLinkClass}>
@@ -146,6 +117,37 @@ export const Sidebar: React.FC = () => {
                             <Zap size={18} />
                             <span>AI Management</span>
                         </NavLink>
+                    </>
+                )}
+
+                {/* School-specific items — only when a school is selected */}
+                {hasSchoolContext && (
+                    <>
+                        {schoolNavItems.map((item) => (
+                            <NavLink key={item.path} to={item.path} className={navLinkClass}>
+                                <item.icon size={18} />
+                                <span>{item.label}</span>
+                            </NavLink>
+                        ))}
+
+                        {/* Admin Section for Deputy/Principal/Admin */}
+                        {isSchoolAdmin && (
+                            <Accordion type="single" collapsible className="w-full border-none">
+                                <AccordionItem value="school-admin" className="border-none">
+                                    <AccordionTrigger className="py-2.5 px-4 hover:no-underline hover:bg-accent rounded-md text-sm font-semibold text-muted-foreground uppercase tracking-wider text-left">
+                                        Správa školy
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pt-1 pb-0 space-y-1">
+                                        {schoolAdminItems.map((item) => (
+                                            <NavLink key={item.path} to={item.path} className={navLinkClass}>
+                                                <item.icon size={18} />
+                                                <span>{item.label}</span>
+                                            </NavLink>
+                                        ))}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                        )}
                     </>
                 )}
 
