@@ -31,6 +31,8 @@ export function AiChatDrawer() {
     const [open, setOpen] = useState(false);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [loadingSeconds, setLoadingSeconds] = useState(0);
+    const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useTranslation();
 
     // Provider State
@@ -137,6 +139,12 @@ export function AiChatDrawer() {
         setMessages(newHistory);
         setInput('');
         setLoading(true);
+        setLoadingSeconds(0);
+
+        // Start elapsed timer
+        loadingTimerRef.current = setInterval(() => {
+            setLoadingSeconds(s => s + 1);
+        }, 1000);
 
         // Reset height content
         if (inputRef.current) {
@@ -147,14 +155,23 @@ export function AiChatDrawer() {
             const res = await api.post('/api/ai/chat', {
                 messages: newHistory,
                 provider: selectedProvider
+            }, {
+                timeout: 120000, // 120s timeout for AI with tool calling
             });
             const aiText = res.data?.response || t('aitutor.errors.no_answer');
             setMessages((prev) => [...prev, { role: 'model', text: aiText }]);
         } catch (err: any) {
-            const errMsg = err.response?.data?.message || t('aitutor.errors.communication');
+            const errMsg = err.response?.data?.message || err.code === 'ECONNABORTED'
+                ? t('aitutor.errors.timeout', 'AI odpověď trvala příliš dlouho. Zkuste to znovu.')
+                : err.response?.data?.message || t('aitutor.errors.communication');
             setMessages((prev) => [...prev, { role: 'model', text: `⚠️ ${errMsg}` }]);
         } finally {
             setLoading(false);
+            setLoadingSeconds(0);
+            if (loadingTimerRef.current) {
+                clearInterval(loadingTimerRef.current);
+                loadingTimerRef.current = null;
+            }
         }
     }, [input, loading, messages, selectedProvider]);
 
@@ -263,7 +280,7 @@ export function AiChatDrawer() {
                             <MessageBubble key={i} message={msg} />
                         ))}
 
-                        {loading && <TypingIndicator />}
+                        {loading && <TypingIndicator seconds={loadingSeconds} />}
                     </div>
 
                     {/* Input area */}
@@ -382,16 +399,35 @@ function SuggestionPill({ text }: { text: string }) {
 // Typing Indicator
 // ═══════════════════════════════════════════════════════════════
 
-function TypingIndicator() {
+function TypingIndicator({ seconds }: { seconds: number }) {
+    // Dynamic status message based on elapsed time
+    const getStatusText = () => {
+        if (seconds < 3) return 'Přemýšlím...';
+        if (seconds < 8) return 'Zpracovávám dotaz...';
+        if (seconds < 15) return 'Vyhledávám data...';
+        if (seconds < 30) return 'Analyzuji výsledky...';
+        return 'Stále pracuji, prosím čekejte...';
+    };
+
     return (
         <div className="flex gap-3">
             <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
                 <Bot className="h-4 w-4" />
             </div>
-            <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-violet-500/60 animate-bounce [animation-delay:0ms]" />
+                        <span className="w-2 h-2 rounded-full bg-violet-500/60 animate-bounce [animation-delay:150ms]" />
+                        <span className="w-2 h-2 rounded-full bg-violet-500/60 animate-bounce [animation-delay:300ms]" />
+                    </div>
+                    {seconds >= 2 && (
+                        <span className="text-xs text-muted-foreground ml-1">{seconds}s</span>
+                    )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5 animate-pulse">
+                    {getStatusText()}
+                </p>
             </div>
         </div>
     );
