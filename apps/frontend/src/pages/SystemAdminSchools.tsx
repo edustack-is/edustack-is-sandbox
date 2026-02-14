@@ -76,10 +76,33 @@ const createSchoolSchema = z.discriminatedUnion('adminType', [
     }),
 ]);
 
-const editSchoolSchema = z.object({
-    name: z.string().min(1, 'School name is required'),
-    address: z.string().optional(),
-});
+const editSchoolSchema = z.discriminatedUnion('hasAdminChange', [
+    z.object({
+        name: z.string().min(1, 'School name is required'),
+        address: z.string().optional(),
+        hasAdminChange: z.literal(false),
+    }),
+    z.object({
+        name: z.string().min(1, 'School name is required'),
+        address: z.string().optional(),
+        hasAdminChange: z.literal(true),
+        adminType: z.literal('EXISTING'),
+        userId: z.string().min(1, 'Please select a user'),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        email: z.string().optional(),
+    }),
+    z.object({
+        name: z.string().min(1, 'School name is required'),
+        address: z.string().optional(),
+        hasAdminChange: z.literal(true),
+        adminType: z.literal('NEW'),
+        userId: z.string().optional(),
+        firstName: z.string().min(1, 'First name is required'),
+        lastName: z.string().min(1, 'Last name is required'),
+        email: z.string().email('Invalid email'),
+    }),
+]);
 
 type CreateSchoolFormValues = z.infer<typeof createSchoolSchema>;
 type EditSchoolFormValues = z.infer<typeof editSchoolSchema>;
@@ -99,7 +122,9 @@ export function SystemAdminSchools() {
     // User search state
     const [users, setUsers] = useState<UserOption[]>([]);
     const [userSearch, setUserSearch] = useState('');
+    const [editUserSearch, setEditUserSearch] = useState('');
     const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
+    const [selectedEditUser, setSelectedEditUser] = useState<UserOption | null>(null);
 
     const form = useForm<CreateSchoolFormValues>({
         resolver: zodResolver(createSchoolSchema),
@@ -119,10 +144,13 @@ export function SystemAdminSchools() {
         defaultValues: {
             name: '',
             address: '',
+            hasAdminChange: false,
         },
     });
 
     const adminType = form.watch('adminType');
+    const editHasAdminChange = editForm.watch('hasAdminChange');
+    const editAdminType = editForm.watch('adminType' as any);
 
     const fetchSchools = async () => {
         setLoading(true);
@@ -136,11 +164,11 @@ export function SystemAdminSchools() {
         }
     };
 
-    const fetchUsers = async (search: string) => {
+    const fetchUsers = async (search: string, setTarget: (users: UserOption[]) => void) => {
         try {
             const data = await getUsers({ limit: 20 });
             const list = Array.isArray(data) ? data : data.data || [];
-            setUsers(
+            setTarget(
                 list.filter(
                     (u: UserOption) =>
                         u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -157,8 +185,14 @@ export function SystemAdminSchools() {
     }, []);
 
     useEffect(() => {
-        fetchUsers(userSearch);
+        fetchUsers(userSearch, setUsers);
     }, [userSearch]);
+
+    useEffect(() => {
+        if (editHasAdminChange) {
+            fetchUsers(editUserSearch, setUsers);
+        }
+    }, [editUserSearch, editHasAdminChange]);
 
     const onSubmit = async (values: CreateSchoolFormValues) => {
         setSubmitting(true);
@@ -197,9 +231,21 @@ export function SystemAdminSchools() {
         if (!editingSchool) return;
         setSubmitting(true);
         try {
-            await updateSystemSchool(editingSchool.id, values);
+            const payload: any = {
+                name: values.name,
+                address: values.address,
+            };
+
+            if (values.hasAdminChange) {
+                payload.admin = values.adminType === 'EXISTING'
+                    ? { type: 'EXISTING', userId: values.userId }
+                    : { type: 'NEW', firstName: values.firstName, lastName: values.lastName, email: values.email };
+            }
+
+            await updateSystemSchool(editingSchool.id, payload);
             setEditDialogOpen(false);
             setEditingSchool(null);
+            setSelectedEditUser(null);
             await fetchSchools();
         } catch (err: any) {
             console.error('Failed to update school', err);
@@ -221,6 +267,7 @@ export function SystemAdminSchools() {
         setEditDialogOpen(open);
         if (!open) {
             setEditingSchool(null);
+            setSelectedEditUser(null);
             editForm.reset();
         }
     };
@@ -230,6 +277,7 @@ export function SystemAdminSchools() {
         editForm.reset({
             name: school.name,
             address: school.address || '',
+            hasAdminChange: false,
         });
         setEditDialogOpen(true);
     };
@@ -480,11 +528,11 @@ export function SystemAdminSchools() {
 
             {/* Edit School Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={handleEditOpenChange}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
                         <DialogTitle>Edit School Details</DialogTitle>
                         <DialogDescription>
-                            Update basic information for this school. All changes are logged.
+                            Update basic information and assign a school principal.
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...editForm}>
@@ -515,6 +563,169 @@ export function SystemAdminSchools() {
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Principal Change Section */}
+                            <div className="space-y-3 rounded-lg border p-4">
+                                <FormField
+                                    control={editForm.control}
+                                    name="hasAdminChange"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center space-x-2">
+                                            <FormControl>
+                                                <RadioGroup
+                                                    value={field.value ? 'YES' : 'NO'}
+                                                    onValueChange={(val) => {
+                                                        const changing = val === 'YES';
+                                                        field.onChange(changing);
+                                                        if (changing) {
+                                                            editForm.setValue('adminType' as any, 'EXISTING');
+                                                        }
+                                                    }}
+                                                    className="flex gap-4"
+                                                >
+                                                    <div className="flex items-center space-x-2">
+                                                        <RadioGroupItem value="NO" id="edit-admin-no" />
+                                                        <Label htmlFor="edit-admin-no" className="cursor-pointer">
+                                                            Keep Current Principal
+                                                        </Label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <RadioGroupItem value="YES" id="edit-admin-yes" />
+                                                        <Label htmlFor="edit-admin-yes" className="cursor-pointer">
+                                                            Change Principal
+                                                        </Label>
+                                                    </div>
+                                                </RadioGroup>
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+
+                                {editHasAdminChange && (
+                                    <>
+                                        <div className="pt-2">
+                                            <FormField
+                                                control={editForm.control}
+                                                name="adminType"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormControl>
+                                                            <RadioGroup
+                                                                value={field.value}
+                                                                onValueChange={(val: string) => {
+                                                                    field.onChange(val);
+                                                                    setSelectedEditUser(null);
+                                                                    editForm.setValue('userId' as any, '');
+                                                                }}
+                                                                className="flex gap-4"
+                                                            >
+                                                                <div className="flex items-center space-x-2">
+                                                                    <RadioGroupItem value="EXISTING" id="edit-admin-existing" />
+                                                                    <Label htmlFor="edit-admin-existing" className="text-xs cursor-pointer">
+                                                                        Ex. User
+                                                                    </Label>
+                                                                </div>
+                                                                <div className="flex items-center space-x-2">
+                                                                    <RadioGroupItem value="NEW" id="edit-admin-new" />
+                                                                    <Label htmlFor="edit-admin-new" className="text-xs cursor-pointer">
+                                                                        New User
+                                                                    </Label>
+                                                                </div>
+                                                            </RadioGroup>
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        {editAdminType === 'EXISTING' && (
+                                            <FormField
+                                                control={editForm.control}
+                                                name="userId"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs">Search User</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    className="h-8"
+                                                                    placeholder="Search..."
+                                                                    value={
+                                                                        selectedEditUser
+                                                                            ? `${selectedEditUser.firstName} ${selectedEditUser.lastName}`
+                                                                            : editUserSearch
+                                                                    }
+                                                                    onChange={(e) => {
+                                                                        setEditUserSearch(e.target.value);
+                                                                        setSelectedEditUser(null);
+                                                                        field.onChange('');
+                                                                    }}
+                                                                />
+                                                                {!selectedEditUser && editUserSearch && users.length > 0 && (
+                                                                    <div className="absolute z-10 mt-1 max-h-32 w-full overflow-auto rounded-md border bg-popover shadow-md">
+                                                                        {users.map((user) => (
+                                                                            <button
+                                                                                key={user.id}
+                                                                                type="button"
+                                                                                className="flex w-full items-center gap-2 px-2 py-1 text-xs hover:bg-accent"
+                                                                                onClick={() => {
+                                                                                    setSelectedEditUser(user);
+                                                                                    field.onChange(user.id);
+                                                                                    setEditUserSearch('');
+                                                                                }}
+                                                                            >
+                                                                                {user.firstName} {user.lastName} ({user.email})
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+
+                                        {editAdminType === 'NEW' && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <FormField
+                                                    control={editForm.control}
+                                                    name="firstName"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">First Name</FormLabel>
+                                                            <FormControl><Input className="h-8" {...field} /></FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={editForm.control}
+                                                    name="lastName"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">Last Name</FormLabel>
+                                                            <FormControl><Input className="h-8" {...field} /></FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <div className="col-span-2">
+                                                    <FormField
+                                                        control={editForm.control}
+                                                        name="email"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Email</FormLabel>
+                                                                <FormControl><Input className="h-8" type="email" {...field} /></FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+
                             <DialogFooter>
                                 <Button
                                     type="button"

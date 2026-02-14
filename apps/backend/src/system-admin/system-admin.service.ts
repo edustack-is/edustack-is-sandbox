@@ -117,30 +117,86 @@ export class SystemAdminService {
         };
     }
 
-    async updateSchool(schoolId: string, data: { name?: string; address?: string }, actorId: string) {
-        const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+    async updateSchool(
+        schoolId: string,
+        data: {
+            name?: string;
+            address?: string;
+            admin?: { type: 'EXISTING'; userId: string } | { type: 'NEW'; firstName: string; lastName: string; email: string };
+        },
+        actorId: string
+    ) {
+        const school = await this.prisma.school.findUnique({
+            where: { id: schoolId },
+            include: { members: { where: { role: UserRole.ADMIN }, include: { user: true } } }
+        });
         if (!school) throw new NotFoundException('School not found');
 
-        // Capture old values for auditing
-        const oldValues = {
+        const oldValues: any = {
             name: school.name,
             address: school.address,
+            primaryAdmin: school.members[0]?.user?.email || null,
         };
 
-        // Filter out unchanged values for newValues log
         const newValues: any = {};
         if (data.name !== undefined && data.name !== school.name) newValues.name = data.name;
         if (data.address !== undefined && data.address !== school.address) newValues.address = data.address;
 
-        if (Object.keys(newValues).length === 0) {
-            return school;
-        }
-
         return this.prisma.$transaction(async (tx: any) => {
-            const updated = await tx.school.update({
-                where: { id: schoolId },
-                data: newValues,
-            });
+            // Update basic info
+            if (Object.keys(newValues).length > 0) {
+                await tx.school.update({
+                    where: { id: schoolId },
+                    data: newValues,
+                });
+            }
+
+            // Handle Admin Update
+            if (data.admin) {
+                let adminUser;
+                if (data.admin.type === 'EXISTING') {
+                    adminUser = await tx.user.findUnique({ where: { id: data.admin.userId } });
+                    if (!adminUser) throw new NotFoundException('Admin user not found');
+                } else {
+                    // Create new user (similar to createSchool)
+                    const existing = await tx.user.findUnique({ where: { email: data.admin.email } });
+                    if (existing) {
+                        adminUser = existing;
+                    } else {
+                        const invitationToken = crypto.randomBytes(32).toString('hex');
+                        const invitationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                        adminUser = await tx.user.create({
+                            data: {
+                                email: data.admin.email,
+                                firstName: data.admin.firstName,
+                                lastName: data.admin.lastName,
+                                invitationToken,
+                                invitationExpires,
+                            }
+                        });
+                    }
+                }
+
+                // Assign role (ensure it's the only ADMIN if we want a single primary, or just add him)
+                // For simplicity, we make this user an ADMIN.
+                await tx.schoolMembership.upsert({
+                    where: { userId_schoolId: { userId: adminUser.id, schoolId } },
+                    create: {
+                        userId: adminUser.id,
+                        schoolId,
+                        role: UserRole.ADMIN,
+                        status: adminUser.passwordHash ? UserStatus.ACTIVE : UserStatus.PENDING,
+                    },
+                    update: {
+                        role: UserRole.ADMIN,
+                        status: adminUser.passwordHash ? UserStatus.ACTIVE : UserStatus.PENDING,
+                    }
+                });
+
+                newValues.primaryAdmin = adminUser.email;
+            }
+
+            if (Object.keys(newValues).length === 0) return school;
 
             await tx.auditLog.create({
                 data: {
@@ -153,7 +209,15 @@ export class SystemAdminService {
                 },
             });
 
-            return updated;
+            return tx.school.findUnique({
+                where: { id: schoolId },
+                include: {
+                    members: {
+                        include: { user: { select: { id: true, email: true, firstName: true, lastName: true } } },
+                        where: { role: UserRole.ADMIN },
+                    },
+                },
+            });
         });
     }
 
