@@ -38,7 +38,7 @@ enum UserStatus {
 
 model School {
   id          String   @id @default(uuid())
-  name        String   @unique
+  name        String
   address     String?
   contactEmail String?
   allowStudentSelfRegistration Boolean @default(false)
@@ -59,6 +59,7 @@ model School {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 }
 
 model User {
