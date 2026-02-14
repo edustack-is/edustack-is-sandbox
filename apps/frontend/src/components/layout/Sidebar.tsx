@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User } from 'lucide-react';
 import clsx from 'clsx';
-import { getMe, getUserSchools } from '@/api';
+import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,6 @@ export const Sidebar: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
-    const [schoolCount, setSchoolCount] = useState(0);
     const { tokenType, isSystemAdmin, currentSchool, leaveSchool, role } = useSchool();
 
     const schoolNavItems = [
@@ -69,19 +68,9 @@ export const Sidebar: React.FC = () => {
     ];
 
     useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const [userData, schools] = await Promise.all([
-                    getMe(),
-                    getUserSchools()
-                ]);
-                setUser(userData);
-                setSchoolCount(schools?.length || 0);
-            } catch (e) {
-                console.error('Failed to fetch user or schools', e);
-            }
-        };
-        fetchUser();
+        getMe()
+            .then(setUser)
+            .catch((e) => console.error('Failed to fetch user', e));
     }, []);
 
     const handleLogout = () => {
@@ -105,19 +94,35 @@ export const Sidebar: React.FC = () => {
             <div className="sidebar-header p-6 border-b border-border">
                 <h1 className="text-xl font-bold text-primary">EduStack</h1>
                 {hasSchoolContext && currentSchool && (
-                    <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground truncate max-w-[140px]" title={currentSchool.name}>
-                            {currentSchool.name}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                            onClick={handleLeaveSchool}
-                        >
-                            <ArrowLeft size={12} className="mr-1" />
-                            {t('common.back')}
-                        </Button>
+                    <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                            <Building2 size={14} className="text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium truncate" title={currentSchool.name}>
+                                {currentSchool.name}
+                            </span>
+                        </div>
+                        <div className="flex gap-1.5">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2.5 text-xs flex-1"
+                                onClick={handleLeaveSchool}
+                            >
+                                <ArrowLeft size={12} className="mr-1" />
+                                {t('sidebar.change_school', 'Změnit školu')}
+                            </Button>
+                            {isSystemAdmin && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2.5 text-xs flex-1"
+                                    onClick={() => { leaveSchool(); navigate('/dashboard'); }}
+                                >
+                                    <Settings size={12} className="mr-1" />
+                                    {t('sidebar.system_admin_short', 'Systém')}
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -130,7 +135,11 @@ export const Sidebar: React.FC = () => {
                             <LayoutDashboard size={18} />
                             <span>{t('common.dashboard')}</span>
                         </NavLink>
-                        {/* System Admin doesn't need "Select School" here, they have it in "Schools" management list */}
+
+                        <NavLink to="/select-school" className={navLinkClass}>
+                            <Building2 size={18} />
+                            <span>{t('sidebar.enter_school', 'Vstoupit do školy')}</span>
+                        </NavLink>
 
                         <div className="px-4 py-2.5 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             {t('sidebar.system_admin')}
@@ -159,14 +168,6 @@ export const Sidebar: React.FC = () => {
                                 <span>{item.label}</span>
                             </NavLink>
                         ))}
-
-                        {/* Only show "Select School" if user has multiple schools */}
-                        {schoolCount > 1 && (
-                            <NavLink to="/select-school" className={navLinkClass}>
-                                <Building2 size={18} />
-                                <span>{t('sidebar.select_school', 'Změnit školu')}</span>
-                            </NavLink>
-                        )}
 
                         {/* Admin Section for Deputy/Principal/Admin */}
                         {isSchoolAdmin && (

@@ -38,21 +38,48 @@ export function SelectSchool() {
         loadSchools();
     }, []);
 
-    const loadSchools = () => {
+    const loadSchools = async () => {
         setLoading(true);
-        api.get('/api/auth/schools')
-            .then((res) => {
+        try {
+            if (isSystemAdmin) {
+                // System admin sees ALL schools, not just memberships
+                const [memberRes, allSchoolsRes] = await Promise.all([
+                    api.get('/api/auth/schools'),
+                    api.get('/api/system/schools').catch(() => ({ data: [] })),
+                ]);
+
+                const memberships: SchoolMembership[] = memberRes.data;
+                const allSchools: any[] = allSchoolsRes.data;
+                const memberSchoolIds = new Set(memberships.map(m => m.schoolId || m.school?.id));
+
+                // Merge: keep memberships as-is, add schools with no membership
+                const merged: SchoolMembership[] = [
+                    ...memberships,
+                    ...allSchools
+                        .filter(s => !memberSchoolIds.has(s.id))
+                        .map(s => ({
+                            schoolId: s.id,
+                            role: 'ADMIN',
+                            school: { id: s.id, name: s.name, address: s.address },
+                        })),
+                ];
+
+                setSchools(merged);
+            } else {
+                const res = await api.get('/api/auth/schools');
                 const list = res.data;
                 setSchools(list);
 
-                // Auto-select if user has exactly 1 school and is NOT system admin
-                // And is NOT currently trying to create a school
-                if (list.length === 1 && !isSystemAdmin && !isCreating) {
+                // Auto-select if user has exactly 1 school
+                if (list.length === 1 && !isCreating) {
                     handleSelect(list[0].schoolId || list[0].school.id);
                 }
-            })
-            .catch((err) => console.error('Failed to load schools', err))
-            .finally(() => setLoading(false));
+            }
+        } catch (err) {
+            console.error('Failed to load schools', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSelect = async (schoolId: string, role?: string) => {
