@@ -26,6 +26,7 @@ import {
 import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
 import { getSsoSettings, updateSsoProvider } from '@/api/system-sso';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ interface SsoSettings {
 // ═══════════════════════════════════════════════════════════════
 
 export function SystemAdminSettings() {
+    const { t } = useTranslation();
     const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
     const [usage, setUsage] = useState<UsageData | null>(null);
     const [ssoSettings, setSsoSettings] = useState<SsoSettings | null>(null);
@@ -126,10 +128,10 @@ export function SystemAdminSettings() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                         <Settings className="h-6 w-6 text-primary" />
-                        System Settings
+                        {t('system_settings.title')}
                     </h1>
                     <p className="text-muted-foreground mt-1">
-                        Global configuration for AI, SSO, and system-wide features.
+                        {t('system_settings.description')}
                     </p>
                 </div>
             </div>
@@ -138,11 +140,11 @@ export function SystemAdminSettings() {
                 <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
                     <TabsTrigger value="ai" className="flex items-center gap-2">
                         <Zap className="h-4 w-4" />
-                        AI Management
+                        {t('system_settings.ai_management')}
                     </TabsTrigger>
                     <TabsTrigger value="sso" className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
-                        SSO Integrations
+                        {t('system_settings.sso_integrations')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -150,31 +152,31 @@ export function SystemAdminSettings() {
                     {/* KPI Cards Row */}
                     <div className="grid gap-4 md:grid-cols-4">
                         <KpiCard
-                            title="Tokeny celkem"
+                            title={t('system_settings.total_tokens')}
                             value={formatNumber(usage?.totals.totalTokens ?? 0)}
-                            subtitle="tento měsíc"
+                            subtitle={t('system_settings.this_month')}
                             icon={<Zap className="h-5 w-5" />}
                             color="text-amber-500"
                             bg="bg-amber-500/10"
                         />
                         <KpiCard
-                            title="Input tokeny"
+                            title={t('system_settings.input_tokens')}
                             value={formatNumber(usage?.totals.inputTokens ?? 0)}
-                            subtitle="prompty"
+                            subtitle={t('system_settings.prompts')}
                             icon={<TrendingUp className="h-5 w-5" />}
                             color="text-blue-500"
                             bg="bg-blue-500/10"
                         />
                         <KpiCard
-                            title="Output tokeny"
+                            title={t('system_settings.output_tokens')}
                             value={formatNumber(usage?.totals.outputTokens ?? 0)}
-                            subtitle="odpovědi"
+                            subtitle={t('system_settings.responses')}
                             icon={<BarChart3 className="h-5 w-5" />}
                             color="text-purple-500"
                             bg="bg-purple-500/10"
                         />
                         <KpiCard
-                            title="Počet požadavků"
+                            title={t('system_settings.request_count')}
                             value={formatNumber(usage?.totals.requestCount ?? 0)}
                             subtitle="API calls"
                             icon={<Shield className="h-5 w-5" />}
@@ -215,6 +217,7 @@ export function SystemAdminSettings() {
 
 function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; onSaved: () => void }) {
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     const providers = [
         { id: 'google', name: 'Google', icon: Globe, color: 'bg-blue-500' },
@@ -239,9 +242,9 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
                             <CardContent>
                                 <div className="flex items-center justify-between mt-2">
                                     <Badge variant={config?.isActive ? "default" : "secondary"} className={config?.isActive ? "bg-emerald-500" : ""}>
-                                        {config?.isActive ? "Active" : "Inactive"}
+                                        {config?.isActive ? t('system_settings.active') : t('system_settings.inactive')}
                                     </Badge>
-                                    {!config?.isConfigured && <span className="text-[10px] text-muted-foreground italic">Not configured</span>}
+                                    {!config?.isConfigured && <span className="text-[10px] text-muted-foreground italic">{t('system_settings.not_configured')}</span>}
                                 </div>
                             </CardContent>
                         </Card>
@@ -251,13 +254,13 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">SSO Configuration Guide</CardTitle>
+                    <CardTitle className="text-lg">{t('system_settings.sso_config_guide')}</CardTitle>
                     <CardDescription>
-                        Konfigurované strategie jsou okamžitě dostupné na přihlašovací stránce po aktivaci.
+                        {t('system_settings.sso_config_guide_description')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground leading-relaxed">
-                    Ujistěte se, že Callback URL ve vaší aplikaci u providera je nastavena na:
+                    {t('system_settings.sso_callback_url_hint')}
                     <code className="block mt-2 p-2 bg-muted rounded font-mono text-xs">
                         https://your-domain.com/api/auth/callback/[provider]
                     </code>
@@ -282,6 +285,7 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
     onClose: () => void;
     onSaved: () => void
 }) {
+    const { t } = useTranslation();
     const [formData, setFormData] = useState({
         clientId: config?.clientId || '',
         clientSecret: '',
@@ -295,11 +299,11 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
         try {
             setSaving(true);
             await updateSsoProvider(provider, formData);
-            toast.success(`${provider} configuration updated successfully.`);
+            toast.success(t('system_settings.provider_config_saved', { provider }));
             onSaved();
             onClose();
         } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to save configuration.');
+            toast.error(err.response?.data?.message || t('system_settings.save_config_failed'));
         } finally {
             setSaving(false);
         }
@@ -309,15 +313,15 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle className="capitalize">{provider} Integration</DialogTitle>
+                    <DialogTitle className="capitalize">{provider} {t('system_settings.integration')}</DialogTitle>
                     <DialogDescription>
-                        Configure OAuth credentials for {provider}. Sensitive client secrets are encrypted.
+                        {t('system_settings.configure_oauth', { provider })}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="clientId">Client ID / App ID</Label>
+                        <Label htmlFor="clientId">{t('system_settings.client_id')}</Label>
                         <Input
                             id="clientId"
                             value={formData.clientId}
@@ -327,7 +331,7 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
 
                     <div className="grid gap-2">
                         <Label htmlFor="clientSecret">
-                            {provider === 'apple' ? 'Private Key (.p8 content)' : 'Client Secret'}
+                            {provider === 'apple' ? t('system_settings.private_key') : t('system_settings.client_secret')}
                         </Label>
                         {provider === 'apple' ? (
                             <Textarea
@@ -341,7 +345,7 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
                             <Input
                                 id="clientSecret"
                                 type="password"
-                                placeholder={config?.isConfigured ? "Leave empty to keep current secret" : "Enter new client secret"}
+                                placeholder={config?.isConfigured ? t('system_settings.keep_current_secret') : t('system_settings.enter_new_secret')}
                                 value={formData.clientSecret}
                                 onChange={(e) => setFormData({ ...formData, clientSecret: e.target.value })}
                             />
@@ -371,9 +375,9 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
 
                     <div className="flex items-center justify-between space-x-2 pt-4">
                         <Label htmlFor="isActive" className="flex flex-col space-y-1">
-                            <span>Enable Integration</span>
+                            <span>{t('system_settings.enable_integration')}</span>
                             <span className="font-normal leading-snug text-muted-foreground">
-                                Providery can be disabled without losing credentials.
+                                {t('system_settings.disable_without_losing')}
                             </span>
                         </Label>
                         <Switch
@@ -385,10 +389,10 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
                     <Button onClick={handleSave} disabled={saving}>
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {t('common.save_changes')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -404,6 +408,7 @@ function DailyChart({ daily, month }: {
     daily: Array<{ date: string; totalTokens: number; requestCount: number }>;
     month: string;
 }) {
+    const { t } = useTranslation();
     const data = daily.map((d) => ({
         date: new Date(d.date).toLocaleDateString('cs', { day: 'numeric', month: 'short' }),
         tokens: d.totalTokens,
@@ -413,14 +418,14 @@ function DailyChart({ daily, month }: {
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Denní spotřeba</CardTitle>
-                <CardDescription>Měsíc: {month || '—'}</CardDescription>
+                <CardTitle className="text-lg">{t('system_settings.daily_usage')}</CardTitle>
+                <CardDescription>{t('system_settings.month')}: {month || '—'}</CardDescription>
             </CardHeader>
             <CardContent>
                 {data.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                         <TrendingUp className="h-10 w-10 mb-3 opacity-30" />
-                        <p className="text-sm">Zatím žádná denní data.</p>
+                        <p className="text-sm">{t('system_settings.no_daily_data')}</p>
                     </div>
                 ) : (
                     <ResponsiveContainer width="100%" height={250}>
@@ -431,7 +436,7 @@ function DailyChart({ daily, month }: {
                             <Tooltip
                                 formatter={(value: any, name: any) => [
                                     formatNumber(value ?? 0),
-                                    name === 'tokens' ? 'Tokeny' : 'Požadavky',
+                                    name === 'tokens' ? t('system_settings.tokens') : t('system_settings.requests'),
                                 ]}
                                 contentStyle={{
                                     backgroundColor: 'hsl(var(--card))',
@@ -472,6 +477,7 @@ function KpiCard({ title, value, subtitle, icon, color, bg }: {
 }
 
 function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; onSaved: () => void }) {
+    const { t } = useTranslation();
     const [keys, setKeys] = useState({ gemini: '', openai: '', anthropic: '' });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -479,7 +485,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
 
     const handleSave = async () => {
         if (!keys.gemini && !keys.openai && !keys.anthropic) {
-            setError('Vyplňte alespoň jeden klíč.');
+            setError(t('system_settings.fill_at_least_one'));
             return;
         }
         try {
@@ -495,7 +501,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
             setTimeout(() => setSaved(false), 3000);
             onSaved();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Chyba při ukládání.');
+            setError(err.response?.data?.message || t('system_settings.save_error'));
         } finally {
             setSaving(false);
         }
@@ -506,16 +512,16 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Key className="h-5 w-5 text-muted-foreground" />
-                    Konfigurace AI Providerů
+                    {t('system_settings.ai_provider_config')}
                 </CardTitle>
                 <CardDescription>
-                    Klíče jsou šifrovány (AES-256).
+                    {t('system_settings.keys_encrypted')}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {settings?.updatedAt && (
                     <p className="text-xs text-muted-foreground -mt-4 mb-4">
-                        Poslední aktualizace: {new Date(settings.updatedAt).toLocaleString('cs')}
+                        {t('system_settings.last_updated')}: {new Date(settings.updatedAt).toLocaleString()}
                     </p>
                 )}
 
@@ -528,7 +534,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                 <div className="space-y-4">
                     <ProviderInput
                         label="Google Gemini"
-                        placeholder="Vložte Gemini API Key..."
+                        placeholder={t('system_settings.gemini_placeholder')}
                         config={settings?.gemini}
                         value={keys.gemini}
                         onChange={(v: string) => setKeys(p => ({ ...p, gemini: v }))}
@@ -554,11 +560,11 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
 
                 <Button onClick={handleSave} disabled={saving} className="w-full">
                     {saving ? (
-                        <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...</>
+                        <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('system_settings.saving')}</>
                     ) : saved ? (
-                        <><Check className="h-4 w-4 mr-2" /> Uloženo!</>
+                        <><Check className="h-4 w-4 mr-2" /> {t('system_settings.saved')}</>
                     ) : (
-                        <><Save className="h-4 w-4 mr-2" /> Uložit klíče</>
+                        <><Save className="h-4 w-4 mr-2" /> {t('system_settings.save_keys')}</>
                     )}
                 </Button>
             </CardContent>
@@ -567,19 +573,20 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
 }
 
 function ProviderInput({ label, placeholder, config, value, onChange, link }: any) {
+    const { t } = useTranslation();
     return (
         <div className="space-y-2">
             <div className="flex justify-between items-center">
                 <label className="text-sm font-medium flex items-center gap-2">
                     {label}
-                    {config?.isConfigured && <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200">Active</Badge>}
+                    {config?.isConfigured && <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200">{t('system_settings.active')}</Badge>}
                 </label>
-                <a href={link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline">Získat klíč ↗</a>
+                <a href={link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline">{t('system_settings.get_key')} ↗</a>
             </div>
             <div className="relative">
                 <Input
                     type="password"
-                    placeholder={config?.isConfigured ? `Nakonfigurováno (${config.keyHint})` : placeholder}
+                    placeholder={config?.isConfigured ? `${t('system_settings.configured')} (${config.keyHint})` : placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono text-sm pr-20"
@@ -593,6 +600,7 @@ function SchoolUsageChart({ perSchool, perProvider }: {
     perSchool: any[];
     perProvider: any[];
 }) {
+    const { t } = useTranslation();
     const schoolData = perSchool
         .sort((a, b) => b.totalTokens - a.totalTokens)
         .slice(0, 10) // Top 10 schools
@@ -612,7 +620,7 @@ function SchoolUsageChart({ perSchool, perProvider }: {
         <div className="grid gap-4 md:grid-cols-2 h-full">
             <Card className="h-full">
                 <CardHeader>
-                    <CardTitle className="text-base">Top Školy</CardTitle>
+                    <CardTitle className="text-base">{t('system_settings.top_schools')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={200}>
@@ -628,7 +636,7 @@ function SchoolUsageChart({ perSchool, perProvider }: {
 
             <Card className="h-full">
                 <CardHeader>
-                    <CardTitle className="text-base">Podle Providera</CardTitle>
+                    <CardTitle className="text-base">{t('system_settings.by_provider')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-center">
                     {providerData.length > 0 ? (
@@ -650,7 +658,7 @@ function SchoolUsageChart({ perSchool, perProvider }: {
                         </ResponsiveContainer>
                     ) : (
                         <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-                            Žádná data
+                            {t('system_settings.no_data')}
                         </div>
                     )}
                 </CardContent>
@@ -665,22 +673,23 @@ function SchoolUsageTable({ perSchool }: {
         inputTokens: number; outputTokens: number; requestCount: number;
     }>;
 }) {
+    const { t } = useTranslation();
     if (perSchool.length === 0) return null;
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Detail per škola</CardTitle>
+                <CardTitle className="text-lg">{t('system_settings.detail_per_school')}</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Škola</TableHead>
-                            <TableHead className="text-right">Input</TableHead>
-                            <TableHead className="text-right">Output</TableHead>
-                            <TableHead className="text-right">Celkem</TableHead>
-                            <TableHead className="text-right">Požadavky</TableHead>
+                            <TableHead>{t('system_settings.school_column')}</TableHead>
+                            <TableHead className="text-right">{t('system_settings.input_label')}</TableHead>
+                            <TableHead className="text-right">{t('system_settings.output_label')}</TableHead>
+                            <TableHead className="text-right">{t('system_settings.total_label')}</TableHead>
+                            <TableHead className="text-right">{t('system_settings.requests')}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

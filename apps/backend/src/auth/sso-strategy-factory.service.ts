@@ -2,11 +2,12 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../utils/crypto.service';
 import { SecretType } from '@prisma/client';
-import * as passport from 'passport';
+import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as MicrosoftStrategy } from 'passport-microsoft';
-const AppleStrategy = require('passport-appleid'); // Some apple strategies have weird exports
+// NOTE: passport-appleid overwrites OAuth2Strategy.prototype.authenticate globally on require(),
+// corrupting ALL OAuth2 strategies. We lazy-load it ONLY in the APPLE case to avoid this.
 
 @Injectable()
 export class SsoStrategyFactoryService implements OnModuleInit {
@@ -103,8 +104,11 @@ export class SsoStrategyFactoryService implements OnModuleInit {
                 });
                 break;
 
-            case 'APPLE':
-                strategy = new AppleStrategy({
+            case 'APPLE': {
+                // Lazy-load to avoid global OAuth2Strategy.prototype.authenticate override
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const AppleStrategyModule = require('passport-appleid');
+                strategy = new AppleStrategyModule({
                     clientID: clientId,
                     teamID: keys['TEAM_ID'],
                     keyID: keys['KEY_ID'],
@@ -115,6 +119,7 @@ export class SsoStrategyFactoryService implements OnModuleInit {
                     return done(null, profile);
                 });
                 break;
+            }
 
             default:
                 this.logger.warn(`Unknown SSO service type: ${service}`);

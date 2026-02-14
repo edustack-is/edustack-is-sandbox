@@ -4,8 +4,10 @@ import { acceptInvitation } from '../api';
 import { toast } from 'sonner';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
+import { useTranslation } from 'react-i18next';
 
 export const ActivateAccount = () => {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
 
@@ -23,18 +25,18 @@ export const ActivateAccount = () => {
         e.preventDefault();
 
         if (!token) {
-            toast.error('Chybí aktivační token.');
+            toast.error(t('activate.missing_token'));
             return;
         }
 
         const validation = validatePassword(formData.password);
         if (!validation.isValid) {
-            toast.error(validation.errors[0]);
+            toast.error(t(validation.errors[0]));
             return;
         }
 
         if (formData.password !== formData.confirmPassword) {
-            toast.error('Hesla se neshodují.');
+            toast.error(t('activate.passwords_mismatch'));
             return;
         }
 
@@ -47,10 +49,10 @@ export const ActivateAccount = () => {
 
             // Save token and redirect
             localStorage.setItem('access_token', res.access_token);
-            toast.success('Účet byl úspěšně aktivován.');
+            toast.success(t('activate.success'));
             window.location.href = '/select-school';
         } catch (err: any) {
-            const msg = err.response?.data?.message || 'Aktivace selhala';
+            const msg = err.response?.data?.message || t('common.error');
             toast.error(msg);
         } finally {
             setLoading(false);
@@ -61,10 +63,10 @@ export const ActivateAccount = () => {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
                 <div className="max-w-md w-full bg-white p-8 rounded shadow text-center">
-                    <h2 className="text-2xl font-bold text-red-600 mb-4">Neplatný odkaz</h2>
-                    <p className="text-gray-600">Aktivační odkaz je neplatný nebo mu vypršela platnost.</p>
+                    <h2 className="text-2xl font-bold text-red-600 mb-4">{t('activate.invalid_link')}</h2>
+                    <p className="text-gray-600">{t('activate.link_expired')}</p>
                     <a href="/login" className="mt-4 inline-block text-indigo-600 hover:text-indigo-500">
-                        Zpět na přihlášení
+                        {t('activate.back_to_login')}
                     </a>
                 </div>
             </div>
@@ -76,10 +78,10 @@ export const ActivateAccount = () => {
             <div className="max-w-md w-full space-y-8 bg-white p-8 rounded shadow">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Aktivace účtu
+                        {t('activate.title')}
                     </h2>
                     <p className="mt-2 text-center text-sm text-gray-600">
-                        Nastavte si heslo ke svému novému účtu.
+                        {t('activate.subtitle')}
                     </p>
                 </div>
 
@@ -87,7 +89,7 @@ export const ActivateAccount = () => {
                     <div className="rounded-md shadow-sm -space-y-px">
                         <div className="mb-4">
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                                Nové heslo
+                                {t('activate.new_password')}
                             </label>
                             <PasswordInput
                                 id="password"
@@ -99,7 +101,7 @@ export const ActivateAccount = () => {
                         </div>
                         <div className="mb-4">
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                                Potvrzení hesla
+                                {t('activate.confirm_password')}
                             </label>
                             <PasswordInput
                                 id="confirmPassword"
@@ -118,7 +120,7 @@ export const ActivateAccount = () => {
                             disabled={loading}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                         >
-                            {loading ? 'Aktivuji...' : 'Aktivovat účet'}
+                            {loading ? t('activate.activating') : t('activate.activate_button')}
                         </button>
                     </div>
                 </form>

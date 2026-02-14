@@ -21,6 +21,7 @@ import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { SchoolProvider } from './context/SchoolContext';
 import { getInitStatus } from './api';
 import { Toaster } from 'sonner';
+import { FloatingLanguageSwitcher } from './components/FloatingLanguageSwitcher';
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem('access_token');
@@ -55,6 +56,7 @@ function App() {
     <BrowserRouter>
       <SchoolProvider>
         <Toaster position="top-right" duration={5000} closeButton richColors />
+        <FloatingLanguageSwitcher />
         <Routes>
           <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
           <Route path="/activate" element={<ActivateAccount />} />

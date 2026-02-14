@@ -13,6 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from 'react-i18next';
 
 interface User {
     id: string;
@@ -34,6 +35,7 @@ function decodeJwtPayload(token: string): any {
 }
 
 export function SystemAdminUsers() {
+    const { t } = useTranslation();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [impersonating, setImpersonating] = useState<string | null>(null);
@@ -58,27 +60,22 @@ export function SystemAdminUsers() {
     const handleImpersonate = async (targetUser: User) => {
         setImpersonating(targetUser.id);
         try {
-            // Get current admin ID from JWT token
             const currentToken = localStorage.getItem('access_token');
             if (!currentToken) {
-                toast.error('No access token found');
+                toast.error(t('system_users.no_token'));
                 return;
             }
             const payload = decodeJwtPayload(currentToken);
             const adminId = payload.sub;
 
-            // Call impersonate endpoint
             const response = await api.post(`/api/auth/impersonate/${targetUser.id}`, { adminId });
             const { access_token } = response.data;
 
-            // Store original admin token for restoration
             localStorage.setItem('original_admin_token', currentToken);
-            // Set impersonated token
             localStorage.setItem('access_token', access_token);
-            // Full reload to switch context
             window.location.reload();
         } catch (error: any) {
-            toast.error('Impersonation failed: ' + (error.response?.data?.message || error.message));
+            toast.error(t('system_users.impersonation_failed') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setImpersonating(null);
         }
@@ -87,31 +84,31 @@ export function SystemAdminUsers() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight">Global Users</h1>
-                <p className="text-muted-foreground">View all users across all schools</p>
+                <h1 className="text-2xl font-bold tracking-tight">{t('system_users.title')}</h1>
+                <p className="text-muted-foreground">{t('system_users.subtitle')}</p>
             </div>
 
             <div className="rounded-lg border">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>{t('system_users.name_column')}</TableHead>
+                            <TableHead>{t('system_users.email_column')}</TableHead>
+                            <TableHead>{t('system_users.status_column')}</TableHead>
+                            <TableHead className="text-right">{t('system_users.actions_column')}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                    Loading...
+                                    {t('common.loading')}
                                 </TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                    No users found.
+                                    {t('system_users.no_users')}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -121,7 +118,7 @@ export function SystemAdminUsers() {
                                         {user.firstName} {user.lastName}
                                         {user.isSystemAdmin && (
                                             <Badge variant="outline" className="ml-2 text-xs">
-                                                System Admin
+                                                {t('system_users.system_admin_badge')}
                                             </Badge>
                                         )}
                                     </TableCell>
@@ -136,7 +133,7 @@ export function SystemAdminUsers() {
                                                         : 'outline'
                                             }
                                         >
-                                            {user.status || '—'}
+                                            {user.status ? t(`statuses.${user.status}`, user.status) : '—'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -149,7 +146,7 @@ export function SystemAdminUsers() {
                                                 onClick={() => handleImpersonate(user)}
                                             >
                                                 <UserCog size={16} />
-                                                {impersonating === user.id ? 'Switching...' : 'Login on behalf of'}
+                                                {impersonating === user.id ? t('system_users.switching') : t('system_users.login_on_behalf')}
                                             </Button>
                                         )}
                                     </TableCell>

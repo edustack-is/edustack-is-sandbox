@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Input } from "./input";
 import { Button } from "./button";
 import { validatePassword, getStrengthColor, getStrengthLabel } from "../../lib/password-utils";
+import { useTranslation } from 'react-i18next';
 
 export interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     showStrength?: boolean;
@@ -11,6 +12,7 @@ export interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputE
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
     ({ className, showStrength = true, value, onChange, ...props }, ref) => {
         const [showPassword, setShowPassword] = React.useState(false);
+        const { t } = useTranslation();
         const password = typeof value === 'string' ? value : '';
         const { strength } = validatePassword(password);
 
@@ -36,7 +38,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
                         size="sm"
                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                         onClick={togglePasswordVisibility}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-label={showPassword ? t('password.hide') : t('password.show')}
                     >
                         {showPassword ? (
                             <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -58,7 +60,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
                             ))}
                         </div>
                         <p className="text-[10px] text-muted-foreground text-right">
-                            {getStrengthLabel(strength)}
+                            {t(getStrengthLabel(strength))}
                         </p>
                     </div>
                 )}

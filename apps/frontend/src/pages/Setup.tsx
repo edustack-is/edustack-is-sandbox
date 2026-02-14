@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { setupApp } from '../api';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
+import { useTranslation } from 'react-i18next';
 
 export const Setup = () => {
+    const { t } = useTranslation();
     const [formData, setFormData] = useState({
         adminFirstName: '',
         adminLastName: '',
@@ -24,12 +26,12 @@ export const Setup = () => {
 
         const validation = validatePassword(formData.adminPassword);
         if (!validation.isValid) {
-            setError(validation.errors[0]);
+            setError(t(validation.errors[0]));
             return;
         }
 
         if (formData.adminPassword !== formData.confirmPassword) {
-            setError('Hesla se neshodují');
+            setError(t('setup.passwords_mismatch'));
             return;
         }
 
@@ -54,10 +56,10 @@ export const Setup = () => {
             <div className="max-w-md w-full space-y-8 bg-white p-8 rounded shadow">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        System Setup
+                        {t('setup.title')}
                     </h2>
                     <p className="mt-2 text-center text-sm text-gray-600">
-                        Create System Administrator
+                        {t('setup.subtitle')}
                     </p>
                 </div>
                 {error && <div className="text-red-500 text-sm text-center">{error}</div>}
@@ -65,7 +67,7 @@ export const Setup = () => {
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="rounded-md shadow-sm -space-y-px">
                         <div className="mb-4">
-                            <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                            <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">{t('setup.first_name')}</label>
                             <input
                                 id="adminFirstName"
                                 name="adminFirstName"
@@ -77,7 +79,7 @@ export const Setup = () => {
                             />
                         </div>
                         <div className="mb-4">
-                            <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                            <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">{t('setup.last_name')}</label>
                             <input
                                 id="adminLastName"
                                 name="adminLastName"
@@ -89,7 +91,7 @@ export const Setup = () => {
                             />
                         </div>
                         <div className="mb-4">
-                            <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">Admin Email</label>
+                            <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">{t('setup.admin_email')}</label>
                             <input
                                 id="adminEmail"
                                 name="adminEmail"
@@ -101,7 +103,7 @@ export const Setup = () => {
                             />
                         </div>
                         <div className="mb-4">
-                            <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 mb-1">Heslo</label>
+                            <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 mb-1">{t('setup.password')}</label>
                             <PasswordInput
                                 id="adminPassword"
                                 name="adminPassword"
@@ -111,7 +113,7 @@ export const Setup = () => {
                             />
                         </div>
                         <div className="mb-4">
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Potvrzení hesla</label>
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">{t('setup.confirm_password')}</label>
                             <PasswordInput
                                 id="confirmPassword"
                                 name="confirmPassword"
@@ -128,7 +130,7 @@ export const Setup = () => {
                             disabled={loading}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                         >
-                            {loading ? 'Creating...' : 'Create System Admin'}
+                            {loading ? t('setup.creating') : t('setup.create_button')}
                         </button>
                     </div>
                 </form>

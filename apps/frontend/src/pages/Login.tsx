@@ -5,6 +5,8 @@ import { Globe, Github, Apple, Mail, Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from 'react-i18next';
+import { useSchool } from '@/context/SchoolContext';
 
 const SSO_ICONS: Record<string, any> = {
     google: Globe,
@@ -20,9 +22,33 @@ const SSO_COLORS: Record<string, string> = {
     apple: 'hover:bg-slate-100 border-slate-200 text-black',
 };
 
+// Map known backend error messages to i18n keys
+const ERROR_MAP: Record<string, string> = {
+    'Invalid credentials': 'login.invalid_credentials',
+    'User not found - you must be invited by the school first.': 'login.user_not_found',
+    'User not found': 'login.user_not_found',
+    'Account not activated': 'login.account_not_activated',
+    'Account is locked': 'login.account_locked',
+};
+
+function translateBackendError(message: string, t: (key: string) => string): string {
+    if (!message) return t('login.invalid_credentials');
+    const key = ERROR_MAP[message];
+    if (key) return t(key);
+    // Fallback: try partial match
+    for (const [pattern, translationKey] of Object.entries(ERROR_MAP)) {
+        if (message.toLowerCase().includes(pattern.toLowerCase())) {
+            return t(translationKey);
+        }
+    }
+    return t('login.invalid_credentials');
+}
+
 export const Login = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { refreshTokenInfo } = useSchool();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -36,16 +62,18 @@ export const Login = () => {
         const token = searchParams.get('token');
         if (token) {
             localStorage.setItem('access_token', token);
+            refreshTokenInfo();
             navigate('/');
         }
 
         const ssoError = searchParams.get('error');
         if (ssoError) {
-            setError(ssoError === 'sso_failed' ? 'SSO login failed. Please try again.' : decodeURIComponent(ssoError));
+            const decoded = decodeURIComponent(ssoError);
+            setError(decoded === 'sso_failed' ? t('login.sso_failed') : translateBackendError(decoded, t));
         }
 
         getSsoOptions().then(setSsoOptions).finally(() => setLoadingSso(false));
-    }, [searchParams, navigate]);
+    }, [searchParams, navigate, t]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -59,12 +87,14 @@ export const Login = () => {
             const data = await login(formData);
             if (data.access_token) {
                 localStorage.setItem('access_token', data.access_token);
+                refreshTokenInfo();
                 navigate('/');
             } else {
-                setError('Login failed');
+                setError(t('login.login_failed'));
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Invalid credentials');
+            const backendMsg = err.response?.data?.message || '';
+            setError(translateBackendError(backendMsg, t));
         }
     };
 
@@ -81,10 +111,10 @@ export const Login = () => {
                         <Shield className="h-6 w-6 text-indigo-600" />
                     </div>
                     <h2 className="text-3xl font-extrabold text-gray-900">
-                        Vítejte zpět
+                        {t('login.welcome_back')}
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
-                        Přihlaste se ke svému účtu
+                        {t('login.sign_in_subtitle')}
                     </p>
                 </div>
 
@@ -97,7 +127,7 @@ export const Login = () => {
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div className="grid gap-1.5">
-                            <Label htmlFor="email">Emailová adresa</Label>
+                            <Label htmlFor="email">{t('login.email_label')}</Label>
                             <Input
                                 id="email"
                                 name="email"
@@ -109,7 +139,7 @@ export const Login = () => {
                             />
                         </div>
                         <div className="grid gap-1.5">
-                            <Label htmlFor="password">Heslo</Label>
+                            <Label htmlFor="password">{t('login.password_label')}</Label>
                             <Input
                                 id="password"
                                 name="password"
@@ -123,7 +153,7 @@ export const Login = () => {
                     </div>
 
                     <Button type="submit" className="w-full h-11 text-md font-semibold">
-                        Přihlásit se
+                        {t('login.sign_in')}
                     </Button>
                 </form>
 
@@ -134,7 +164,7 @@ export const Login = () => {
                                 <span className="w-full border-t border-gray-200"></span>
                             </div>
                             <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-white px-4 text-gray-500 font-medium">Nebo pokračujte přes</span>
+                                <span className="bg-white px-4 text-gray-500 font-medium">{t('login.or_continue_with')}</span>
                             </div>
                         </div>
 

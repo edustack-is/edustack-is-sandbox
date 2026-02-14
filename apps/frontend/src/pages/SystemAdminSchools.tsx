@@ -7,6 +7,7 @@ import { getSystemSchools, createSystemSchool, updateSystemSchool, getUsers } fr
 import { toast } from 'sonner';
 import { useSchool } from '@/context/SchoolContext';
 import { LogIn, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,6 +111,7 @@ type EditSchoolFormValues = z.infer<typeof editSchoolSchema>;
 
 // ---- Component ----
 export function SystemAdminSchools() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const { selectSchool } = useSchool();
     const [schools, setSchools] = useState<School[]>([]);
@@ -222,7 +224,7 @@ export function SystemAdminSchools() {
             await fetchSchools();
         } catch (err: any) {
             console.error('Failed to create school', err);
-            toast.error(err?.response?.data?.message || 'Failed to create school');
+            toast.error(err?.response?.data?.message || t('system_schools.failed_create'));
         } finally {
             setSubmitting(false);
         }
@@ -247,11 +249,11 @@ export function SystemAdminSchools() {
             setEditDialogOpen(false);
             setEditingSchool(null);
             setSelectedEditUser(null);
-            toast.success('School updated successfully');
+            toast.success(t('system_schools.updated_success'));
             await fetchSchools();
         } catch (err: any) {
             console.error('Failed to update school', err);
-            toast.error(err?.response?.data?.message || 'Failed to update school');
+            toast.error(t('system_schools.failed_update') + ': ' + (err.response?.data?.message || err.message));
         } finally {
             setSubmitting(false);
         }
@@ -290,7 +292,7 @@ export function SystemAdminSchools() {
             await selectSchool(schoolId);
             navigate('/dashboard');
         } catch (err: any) {
-            toast.error('Failed to select school: ' + (err.response?.data?.message || err.message));
+            toast.error(t('system_schools.failed_select') + ': ' + (err.response?.data?.message || err.message));
         } finally {
             setSelecting(null);
         }
@@ -300,8 +302,8 @@ export function SystemAdminSchools() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Schools Management</h1>
-                    <p className="text-muted-foreground">Manage all schools in the system</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('system_schools.title')}</h1>
+                    <p className="text-muted-foreground">{t('system_schools.subtitle')}</p>
                 </div>
                 <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
@@ -320,14 +322,14 @@ export function SystemAdminSchools() {
                                 <path d="M5 12h14" />
                                 <path d="M12 5v14" />
                             </svg>
-                            Create New School
+                            {t('system_schools.create_new')}
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[520px]">
                         <DialogHeader>
-                            <DialogTitle>Create New School</DialogTitle>
+                            <DialogTitle>{t('system_schools.create_new')}</DialogTitle>
                             <DialogDescription>
-                                Create a new school and assign an initial administrator.
+                                {t('system_schools.create_description')}
                             </DialogDescription>
                         </DialogHeader>
                         <Form {...form}>
@@ -338,7 +340,7 @@ export function SystemAdminSchools() {
                                     name="schoolName"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>School Name</FormLabel>
+                                            <FormLabel>{t('system_schools.school_name')}</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="e.g. Základní škola" {...field} />
                                             </FormControl>
@@ -351,7 +353,7 @@ export function SystemAdminSchools() {
                                     name="address"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Address</FormLabel>
+                                            <FormLabel>{t('system_schools.address')}</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="e.g. Ulice 123, Praha" {...field} />
                                             </FormControl>
@@ -362,7 +364,7 @@ export function SystemAdminSchools() {
 
                                 {/* Admin Section */}
                                 <div className="space-y-3 rounded-lg border p-4">
-                                    <Label className="text-sm font-semibold">Initial School Administrator</Label>
+                                    <Label className="text-sm font-semibold">{t('system_schools.initial_admin')}</Label>
                                     <FormField
                                         control={form.control}
                                         name="adminType"
@@ -381,13 +383,13 @@ export function SystemAdminSchools() {
                                                         <div className="flex items-center space-x-2">
                                                             <RadioGroupItem value="EXISTING" id="admin-existing" />
                                                             <Label htmlFor="admin-existing" className="cursor-pointer">
-                                                                Select Existing User
+                                                                {t('system_schools.select_existing')}
                                                             </Label>
                                                         </div>
                                                         <div className="flex items-center space-x-2">
                                                             <RadioGroupItem value="NEW" id="admin-new" />
                                                             <Label htmlFor="admin-new" className="cursor-pointer">
-                                                                Create New User
+                                                                {t('system_schools.create_new_user')}
                                                             </Label>
                                                         </div>
                                                     </RadioGroup>
@@ -404,7 +406,7 @@ export function SystemAdminSchools() {
                                                 name="userId"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Search User</FormLabel>
+                                                        <FormLabel>{t('system_schools.search_user')}</FormLabel>
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <Input
@@ -467,7 +469,7 @@ export function SystemAdminSchools() {
                                                     name="firstName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>First Name</FormLabel>
+                                                            <FormLabel>{t('system_schools.first_name')}</FormLabel>
                                                             <FormControl>
                                                                 <Input placeholder="Jan" {...field} />
                                                             </FormControl>
@@ -480,7 +482,7 @@ export function SystemAdminSchools() {
                                                     name="lastName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Last Name</FormLabel>
+                                                            <FormLabel>{t('system_schools.last_name')}</FormLabel>
                                                             <FormControl>
                                                                 <Input placeholder="Novák" {...field} />
                                                             </FormControl>
@@ -494,7 +496,7 @@ export function SystemAdminSchools() {
                                                 name="email"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Email</FormLabel>
+                                                        <FormLabel>{t('common.email')}</FormLabel>
                                                         <FormControl>
                                                             <Input
                                                                 type="email"
@@ -516,10 +518,10 @@ export function SystemAdminSchools() {
                                         variant="outline"
                                         onClick={() => handleOpenChange(false)}
                                     >
-                                        Cancel
+                                        {t('common.cancel')}
                                     </Button>
                                     <Button type="submit" disabled={submitting}>
-                                        {submitting ? 'Creating...' : 'Create School'}
+                                        {submitting ? t('system_schools.creating') : t('system_schools.create_school')}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -532,9 +534,9 @@ export function SystemAdminSchools() {
             <Dialog open={editDialogOpen} onOpenChange={handleEditOpenChange}>
                 <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
-                        <DialogTitle>Edit School Details</DialogTitle>
+                        <DialogTitle>{t('system_schools.edit_title')}</DialogTitle>
                         <DialogDescription>
-                            Update basic information and assign a school principal.
+                            {t('system_schools.edit_description')}
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...editForm}>
@@ -544,7 +546,7 @@ export function SystemAdminSchools() {
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>School Name</FormLabel>
+                                        <FormLabel>{t('system_schools.school_name')}</FormLabel>
                                         <FormControl>
                                             <Input {...field} />
                                         </FormControl>
@@ -557,7 +559,7 @@ export function SystemAdminSchools() {
                                 name="address"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Address</FormLabel>
+                                        <FormLabel>{t('system_schools.address')}</FormLabel>
                                         <FormControl>
                                             <Input {...field} />
                                         </FormControl>
@@ -588,13 +590,13 @@ export function SystemAdminSchools() {
                                                     <div className="flex items-center space-x-2">
                                                         <RadioGroupItem value="NO" id="edit-admin-no" />
                                                         <Label htmlFor="edit-admin-no" className="cursor-pointer">
-                                                            Keep Current Principal
+                                                            {t('system_schools.keep_principal')}
                                                         </Label>
                                                     </div>
                                                     <div className="flex items-center space-x-2">
                                                         <RadioGroupItem value="YES" id="edit-admin-yes" />
                                                         <Label htmlFor="edit-admin-yes" className="cursor-pointer">
-                                                            Change Principal
+                                                            {t('system_schools.change_principal')}
                                                         </Label>
                                                     </div>
                                                 </RadioGroup>
@@ -624,13 +626,13 @@ export function SystemAdminSchools() {
                                                                 <div className="flex items-center space-x-2">
                                                                     <RadioGroupItem value="EXISTING" id="edit-admin-existing" />
                                                                     <Label htmlFor="edit-admin-existing" className="text-xs cursor-pointer">
-                                                                        Ex. User
+                                                                        {t('system_schools.ex_user')}
                                                                     </Label>
                                                                 </div>
                                                                 <div className="flex items-center space-x-2">
                                                                     <RadioGroupItem value="NEW" id="edit-admin-new" />
                                                                     <Label htmlFor="edit-admin-new" className="text-xs cursor-pointer">
-                                                                        New User
+                                                                        {t('system_schools.new_user')}
                                                                     </Label>
                                                                 </div>
                                                             </RadioGroup>
@@ -646,7 +648,7 @@ export function SystemAdminSchools() {
                                                 name="userId"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-xs">Search User</FormLabel>
+                                                        <FormLabel className="text-xs">{t('system_schools.search_user')}</FormLabel>
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <Input
@@ -695,7 +697,7 @@ export function SystemAdminSchools() {
                                                     name="firstName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs">First Name</FormLabel>
+                                                            <FormLabel className="text-xs">{t('system_schools.first_name')}</FormLabel>
                                                             <FormControl><Input className="h-8" {...field} /></FormControl>
                                                         </FormItem>
                                                     )}
@@ -705,7 +707,7 @@ export function SystemAdminSchools() {
                                                     name="lastName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs">Last Name</FormLabel>
+                                                            <FormLabel className="text-xs">{t('system_schools.last_name')}</FormLabel>
                                                             <FormControl><Input className="h-8" {...field} /></FormControl>
                                                         </FormItem>
                                                     )}
@@ -716,7 +718,7 @@ export function SystemAdminSchools() {
                                                         name="email"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel className="text-xs">Email</FormLabel>
+                                                                <FormLabel className="text-xs">{t('common.email')}</FormLabel>
                                                                 <FormControl><Input className="h-8" type="email" {...field} /></FormControl>
                                                             </FormItem>
                                                         )}
@@ -734,10 +736,10 @@ export function SystemAdminSchools() {
                                     variant="outline"
                                     onClick={() => handleEditOpenChange(false)}
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </Button>
                                 <Button type="submit" disabled={submitting}>
-                                    {submitting ? 'Updating...' : 'Save Changes'}
+                                    {submitting ? t('system_schools.updating') : t('system_schools.save_changes')}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -750,24 +752,24 @@ export function SystemAdminSchools() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>School Name</TableHead>
-                            <TableHead>Address</TableHead>
-                            <TableHead>Admin(s)</TableHead>
-                            <TableHead>Created At</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>{t('system_schools.school_name_column')}</TableHead>
+                            <TableHead>{t('system_schools.address_column')}</TableHead>
+                            <TableHead>{t('system_schools.admins_column')}</TableHead>
+                            <TableHead>{t('system_schools.created_at_column')}</TableHead>
+                            <TableHead className="text-right">{t('system_schools.actions_column')}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                    Loading...
+                                    {t('common.loading')}
                                 </TableCell>
                             </TableRow>
                         ) : schools.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                    No schools yet. Create your first one.
+                                    {t('system_schools.no_schools')}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -786,7 +788,7 @@ export function SystemAdminSchools() {
                                             : '—'}
                                     </TableCell>
                                     <TableCell>
-                                        {new Date(school.createdAt).toLocaleDateString('cs-CZ')}
+                                        {new Date(school.createdAt).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
@@ -797,7 +799,7 @@ export function SystemAdminSchools() {
                                                 className="h-8 w-8 p-0"
                                             >
                                                 <Settings className="h-4 w-4" />
-                                                <span className="sr-only">Edit settings</span>
+                                                <span className="sr-only">{t('system_schools.edit_settings')}</span>
                                             </Button>
                                             <Button
                                                 variant="outline"
@@ -807,7 +809,7 @@ export function SystemAdminSchools() {
                                                 className="h-8"
                                             >
                                                 <LogIn className="mr-1 h-3.5 w-3.5" />
-                                                {selecting === school.id ? '...' : 'Vybrat'}
+                                                {selecting === school.id ? '...' : t('common.select')}
                                             </Button>
                                         </div>
                                     </TableCell>

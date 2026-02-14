@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ShieldAlert, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 function decodeJwtPayload(token: string): any {
     try {
@@ -12,6 +13,7 @@ function decodeJwtPayload(token: string): any {
 }
 
 export const ImpersonationBanner = () => {
+    const { t } = useTranslation();
     const [isImpersonating, setIsImpersonating] = useState(false);
     const [targetEmail, setTargetEmail] = useState('');
 
@@ -26,11 +28,11 @@ export const ImpersonationBanner = () => {
             if (currentToken) {
                 const payload = decodeJwtPayload(currentToken);
                 if (payload.isImpersonated) {
-                    setTargetEmail(payload.email || 'unknown user');
+                    setTargetEmail(payload.email || t('common.unknown_user'));
                 }
             }
         }
-    }, []);
+    }, [t]);
 
     const stopImpersonation = () => {
         const originalToken = localStorage.getItem('original_admin_token') ||
@@ -49,7 +51,7 @@ export const ImpersonationBanner = () => {
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-white font-semibold shadow-lg">
             <ShieldAlert size={18} />
             <span>
-                You are currently viewing the system on behalf of <strong>{targetEmail}</strong>
+                {t('impersonation.banner_text')} <strong>{targetEmail}</strong>
             </span>
             <Button
                 variant="outline"
@@ -58,7 +60,7 @@ export const ImpersonationBanner = () => {
                 onClick={stopImpersonation}
             >
                 <StopCircle size={14} className="mr-1" />
-                Stop Impersonation
+                {t('impersonation.stop')}
             </Button>
         </div>
     );

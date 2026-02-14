@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,6 +71,7 @@ interface SubjectInstance {
 // ═══════════════════════════════════════════════════════════════
 
 export function DeputyYearSetup() {
+    const { t } = useTranslation();
     const { currentSchool } = useSchool();
 
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
@@ -110,9 +112,9 @@ export function DeputyYearSetup() {
             {/* ─── Context Header ─────────────────────────── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Příprava školního roku</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('year_setup.title')}</h1>
                     <p className="text-muted-foreground mt-1">
-                        {currentSchool?.name ?? 'Škola'}
+                        {currentSchool?.name ?? t('year_setup.school_label')}
                         {selectedYear && (
                             <> — <Badge variant="outline" className="ml-1">{selectedYear.name}</Badge></>
                         )}
@@ -120,7 +122,7 @@ export function DeputyYearSetup() {
                 </div>
                 {selectedYear?.isCurrent && (
                     <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                        <Check className="mr-1 h-3 w-3" /> Aktuální rok
+                        <Check className="mr-1 h-3 w-3" /> {t('year_setup.current_year')}
                     </Badge>
                 )}
             </div>
@@ -130,23 +132,23 @@ export function DeputyYearSetup() {
                 <TabsList className="grid w-full grid-cols-4 h-12">
                     <TabsTrigger value="year" className="gap-2 text-xs sm:text-sm">
                         <Calendar className="h-4 w-4" />
-                        <span className="hidden sm:inline">Rok & Ročníky</span>
-                        <span className="sm:hidden">Rok</span>
+                        <span className="hidden sm:inline">{t('year_setup.tab_year')}</span>
+                        <span className="sm:hidden">{t('year_setup.tab_year_short')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="rooms" className="gap-2 text-xs sm:text-sm">
                         <Building2 className="h-4 w-4" />
-                        <span className="hidden sm:inline">Místnosti</span>
-                        <span className="sm:hidden">Míst.</span>
+                        <span className="hidden sm:inline">{t('year_setup.tab_rooms')}</span>
+                        <span className="sm:hidden">{t('year_setup.tab_rooms_short')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="teachers" className="gap-2 text-xs sm:text-sm">
                         <Users className="h-4 w-4" />
-                        <span className="hidden sm:inline">Úvazky</span>
-                        <span className="sm:hidden">Úvaz.</span>
+                        <span className="hidden sm:inline">{t('year_setup.tab_workloads')}</span>
+                        <span className="sm:hidden">{t('year_setup.tab_workloads_short')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="curriculum" className="gap-2 text-xs sm:text-sm">
                         <BookOpen className="h-4 w-4" />
-                        <span className="hidden sm:inline">ŠVP Kurikulum</span>
-                        <span className="sm:hidden">ŠVP</span>
+                        <span className="hidden sm:inline">{t('year_setup.tab_curriculum')}</span>
+                        <span className="sm:hidden">{t('year_setup.tab_curriculum_short')}</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -193,6 +195,7 @@ function StepAcademicYear({
     onSelectYear: (y: AcademicYear) => void;
     onRefresh: () => Promise<void>;
 }) {
+    const { t } = useTranslation();
     const [showForm, setShowForm] = useState(false);
     const [yearName, setYearName] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -217,7 +220,7 @@ function StepAcademicYear({
             setIsCurrent(false); setShowForm(false);
             await onRefresh();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Chyba při vytváření roku.');
+            setError(err.response?.data?.message || t('year_setup.create_year_error'));
         } finally {
             setSaving(false);
         }
@@ -232,7 +235,7 @@ function StepAcademicYear({
             setLevelName(''); setLevelNumber(''); setShowLevelForm(false);
             await onRefresh();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Chyba při vytváření ročníku.');
+            setError(err.response?.data?.message || t('year_setup.create_level_error'));
         } finally {
             setSavingLevel(false);
         }
@@ -245,11 +248,11 @@ function StepAcademicYear({
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle className="text-lg">Školní roky</CardTitle>
-                            <CardDescription>Vyberte nebo vytvořte školní rok</CardDescription>
+                            <CardTitle className="text-lg">{t('year_setup.academic_years')}</CardTitle>
+                            <CardDescription>{t('year_setup.select_or_create_year')}</CardDescription>
                         </div>
                         <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)}>
-                            <Plus className="h-4 w-4 mr-1" /> Nový
+                            <Plus className="h-4 w-4 mr-1" /> {t('year_setup.new_button')}
                         </Button>
                     </div>
                 </CardHeader>
@@ -262,33 +265,33 @@ function StepAcademicYear({
 
                     {showForm && (
                         <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                            <Input placeholder="Název (např. 2025/2026)" value={yearName} onChange={(e) => setYearName(e.target.value)} />
+                            <Input placeholder={t('year_setup.name_placeholder')} value={yearName} onChange={(e) => setYearName(e.target.value)} />
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs text-muted-foreground">Začátek</label>
+                                    <label className="text-xs text-muted-foreground">{t('year_setup.start_label')}</label>
                                     <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                                 </div>
                                 <div>
-                                    <label className="text-xs text-muted-foreground">Konec</label>
+                                    <label className="text-xs text-muted-foreground">{t('year_setup.end_label')}</label>
                                     <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                                 </div>
                             </div>
                             <label className="flex items-center gap-2 text-sm cursor-pointer">
                                 <input type="checkbox" checked={isCurrent} onChange={(e) => setIsCurrent(e.target.checked)} className="rounded" />
-                                Nastavit jako aktuální rok
+                                {t('year_setup.set_as_current')}
                             </label>
                             <div className="flex gap-2">
                                 <Button size="sm" onClick={handleCreateYear} disabled={saving}>
                                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                                    Vytvořit
+                                    {t('year_setup.create_button')}
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Zrušit</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button>
                             </div>
                         </div>
                     )}
 
                     {academicYears.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-6">Zatím žádné školní roky.</p>
+                        <p className="text-sm text-muted-foreground text-center py-6">{t('year_setup.no_years')}</p>
                     ) : (
                         <div className="space-y-2">
                             {academicYears.map((year) => (
@@ -304,7 +307,7 @@ function StepAcademicYear({
                                         <span className="font-medium text-sm">{year.name}</span>
                                         {year.isCurrent && (
                                             <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
-                                                Aktuální
+                                                {t('year_setup.current_year')}
                                             </Badge>
                                         )}
                                     </div>
@@ -323,31 +326,31 @@ function StepAcademicYear({
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle className="text-lg">Ročníky (stupně)</CardTitle>
-                            <CardDescription>Definujte aktivní ročníky školy</CardDescription>
+                            <CardTitle className="text-lg">{t('year_setup.grade_levels')}</CardTitle>
+                            <CardDescription>{t('year_setup.define_grade_levels')}</CardDescription>
                         </div>
                         <Button size="sm" variant="outline" onClick={() => setShowLevelForm(!showLevelForm)}>
-                            <Plus className="h-4 w-4 mr-1" /> Nový
+                            <Plus className="h-4 w-4 mr-1" /> {t('year_setup.new_button')}
                         </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {showLevelForm && (
                         <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                            <Input placeholder="Název (např. 1. ročník)" value={levelName} onChange={(e) => setLevelName(e.target.value)} />
-                            <Input type="number" placeholder="Číslo úrovně (pro řazení)" value={levelNumber} onChange={(e) => setLevelNumber(e.target.value)} />
+                            <Input placeholder={t('year_setup.level_name_placeholder')} value={levelName} onChange={(e) => setLevelName(e.target.value)} />
+                            <Input type="number" placeholder={t('year_setup.level_number_placeholder')} value={levelNumber} onChange={(e) => setLevelNumber(e.target.value)} />
                             <div className="flex gap-2">
                                 <Button size="sm" onClick={handleCreateLevel} disabled={savingLevel}>
                                     {savingLevel ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                                    Vytvořit
+                                    {t('year_setup.create_button')}
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setShowLevelForm(false)}>Zrušit</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setShowLevelForm(false)}>{t('common.cancel')}</Button>
                             </div>
                         </div>
                     )}
 
                     {gradeLevels.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-6">Zatím žádné ročníky.</p>
+                        <p className="text-sm text-muted-foreground text-center py-6">{t('year_setup.no_levels')}</p>
                     ) : (
                         <div className="space-y-2">
                             {gradeLevels
@@ -378,6 +381,7 @@ function StepAcademicYear({
 // ═══════════════════════════════════════════════════════════════
 
 function StepRooms() {
+    const { t } = useTranslation();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -419,22 +423,22 @@ function StepRooms() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Místnosti & kapacity</CardTitle>
-                <CardDescription>Upravte kapacity a vybavení kliknutím na řádek</CardDescription>
+                <CardTitle className="text-lg">{t('year_setup.rooms_capacities')}</CardTitle>
+                <CardDescription>{t('year_setup.rooms_edit_hint')}</CardDescription>
             </CardHeader>
             <CardContent>
                 {rooms.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
-                        Žádné místnosti. Vytvořte je v sekci <strong>Správa školy</strong>.
+                        {t('year_setup.no_rooms')}
                     </p>
                 ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Místnost</TableHead>
-                                <TableHead className="w-[120px]">Kapacita</TableHead>
-                                <TableHead className="w-[120px]">PC učebna</TableHead>
-                                <TableHead className="w-[200px]">Vybavení</TableHead>
+                                <TableHead>{t('year_setup.room_column')}</TableHead>
+                                <TableHead className="w-[120px]">{t('rooms.capacity_column')}</TableHead>
+                                <TableHead className="w-[120px]">{t('year_setup.pc_lab_column')}</TableHead>
+                                <TableHead className="w-[200px]">{t('rooms.equipment_column')}</TableHead>
                                 <TableHead className="w-[100px]" />
                             </TableRow>
                         </TableHeader>
@@ -464,11 +468,11 @@ function StepRooms() {
                                                     onChange={(e) => setEditValues({ ...editValues, isComputerLab: e.target.checked })}
                                                     className="rounded"
                                                 />
-                                                <span className="text-xs">Ano</span>
+                                                <span className="text-xs">{t('common.yes')}</span>
                                             </label>
                                         ) : (
                                             <Badge variant={room.isComputerLab ? 'default' : 'outline'} className="text-xs">
-                                                {room.isComputerLab ? 'Ano' : 'Ne'}
+                                                {room.isComputerLab ? t('common.yes') : t('common.no')}
                                             </Badge>
                                         )}
                                     </TableCell>
@@ -506,6 +510,7 @@ function StepRooms() {
 // ═══════════════════════════════════════════════════════════════
 
 function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | null }) {
+    const { t } = useTranslation();
     const [teachers, setTeachers] = useState<any[]>([]);
     const [workloads, setWorkloads] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
@@ -554,7 +559,7 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
             <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
                     <AlertCircle className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
-                    Nejprve vyberte školní rok v záložce „Rok & Ročníky".
+                    {t('year_setup.select_year_first')}
                 </CardContent>
             </Card>
         );
@@ -567,21 +572,21 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Úvazky učitelů</CardTitle>
+                <CardTitle className="text-lg">{t('year_setup.teacher_workloads')}</CardTitle>
                 <CardDescription>
-                    Nastavte pracovní úvazek pro rok <strong>{selectedYear.name}</strong>
+                    {t('year_setup.set_workload_for_year', { name: selectedYear.name })}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 {teachers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">Žádní učitelé nalezeni.</p>
+                    <p className="text-sm text-muted-foreground text-center py-8">{t('year_setup.no_teachers')}</p>
                 ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Učitel</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead className="w-[150px]">Úvazek (%)</TableHead>
+                                <TableHead>{t('year_setup.teacher_column')}</TableHead>
+                                <TableHead>{t('common.email')}</TableHead>
+                                <TableHead className="w-[150px]">{t('year_setup.workload_percent')}</TableHead>
                                 <TableHead className="w-[100px]" />
                             </TableRow>
                         </TableHeader>
@@ -648,6 +653,7 @@ function StepCurriculum({
     selectedYear: AcademicYear | null;
     gradeLevels: GradeLevel[];
 }) {
+    const { t } = useTranslation();
     const [templates, setTemplates] = useState<SubjectTemplate[]>([]);
     const [instances, setInstances] = useState<SubjectInstance[]>([]);
     const [loading, setLoading] = useState(true);
@@ -713,7 +719,7 @@ function StepCurriculum({
             <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
                     <AlertCircle className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
-                    Nejprve vyberte školní rok v záložce „Rok & Ročníky".
+                    {t('year_setup.select_year_first')}
                 </CardContent>
             </Card>
         );
@@ -727,7 +733,7 @@ function StepCurriculum({
         return (
             <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    Žádné šablony předmětů. Vytvořte je přes správu školy (Předměty).
+                    {t('year_setup.no_subject_templates')}
                 </CardContent>
             </Card>
         );
@@ -737,7 +743,7 @@ function StepCurriculum({
         return (
             <Card>
                 <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    Žádné ročníky. Vytvořte je v záložce „Rok & Ročníky".
+                    {t('year_setup.no_grade_levels')}
                 </CardContent>
             </Card>
         );
@@ -755,10 +761,10 @@ function StepCurriculum({
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Kurikulum (ŠVP)</CardTitle>
+                <CardTitle className="text-lg">{t('year_setup.curriculum_svp')}</CardTitle>
                 <CardDescription>
-                    Matice hodin/týden pro rok <strong>{selectedYear.name}</strong>.
-                    Zadejte počet hodin a uložte kliknutím na <Save className="inline h-3 w-3" />.
+                    {t('year_setup.curriculum_matrix', { name: selectedYear.name })}
+                    {t('year_setup.enter_hours_hint')} <Save className="inline h-3 w-3" />.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -766,12 +772,12 @@ function StepCurriculum({
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">Předmět</TableHead>
+                                <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">{t('year_setup.subject_column')}</TableHead>
                                 {sortedLevels.map((level) => (
                                     <TableHead key={level.id} className="text-center min-w-[110px]">
                                         <div className="flex flex-col items-center">
                                             <span className="font-medium">{level.name}</span>
-                                            <span className="text-[10px] text-muted-foreground">h/týden</span>
+                                            <span className="text-[10px] text-muted-foreground">{t('year_setup.hours_per_week')}</span>
                                         </div>
                                     </TableHead>
                                 ))}
@@ -832,7 +838,7 @@ function StepCurriculum({
                             {/* Totals row */}
                             <TableRow className="bg-muted/30 font-medium">
                                 <TableCell className="sticky left-0 bg-muted/30 z-10 text-sm">
-                                    Celkem hodin / týden
+                                    {t('year_setup.total_hours_per_week')}
                                 </TableCell>
                                 {sortedLevels.map((level) => (
                                     <TableCell key={level.id} className="text-center">

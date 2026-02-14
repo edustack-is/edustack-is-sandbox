@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Plus, Trash2, Search, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import {
     getSubjectTemplates, createSubject, updateSubject, deleteSubject,
@@ -33,6 +34,7 @@ interface SubjectFormData {
 // ─── Component ──────────────────────────────────────────────────
 
 export default function CurriculumManagement() {
+    const { t } = useTranslation();
     const [subjects, setSubjects] = useState<SubjectTemplate[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function CurriculumManagement() {
             setSubjects(result);
         } catch (error) {
             console.error(error);
-            toast.error('Nepodařilo se načíst předměty');
+            toast.error(t('curriculum.load_failed'));
         } finally {
             setLoading(false);
         }
@@ -80,7 +82,7 @@ export default function CurriculumManagement() {
     // ── Submit ──────────────────────────────────────────────
     const handleSubmit = form.handleSubmit(async (data) => {
         if (!data.name.trim() || !data.code.trim()) {
-            toast.error('Název a kód předmětu jsou povinné.');
+            toast.error(t('curriculum.name_code_required'));
             return;
         }
 
@@ -101,7 +103,7 @@ export default function CurriculumManagement() {
             }
             loadSubjects();
         } catch (error: any) {
-            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error(t('common.error') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -111,7 +113,7 @@ export default function CurriculumManagement() {
     const handleDelete = async () => {
         if (!selectedId) return;
         const subject = subjects.find((s) => s.id === selectedId);
-        if (!confirm(`Opravdu chcete smazat předmět "${subject?.name}"?`)) return;
+        if (!confirm(t('curriculum.delete_confirm', { name: subject?.name }))) return;
         try {
             await deleteSubject(selectedId);
             setSelectedId(null);
@@ -119,7 +121,7 @@ export default function CurriculumManagement() {
             form.reset({ name: '', code: '', svpDescription: '' });
             loadSubjects();
         } catch (error: any) {
-            toast.error('Smazání selhalo: ' + (error.response?.data?.message || error.message));
+            toast.error(t('curriculum.delete_failed') + ': ' + (error.response?.data?.message || error.message));
         }
     };
 
@@ -136,8 +138,8 @@ export default function CurriculumManagement() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Správa ŠVP</h1>
-                    <p className="text-muted-foreground">Definice předmětů školního vzdělávacího programu</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('curriculum.title')}</h1>
+                    <p className="text-muted-foreground">{t('curriculum.subtitle')}</p>
                 </div>
             </div>
 
@@ -149,14 +151,14 @@ export default function CurriculumManagement() {
                         <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Hledat předmět..."
+                                placeholder={t('curriculum.search_placeholder')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-8"
                             />
                         </div>
                         <Button variant="outline" size="sm" className="w-full" onClick={startCreate}>
-                            <Plus className="h-3 w-3 mr-1" /> Nový předmět
+                            <Plus className="h-3 w-3 mr-1" /> {t('curriculum.new_subject')}
                         </Button>
                     </div>
 
@@ -164,12 +166,12 @@ export default function CurriculumManagement() {
                     <ScrollArea className="flex-1">
                         {loading ? (
                             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-                                Načítání...
+                                {t('common.loading')}
                             </div>
                         ) : filtered.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground text-sm">
                                 <BookOpen className="h-8 w-8 mb-2 opacity-40" />
-                                {searchQuery ? 'Žádné výsledky' : 'Žádné předměty'}
+                                {searchQuery ? t('curriculum.no_results') : t('curriculum.no_subjects')}
                             </div>
                         ) : (
                             <div className="p-1">
@@ -200,41 +202,41 @@ export default function CurriculumManagement() {
                     {!selectedId && !isCreating ? (
                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                             <BookOpen className="h-12 w-12 mb-3 opacity-30" />
-                            <p className="text-sm">Vyberte předmět nebo vytvořte nový</p>
+                            <p className="text-sm">{t('curriculum.select_or_create')}</p>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg font-semibold">
-                                    {isCreating ? 'Nový předmět' : `Úprava: ${selectedSubject?.name}`}
+                                    {isCreating ? t('curriculum.new_subject') : t('curriculum.editing', { name: selectedSubject?.name })}
                                 </h2>
                                 {selectedId && (
                                     <Button type="button" variant="ghost" size="sm"
                                         onClick={handleDelete}
                                         className="text-destructive hover:text-destructive">
-                                        <Trash2 className="h-4 w-4 mr-1" /> Smazat
+                                        <Trash2 className="h-4 w-4 mr-1" /> {t('common.delete')}
                                     </Button>
                                 )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="subject-name">Název předmětu *</Label>
-                                    <Input id="subject-name" placeholder="např. Informatika"
+                                    <Label htmlFor="subject-name">{t('curriculum.subject_name')}</Label>
+                                    <Input id="subject-name" placeholder="e.g. Informatika"
                                         {...form.register('name')} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="subject-code">Kód (zkratka) *</Label>
-                                    <Input id="subject-code" placeholder="např. INF"
+                                    <Label htmlFor="subject-code">{t('curriculum.subject_code')}</Label>
+                                    <Input id="subject-code" placeholder="e.g. INF"
                                         {...form.register('code')} />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="subject-svp">Popis ŠVP / odkaz na PDF</Label>
+                                <Label htmlFor="subject-svp">{t('curriculum.svp_description')}</Label>
                                 <Textarea
                                     id="subject-svp"
-                                    placeholder="Popis předmětu dle školního vzdělávacího programu nebo odkaz na dokument..."
+                                    placeholder={t('curriculum.svp_placeholder')}
                                     rows={6}
                                     {...form.register('svpDescription')}
                                 />
@@ -243,10 +245,10 @@ export default function CurriculumManagement() {
                             <div className="flex gap-2">
                                 <Button type="button" variant="outline"
                                     onClick={() => { setSelectedId(null); setIsCreating(false); form.reset(); }}>
-                                    Zrušit
+                                    {t('common.cancel')}
                                 </Button>
                                 <Button type="submit" disabled={submitting}>
-                                    {submitting ? 'Ukládám...' : (selectedId ? 'Uložit změny' : 'Vytvořit předmět')}
+                                    {submitting ? t('common.saving') : (selectedId ? t('curriculum.save_changes') : t('curriculum.create_subject'))}
                                 </Button>
                             </div>
                         </form>

@@ -116,7 +116,7 @@ export const Sidebar: React.FC = () => {
                             onClick={handleLeaveSchool}
                         >
                             <ArrowLeft size={12} className="mr-1" />
-                            Zpět
+                            {t('common.back')}
                         </Button>
                     </div>
                 )}
@@ -133,19 +133,19 @@ export const Sidebar: React.FC = () => {
                         {/* System Admin doesn't need "Select School" here, they have it in "Schools" management list */}
 
                         <div className="px-4 py-2.5 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            System Admin
+                            {t('sidebar.system_admin')}
                         </div>
                         <NavLink to="/system/schools" className={navLinkClass}>
                             <Building2 size={18} />
-                            <span>Školy</span>
+                            <span>{t('sidebar.schools')}</span>
                         </NavLink>
                         <NavLink to="/system/users" className={navLinkClass}>
                             <Users2 size={18} />
-                            <span>Uživatelé</span>
+                            <span>{t('sidebar.users')}</span>
                         </NavLink>
                         <NavLink to="/system/settings" className={navLinkClass}>
                             <Settings size={18} />
-                            <span>Nastavení systému</span>
+                            <span>{t('sidebar.system_settings')}</span>
                         </NavLink>
                     </>
                 )}
@@ -192,9 +192,9 @@ export const Sidebar: React.FC = () => {
                 {/* Prompt to select school if GLOBAL and not system admin */}
                 {!hasSchoolContext && !isSystemAdmin && (
                     <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                        <p>Vyberte školu pro zobrazení menu.</p>
+                        <p>{t('sidebar.select_school_prompt')}</p>
                         <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/select-school')}>
-                            Vybrat školu
+                            {t('sidebar.select_school_button')}
                         </Button>
                     </div>
                 )}

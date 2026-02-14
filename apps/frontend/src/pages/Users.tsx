@@ -3,6 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
 import { UserCog, Send, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import { impersonateUser, getUsers } from '../api';
 import { getDeputyUsers, createStudentFamily, createStaff, resendInvitation } from '../api/deputy';
@@ -61,30 +62,10 @@ const roleBadgeVariant = (role: string) => {
     }
 };
 
-const roleLabel = (role: string) => {
-    switch (role) {
-        case 'STUDENT': return 'Žák';
-        case 'TEACHER': return 'Učitel';
-        case 'DEPUTY': return 'Zástupce';
-        case 'PRINCIPAL': return 'Ředitel';
-        case 'PARENT': return 'Rodič';
-        default: return role;
-    }
-};
-
-const statusLabel = (status: string) => {
-    switch (status) {
-        case 'PENDING': return 'Čekající';
-        case 'ACTIVE': return 'Aktivní';
-        case 'SUSPENDED': return 'Pozastavený';
-        case 'ARCHIVED': return 'Archivovaný';
-        default: return status;
-    }
-};
-
 // ─── Component ──────────────────────────────────────────────────
 
 export default function Users() {
+    const { t } = useTranslation();
     const [users, setUsers] = useState<SchoolUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -137,11 +118,11 @@ export default function Users() {
                     })));
                 } catch (fallbackError) {
                     console.error(fallbackError);
-                    toast.error('Nepodařilo se načíst uživatele');
+                    toast.error(t('users_page.load_failed'));
                 }
             } else {
                 console.error(error);
-                toast.error('Nepodařilo se načíst uživatele');
+                toast.error(t('users_page.load_failed'));
             }
         } finally {
             setLoading(false);
@@ -152,7 +133,7 @@ export default function Users() {
 
     // ── Impersonate ────────────────────────────────────────
     const handleImpersonate = async (targetId: string) => {
-        const aid = prompt("Zadejte Admin ID pro simulaci:", "admin");
+        const aid = prompt(t('users_page.enter_admin_id'), "admin");
         if (!aid) return;
         try {
             const { access_token } = await impersonateUser(targetId, aid);
@@ -161,21 +142,20 @@ export default function Users() {
             localStorage.setItem('access_token', access_token);
             window.location.reload();
         } catch (error: any) {
-            toast.error('Impersonace selhala: ' + (error.response?.data?.message || error.message));
+            toast.error(t('users_page.impersonation_failed') + ': ' + (error.response?.data?.message || error.message));
         }
     };
 
     // ── Submit Student + Family ────────────────────────────
     const handleStudentSubmit = studentForm.handleSubmit(async (data) => {
-        // Validate
         if (!data.student.firstName.trim() || !data.student.lastName.trim()) {
-            toast.error('Jméno a příjmení žáka je povinné.');
+            toast.error(t('users_page.student_name_required'));
             return;
         }
         for (let i = 0; i < data.parents.length; i++) {
             const p = data.parents[i];
             if (!p.firstName.trim() || !p.lastName.trim() || !p.email.trim()) {
-                toast.error(`Rodič #${i + 1}: Jméno, příjmení a email jsou povinné.`);
+                toast.error(t('users_page.parent_fields_required', { number: i + 1 }));
                 return;
             }
         }
@@ -197,9 +177,9 @@ export default function Users() {
             setDialogOpen(false);
             studentForm.reset();
             loadUsers();
-            toast.success('Žák a zákonní zástupci byli úspěšně vytvořeni.');
+            toast.success(t('users_page.student_created'));
         } catch (error: any) {
-            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error(t('common.error') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -208,12 +188,12 @@ export default function Users() {
     // ── Submit Staff ──────────────────────────────────────
     const handleStaffSubmit = staffForm.handleSubmit(async (data) => {
         if (!data.firstName.trim() || !data.lastName.trim() || !data.email.trim()) {
-            toast.error('Jméno, příjmení a email jsou povinné.');
+            toast.error(t('users_page.staff_fields_required'));
             return;
         }
         const workload = parseFloat(data.workloadPercentage);
         if (isNaN(workload) || workload < 0.1 || workload > 1.0) {
-            toast.error('Úvazek musí být číslo mezi 0.1 a 1.0.');
+            toast.error(t('users_page.workload_invalid'));
             return;
         }
         setSubmitting(true);
@@ -228,9 +208,9 @@ export default function Users() {
             setDialogOpen(false);
             staffForm.reset();
             loadUsers();
-            toast.success('Zaměstnanec byl úspěšně vytvořen.');
+            toast.success(t('users_page.employee_created'));
         } catch (error: any) {
-            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error(t('common.error') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -240,9 +220,9 @@ export default function Users() {
     const handleResendInvitation = async (userId: string) => {
         try {
             await resendInvitation(userId);
-            toast.success('Pozvánka byla znovu odeslána.');
+            toast.success(t('users_page.invitation_resent'));
         } catch (error: any) {
-            toast.error('Nepodařilo se odeslat pozvánku: ' + (error.response?.data?.message || error.message));
+            toast.error(t('users_page.invitation_failed') + ': ' + (error.response?.data?.message || error.message));
         }
     };
 
@@ -250,7 +230,7 @@ export default function Users() {
     const columns: ColumnDef<SchoolUser>[] = [
         {
             accessorKey: 'lastName',
-            header: 'Jméno',
+            header: t('common.name'),
             cell: ({ row }) => (
                 <span className="font-medium">
                     {row.original.lastName} {row.original.firstName}
@@ -259,7 +239,7 @@ export default function Users() {
         },
         {
             accessorKey: 'email',
-            header: 'Email',
+            header: t('common.email'),
             cell: ({ row }) => (
                 <span className={row.original.email.endsWith('@noemail.local') ? 'text-muted-foreground italic' : ''}>
                     {row.original.email.endsWith('@noemail.local') ? '—' : row.original.email}
@@ -268,39 +248,39 @@ export default function Users() {
         },
         {
             accessorKey: 'role',
-            header: 'Role',
+            header: t('common.role'),
             cell: ({ row }) => (
                 <Badge variant={roleBadgeVariant(row.original.role) as any}>
-                    {roleLabel(row.original.role)}
+                    {t(`roles.${row.original.role}`, row.original.role)}
                 </Badge>
             ),
         },
         {
             accessorKey: 'status',
-            header: 'Status',
+            header: t('common.status'),
             cell: ({ row }) => (
                 <Badge variant={row.original.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                    {statusLabel(row.original.status)}
+                    {t(`statuses.${row.original.status}`, row.original.status)}
                 </Badge>
             ),
         },
         {
             id: 'actions',
-            header: 'Akce',
+            header: t('common.actions'),
             cell: ({ row }) => (
                 <div className="flex gap-2">
                     {row.original.status === 'PENDING' && (
                         <Button
                             variant="ghost"
                             size="icon"
-                            title="Znovu odeslat pozvánku"
+                            title={t('users_page.resend_invitation')}
                             onClick={() => handleResendInvitation(row.original.id)}
                         >
                             <Send className="h-4 w-4" />
                         </Button>
                     )}
                     {row.original.status !== 'PENDING' && (
-                        <Button variant="ghost" size="icon" title="Impersonovat"
+                        <Button variant="ghost" size="icon" title={t('users_page.impersonate')}
                             onClick={() => handleImpersonate(row.original.id)}>
                             <UserCog className="h-4 w-4" />
                         </Button>
@@ -315,17 +295,17 @@ export default function Users() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Správa uživatelů</h1>
-                    <p className="text-muted-foreground">Žáci, zákonní zástupci a zaměstnanci školy</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('users_page.title')}</h1>
+                    <p className="text-muted-foreground">{t('users_page.subtitle')}</p>
                 </div>
                 <Button onClick={() => { setDialogOpen(true); setActiveTab('student'); }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Přidat uživatele
+                    {t('users_page.add_user')}
                 </Button>
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">Načítání...</div>
+                <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
             ) : (
                 <DataTable columns={columns} data={users} />
             )}
@@ -334,16 +314,16 @@ export default function Users() {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Přidat uživatele</DialogTitle>
+                        <DialogTitle>{t('users_page.add_dialog_title')}</DialogTitle>
                         <DialogDescription>
-                            Vytvořte nového žáka s rodiči nebo zaměstnance školy.
+                            {t('users_page.add_dialog_description')}
                         </DialogDescription>
                     </DialogHeader>
 
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="student">Žák a Zákonní zástupci</TabsTrigger>
-                            <TabsTrigger value="staff">Zaměstnanec</TabsTrigger>
+                            <TabsTrigger value="student">{t('users_page.tab_student')}</TabsTrigger>
+                            <TabsTrigger value="staff">{t('users_page.tab_staff')}</TabsTrigger>
                         </TabsList>
 
                         {/* ── Tab: Student + Parents ──────────── */}
@@ -351,21 +331,21 @@ export default function Users() {
                             <form onSubmit={handleStudentSubmit}>
                                 {/* Student section */}
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Žák</h3>
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('users_page.student_section')}</h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="student-firstName">Jméno *</Label>
+                                            <Label htmlFor="student-firstName">{t('users_page.first_name_required')}</Label>
                                             <Input id="student-firstName" placeholder="Jan"
                                                 {...studentForm.register('student.firstName')} />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="student-lastName">Příjmení *</Label>
+                                            <Label htmlFor="student-lastName">{t('users_page.last_name_required')}</Label>
                                             <Input id="student-lastName" placeholder="Novák"
                                                 {...studentForm.register('student.lastName')} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="student-email">Email (volitelný)</Label>
+                                        <Label htmlFor="student-email">{t('users_page.email_optional')}</Label>
                                         <Input id="student-email" type="email" placeholder="jan.novak@skola.cz"
                                             {...studentForm.register('student.email')} />
                                     </div>
@@ -375,24 +355,24 @@ export default function Users() {
                                 <div className="space-y-4 mt-6">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                                            Zákonní zástupci
+                                            {t('users_page.legal_guardians')}
                                         </h3>
                                         <Button type="button" variant="outline" size="sm"
                                             onClick={() => addParent({ firstName: '', lastName: '', email: '', phone: '' })}>
-                                            <Plus className="h-3 w-3 mr-1" /> Přidat rodiče
+                                            <Plus className="h-3 w-3 mr-1" /> {t('users_page.add_parent')}
                                         </Button>
                                     </div>
 
                                     {parentFields.length === 0 && (
                                         <p className="text-sm text-muted-foreground italic">
-                                            Zatím nebyli přidáni žádní zákonní zástupci.
+                                            {t('users_page.no_parents_added')}
                                         </p>
                                     )}
 
                                     {parentFields.map((field, index) => (
                                         <div key={field.id} className="rounded-lg border p-4 space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium">Rodič #{index + 1}</span>
+                                                <span className="text-sm font-medium">{t('users_page.parent_number', { number: index + 1 })}</span>
                                                 <Button type="button" variant="ghost" size="icon"
                                                     onClick={() => removeParent(index)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -400,24 +380,24 @@ export default function Users() {
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1">
-                                                    <Label>Jméno *</Label>
+                                                    <Label>{t('users_page.first_name_required')}</Label>
                                                     <Input placeholder="Jana"
                                                         {...studentForm.register(`parents.${index}.firstName`)} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label>Příjmení *</Label>
+                                                    <Label>{t('users_page.last_name_required')}</Label>
                                                     <Input placeholder="Nováková"
                                                         {...studentForm.register(`parents.${index}.lastName`)} />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1">
-                                                    <Label>Email *</Label>
+                                                    <Label>{t('users_page.email_required')}</Label>
                                                     <Input type="email" placeholder="jana@email.cz"
                                                         {...studentForm.register(`parents.${index}.email`)} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label>Telefon</Label>
+                                                    <Label>{t('common.phone')}</Label>
                                                     <Input type="tel" placeholder="+420 ..."
                                                         {...studentForm.register(`parents.${index}.phone`)} />
                                                 </div>
@@ -428,10 +408,10 @@ export default function Users() {
 
                                 <DialogFooter className="mt-6">
                                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                                        Zrušit
+                                        {t('common.cancel')}
                                     </Button>
                                     <Button type="submit" disabled={submitting}>
-                                        {submitting ? 'Ukládám...' : 'Vytvořit žáka'}
+                                        {submitting ? t('common.saving') : t('users_page.create_student')}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -441,27 +421,27 @@ export default function Users() {
                         <TabsContent value="staff" className="space-y-6 mt-4">
                             <form onSubmit={handleStaffSubmit}>
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Zaměstnanec</h3>
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('users_page.employee_section')}</h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="staff-firstName">Jméno *</Label>
+                                            <Label htmlFor="staff-firstName">{t('users_page.first_name_required')}</Label>
                                             <Input id="staff-firstName" placeholder="Petr"
                                                 {...staffForm.register('firstName')} />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="staff-lastName">Příjmení *</Label>
+                                            <Label htmlFor="staff-lastName">{t('users_page.last_name_required')}</Label>
                                             <Input id="staff-lastName" placeholder="Svoboda"
                                                 {...staffForm.register('lastName')} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="staff-email">Email *</Label>
+                                        <Label htmlFor="staff-email">{t('users_page.email_required')}</Label>
                                         <Input id="staff-email" type="email" placeholder="petr.svoboda@skola.cz"
                                             {...staffForm.register('email')} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label>Role *</Label>
+                                            <Label>{t('users_page.role_required')}</Label>
                                             <Select
                                                 value={staffForm.watch('role')}
                                                 onValueChange={(val) => staffForm.setValue('role', val as 'TEACHER' | 'DEPUTY')}
@@ -470,13 +450,13 @@ export default function Users() {
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="TEACHER">Učitel</SelectItem>
-                                                    <SelectItem value="DEPUTY">Zástupce ředitele</SelectItem>
+                                                    <SelectItem value="TEACHER">{t('users_page.role_teacher')}</SelectItem>
+                                                    <SelectItem value="DEPUTY">{t('users_page.role_deputy')}</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="staff-workload">Úvazek (0.1 – 1.0) *</Label>
+                                            <Label htmlFor="staff-workload">{t('users_page.workload')}</Label>
                                             <Input id="staff-workload" type="number" step="0.1" min="0.1" max="1.0"
                                                 placeholder="1.0"
                                                 {...staffForm.register('workloadPercentage')} />
@@ -486,10 +466,10 @@ export default function Users() {
 
                                 <DialogFooter className="mt-6">
                                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                                        Zrušit
+                                        {t('common.cancel')}
                                     </Button>
                                     <Button type="submit" disabled={submitting}>
-                                        {submitting ? 'Ukládám...' : 'Vytvořit zaměstnance'}
+                                        {submitting ? t('common.saving') : t('users_page.create_employee')}
                                     </Button>
                                 </DialogFooter>
                             </form>

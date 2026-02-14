@@ -8,6 +8,7 @@ import { Loader2, User, Mail, Shield, Link as LinkIcon, Globe, Github, Apple, Ca
 import { getMe, getUserIdentities, linkIdentity, getSsoOptions, updateProfile, uploadAvatar } from '@/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface Identity {
     provider: string;
@@ -83,6 +84,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area, outputSize = 256
 }
 
 export function UserProfile() {
+    const { t } = useTranslation();
     const [user, setUser] = useState<any>(null);
     const [identities, setIdentities] = useState<Identity[]>([]);
     const [activeSsoOptions, setActiveSsoOptions] = useState<string[]>([]);
@@ -109,7 +111,7 @@ export function UserProfile() {
                 setIdentities(userIdentities);
                 setActiveSsoOptions(ssoOptions);
             } catch (err) {
-                toast.error('Failed to load profile data');
+                toast.error(t('profile.load_failed'));
             } finally {
                 setLoading(false);
             }
@@ -118,7 +120,7 @@ export function UserProfile() {
 
         const params = new URLSearchParams(window.location.search);
         if (params.get('linked') === 'success') {
-            toast.success('Account linked successfully');
+            toast.success(t('profile.linked_success'));
             window.history.replaceState({}, '', window.location.pathname);
         }
     }, []);
@@ -133,9 +135,9 @@ export function UserProfile() {
             const updated = await updateProfile({ avatarUrl });
             setUser(updated);
             setAvatarPickerOpen(false);
-            toast.success('Avatar nastaven!');
+            toast.success(t('profile.avatar_set'));
         } catch {
-            toast.error('Nepodařilo se nastavit avatar.');
+            toast.error(t('profile.avatar_set_failed'));
         }
     };
 
@@ -145,7 +147,7 @@ export function UserProfile() {
         if (!file) return;
 
         if (file.size > 10 * 1024 * 1024) {
-            toast.error('Soubor je příliš velký. Maximální velikost je 10 MB.');
+            toast.error(t('profile.file_too_large'));
             return;
         }
 
@@ -173,9 +175,9 @@ export function UserProfile() {
             setUser(updated);
             setImageSrc(null);
             setAvatarPickerOpen(false);
-            toast.success('Profilový obrázek nahrán!');
+            toast.success(t('profile.avatar_uploaded'));
         } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Nepodařilo se nahrát obrázek.');
+            toast.error(err.response?.data?.message || t('profile.avatar_upload_failed'));
         } finally {
             setUploading(false);
         }
@@ -191,9 +193,9 @@ export function UserProfile() {
         try {
             const updated = await updateProfile({ avatarUrl: undefined });
             setUser(updated);
-            toast.success('Avatar odstraněn.');
+            toast.success(t('profile.avatar_removed'));
         } catch {
-            toast.error('Nepodařilo se odstranit avatar.');
+            toast.error(t('profile.avatar_remove_failed'));
         }
     };
 
@@ -222,7 +224,7 @@ export function UserProfile() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 py-8">
-            <h1 className="text-3xl font-bold tracking-tight">Osobní profil</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('profile.title')}</h1>
 
             <div className="grid gap-6 md:grid-cols-3">
                 {/* ──── Profile Card with Avatar ──── */}
@@ -246,7 +248,7 @@ export function UserProfile() {
                             <button
                                 onClick={() => setAvatarPickerOpen(!avatarPickerOpen)}
                                 className="absolute bottom-3 right-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-md hover:bg-primary/90 transition-all hover:scale-110"
-                                title="Změnit avatar"
+                                title={t('profile.change_avatar')}
                             >
                                 <Camera className="w-4 h-4" />
                             </button>
@@ -257,7 +259,7 @@ export function UserProfile() {
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-sm">
                             <Shield className="w-4 h-4 text-muted-foreground" />
-                            <span>Role: {user?.isSystemAdmin ? 'System Admin' : 'Uživatel'}</span>
+                            <span>{t('common.role')}: {user?.isSystemAdmin ? 'System Admin' : t('profile.user_role')}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                             <Mail className="w-4 h-4 text-muted-foreground" />
@@ -276,13 +278,13 @@ export function UserProfile() {
                                 <div className="flex items-center justify-between">
                                     <CardTitle className="text-base flex items-center gap-2">
                                         <Crop className="w-4 h-4 text-primary" />
-                                        Upravit výřez
+                                        {t('profile.crop_title')}
                                     </CardTitle>
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCropCancel}>
                                         <X className="w-4 h-4" />
                                     </Button>
                                 </div>
-                                <CardDescription>Posuňte a přibližte obrázek pro ideální výřez.</CardDescription>
+                                <CardDescription>{t('profile.crop_description')}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {/* Cropper Area */}
@@ -323,7 +325,7 @@ export function UserProfile() {
                                 {/* Action Buttons */}
                                 <div className="flex justify-end gap-2 pt-2">
                                     <Button variant="outline" size="sm" onClick={handleCropCancel}>
-                                        Zrušit
+                                        {t('common.cancel')}
                                     </Button>
                                     <Button
                                         size="sm"
@@ -336,7 +338,7 @@ export function UserProfile() {
                                         ) : (
                                             <Check className="w-4 h-4" />
                                         )}
-                                        {uploading ? 'Nahrávám...' : 'Uložit výřez'}
+                                        {uploading ? t('profile.uploading') : t('profile.save_crop')}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -350,18 +352,18 @@ export function UserProfile() {
                                 <div className="flex items-center justify-between">
                                     <CardTitle className="text-base flex items-center gap-2">
                                         <Camera className="w-4 h-4 text-primary" />
-                                        Změnit avatar
+                                        {t('profile.change_avatar')}
                                     </CardTitle>
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAvatarPickerOpen(false)}>
                                         <X className="w-4 h-4" />
                                     </Button>
                                 </div>
-                                <CardDescription>Vyberte si z předdefinovaných avatarů nebo nahrajte vlastní obrázek.</CardDescription>
+                                <CardDescription>{t('profile.avatar_picker_description')}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {/* Predefined Avatars Grid */}
                                 <div>
-                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Předdefinované avatary</p>
+                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">{t('profile.predefined_avatars')}</p>
                                     <div className="grid grid-cols-6 gap-3">
                                         {PREDEFINED_AVATARS.map(a => {
                                             const isSelected = user?.avatarUrl === `emoji:${a.id}`;
@@ -391,7 +393,7 @@ export function UserProfile() {
 
                                 {/* Upload Section */}
                                 <div className="border-t pt-4">
-                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Vlastní obrázek</p>
+                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">{t('profile.custom_image')}</p>
                                     <div className="flex gap-3">
                                         <input
                                             ref={fileInputRef}
@@ -408,7 +410,7 @@ export function UserProfile() {
                                             className="gap-2"
                                         >
                                             <Upload className="w-4 h-4" />
-                                            Nahrát obrázek
+                                            {t('profile.upload_image')}
                                         </Button>
                                         {user?.avatarUrl && (
                                             <Button
@@ -418,11 +420,11 @@ export function UserProfile() {
                                                 className="text-destructive hover:text-destructive gap-2"
                                             >
                                                 <X className="w-4 h-4" />
-                                                Odstranit avatar
+                                                {t('profile.remove_avatar')}
                                             </Button>
                                         )}
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground mt-2">JPEG, PNG, WebP nebo GIF. Max 10 MB. Po výběru můžete upravit výřez.</p>
+                                    <p className="text-[10px] text-muted-foreground mt-2">{t('profile.upload_hint')}</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -433,10 +435,10 @@ export function UserProfile() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <LinkIcon className="w-5 h-5 text-primary" />
-                                Propojené účty (SSO)
+                                {t('profile.sso_title')}
                             </CardTitle>
                             <CardDescription>
-                                Propojte svůj školní účet s externími poskytovateli pro snadnější přihlašování.
+                                {t('profile.sso_description')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -450,20 +452,20 @@ export function UserProfile() {
                                                 <p className="font-medium">{p.name}</p>
                                                 {linked ? (
                                                     <p className="text-xs text-muted-foreground">
-                                                        Propojeno {new Date(linked.createdAt).toLocaleDateString()}
+                                                        {t('profile.linked_at')} {new Date(linked.createdAt).toLocaleDateString()}
                                                     </p>
                                                 ) : (
-                                                    <p className="text-xs text-muted-foreground italic">Nepropojeno</p>
+                                                    <p className="text-xs text-muted-foreground italic">{t('profile.not_linked')}</p>
                                                 )}
                                             </div>
                                         </div>
                                         {linked ? (
                                             <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                                                Aktivní
+                                                {t('profile.active')}
                                             </Badge>
                                         ) : (
                                             <Button variant="outline" size="sm" onClick={() => linkIdentity(p.id)}>
-                                                Propojit
+                                                {t('profile.link_account')}
                                             </Button>
                                         )}
                                     </div>

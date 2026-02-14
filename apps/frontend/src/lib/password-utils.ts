@@ -1,6 +1,6 @@
 export interface PasswordValidationResult {
     isValid: boolean;
-    errors: string[];
+    errors: string[]; // i18n keys
     strength: number; // 0-4
 }
 
@@ -9,14 +9,14 @@ export const validatePassword = (password: string): PasswordValidationResult => 
     let strength = 0;
 
     if (password.length < 8) {
-        errors.push('Heslo musí mít alespoň 8 znaků.');
+        errors.push('password.min_length');
     } else {
         strength += 1;
     }
 
     // BCrypt limit is technically 72 bytes, but 72 characters is a safe limit for UTF-8
     if (password.length > 72) {
-        errors.push('Heslo je příliš dlouhé (maximálně 72 znaků).');
+        errors.push('password.max_length');
     }
 
     const hasLowercase = /[a-z]/.test(password);
@@ -24,9 +24,9 @@ export const validatePassword = (password: string): PasswordValidationResult => 
     const hasNumber = /[0-9]/.test(password);
     const hasSpecial = /[^A-Za-z0-9]/.test(password);
 
-    if (!hasLowercase) errors.push('Heslo musí obsahovat alespoň jedno malé písmeno.');
-    if (!hasUppercase) errors.push('Heslo musí obsahovat alespoň jedno velké písmeno.');
-    if (!hasNumber) errors.push('Heslo musí obsahovat alespoň jednu číslici.');
+    if (!hasLowercase) errors.push('password.needs_lowercase');
+    if (!hasUppercase) errors.push('password.needs_uppercase');
+    if (!hasNumber) errors.push('password.needs_number');
 
     if (password.length >= 8) {
         if (hasLowercase) strength += 1;
@@ -56,13 +56,13 @@ export const getStrengthColor = (strength: number) => {
     }
 };
 
-export const getStrengthLabel = (strength: number) => {
+export const getStrengthLabel = (strength: number): string => {
     switch (strength) {
-        case 0: return 'Příliš krátké';
-        case 1: return 'Slabé';
-        case 2: return 'Průměrné';
-        case 3: return 'Dobré';
-        case 4: return 'Silné';
+        case 0: return 'password.strength_too_short';
+        case 1: return 'password.strength_weak';
+        case 2: return 'password.strength_fair';
+        case 3: return 'password.strength_good';
+        case 4: return 'password.strength_strong';
         default: return '';
     }
 };

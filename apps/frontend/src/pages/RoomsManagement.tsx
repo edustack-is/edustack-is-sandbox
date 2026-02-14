@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import { getRooms, createRoom, updateRoom, deleteRoom } from '../api/deputy';
 
@@ -35,6 +36,7 @@ interface RoomFormData {
 // ─── Component ──────────────────────────────────────────────────
 
 export default function RoomsManagement() {
+    const { t } = useTranslation();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -55,7 +57,7 @@ export default function RoomsManagement() {
             setRooms(result);
         } catch (error) {
             console.error(error);
-            toast.error('Nepodařilo se načíst učebny');
+            toast.error(t('rooms.load_failed'));
         } finally {
             setLoading(false);
         }
@@ -107,7 +109,7 @@ export default function RoomsManagement() {
     // ── Submit ──────────────────────────────────────────────
     const handleSubmit = form.handleSubmit(async (data) => {
         if (!data.name.trim()) {
-            toast.error('Název učebny je povinný.');
+            toast.error(t('rooms.name_required'));
             return;
         }
 
@@ -116,13 +118,13 @@ export default function RoomsManagement() {
             (r) => r.name.toLowerCase() === data.name.trim().toLowerCase() && r.id !== editingRoom?.id
         );
         if (duplicate) {
-            toast.error('Učebna s tímto názvem již existuje.');
+            toast.error(t('rooms.name_duplicate'));
             return;
         }
 
         const capacity = parseInt(data.capacity, 10);
         if (isNaN(capacity) || capacity < 1) {
-            toast.error('Kapacita musí být kladné číslo.');
+            toast.error(t('rooms.capacity_invalid'));
             return;
         }
 
@@ -144,7 +146,7 @@ export default function RoomsManagement() {
             setSheetOpen(false);
             loadRooms();
         } catch (error: any) {
-            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error(t('common.error') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -152,12 +154,12 @@ export default function RoomsManagement() {
 
     // ── Delete ──────────────────────────────────────────────
     const handleDelete = async (room: Room) => {
-        if (!confirm(`Opravdu chcete smazat učebnu "${room.name}"?`)) return;
+        if (!confirm(t('rooms.delete_confirm', { name: room.name }))) return;
         try {
             await deleteRoom(room.id);
             loadRooms();
         } catch (error: any) {
-            toast.error('Smazání selhalo: ' + (error.response?.data?.message || error.message));
+            toast.error(t('rooms.delete_failed') + ': ' + (error.response?.data?.message || error.message));
         }
     };
 
@@ -165,26 +167,26 @@ export default function RoomsManagement() {
     const columns: ColumnDef<Room>[] = [
         {
             accessorKey: 'name',
-            header: 'Název',
+            header: t('rooms.name_column'),
             cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
         },
         {
             accessorKey: 'capacity',
-            header: 'Kapacita',
-            cell: ({ row }) => <span>{row.original.capacity} míst</span>,
+            header: t('rooms.capacity_column'),
+            cell: ({ row }) => <span>{row.original.capacity} {t('rooms.seats')}</span>,
         },
         {
             accessorKey: 'isComputerLab',
-            header: 'Počítačová učebna',
+            header: t('rooms.computer_lab_column'),
             cell: ({ row }) => (
                 <Badge variant={row.original.isComputerLab ? 'default' : 'secondary'}>
-                    {row.original.isComputerLab ? 'Ano' : 'Ne'}
+                    {row.original.isComputerLab ? t('common.yes') : t('common.no')}
                 </Badge>
             ),
         },
         {
             accessorKey: 'specialEquipment',
-            header: 'Speciální vybavení',
+            header: t('rooms.equipment_column'),
             cell: ({ row }) => {
                 const equipment = row.original.specialEquipment;
                 if (!equipment || equipment.length === 0) {
@@ -201,14 +203,14 @@ export default function RoomsManagement() {
         },
         {
             id: 'actions',
-            header: 'Akce',
+            header: t('common.actions'),
             cell: ({ row }) => (
                 <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" title="Upravit"
+                    <Button variant="ghost" size="icon" title={t('common.edit')}
                         onClick={() => openEdit(row.original)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" title="Smazat"
+                    <Button variant="ghost" size="icon" title={t('common.delete')}
                         onClick={() => handleDelete(row.original)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -222,17 +224,17 @@ export default function RoomsManagement() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Správa učeben</h1>
-                    <p className="text-muted-foreground">Fyzické prostory školy pro tvorbu rozvrhu</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('rooms.title')}</h1>
+                    <p className="text-muted-foreground">{t('rooms.subtitle')}</p>
                 </div>
                 <Button onClick={openCreate}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Přidat učebnu
+                    {t('rooms.add_room')}
                 </Button>
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">Načítání...</div>
+                <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
             ) : (
                 <DataTable columns={columns} data={rooms} />
             )}
@@ -241,23 +243,23 @@ export default function RoomsManagement() {
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                 <SheetContent side="right" className="overflow-y-auto">
                     <SheetHeader className="px-6 pt-6">
-                        <SheetTitle>{editingRoom ? 'Upravit učebnu' : 'Nová učebna'}</SheetTitle>
+                        <SheetTitle>{editingRoom ? t('rooms.edit_room') : t('rooms.new_room')}</SheetTitle>
                         <SheetDescription>
-                            {editingRoom ? 'Upravte údaje učebny.' : 'Zadejte údaje nové učebny.'}
+                            {editingRoom ? t('rooms.edit_description') : t('rooms.new_description')}
                         </SheetDescription>
                     </SheetHeader>
 
                     <form onSubmit={handleSubmit} className="space-y-6 px-6 py-4">
                         {/* Name */}
                         <div className="space-y-2">
-                            <Label htmlFor="room-name">Název *</Label>
-                            <Input id="room-name" placeholder="např. A101"
+                            <Label htmlFor="room-name">{t('rooms.name_label')}</Label>
+                            <Input id="room-name" placeholder="e.g. A101"
                                 {...form.register('name')} />
                         </div>
 
                         {/* Capacity */}
                         <div className="space-y-2">
-                            <Label htmlFor="room-capacity">Kapacita *</Label>
+                            <Label htmlFor="room-capacity">{t('rooms.capacity_label')}</Label>
                             <Input id="room-capacity" type="number" min="1" placeholder="30"
                                 {...form.register('capacity')} />
                         </div>
@@ -270,18 +272,18 @@ export default function RoomsManagement() {
                                 className="h-4 w-4 rounded border-input"
                                 {...form.register('isComputerLab')}
                             />
-                            <Label htmlFor="room-computerLab" className="cursor-pointer">Počítačová učebna</Label>
+                            <Label htmlFor="room-computerLab" className="cursor-pointer">{t('rooms.computer_lab')}</Label>
                         </div>
 
                         {/* Special equipment tags */}
                         <div className="space-y-2">
-                            <Label>Speciální vybavení</Label>
+                            <Label>{t('rooms.special_equipment')}</Label>
                             <div className="flex gap-2">
                                 <Input
                                     value={tagInput}
                                     onChange={(e) => setTagInput(e.target.value)}
                                     onKeyDown={handleTagKeyDown}
-                                    placeholder="např. Projektor"
+                                    placeholder="e.g. Projector"
                                     className="flex-1"
                                 />
                                 <Button type="button" variant="outline" size="sm" onClick={addTag}
@@ -308,10 +310,10 @@ export default function RoomsManagement() {
                         <div className="flex gap-2 pt-4">
                             <Button type="button" variant="outline" className="flex-1"
                                 onClick={() => setSheetOpen(false)}>
-                                Zrušit
+                                {t('common.cancel')}
                             </Button>
                             <Button type="submit" className="flex-1" disabled={submitting}>
-                                {submitting ? 'Ukládám...' : (editingRoom ? 'Uložit' : 'Vytvořit')}
+                                {submitting ? t('common.saving') : (editingRoom ? t('common.save') : t('common.create'))}
                             </Button>
                         </div>
                     </form>

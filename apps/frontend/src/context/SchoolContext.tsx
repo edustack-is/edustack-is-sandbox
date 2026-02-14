@@ -16,6 +16,7 @@ interface SchoolContextType {
     currentSchool: SchoolInfo | null;
     selectSchool: (schoolId: string, role?: string) => Promise<void>;
     leaveSchool: () => void;
+    refreshTokenInfo: () => void;
 }
 
 const SchoolContext = createContext<SchoolContextType>({
@@ -27,6 +28,7 @@ const SchoolContext = createContext<SchoolContextType>({
     currentSchool: null,
     selectSchool: async () => { },
     leaveSchool: () => { },
+    refreshTokenInfo: () => { },
 });
 
 function decodeJwtPayload(token: string): any {
@@ -117,6 +119,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                 currentSchool,
                 selectSchool,
                 leaveSchool,
+                refreshTokenInfo,
             }}
         >
             {children}

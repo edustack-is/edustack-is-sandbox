@@ -4,7 +4,7 @@ import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import * as passport from 'passport';
+import passport from 'passport';
 
 @Controller('api/auth')
 export class AuthController {
@@ -19,10 +19,18 @@ export class AuthController {
     @Public()
     @Get('sso/:provider')
     async ssoAuth(@Param('provider') provider: string, @Req() req: Request, @Res() res: Response) {
-        // Simple passport wrapper
-        passport.authenticate(provider, {
-            session: false,
-        })(req, res);
+        try {
+            passport.authenticate(provider, {
+                session: false,
+                callbackURL: `/api/auth/callback/${provider}`,
+            } as any)(req, res, (err: any) => {
+                if (err) {
+                    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=${encodeURIComponent(err.message || 'sso_failed')}`);
+                }
+            });
+        } catch (err: any) {
+            throw new BadRequestException(`SSO provider "${provider}" is not configured or not available.`);
+        }
     }
 
     @Public()

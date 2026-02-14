@@ -170,7 +170,7 @@ export function AiChatDrawer() {
                     'transition-all duration-200',
                     'group',
                 )}
-                aria-label="Otevřít AI Chat"
+                aria-label={t('aitutor.open_chat')}
             >
                 <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform" />
 

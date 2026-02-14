@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from 'react-i18next';
 
 interface SchoolMembership {
     schoolId: string;
@@ -20,6 +21,7 @@ interface SchoolMembership {
 }
 
 export function SelectSchool() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const { selectSchool, isSystemAdmin, userId } = useSchool();
     const [schools, setSchools] = useState<SchoolMembership[]>([]);
@@ -59,7 +61,7 @@ export function SelectSchool() {
             await selectSchool(schoolId, role);
             navigate('/dashboard');
         } catch (err: any) {
-            toast.error('Failed to select school: ' + (err.response?.data?.message || err.message));
+            toast.error(t('select_school.failed_select') + ': ' + (err.response?.data?.message || err.message));
         } finally {
             setSelecting(null);
         }
@@ -80,29 +82,23 @@ export function SelectSchool() {
                 },
             });
 
-            // Refresh list and select the new school
-            // The API returns the created school, but we need the membership record.
-            // Simplest is to reload schools, find the new one, and select it.
-
-            // Reload schools manually to ensure we get the fresh list with the new membership
             const schoolsRes = await api.get('/api/auth/schools');
             const list = schoolsRes.data;
             setSchools(list);
 
-            const newSchoolId = res.id; // Assuming response is the school object
+            const newSchoolId = res.id;
             const membership = list.find((m: any) => (m.schoolId === newSchoolId || m.school.id === newSchoolId));
 
             if (membership) {
                 await handleSelect(membership.schoolId || membership.school.id);
             } else {
-                // Fallback if not found (unexpected)
                 setIsCreating(false);
                 setNewSchoolName('');
                 setNewSchoolAddress('');
             }
 
         } catch (err: any) {
-            toast.error('Failed to create school: ' + (err.response?.data?.message || err.message));
+            toast.error(t('select_school.failed_create') + ': ' + (err.response?.data?.message || err.message));
         } finally {
             setCreating(false);
         }
@@ -111,7 +107,7 @@ export function SelectSchool() {
     if (loading && schools.length === 0) {
         return (
             <div className="flex items-center justify-center h-screen">
-                <p className="text-muted-foreground">Načítání škol...</p>
+                <p className="text-muted-foreground">{t('select_school.loading_schools')}</p>
             </div>
         );
     }
@@ -121,12 +117,12 @@ export function SelectSchool() {
             <div className="w-full max-w-lg space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl font-bold tracking-tight">
-                        {isCreating ? 'Vytvořit novou školu' : 'Vyberte školu'}
+                        {isCreating ? t('select_school.create_new_title') : t('select_school.title')}
                     </h1>
                     <p className="text-muted-foreground">
                         {isCreating
-                            ? 'Zadejte údaje pro novou školu v systému'
-                            : 'Vyberte školu, se kterou chcete pracovat'}
+                            ? t('select_school.create_subtitle')
+                            : t('select_school.subtitle')}
                     </p>
                 </div>
 
@@ -135,32 +131,31 @@ export function SelectSchool() {
                         <form onSubmit={handleCreateSchool}>
                             <CardContent className="pt-6 space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="schoolName">Název školy</Label>
+                                    <Label htmlFor="schoolName">{t('select_school.school_name')}</Label>
                                     <Input
                                         id="schoolName"
                                         value={newSchoolName}
                                         onChange={e => setNewSchoolName(e.target.value)}
-                                        placeholder="Např. Gymnázium Jana Keplera"
+                                        placeholder="e.g. Gymnázium Jana Keplera"
                                         required
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="address">Adresa (nepovinné)</Label>
+                                    <Label htmlFor="address">{t('select_school.address_optional')}</Label>
                                     <Input
                                         id="address"
                                         value={newSchoolAddress}
                                         onChange={e => setNewSchoolAddress(e.target.value)}
-                                        placeholder="Ulice, Město"
                                     />
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
                                 <Button type="button" variant="ghost" onClick={() => setIsCreating(false)}>
-                                    Zrušit
+                                    {t('common.cancel')}
                                 </Button>
                                 <Button type="submit" disabled={creating || !newSchoolName.trim()}>
                                     {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Vytvořit školu
+                                    {t('select_school.create_school')}
                                 </Button>
                             </CardFooter>
                         </form>
@@ -169,10 +164,10 @@ export function SelectSchool() {
                     <>
                         {schools.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-xl">
-                                <p>Nemáte přiřazenou žádnou školu.</p>
+                                <p>{t('select_school.no_schools')}</p>
                                 {isSystemAdmin && (
                                     <Button className="mt-4" onClick={() => setIsCreating(true)}>
-                                        <Plus className="mr-2 h-4 w-4" /> Vytvořit první školu
+                                        <Plus className="mr-2 h-4 w-4" /> {t('select_school.create_first')}
                                     </Button>
                                 )}
                             </div>
@@ -194,7 +189,7 @@ export function SelectSchool() {
                                                 )}
                                             </div>
                                             <div className="text-xs text-muted-foreground uppercase font-medium">
-                                                {membership.role}
+                                                {t(`roles.${membership.role}`, membership.role)}
                                             </div>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-0 flex flex-wrap gap-2">
@@ -207,7 +202,7 @@ export function SelectSchool() {
                                                         disabled={selecting === (membership.schoolId || membership.school.id)}
                                                         onClick={() => handleSelect(membership.schoolId || membership.school.id, 'PRINCIPAL')}
                                                     >
-                                                        Vstoupit jako Ředitel
+                                                        {t('select_school.enter_as_principal')}
                                                     </Button>
                                                     <Button
                                                         variant="outline"
@@ -216,7 +211,7 @@ export function SelectSchool() {
                                                         disabled={selecting === (membership.schoolId || membership.school.id)}
                                                         onClick={() => handleSelect(membership.schoolId || membership.school.id, 'DEPUTY')}
                                                     >
-                                                        Vstoupit jako Zástupce
+                                                        {t('select_school.enter_as_deputy')}
                                                     </Button>
                                                     <Button
                                                         variant="ghost"
@@ -225,7 +220,7 @@ export function SelectSchool() {
                                                         disabled={selecting === (membership.schoolId || membership.school.id)}
                                                         onClick={() => handleSelect(membership.schoolId || membership.school.id, 'ADMIN')}
                                                     >
-                                                        Vstoupit jako Správce
+                                                        {t('select_school.enter_as_admin')}
                                                     </Button>
                                                 </>
                                             ) : (
@@ -235,7 +230,7 @@ export function SelectSchool() {
                                                     disabled={selecting === (membership.schoolId || membership.school.id)}
                                                     onClick={() => handleSelect(membership.schoolId || membership.school.id)}
                                                 >
-                                                    {selecting === (membership.schoolId || membership.school.id) ? 'Vstupuji...' : 'Vstoupit'}
+                                                    {selecting === (membership.schoolId || membership.school.id) ? t('select_school.entering') : t('select_school.enter')}
                                                 </Button>
                                             )}
                                         </CardContent>
@@ -247,10 +242,10 @@ export function SelectSchool() {
                         {isSystemAdmin && !isCreating && schools.length > 0 && (
                             <div className="text-center pt-4 flex flex-col gap-2">
                                 <Button variant="outline" className="w-full border-dashed" onClick={() => setIsCreating(true)}>
-                                    <Plus className="mr-2 h-4 w-4" /> Vytvořit další školu
+                                    <Plus className="mr-2 h-4 w-4" /> {t('select_school.create_another')}
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => navigate('/system/schools')}>
-                                    Přejít do správy systému
+                                    {t('select_school.go_to_system')}
                                 </Button>
                             </div>
                         )}
@@ -258,7 +253,7 @@ export function SelectSchool() {
                         {isSystemAdmin && !isCreating && schools.length === 0 && (
                             <div className="text-center pt-2">
                                 <Button variant="ghost" size="sm" onClick={() => navigate('/system/schools')}>
-                                    Přejít do správy systému
+                                    {t('select_school.go_to_system')}
                                 </Button>
                             </div>
                         )}
