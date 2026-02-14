@@ -117,6 +117,46 @@ export class SystemAdminService {
         };
     }
 
+    async updateSchool(schoolId: string, data: { name?: string; address?: string }, actorId: string) {
+        const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+        if (!school) throw new NotFoundException('School not found');
+
+        // Capture old values for auditing
+        const oldValues = {
+            name: school.name,
+            address: school.address,
+        };
+
+        // Filter out unchanged values for newValues log
+        const newValues: any = {};
+        if (data.name !== undefined && data.name !== school.name) newValues.name = data.name;
+        if (data.address !== undefined && data.address !== school.address) newValues.address = data.address;
+
+        if (Object.keys(newValues).length === 0) {
+            return school;
+        }
+
+        return this.prisma.$transaction(async (tx: any) => {
+            const updated = await tx.school.update({
+                where: { id: schoolId },
+                data: newValues,
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    actorId,
+                    action: 'UPDATE_SCHOOL_INFO',
+                    entity: 'School',
+                    entityId: schoolId,
+                    oldValues,
+                    newValues,
+                },
+            });
+
+            return updated;
+        });
+    }
+
     async updateSchoolSettings(schoolId: string, aiConfig?: any, ssoConfig?: any) {
         const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
         if (!school) throw new NotFoundException('School not found');

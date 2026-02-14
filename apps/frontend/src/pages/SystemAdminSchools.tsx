@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getSystemSchools, createSystemSchool, getUsers } from '../api';
+import { getSystemSchools, createSystemSchool, updateSystemSchool, getUsers } from '../api';
 import { useSchool } from '@/context/SchoolContext';
-import { LogIn } from 'lucide-react';
+import { LogIn, Settings } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +53,7 @@ interface UserOption {
     lastName: string;
 }
 
-// ---- Zod Schema ----
+// ---- Zod Schemas ----
 const createSchoolSchema = z.discriminatedUnion('adminType', [
     z.object({
         schoolName: z.string().min(1, 'School name is required'),
@@ -76,7 +76,13 @@ const createSchoolSchema = z.discriminatedUnion('adminType', [
     }),
 ]);
 
+const editSchoolSchema = z.object({
+    name: z.string().min(1, 'School name is required'),
+    address: z.string().optional(),
+});
+
 type CreateSchoolFormValues = z.infer<typeof createSchoolSchema>;
+type EditSchoolFormValues = z.infer<typeof editSchoolSchema>;
 
 // ---- Component ----
 export function SystemAdminSchools() {
@@ -85,6 +91,8 @@ export function SystemAdminSchools() {
     const [schools, setSchools] = useState<School[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editingSchool, setEditingSchool] = useState<School | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [selecting, setSelecting] = useState<string | null>(null);
 
@@ -106,6 +114,14 @@ export function SystemAdminSchools() {
         },
     });
 
+    const editForm = useForm<EditSchoolFormValues>({
+        resolver: zodResolver(editSchoolSchema),
+        defaultValues: {
+            name: '',
+            address: '',
+        },
+    });
+
     const adminType = form.watch('adminType');
 
     const fetchSchools = async () => {
@@ -123,7 +139,6 @@ export function SystemAdminSchools() {
     const fetchUsers = async (search: string) => {
         try {
             const data = await getUsers({ limit: 20 });
-            // data may be { data: UserOption[] } or UserOption[]
             const list = Array.isArray(data) ? data : data.data || [];
             setUsers(
                 list.filter(
@@ -178,12 +193,45 @@ export function SystemAdminSchools() {
         }
     };
 
+    const onUpdate = async (values: EditSchoolFormValues) => {
+        if (!editingSchool) return;
+        setSubmitting(true);
+        try {
+            await updateSystemSchool(editingSchool.id, values);
+            setEditDialogOpen(false);
+            setEditingSchool(null);
+            await fetchSchools();
+        } catch (err: any) {
+            console.error('Failed to update school', err);
+            alert(err?.response?.data?.message || 'Failed to update school');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const handleOpenChange = (open: boolean) => {
         setDialogOpen(open);
         if (!open) {
             form.reset();
             setSelectedUser(null);
         }
+    };
+
+    const handleEditOpenChange = (open: boolean) => {
+        setEditDialogOpen(open);
+        if (!open) {
+            setEditingSchool(null);
+            editForm.reset();
+        }
+    };
+
+    const startEditing = (school: School) => {
+        setEditingSchool(school);
+        editForm.reset({
+            name: school.name,
+            address: school.address || '',
+        });
+        setEditDialogOpen(true);
     };
 
     const handleSelectSchool = async (schoolId: string) => {
@@ -430,6 +478,60 @@ export function SystemAdminSchools() {
                 </Dialog>
             </div>
 
+            {/* Edit School Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={handleEditOpenChange}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit School Details</DialogTitle>
+                        <DialogDescription>
+                            Update basic information for this school. All changes are logged.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...editForm}>
+                        <form onSubmit={editForm.handleSubmit(onUpdate)} className="space-y-4">
+                            <FormField
+                                control={editForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>School Name</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={editForm.control}
+                                name="address"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Address</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleEditOpenChange(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={submitting}>
+                                    {submitting ? 'Updating...' : 'Save Changes'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
             {/* Schools Table */}
             <div className="rounded-lg border">
                 <Table>
@@ -474,15 +576,27 @@ export function SystemAdminSchools() {
                                         {new Date(school.createdAt).toLocaleDateString('cs-CZ')}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleSelectSchool(school.id)}
-                                            disabled={selecting === school.id}
-                                        >
-                                            <LogIn className="mr-1 h-3.5 w-3.5" />
-                                            {selecting === school.id ? 'Přepínání...' : 'Vybrat'}
-                                        </Button>
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => startEditing(school)}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <Settings className="h-4 w-4" />
+                                                <span className="sr-only">Edit settings</span>
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleSelectSchool(school.id)}
+                                                disabled={selecting === school.id}
+                                                className="h-8"
+                                            >
+                                                <LogIn className="mr-1 h-3.5 w-3.5" />
+                                                {selecting === school.id ? '...' : 'Vybrat'}
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))
