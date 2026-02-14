@@ -69,24 +69,42 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     // Fetch school details when we have a schoolId
     useEffect(() => {
         if (tokenInfo.schoolId) {
-            // Fetch the school name from the user's schools list
+            const schoolId = tokenInfo.schoolId;
+            // Try to find school in user's memberships first
             api.get('/api/auth/schools')
                 .then((res) => {
                     const schools = res.data;
-                    const school = schools.find((s: any) => s.schoolId === tokenInfo.schoolId || s.school?.id === tokenInfo.schoolId);
+                    const school = schools.find((s: any) => s.schoolId === schoolId || s.school?.id === schoolId);
                     if (school) {
                         setCurrentSchool({
                             id: school.schoolId || school.school?.id,
                             name: school.school?.name || 'Unknown',
                             address: school.school?.address,
                         });
+                    } else if (tokenInfo.isSystemAdmin) {
+                        // System admin may not have membership – fetch from system endpoint
+                        api.get('/api/system/schools')
+                            .then((sysRes) => {
+                                const sysSchool = sysRes.data.find((s: any) => s.id === schoolId);
+                                if (sysSchool) {
+                                    setCurrentSchool({
+                                        id: sysSchool.id,
+                                        name: sysSchool.name,
+                                        address: sysSchool.address,
+                                    });
+                                } else {
+                                    // Fallback: at least show the school ID
+                                    setCurrentSchool({ id: schoolId, name: schoolId });
+                                }
+                            })
+                            .catch(() => setCurrentSchool({ id: schoolId, name: schoolId }));
                     }
                 })
                 .catch(() => setCurrentSchool(null));
         } else {
             setCurrentSchool(null);
         }
-    }, [tokenInfo.schoolId]);
+    }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin]);
 
     const selectSchool = useCallback(async (schoolId: string, role?: string) => {
         // Store GLOBAL token before switching
