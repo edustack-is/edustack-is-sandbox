@@ -6,6 +6,9 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { EventSource } from 'eventsource';
 
 // ─── Role-based system instructions ─────────────────────────────
 
@@ -30,8 +33,29 @@ const SYSTEM_INSTRUCTIONS: Record<string, string> = {
 @Injectable()
 export class AiChatService {
     private readonly logger = new Logger(AiChatService.name);
+    private mcpClient: Client | null = null;
+    private mcpTransport: SSEClientTransport | null = null;
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(private readonly prisma: PrismaService) {
+        this.initializeMcp().catch(err => this.logger.error('Failed to initialize MCP Client:', err));
+    }
+
+    private async initializeMcp() {
+        const mcpUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001/sse';
+        // @ts-ignore - EventSource polyfill for Node.js
+        global.EventSource = EventSource;
+
+        this.mcpTransport = new SSEClientTransport(new URL(mcpUrl));
+        this.mcpClient = new Client({
+            name: "EduStack-Backend-Client",
+            version: "1.0.0",
+        }, {
+            capabilities: {},
+        });
+
+        await this.mcpClient.connect(this.mcpTransport);
+        this.logger.log('Connected to MCP Server');
+    }
 
     // ─── CHAT ───────────────────────────────────────────────────
 
@@ -48,11 +72,11 @@ export class AiChatService {
         // 2. Build system instruction
         const system = SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.STUDENT;
 
-        // 3. Define Tools
+        // 3. Define Tools (Local + Remote from MCP)
         const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'SYSTEM_ADMIN'];
         const hasTools = validRoles.includes(role);
 
-        const tools: ToolSet = {
+        let tools: ToolSet = {
             fetchStudentGrades: tool({
                 description: 'Načte známky studenta z databáze.',
                 parameters: z.object({
@@ -63,6 +87,34 @@ export class AiChatService {
                 },
             } as any),
         };
+
+        if (hasTools && this.mcpClient) {
+            try {
+                const mcpToolsResult = await this.mcpClient.listTools();
+                for (const t of mcpToolsResult.tools) {
+                    // Map MCP tool to AI SDK tool
+                    tools[t.name] = tool({
+                        description: t.description || '',
+                        parameters: this.mapMcpSchemaToZod(t.inputSchema),
+                        execute: async (args: any) => {
+                            this.logger.log(`Executing MCP tool: ${t.name} with args: ${JSON.stringify(args)}`);
+                            const result = await this.mcpClient!.callTool({
+                                name: t.name,
+                                arguments: args,
+                            });
+
+                            if ((result as any).isError) {
+                                throw new Error((result as any).content.map((c: any) => c.text).join('\n'));
+                            }
+                            // Extract text content
+                            return (result as any).content.map((c: any) => c.text).join('\n');
+                        },
+                    } as any);
+                }
+            } catch (err) {
+                this.logger.error('Failed to list remote tools:', err);
+            }
+        }
 
         // 4. Convert messages for SDK
         const history = messages.map(m => ({
@@ -197,7 +249,38 @@ export class AiChatService {
         });
     }
 
-    // ─── TOOLS IMPLEMENTATION ───────────────────────────────────
+    // ─── UTILS ──────────────────────────────────────────────────
+
+    private mapMcpSchemaToZod(schema: any): z.ZodType<any> {
+        if (!schema || typeof schema !== 'object') return z.any();
+
+        // Simple mapping for MCP JSON schemas to Zod
+        // For production, this should be more robust
+        const properties: Record<string, z.ZodType<any>> = {};
+        const required = schema.required || [];
+
+        if (schema.properties) {
+            for (const [key, val] of Object.entries<any>(schema.properties)) {
+                let zodType: z.ZodType<any> = z.any();
+                if (val.type === 'string') zodType = z.string();
+                else if (val.type === 'number') zodType = z.number();
+                else if (val.type === 'boolean') zodType = z.boolean();
+                else if (val.type === 'array') zodType = z.array(z.any());
+                else if (val.type === 'object') zodType = z.object({});
+
+                if (val.description) {
+                    zodType = (zodType as any).describe(val.description);
+                }
+
+                if (!required.includes(key)) {
+                    zodType = zodType.optional();
+                }
+                properties[key] = zodType;
+            }
+        }
+
+        return z.object(properties);
+    }
 
     private async executeFetchStudentGrades(studentId: string) {
         const grades = await this.prisma.grade.findMany({
