@@ -63,9 +63,9 @@ function App() {
               <Route path="registry" element={<Registry />} />
               <Route path="grading" element={<Grading />} />
               <Route path="schedule" element={<Schedule />} />
-              <Route path="users" element={<Users />} />
-              <Route path="rooms" element={<RoomsManagement />} />
-              <Route path="curriculum" element={<CurriculumManagement />} />
+              <Route path="school/users" element={<Users />} />
+              <Route path="school/rooms" element={<RoomsManagement />} />
+              <Route path="school/curriculum" element={<CurriculumManagement />} />
               <Route path="year-setup" element={<DeputyYearSetup />} />
               <Route path="system/schools" element={<SystemAdminSchools />} />
               <Route path="system/users" element={<SystemAdminUsers />} />

@@ -1,23 +1,34 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, Zap } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, Zap, DoorOpen, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const schoolNavItems = [
     { path: '/dashboard', label: 'Nástěnka', icon: LayoutDashboard },
-    { path: '/users', label: 'Uživatelé', icon: Users },
     { path: '/schedule', label: 'Rozvrh', icon: Calendar },
     { path: '/grading', label: 'Klasifikace', icon: GraduationCap },
+];
+
+const schoolAdminItems = [
+    { path: '/school/users', label: 'Uživatelé', icon: Users },
+    { path: '/school/rooms', label: 'Učebny', icon: DoorOpen },
+    { path: '/school/curriculum', label: 'Předměty a ŠVP', icon: BookOpen },
     { path: '/year-setup', label: 'Příprava roku', icon: Settings },
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) => clsx(
-    'nav-item flex items-center space-x-3 px-4 py-3 rounded-md transition-colors duration-200',
+    'nav-item flex items-center space-x-3 px-4 py-2.5 rounded-md transition-colors duration-200',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     { 'bg-accent text-accent-foreground font-medium': isActive }
@@ -26,7 +37,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) => clsx(
 export const Sidebar: React.FC = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
-    const { tokenType, isSystemAdmin, currentSchool, leaveSchool } = useSchool();
+    const { tokenType, isSystemAdmin, currentSchool, leaveSchool, role } = useSchool();
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -58,6 +69,7 @@ export const Sidebar: React.FC = () => {
     };
 
     const hasSchoolContext = tokenType === 'TENANT';
+    const isDeputyOrPrincipal = role === 'DEPUTY' || role === 'PRINCIPAL';
 
     return (
         <aside className="sidebar w-64 border-r border-border bg-card text-card-foreground flex flex-col h-screen">
@@ -87,10 +99,29 @@ export const Sidebar: React.FC = () => {
                     <>
                         {schoolNavItems.map((item) => (
                             <NavLink key={item.path} to={item.path} className={navLinkClass}>
-                                <item.icon size={20} />
+                                <item.icon size={18} />
                                 <span>{item.label}</span>
                             </NavLink>
                         ))}
+
+                        {/* Admin Section for Deputy/Principal */}
+                        {isDeputyOrPrincipal && (
+                            <Accordion type="single" collapsible className="w-full border-none">
+                                <AccordionItem value="school-admin" className="border-none">
+                                    <AccordionTrigger className="py-2.5 px-4 hover:no-underline hover:bg-accent rounded-md text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                        Správa školy
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pt-1 pb-0 space-y-1">
+                                        {schoolAdminItems.map((item) => (
+                                            <NavLink key={item.path} to={item.path} className={navLinkClass}>
+                                                <item.icon size={18} />
+                                                <span>{item.label}</span>
+                                            </NavLink>
+                                        ))}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                        )}
                     </>
                 )}
 
@@ -98,21 +129,21 @@ export const Sidebar: React.FC = () => {
                 {isSystemAdmin && !hasSchoolContext && (
                     <>
                         <div className={clsx(
-                            'px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider',
-                            hasSchoolContext ? 'mt-4 mb-2' : 'mb-2'
+                            'px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider',
+                            hasSchoolContext ? 'mt-4' : ''
                         )}>
                             System Admin
                         </div>
                         <NavLink to="/system/schools" className={navLinkClass}>
-                            <Building2 size={20} />
+                            <Building2 size={18} />
                             <span>Školy</span>
                         </NavLink>
                         <NavLink to="/system/users" className={navLinkClass}>
-                            <Users2 size={20} />
+                            <Users2 size={18} />
                             <span>Uživatelé</span>
                         </NavLink>
                         <NavLink to="/system/ai" className={navLinkClass}>
-                            <Zap size={20} />
+                            <Zap size={18} />
                             <span>AI Management</span>
                         </NavLink>
                     </>
