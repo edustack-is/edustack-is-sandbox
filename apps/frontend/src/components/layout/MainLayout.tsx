@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AiChatDrawer } from '../AiChatDrawer';
+import { TaskQueuePanel } from '../TaskQueuePanel';
 
 export const MainLayout: React.FC = () => {
     return (
@@ -13,6 +14,7 @@ export const MainLayout: React.FC = () => {
                 </main>
             </div>
             <AiChatDrawer />
+            <TaskQueuePanel />
         </div>
     );
 };

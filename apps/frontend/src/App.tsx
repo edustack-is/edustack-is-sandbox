@@ -19,6 +19,7 @@ import { UserProfile } from './pages/UserProfile';
 import { Login } from './pages/Login';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
+import { TaskQueueProvider } from './context/TaskQueueContext';
 import { getInitStatus } from './api';
 import { Toaster } from 'sonner';
 import { FloatingLanguageSwitcher } from './components/FloatingLanguageSwitcher';
@@ -83,36 +84,38 @@ function App() {
   return (
     <BrowserRouter>
       <SchoolProvider>
-        <Toaster position="top-right" duration={5000} closeButton richColors />
-        <FloatingLanguageSwitcher />
-        <Routes>
-          <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
-          <Route path="/activate" element={<ActivateAccount />} />
-          <Route path="/login" element={!initialized ? <Navigate to="/setup" /> : <Login />} />
+        <TaskQueueProvider>
+          <Toaster position="top-right" duration={5000} closeButton richColors />
+          <FloatingLanguageSwitcher />
+          <Routes>
+            <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
+            <Route path="/activate" element={<ActivateAccount />} />
+            <Route path="/login" element={!initialized ? <Navigate to="/setup" /> : <Login />} />
 
-          <Route element={!initialized ? <Navigate to="/setup" replace /> : <ProtectedRoute />}>
-            <Route path="/select-school" element={<SelectSchool />} />
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="registry" element={<Registry />} />
-              <Route path="grading" element={<Grading />} />
-              <Route path="schedule" element={<Schedule />} />
-              <Route path="school/users" element={<Users />} />
-              <Route path="school/rooms" element={<RoomsManagement />} />
-              <Route path="school/curriculum" element={<CurriculumManagement />} />
-              <Route path="year-setup" element={<DeputyYearSetup />} />
-              <Route element={<SystemAdminGuard />}>
-                <Route path="system/schools" element={<SystemAdminSchools />} />
-                <Route path="system/users" element={<SystemAdminUsers />} />
-                <Route path="system/settings" element={<SystemAdminSettings />} />
+            <Route element={!initialized ? <Navigate to="/setup" replace /> : <ProtectedRoute />}>
+              <Route path="/select-school" element={<SelectSchool />} />
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="registry" element={<Registry />} />
+                <Route path="grading" element={<Grading />} />
+                <Route path="schedule" element={<Schedule />} />
+                <Route path="school/users" element={<Users />} />
+                <Route path="school/rooms" element={<RoomsManagement />} />
+                <Route path="school/curriculum" element={<CurriculumManagement />} />
+                <Route path="year-setup" element={<DeputyYearSetup />} />
+                <Route element={<SystemAdminGuard />}>
+                  <Route path="system/schools" element={<SystemAdminSchools />} />
+                  <Route path="system/users" element={<SystemAdminUsers />} />
+                  <Route path="system/settings" element={<SystemAdminSettings />} />
+                </Route>
+                <Route path="profile" element={<UserProfile />} />
               </Route>
-              <Route path="profile" element={<UserProfile />} />
             </Route>
-          </Route>
 
-          <Route path="*" element={!initialized ? <Navigate to="/setup" /> : <Navigate to="/dashboard" />} />
-        </Routes>
+            <Route path="*" element={!initialized ? <Navigate to="/setup" /> : <Navigate to="/dashboard" />} />
+          </Routes>
+        </TaskQueueProvider>
       </SchoolProvider>
     </BrowserRouter>
   );

@@ -13,6 +13,8 @@ import { Sparkles, Send, Loader2, Bot, User, Trash2 } from 'lucide-react';
 import { getAvailableProviders, AiProvider } from '@/api/ai';
 import { cn } from '@/lib/utils';
 import { useSchool } from '@/context/SchoolContext';
+import { useTaskQueue } from '@/context/TaskQueueContext';
+import { getToolLabel } from './TaskQueuePanel';
 import { useTranslation } from 'react-i18next';
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -50,7 +52,9 @@ export function AiChatDrawer() {
     const [statusMessage, setStatusMessage] = useState('');
     const [toolsUsed, setToolsUsed] = useState<ToolProgress[]>([]);
     const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const taskIdsRef = useRef<Record<string, string>>({});  // toolName → taskId
     const { t } = useTranslation();
+    const { addTask, completeTask } = useTaskQueue();
 
     // Provider State
     const [providers, setProviders] = useState<AiProvider[]>([]);
@@ -241,19 +245,31 @@ export function AiChatDrawer() {
                 setStatusMessage(data.message || '');
                 break;
 
-            case 'tool_start':
-                setStatusMessage(`Volám nástroj: ${TOOL_LABELS[data.name] || data.name}...`);
+            case 'tool_start': {
+                const label = TOOL_LABELS[data.name] || data.name;
+                setStatusMessage(`Volám nástroj: ${label}...`);
                 setToolsUsed(prev => [...prev, { name: data.name, status: 'running' }]);
+                // Register in global task queue
+                const taskId = addTask(data.name, getToolLabel(data.name));
+                taskIdsRef.current[data.name] = taskId;
                 break;
+            }
 
-            case 'tool_done':
+            case 'tool_done': {
                 setToolsUsed(prev => prev.map(t =>
                     t.name === data.name ? { ...t, status: data.success ? 'done' : 'error' } : t
                 ));
                 setStatusMessage(data.success
                     ? `✓ ${TOOL_LABELS[data.name] || data.name} – hotovo`
                     : `✗ ${TOOL_LABELS[data.name] || data.name} – chyba`);
+                // Update global task queue
+                const taskId = taskIdsRef.current[data.name];
+                if (taskId) {
+                    completeTask(taskId, data.success, data.error);
+                    delete taskIdsRef.current[data.name];
+                }
                 break;
+            }
 
             case 'data_changed':
                 // Dispatch custom event for other components to refresh
