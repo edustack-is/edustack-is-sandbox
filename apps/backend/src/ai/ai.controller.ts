@@ -33,7 +33,7 @@ export class AiController {
         @Req() req: any,
         @Body() body: {
             messages: Array<{ role: 'user' | 'model'; text: string }>;
-            provider?: 'google' | 'openai' | 'anthropic';
+            provider?: string;
         },
     ) {
         if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
@@ -45,7 +45,7 @@ export class AiController {
         // Map JWT 'ADMIN' role (from selectSchool) to 'SYSTEM_ADMIN' for AI instructions
         if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
         const schoolId = req.user.schoolId || null;
-        const provider = body.provider || 'google';
+        const provider = body.provider || 'google-flash';
         const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';
 
         return this.aiChatService.chat(userId, role, schoolId, body.messages, provider, preferredLanguage);

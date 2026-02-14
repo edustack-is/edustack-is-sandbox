@@ -74,7 +74,7 @@ export class AiChatService {
         role: string,
         schoolId: string | null,
         messages: Array<{ role: 'user' | 'model'; text: string }>,
-        provider: 'google' | 'openai' | 'anthropic' = 'google',
+        provider: string = 'google-flash',
         preferredLanguage: 'Czech' | 'English' = 'Czech',
     ) {
         // 1. Get API Keys & Initialize Provider
@@ -157,6 +157,11 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
             content: m.text,
         })) as any[];
 
+        this.logger.log(`Chat request: provider=${provider}, role=${role}, schoolId=${schoolId}, messages=${history.length}, tools=${Object.keys(tools).length}, hasTools=${hasTools}`);
+        if (hasTools) {
+            this.logger.log(`Available tools: ${Object.keys(tools).join(', ')}`);
+        }
+
         // 5. Generate Text with Retry (Exponential Backoff)
         try {
             const result = await this.generateWithRetry(async () => {
@@ -173,6 +178,19 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
 
                 return generateText(options);
             });
+
+            // Log tool usage
+            if (result.steps && result.steps.length > 0) {
+                this.logger.log(`AI used ${result.steps.length} step(s)`);
+                for (const step of result.steps) {
+                    if (step.toolCalls && step.toolCalls.length > 0) {
+                        for (const tc of step.toolCalls) {
+                            this.logger.log(`  Tool call: ${(tc as any).toolName}(${JSON.stringify((tc as any).args || {}).substring(0, 200)})`);
+                        }
+                    }
+                }
+            }
+            this.logger.log(`AI response length: ${result.text?.length || 0} chars`);
 
             // 6. Track Usage
             await this.trackUsage(userId, schoolId, provider, languageModel.modelId, result.usage);
@@ -193,32 +211,49 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
 
     // ─── STRATEGY & PROVIDER SETUP ──────────────────────────────
 
-    private async getModelProvider(provider: 'google' | 'openai' | 'anthropic') {
+    private async getModelProvider(provider: string) {
         const keys = await this.getApiKeys();
+
+        // Google models
+        if (provider.startsWith('google')) {
+            if (!keys.geminiApiKey) throw new ServiceUnavailableException('Gemini API key is missing.');
+            const google = createGoogleGenerativeAI({ apiKey: keys.geminiApiKey });
+
+            const modelMap: Record<string, string> = {
+                'google': 'gemini-2.0-flash',
+                'google-flash': 'gemini-2.0-flash',
+                'google-pro': 'gemini-2.5-pro-preview-05-06',
+                'google-flash-lite': 'gemini-2.0-flash-lite',
+            };
+            const modelId = modelMap[provider] || 'gemini-2.0-flash';
+            this.logger.log(`Using Google model: ${modelId}`);
+            return google(modelId);
+        }
 
         switch (provider) {
             case 'openai':
                 if (!keys.openAiApiKey) throw new ServiceUnavailableException('OpenAI API key is missing.');
                 const openai = createOpenAI({ apiKey: keys.openAiApiKey });
-                return openai('gpt-4o'); // Default OpenAI model
+                return openai('gpt-4o');
 
             case 'anthropic':
                 if (!keys.anthropicApiKey) throw new ServiceUnavailableException('Anthropic API key is missing.');
                 const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
-                return anthropic('claude-3-5-sonnet-20240620'); // Default Anthropic model
+                return anthropic('claude-3-5-sonnet-20240620');
 
-            case 'google':
             default:
                 if (!keys.geminiApiKey) throw new ServiceUnavailableException('Gemini API key is missing.');
                 const google = createGoogleGenerativeAI({ apiKey: keys.geminiApiKey });
-                return google('gemini-2.0-flash'); // Default Google model
+                return google('gemini-2.0-flash');
         }
     }
 
     async getAvailableProviders() {
         const keys = await this.getApiKeys();
         const providers = [
-            { id: 'google', name: 'Google Gemini 2.0 Flash', enabled: !!keys.geminiApiKey },
+            { id: 'google-flash', name: 'Gemini 2.0 Flash', enabled: !!keys.geminiApiKey },
+            { id: 'google-pro', name: 'Gemini 2.5 Pro', enabled: !!keys.geminiApiKey },
+            { id: 'google-flash-lite', name: 'Gemini 2.0 Flash Lite', enabled: !!keys.geminiApiKey },
             { id: 'openai', name: 'OpenAI GPT-4o', enabled: !!keys.openAiApiKey },
             { id: 'anthropic', name: 'Anthropic Claude 3.5 Sonnet', enabled: !!keys.anthropicApiKey },
         ];

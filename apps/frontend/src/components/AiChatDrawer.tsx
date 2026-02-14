@@ -35,7 +35,7 @@ export function AiChatDrawer() {
 
     // Provider State
     const [providers, setProviders] = useState<AiProvider[]>([]);
-    const [selectedProvider, setSelectedProvider] = useState<string>('google');
+    const [selectedProvider, setSelectedProvider] = useState<string>('google-flash');
     const [providersLoading, setProvidersLoading] = useState(false);
 
     const scrollRef = useRef<HTMLDivElement>(null);
