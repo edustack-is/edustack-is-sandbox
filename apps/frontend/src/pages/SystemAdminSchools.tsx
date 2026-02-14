@@ -88,33 +88,33 @@ const createSchoolSchema = z.discriminatedUnion('adminType', [
     }),
 ]);
 
-const editSchoolSchema = z.discriminatedUnion('hasAdminChange', [
-    z.object({
-        name: z.string().min(1, 'School name is required'),
-        address: z.string().optional(),
-        hasAdminChange: z.literal(false),
-    }),
-    z.object({
-        name: z.string().min(1, 'School name is required'),
-        address: z.string().optional(),
-        hasAdminChange: z.literal(true),
-        adminType: z.literal('EXISTING'),
-        userId: z.string().min(1, 'Please select a user'),
-        firstName: z.string().optional(),
-        lastName: z.string().optional(),
-        email: z.string().optional(),
-    }),
-    z.object({
-        name: z.string().min(1, 'School name is required'),
-        address: z.string().optional(),
-        hasAdminChange: z.literal(true),
-        adminType: z.literal('NEW'),
-        userId: z.string().optional(),
-        firstName: z.string().min(1, 'First name is required'),
-        lastName: z.string().min(1, 'Last name is required'),
-        email: z.string().email('Invalid email'),
-    }),
-]);
+const editSchoolSchema = z.object({
+    name: z.string().min(1, 'School name is required'),
+    address: z.string().optional(),
+    hasAdminChange: z.boolean(),
+    adminType: z.enum(['EXISTING', 'NEW']).optional(),
+    userId: z.string().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (data.hasAdminChange) {
+        if (data.adminType === 'EXISTING' && (!data.userId || data.userId.length === 0)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please select a user', path: ['userId'] });
+        }
+        if (data.adminType === 'NEW') {
+            if (!data.firstName || data.firstName.length === 0) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'First name is required', path: ['firstName'] });
+            }
+            if (!data.lastName || data.lastName.length === 0) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Last name is required', path: ['lastName'] });
+            }
+            if (!data.email || !z.string().email().safeParse(data.email).success) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Valid email is required', path: ['email'] });
+            }
+        }
+    }
+});
 
 type CreateSchoolFormValues = z.infer<typeof createSchoolSchema>;
 type EditSchoolFormValues = z.infer<typeof editSchoolSchema>;
@@ -164,12 +164,17 @@ export function SystemAdminSchools() {
             name: '',
             address: '',
             hasAdminChange: false,
+            adminType: 'EXISTING',
+            userId: '',
+            firstName: '',
+            lastName: '',
+            email: '',
         },
     });
 
     const adminType = form.watch('adminType');
     const editHasAdminChange = editForm.watch('hasAdminChange');
-    const editAdminType = editForm.watch('adminType' as any);
+    const editAdminType = editForm.watch('adminType');
 
     const fetchSchools = async () => {
         setLoading(true);
@@ -615,7 +620,7 @@ export function SystemAdminSchools() {
                                                         const changing = val === 'YES';
                                                         field.onChange(changing);
                                                         if (changing) {
-                                                            editForm.setValue('adminType' as any, 'EXISTING');
+                                                            editForm.setValue('adminType', 'EXISTING');
                                                         }
                                                     }}
                                                     className="flex gap-4"
@@ -652,7 +657,7 @@ export function SystemAdminSchools() {
                                                                 onValueChange={(val: string) => {
                                                                     field.onChange(val);
                                                                     setSelectedEditUser(null);
-                                                                    editForm.setValue('userId' as any, '');
+                                                                    editForm.setValue('userId', '');
                                                                 }}
                                                                 className="flex gap-4"
                                                             >
