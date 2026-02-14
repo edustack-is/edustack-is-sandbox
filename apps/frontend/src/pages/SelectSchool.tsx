@@ -52,10 +52,10 @@ export function SelectSchool() {
             .finally(() => setLoading(false));
     };
 
-    const handleSelect = async (schoolId: string) => {
+    const handleSelect = async (schoolId: string, role?: string) => {
         setSelecting(schoolId);
         try {
-            await selectSchool(schoolId);
+            await selectSchool(schoolId, role);
             navigate('/dashboard');
         } catch (err: any) {
             alert('Failed to select school: ' + (err.response?.data?.message || err.message));
@@ -180,10 +180,9 @@ export function SelectSchool() {
                                 {schools.map((membership) => (
                                     <Card
                                         key={membership.schoolId || membership.school.id}
-                                        className="cursor-pointer transition-colors hover:bg-accent/50 hover:border-primary/30"
-                                        onClick={() => handleSelect(membership.schoolId || membership.school.id)}
+                                        className="transition-colors border-border hover:border-primary/30"
                                     >
-                                        <CardHeader className="flex flex-row items-center space-x-4 p-4">
+                                        <CardHeader className="flex flex-row items-center space-x-4 p-4 pb-2">
                                             <div className="bg-primary/10 p-3 rounded-lg">
                                                 <Building2 className="h-6 w-6 text-primary" />
                                             </div>
@@ -196,10 +195,49 @@ export function SelectSchool() {
                                             <div className="text-xs text-muted-foreground uppercase font-medium">
                                                 {membership.role}
                                             </div>
-                                            {selecting === (membership.schoolId || membership.school.id) && (
-                                                <span className="text-sm text-muted-foreground">Přepínání...</span>
-                                            )}
                                         </CardHeader>
+                                        <CardContent className="p-4 pt-0 flex flex-wrap gap-2">
+                                            {isSystemAdmin ? (
+                                                <>
+                                                    <Button
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        disabled={selecting === (membership.schoolId || membership.school.id)}
+                                                        onClick={() => handleSelect(membership.schoolId || membership.school.id, 'PRINCIPAL')}
+                                                    >
+                                                        Vstoupit jako Ředitel
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        disabled={selecting === (membership.schoolId || membership.school.id)}
+                                                        onClick={() => handleSelect(membership.schoolId || membership.school.id, 'DEPUTY')}
+                                                    >
+                                                        Vstoupit jako Zástupce
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="w-full text-xs"
+                                                        disabled={selecting === (membership.schoolId || membership.school.id)}
+                                                        onClick={() => handleSelect(membership.schoolId || membership.school.id, 'ADMIN')}
+                                                    >
+                                                        Vstoupit jako Správce
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <Button
+                                                    variant="secondary"
+                                                    className="w-full"
+                                                    disabled={selecting === (membership.schoolId || membership.school.id)}
+                                                    onClick={() => handleSelect(membership.schoolId || membership.school.id)}
+                                                >
+                                                    {selecting === (membership.schoolId || membership.school.id) ? 'Vstupuji...' : 'Vstoupit'}
+                                                </Button>
+                                            )}
+                                        </CardContent>
                                     </Card>
                                 ))}
                             </div>

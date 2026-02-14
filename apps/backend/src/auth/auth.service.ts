@@ -150,7 +150,7 @@ export class AuthService {
         });
     }
 
-    async selectSchool(userId: string, schoolId: string) {
+    async selectSchool(userId: string, schoolId: string, role?: string) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new UnauthorizedException('User not found');
 
@@ -164,7 +164,7 @@ export class AuthService {
                 email: user.email,
                 isSystemAdmin: true,
                 schoolId: school.id,
-                role: 'ADMIN',
+                role: role || 'ADMIN',
                 type: 'TENANT'
             };
 

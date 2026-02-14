@@ -66,8 +66,12 @@ export class AuthController {
 
     @UseGuards(JwtAuthGuard)
     @Post('select-school/:schoolId')
-    async selectSchool(@Param('schoolId') schoolId: string, @Req() req: any) {
-        return this.authService.selectSchool(req.user.userId, schoolId);
+    async selectSchool(
+        @Param('schoolId') schoolId: string,
+        @Req() req: any,
+        @Query('role') role?: string
+    ) {
+        return this.authService.selectSchool(req.user.userId, schoolId, role);
     }
 
     @UseGuards(JwtAuthGuard)

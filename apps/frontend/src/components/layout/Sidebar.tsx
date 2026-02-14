@@ -69,7 +69,7 @@ export const Sidebar: React.FC = () => {
     };
 
     const hasSchoolContext = tokenType === 'TENANT';
-    const isDeputyOrPrincipal = role === 'DEPUTY' || role === 'PRINCIPAL';
+    const isSchoolAdmin = role === 'ADMIN' || role === 'DEPUTY' || role === 'PRINCIPAL';
 
     return (
         <aside className="sidebar w-64 border-r border-border bg-card text-card-foreground flex flex-col h-screen">
@@ -105,7 +105,7 @@ export const Sidebar: React.FC = () => {
                         ))}
 
                         {/* Admin Section for Deputy/Principal */}
-                        {isDeputyOrPrincipal && (
+                        {isSchoolAdmin && (
                             <Accordion type="single" collapsible className="w-full border-none">
                                 <AccordionItem value="school-admin" className="border-none">
                                     <AccordionTrigger className="py-2.5 px-4 hover:no-underline hover:bg-accent rounded-md text-sm font-semibold text-muted-foreground uppercase tracking-wider">

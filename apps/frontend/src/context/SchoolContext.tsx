@@ -14,7 +14,7 @@ interface SchoolContextType {
     isSystemAdmin: boolean;
     role: string | null;
     currentSchool: SchoolInfo | null;
-    selectSchool: (schoolId: string) => Promise<void>;
+    selectSchool: (schoolId: string, role?: string) => Promise<void>;
     leaveSchool: () => void;
 }
 
@@ -86,14 +86,15 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
         }
     }, [tokenInfo.schoolId]);
 
-    const selectSchool = useCallback(async (schoolId: string) => {
+    const selectSchool = useCallback(async (schoolId: string, role?: string) => {
         // Store GLOBAL token before switching
         const globalToken = localStorage.getItem('access_token');
         if (globalToken) {
             localStorage.setItem('global_token', globalToken);
         }
 
-        const response = await api.post(`/api/auth/select-school/${schoolId}`);
+        const url = role ? `/api/auth/select-school/${schoolId}?role=${role}` : `/api/auth/select-school/${schoolId}`;
+        const response = await api.post(url);
         const { access_token } = response.data;
         localStorage.setItem('access_token', access_token);
         refreshTokenInfo();
