@@ -1,9 +1,10 @@
-import { Controller, Post, Get, Patch, Body, Param, UseGuards, BadRequestException, Req } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Put, Body, Param, UseGuards, BadRequestException, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
+import { SystemAdminSsoService } from './system-admin-sso.service';
 
 @Controller('api/system')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
@@ -11,7 +12,21 @@ export class SystemAdminController {
     constructor(
         private readonly systemAdminService: SystemAdminService,
         private readonly ssoStrategyFactory: SsoStrategyFactoryService,
+        private readonly ssoService: SystemAdminSsoService,
     ) { }
+
+    @Get('sso')
+    getSsoSettings() {
+        return this.ssoService.getSsoSettings();
+    }
+
+    @Put('sso/:provider')
+    async updateSsoProvider(
+        @Param('provider') provider: string,
+        @Body() body: any,
+    ) {
+        return this.ssoService.upsertSsoProvider(provider, body);
+    }
 
     @Post('sso/reload')
     async reloadSso() {
