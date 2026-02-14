@@ -92,20 +92,13 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
         let tools: ToolSet = {
             fetchStudentGrades: tool({
                 description: 'Načte známky studenta z databáze.',
-                parameters: jsonSchema({
-                    type: 'object',
-                    properties: {
-                        studentId: {
-                            type: 'string',
-                            description: 'UUID identifikátor studenta (StudentProfile ID)',
-                        },
-                    },
-                    required: ['studentId'],
+                inputSchema: z.object({
+                    studentId: z.string().describe('UUID identifikátor studenta (StudentProfile ID)'),
                 }),
-                execute: async ({ studentId }: { studentId: string }) => {
+                execute: async ({ studentId }) => {
                     return this.executeFetchStudentGrades(studentId);
                 },
-            } as any),
+            }),
         };
 
         if (hasTools && this.mcpClient) {
@@ -117,7 +110,7 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                     const { type: _type, ...schemaRest } = mcpSchema as any;
                     tools[t.name] = tool({
                         description: t.description || '',
-                        parameters: jsonSchema({
+                        inputSchema: jsonSchema({
                             type: 'object',
                             ...schemaRest,
                         }),
