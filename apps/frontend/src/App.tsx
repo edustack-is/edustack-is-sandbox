@@ -13,11 +13,13 @@ import { DeputyYearSetup } from './pages/DeputyYearSetup';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { SystemAdminAi } from './pages/SystemAdminAi';
+import { ActivateAccount } from './pages/ActivateAccount';
 import { SelectSchool } from './pages/SelectSchool';
 import { Login } from './pages/Login';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { SchoolProvider } from './context/SchoolContext';
 import { getInitStatus } from './api';
+import { Toaster } from 'sonner';
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem('access_token');
@@ -51,8 +53,10 @@ function App() {
   return (
     <BrowserRouter>
       <SchoolProvider>
+        <Toaster position="top-right" duration={5000} closeButton richColors />
         <Routes>
           <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
+          <Route path="/activate" element={<ActivateAccount />} />
           <Route path="/login" element={!initialized ? <Navigate to="/setup" /> : <Login />} />
 
           <Route element={!initialized ? <Navigate to="/setup" replace /> : <ProtectedRoute />}>

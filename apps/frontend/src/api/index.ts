@@ -77,6 +77,10 @@ export const setupApp = async (data: any) => {
     const response = await api.post('/api/init/setup', data);
     return response.data; // { school: SchoolConfig, admin: User }
 };
+export const acceptInvitation = async (payload: { token: string; password: string }) => {
+    const response = await api.post('/api/auth/accept-invite', payload);
+    return response.data; // { access_token: string }
+};
 
 export const login = async (credentials: { email: string; password: string }) => {
     const response = await api.post('/api/auth/login', credentials);

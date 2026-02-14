@@ -148,6 +148,12 @@ export class DeputyController {
         return this.deputyService.createStaff(req.user.userId, req.user.schoolId, body);
     }
 
+    @Post('users/:id/resend-invitation')
+    async resendInvitation(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.resendInvitation(req.user.userId, req.user.schoolId, id);
+    }
+
     // ─── HELPER ──────────────────────────────────────────────────────
 
     private ensureTenant(req: any) {

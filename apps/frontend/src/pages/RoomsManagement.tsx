@@ -2,6 +2,7 @@ import { useEffect, useState, KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { getRooms, createRoom, updateRoom, deleteRoom } from '../api/deputy';
 
@@ -54,7 +55,7 @@ export default function RoomsManagement() {
             setRooms(result);
         } catch (error) {
             console.error(error);
-            alert('Nepodařilo se načíst učebny');
+            toast.error('Nepodařilo se načíst učebny');
         } finally {
             setLoading(false);
         }
@@ -106,7 +107,7 @@ export default function RoomsManagement() {
     // ── Submit ──────────────────────────────────────────────
     const handleSubmit = form.handleSubmit(async (data) => {
         if (!data.name.trim()) {
-            alert('Název učebny je povinný.');
+            toast.error('Název učebny je povinný.');
             return;
         }
 
@@ -115,13 +116,13 @@ export default function RoomsManagement() {
             (r) => r.name.toLowerCase() === data.name.trim().toLowerCase() && r.id !== editingRoom?.id
         );
         if (duplicate) {
-            alert('Učebna s tímto názvem již existuje.');
+            toast.error('Učebna s tímto názvem již existuje.');
             return;
         }
 
         const capacity = parseInt(data.capacity, 10);
         if (isNaN(capacity) || capacity < 1) {
-            alert('Kapacita musí být kladné číslo.');
+            toast.error('Kapacita musí být kladné číslo.');
             return;
         }
 
@@ -143,7 +144,7 @@ export default function RoomsManagement() {
             setSheetOpen(false);
             loadRooms();
         } catch (error: any) {
-            alert('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -156,7 +157,7 @@ export default function RoomsManagement() {
             await deleteRoom(room.id);
             loadRooms();
         } catch (error: any) {
-            alert('Smazání selhalo: ' + (error.response?.data?.message || error.message));
+            toast.error('Smazání selhalo: ' + (error.response?.data?.message || error.message));
         }
     };
 

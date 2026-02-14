@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, UserStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class DeputyService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly mailService: MailService,
+    ) { }
 
     // ─── CLASSROOM CRUD ──────────────────────────────────────────────
 
@@ -229,6 +233,10 @@ export class DeputyService {
 
         const fullToken = `${user.id}.${invitationToken}`;
 
+        // Send invitation email
+        this.mailService.sendInvitation(user.email, `${user.firstName} ${user.lastName}`, fullToken)
+            .catch(e => console.error('Failed to send invitation email', e));
+
         await this.audit(actorId, 'INVITE_USER', 'User', user.id, {
             email: data.email,
             role: data.role,
@@ -357,11 +365,16 @@ export class DeputyService {
                     update: {},
                 });
 
+                const fullParentToken = `${parentUser.id}.${parentInvitationToken}`;
                 createdParents.push({
                     userId: parentUser.id,
                     email: parentData.email,
-                    token: `${parentUser.id}.${parentInvitationToken}`,
+                    token: fullParentToken,
                 });
+
+                // Send invitation email to parent
+                this.mailService.sendInvitation(parentData.email, `${parentData.firstName} ${parentData.lastName}`, fullParentToken)
+                    .catch(e => console.error('Failed to send parent invitation email', e));
             }
 
             // 5. Audit
@@ -374,6 +387,12 @@ export class DeputyService {
                     newValues: { student: data.student, parentCount: data.parents.length },
                 },
             });
+
+            // Send invitation email to student (outside loop, once)
+            if (studentInvitationToken) {
+                this.mailService.sendInvitation(studentUser.email, `${studentUser.firstName} ${studentUser.lastName}`, `${studentUser.id}.${studentInvitationToken}`)
+                    .catch(e => console.error('Failed to send student invitation email', e));
+            }
 
             return {
                 student: { id: studentUser.id, email: studentEmail },
@@ -400,53 +419,60 @@ export class DeputyService {
         const hashedToken = await bcrypt.hash(invitationToken, 10);
         const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-        // Find or create user
-        let user = await this.prisma.user.findUnique({ where: { email: data.email } });
+        const user = await this.prisma.$transaction(async (tx) => {
+            // Find or create user
+            let user = await tx.user.findUnique({ where: { email: data.email } });
 
-        if (!user) {
-            user = await this.prisma.user.create({
-                data: {
-                    email: data.email,
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    invitationToken: hashedToken,
-                    invitationExpires,
+            if (!user) {
+                user = await tx.user.create({
+                    data: {
+                        email: data.email,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        invitationToken: hashedToken,
+                        invitationExpires,
+                    },
+                });
+            } else {
+                user = await tx.user.update({
+                    where: { id: user.id },
+                    data: { invitationToken: hashedToken, invitationExpires },
+                });
+            }
+
+            // Create SchoolMembership
+            await tx.schoolMembership.upsert({
+                where: { userId_schoolId: { userId: user.id, schoolId } },
+                create: {
+                    userId: user.id,
+                    schoolId,
+                    role: data.role,
+                    status: UserStatus.PENDING,
+                    workloadPercentage: data.workloadPercentage,
+                },
+                update: {
+                    role: data.role,
+                    status: UserStatus.PENDING,
+                    workloadPercentage: data.workloadPercentage,
                 },
             });
-        } else {
-            user = await this.prisma.user.update({
-                where: { id: user.id },
-                data: { invitationToken: hashedToken, invitationExpires },
-            });
-        }
 
-        // Create SchoolMembership
-        await this.prisma.schoolMembership.upsert({
-            where: { userId_schoolId: { userId: user.id, schoolId } },
-            create: {
-                userId: user.id,
-                schoolId,
-                role: data.role,
-                status: UserStatus.PENDING,
-                workloadPercentage: data.workloadPercentage,
-            },
-            update: {
-                role: data.role,
-                status: UserStatus.PENDING,
-                workloadPercentage: data.workloadPercentage,
-            },
+            // Create TeacherProfile if TEACHER
+            if (data.role === 'TEACHER') {
+                await tx.teacherProfile.upsert({
+                    where: { userId: user.id },
+                    create: { userId: user.id },
+                    update: {},
+                });
+            }
+            return user;
         });
 
-        // Create TeacherProfile if TEACHER
-        if (data.role === 'TEACHER') {
-            await this.prisma.teacherProfile.upsert({
-                where: { userId: user.id },
-                create: { userId: user.id },
-                update: {},
-            });
-        }
-
         const fullToken = `${user.id}.${invitationToken}`;
+
+        // Send invitation email
+        this.mailService.sendInvitation(user.email, `${user.firstName} ${user.lastName}`, fullToken)
+            .catch(e => console.error('Failed to send invitation email', e));
 
         await this.audit(actorId, 'CREATE_STAFF', 'User', user.id, {
             email: data.email,
@@ -455,6 +481,49 @@ export class DeputyService {
         });
 
         return { token: fullToken, userId: user.id };
+    }
+
+    async resendInvitation(actorId: string, schoolId: string, userId: string) {
+        // 1. Verify user exists and belongs to the school
+        const membership = await this.prisma.schoolMembership.findUnique({
+            where: { userId_schoolId: { userId, schoolId } },
+            include: { user: true },
+        });
+
+        if (!membership) {
+            throw new NotFoundException('User not found in this school');
+        }
+
+        if (membership.status !== UserStatus.PENDING) {
+            throw new BadRequestException('User is already active or not pending');
+        }
+
+        const user = membership.user;
+
+        // 2. Generate new token
+        const invitationToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = await bcrypt.hash(invitationToken, 10);
+        const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                invitationToken: hashedToken,
+                invitationExpires,
+            },
+        });
+
+        // 3. Send email
+        const fullToken = `${userId}.${invitationToken}`;
+        // We'll use fire-and-forget for email sending if we want to be consistent,
+        // but for a manual action like "resend", maybe it's better to await or at least handle error.
+        this.mailService.sendInvitation(user.email, `${user.firstName} ${user.lastName}`, fullToken)
+            .catch(e => console.error('Failed to resend invitation email', e));
+
+        // 4. Audit
+        await this.audit(actorId, 'RESEND_INVITATION', 'User', userId, { email: user.email });
+
+        return { success: true };
     }
 
     // ─── AUDIT HELPER ────────────────────────────────────────────────

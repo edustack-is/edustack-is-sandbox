@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
 import { UserCog, Send, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { impersonateUser, getUsers } from '../api';
-import { getDeputyUsers, createStudentFamily, createStaff } from '../api/deputy';
+import { getDeputyUsers, createStudentFamily, createStaff, resendInvitation } from '../api/deputy';
 
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -136,11 +137,11 @@ export default function Users() {
                     })));
                 } catch (fallbackError) {
                     console.error(fallbackError);
-                    alert('Nepodařilo se načíst uživatele');
+                    toast.error('Nepodařilo se načíst uživatele');
                 }
             } else {
                 console.error(error);
-                alert('Nepodařilo se načíst uživatele');
+                toast.error('Nepodařilo se načíst uživatele');
             }
         } finally {
             setLoading(false);
@@ -160,7 +161,7 @@ export default function Users() {
             localStorage.setItem('access_token', access_token);
             window.location.reload();
         } catch (error: any) {
-            alert('Impersonace selhala: ' + (error.response?.data?.message || error.message));
+            toast.error('Impersonace selhala: ' + (error.response?.data?.message || error.message));
         }
     };
 
@@ -168,13 +169,13 @@ export default function Users() {
     const handleStudentSubmit = studentForm.handleSubmit(async (data) => {
         // Validate
         if (!data.student.firstName.trim() || !data.student.lastName.trim()) {
-            alert('Jméno a příjmení žáka je povinné.');
+            toast.error('Jméno a příjmení žáka je povinné.');
             return;
         }
         for (let i = 0; i < data.parents.length; i++) {
             const p = data.parents[i];
             if (!p.firstName.trim() || !p.lastName.trim() || !p.email.trim()) {
-                alert(`Rodič #${i + 1}: Jméno, příjmení a email jsou povinné.`);
+                toast.error(`Rodič #${i + 1}: Jméno, příjmení a email jsou povinné.`);
                 return;
             }
         }
@@ -196,9 +197,9 @@ export default function Users() {
             setDialogOpen(false);
             studentForm.reset();
             loadUsers();
-            alert('Žák a zákonní zástupci byli úspěšně vytvořeni.');
+            toast.success('Žák a zákonní zástupci byli úspěšně vytvořeni.');
         } catch (error: any) {
-            alert('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -207,12 +208,12 @@ export default function Users() {
     // ── Submit Staff ──────────────────────────────────────
     const handleStaffSubmit = staffForm.handleSubmit(async (data) => {
         if (!data.firstName.trim() || !data.lastName.trim() || !data.email.trim()) {
-            alert('Jméno, příjmení a email jsou povinné.');
+            toast.error('Jméno, příjmení a email jsou povinné.');
             return;
         }
         const workload = parseFloat(data.workloadPercentage);
         if (isNaN(workload) || workload < 0.1 || workload > 1.0) {
-            alert('Úvazek musí být číslo mezi 0.1 a 1.0.');
+            toast.error('Úvazek musí být číslo mezi 0.1 a 1.0.');
             return;
         }
         setSubmitting(true);
@@ -227,13 +228,23 @@ export default function Users() {
             setDialogOpen(false);
             staffForm.reset();
             loadUsers();
-            alert('Zaměstnanec byl úspěšně vytvořen.');
+            toast.success('Zaměstnanec byl úspěšně vytvořen.');
         } catch (error: any) {
-            alert('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
     });
+
+    // ── Resend Invitation ────────────────────────────────
+    const handleResendInvitation = async (userId: string) => {
+        try {
+            await resendInvitation(userId);
+            toast.success('Pozvánka byla znovu odeslána.');
+        } catch (error: any) {
+            toast.error('Nepodařilo se odeslat pozvánku: ' + (error.response?.data?.message || error.message));
+        }
+    };
 
     // ── Column definitions ─────────────────────────────────
     const columns: ColumnDef<SchoolUser>[] = [
@@ -279,7 +290,12 @@ export default function Users() {
             cell: ({ row }) => (
                 <div className="flex gap-2">
                     {row.original.status === 'PENDING' && (
-                        <Button variant="ghost" size="icon" title="Znovu odeslat pozvánku">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Znovu odeslat pozvánku"
+                            onClick={() => handleResendInvitation(row.original.id)}
+                        >
                             <Send className="h-4 w-4" />
                         </Button>
                     )}

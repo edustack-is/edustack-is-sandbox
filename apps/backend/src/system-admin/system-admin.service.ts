@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, UserStatus } from '@prisma/client';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import * as crypto from 'crypto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class SystemAdminService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private mailService: MailService,
+    ) { }
 
     async createSchool(dto: CreateSchoolDto) {
         const { schoolName, address, admin } = dto;
@@ -70,6 +74,10 @@ export class SystemAdminService {
                         status: UserStatus.PENDING,
                     },
                 });
+
+                // Send invitation email in background (don't await to avoid blocking transaction/response)
+                this.mailService.sendInvitation(user.email, `${user.firstName} ${user.lastName}`, invitationToken)
+                    .catch(e => console.error('Failed to send invitation email', e));
 
                 return { school, invitationToken };
             });
@@ -174,6 +182,10 @@ export class SystemAdminService {
                                 invitationExpires,
                             }
                         });
+
+                        // Send invitation email
+                        this.mailService.sendInvitation(adminUser.email, `${adminUser.firstName} ${adminUser.lastName}`, invitationToken)
+                            .catch(e => console.error('Failed to send invitation email', e));
                     }
                 }
 

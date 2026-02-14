@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Plus, Trash2, Search, BookOpen } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
     getSubjectTemplates, createSubject, updateSubject, deleteSubject,
@@ -51,7 +52,7 @@ export default function CurriculumManagement() {
             setSubjects(result);
         } catch (error) {
             console.error(error);
-            alert('Nepodařilo se načíst předměty');
+            toast.error('Nepodařilo se načíst předměty');
         } finally {
             setLoading(false);
         }
@@ -79,7 +80,7 @@ export default function CurriculumManagement() {
     // ── Submit ──────────────────────────────────────────────
     const handleSubmit = form.handleSubmit(async (data) => {
         if (!data.name.trim() || !data.code.trim()) {
-            alert('Název a kód předmětu jsou povinné.');
+            toast.error('Název a kód předmětu jsou povinné.');
             return;
         }
 
@@ -100,7 +101,7 @@ export default function CurriculumManagement() {
             }
             loadSubjects();
         } catch (error: any) {
-            alert('Chyba: ' + (error.response?.data?.message || error.message));
+            toast.error('Chyba: ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -118,7 +119,7 @@ export default function CurriculumManagement() {
             form.reset({ name: '', code: '', svpDescription: '' });
             loadSubjects();
         } catch (error: any) {
-            alert('Smazání selhalo: ' + (error.response?.data?.message || error.message));
+            toast.error('Smazání selhalo: ' + (error.response?.data?.message || error.message));
         }
     };
 
@@ -177,8 +178,8 @@ export default function CurriculumManagement() {
                                         key={subject.id}
                                         onClick={() => selectSubject(subject)}
                                         className={`w-full text-left px-3 py-2.5 rounded-md transition-colors hover:bg-muted/60 ${selectedId === subject.id
-                                                ? 'bg-muted font-medium'
-                                                : ''
+                                            ? 'bg-muted font-medium'
+                                            : ''
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">

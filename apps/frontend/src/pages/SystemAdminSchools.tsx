@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getSystemSchools, createSystemSchool, updateSystemSchool, getUsers } from '../api';
+import { toast } from 'sonner';
 import { useSchool } from '@/context/SchoolContext';
 import { LogIn, Settings } from 'lucide-react';
 
@@ -221,7 +222,7 @@ export function SystemAdminSchools() {
             await fetchSchools();
         } catch (err: any) {
             console.error('Failed to create school', err);
-            alert(err?.response?.data?.message || 'Failed to create school');
+            toast.error(err?.response?.data?.message || 'Failed to create school');
         } finally {
             setSubmitting(false);
         }
@@ -246,10 +247,11 @@ export function SystemAdminSchools() {
             setEditDialogOpen(false);
             setEditingSchool(null);
             setSelectedEditUser(null);
+            toast.success('School updated successfully');
             await fetchSchools();
         } catch (err: any) {
             console.error('Failed to update school', err);
-            alert(err?.response?.data?.message || 'Failed to update school');
+            toast.error(err?.response?.data?.message || 'Failed to update school');
         } finally {
             setSubmitting(false);
         }
@@ -288,7 +290,7 @@ export function SystemAdminSchools() {
             await selectSchool(schoolId);
             navigate('/dashboard');
         } catch (err: any) {
-            alert('Failed to select school: ' + (err.response?.data?.message || err.message));
+            toast.error('Failed to select school: ' + (err.response?.data?.message || err.message));
         } finally {
             setSelecting(null);
         }

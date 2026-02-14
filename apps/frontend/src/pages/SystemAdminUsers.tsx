@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getUsers } from '../api';
 import { api } from '../api';
+import { toast } from 'sonner';
 import { UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +61,7 @@ export function SystemAdminUsers() {
             // Get current admin ID from JWT token
             const currentToken = localStorage.getItem('access_token');
             if (!currentToken) {
-                alert('No access token found');
+                toast.error('No access token found');
                 return;
             }
             const payload = decodeJwtPayload(currentToken);
@@ -77,7 +78,7 @@ export function SystemAdminUsers() {
             // Full reload to switch context
             window.location.reload();
         } catch (error: any) {
-            alert('Impersonation failed: ' + (error.response?.data?.message || error.message));
+            toast.error('Impersonation failed: ' + (error.response?.data?.message || error.message));
         } finally {
             setImpersonating(null);
         }

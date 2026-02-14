@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -19,6 +20,7 @@ import { DeputyModule } from './deputy/deputy.module';
 import { PrincipalModule } from './principal/principal.module';
 import { ClsModule } from 'nestjs-cls';
 import { UserContextInterceptor } from './auth/user-context.interceptor';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -26,6 +28,10 @@ import { UserContextInterceptor } from './auth/user-context.interceptor';
       global: true,
       middleware: { mount: true },
     }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    MailModule,
     UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
     SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule
   ],

@@ -176,3 +176,8 @@ export const createStaff = async (data: {
     return response.data;
 };
 
+export const resendInvitation = async (userId: string) => {
+    const response = await api.post(`/api/deputy/users/${userId}/resend-invitation`);
+    return response.data;
+};
+

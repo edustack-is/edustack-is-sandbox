@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSchool } from '@/context/SchoolContext';
 import { api, createSystemSchool } from '@/api';
 import { Building2, Plus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,7 +59,7 @@ export function SelectSchool() {
             await selectSchool(schoolId, role);
             navigate('/dashboard');
         } catch (err: any) {
-            alert('Failed to select school: ' + (err.response?.data?.message || err.message));
+            toast.error('Failed to select school: ' + (err.response?.data?.message || err.message));
         } finally {
             setSelecting(null);
         }
@@ -101,7 +102,7 @@ export function SelectSchool() {
             }
 
         } catch (err: any) {
-            alert('Failed to create school: ' + (err.response?.data?.message || err.message));
+            toast.error('Failed to create school: ' + (err.response?.data?.message || err.message));
         } finally {
             setCreating(false);
         }
