@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { setupApp } from '../api';
 
 export const Setup = () => {
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         adminFirstName: '',
         adminLastName: '',
@@ -31,9 +29,14 @@ export const Setup = () => {
 
         try {
             await setupApp(formData);
-            navigate('/login');
+            window.location.href = '/login';
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Setup failed');
+            const msg = err.response?.data?.message || 'Setup failed';
+            if (msg.includes('already initialized') || err.response?.status === 403) {
+                window.location.href = '/login';
+                return;
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }

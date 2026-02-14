@@ -109,6 +109,45 @@ export class DeputyController {
         return this.deputyService.inviteUser(req.user.userId, req.user.schoolId, body);
     }
 
+    // ─── SCHOOL-SCOPED USERS ────────────────────────────────────────
+
+    @Get('users')
+    async getSchoolUsers(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getSchoolUsers(req.user.schoolId);
+    }
+
+    // ─── STUDENT + FAMILY CREATION ──────────────────────────────────
+
+    @Post('users/student-family')
+    async createStudentFamily(
+        @Req() req: any,
+        @Body() body: {
+            student: { firstName: string; lastName: string; email?: string };
+            parents: Array<{ firstName: string; lastName: string; email: string; phone?: string }>;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.deputyService.createStudentFamily(req.user.userId, req.user.schoolId, body);
+    }
+
+    // ─── STAFF CREATION ─────────────────────────────────────────────
+
+    @Post('users/staff')
+    async createStaff(
+        @Req() req: any,
+        @Body() body: {
+            firstName: string;
+            lastName: string;
+            email: string;
+            role: 'TEACHER' | 'DEPUTY';
+            workloadPercentage: number;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.deputyService.createStaff(req.user.userId, req.user.schoolId, body);
+    }
+
     // ─── HELPER ──────────────────────────────────────────────────────
 
     private ensureTenant(req: any) {

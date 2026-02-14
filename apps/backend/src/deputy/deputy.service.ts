@@ -238,6 +238,225 @@ export class DeputyService {
         return { token: fullToken, userId: user.id };
     }
 
+    // ─── SCHOOL-SCOPED USER LIST ────────────────────────────────────
+
+    async getSchoolUsers(schoolId: string) {
+        const memberships = await this.prisma.schoolMembership.findMany({
+            where: { schoolId },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                        lastLogin: true,
+                        createdAt: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return memberships.map((m) => ({
+            id: m.user.id,
+            membershipId: m.id,
+            email: m.user.email,
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
+            role: m.role,
+            status: m.status,
+            workloadPercentage: m.workloadPercentage,
+            lastLogin: m.user.lastLogin,
+            createdAt: m.user.createdAt,
+        }));
+    }
+
+    // ─── CREATE STUDENT + FAMILY ────────────────────────────────────
+
+    async createStudentFamily(
+        actorId: string,
+        schoolId: string,
+        data: {
+            student: { firstName: string; lastName: string; email?: string };
+            parents: Array<{ firstName: string; lastName: string; email: string; phone?: string }>;
+        },
+    ) {
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Create student user
+            const studentEmail = data.student.email || `student-${crypto.randomUUID()}@noemail.local`;
+            const studentInvitationToken = data.student.email ? crypto.randomBytes(32).toString('hex') : null;
+            const studentHashedToken = studentInvitationToken ? await bcrypt.hash(studentInvitationToken, 10) : null;
+            const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+            const studentUser = await tx.user.create({
+                data: {
+                    email: studentEmail,
+                    firstName: data.student.firstName,
+                    lastName: data.student.lastName,
+                    ...(studentHashedToken ? { invitationToken: studentHashedToken, invitationExpires: invitationExpires } : {}),
+                },
+            });
+
+            // 2. Create SchoolMembership for student
+            await tx.schoolMembership.create({
+                data: {
+                    userId: studentUser.id,
+                    schoolId,
+                    role: 'STUDENT',
+                    status: UserStatus.PENDING,
+                },
+            });
+
+            // 3. Create StudentProfile
+            await tx.studentProfile.create({
+                data: {
+                    userId: studentUser.id,
+                    firstName: data.student.firstName,
+                    lastName: data.student.lastName,
+                },
+            });
+
+            // 4. Process parents
+            const createdParents: Array<{ userId: string; email: string; token?: string }> = [];
+
+            for (const parentData of data.parents) {
+                // Find or create parent user
+                let parentUser = await tx.user.findUnique({ where: { email: parentData.email } });
+                const parentInvitationToken = crypto.randomBytes(32).toString('hex');
+                const parentHashedToken = await bcrypt.hash(parentInvitationToken, 10);
+
+                if (!parentUser) {
+                    parentUser = await tx.user.create({
+                        data: {
+                            email: parentData.email,
+                            firstName: parentData.firstName,
+                            lastName: parentData.lastName,
+                            invitationToken: parentHashedToken,
+                            invitationExpires: invitationExpires,
+                        },
+                    });
+                } else {
+                    parentUser = await tx.user.update({
+                        where: { id: parentUser.id },
+                        data: { invitationToken: parentHashedToken, invitationExpires: invitationExpires },
+                    });
+                }
+
+                // Create/upsert SchoolMembership for parent
+                await tx.schoolMembership.upsert({
+                    where: { userId_schoolId: { userId: parentUser.id, schoolId } },
+                    create: { userId: parentUser.id, schoolId, role: 'PARENT', status: UserStatus.PENDING },
+                    update: {},
+                });
+
+                // Create ParentStudent link
+                await tx.parentStudent.upsert({
+                    where: { parentId_studentId: { parentId: parentUser.id, studentId: studentUser.id } },
+                    create: { parentId: parentUser.id, studentId: studentUser.id },
+                    update: {},
+                });
+
+                createdParents.push({
+                    userId: parentUser.id,
+                    email: parentData.email,
+                    token: `${parentUser.id}.${parentInvitationToken}`,
+                });
+            }
+
+            // 5. Audit
+            await tx.auditLog.create({
+                data: {
+                    actorId,
+                    action: 'CREATE_STUDENT_FAMILY',
+                    entity: 'User',
+                    entityId: studentUser.id,
+                    newValues: { student: data.student, parentCount: data.parents.length },
+                },
+            });
+
+            return {
+                student: { id: studentUser.id, email: studentEmail },
+                parents: createdParents,
+                studentToken: studentInvitationToken ? `${studentUser.id}.${studentInvitationToken}` : null,
+            };
+        });
+    }
+
+    // ─── CREATE STAFF ───────────────────────────────────────────────
+
+    async createStaff(
+        actorId: string,
+        schoolId: string,
+        data: {
+            firstName: string;
+            lastName: string;
+            email: string;
+            role: 'TEACHER' | 'DEPUTY';
+            workloadPercentage: number;
+        },
+    ) {
+        const invitationToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = await bcrypt.hash(invitationToken, 10);
+        const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+        // Find or create user
+        let user = await this.prisma.user.findUnique({ where: { email: data.email } });
+
+        if (!user) {
+            user = await this.prisma.user.create({
+                data: {
+                    email: data.email,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    invitationToken: hashedToken,
+                    invitationExpires,
+                },
+            });
+        } else {
+            user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: { invitationToken: hashedToken, invitationExpires },
+            });
+        }
+
+        // Create SchoolMembership
+        await this.prisma.schoolMembership.upsert({
+            where: { userId_schoolId: { userId: user.id, schoolId } },
+            create: {
+                userId: user.id,
+                schoolId,
+                role: data.role,
+                status: UserStatus.PENDING,
+                workloadPercentage: data.workloadPercentage,
+            },
+            update: {
+                role: data.role,
+                status: UserStatus.PENDING,
+                workloadPercentage: data.workloadPercentage,
+            },
+        });
+
+        // Create TeacherProfile if TEACHER
+        if (data.role === 'TEACHER') {
+            await this.prisma.teacherProfile.upsert({
+                where: { userId: user.id },
+                create: { userId: user.id },
+                update: {},
+            });
+        }
+
+        const fullToken = `${user.id}.${invitationToken}`;
+
+        await this.audit(actorId, 'CREATE_STAFF', 'User', user.id, {
+            email: data.email,
+            role: data.role,
+            workloadPercentage: data.workloadPercentage,
+        });
+
+        return { token: fullToken, userId: user.id };
+    }
+
     // ─── AUDIT HELPER ────────────────────────────────────────────────
 
     private async audit(actorId: string, action: string, entity: string, entityId: string, newValues?: any, oldValues?: any) {

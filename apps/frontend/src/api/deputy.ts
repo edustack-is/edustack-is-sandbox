@@ -111,3 +111,30 @@ export const batchEnroll = async (data: {
     const response = await api.post('/api/deputy/enrollments/batch', data);
     return response.data;
 };
+
+// ─── SCHOOL-SCOPED USER MANAGEMENT ──────────────────────────────
+
+export const getDeputyUsers = async () => {
+    const response = await api.get('/api/deputy/users');
+    return response.data;
+};
+
+export const createStudentFamily = async (data: {
+    student: { firstName: string; lastName: string; email?: string };
+    parents: Array<{ firstName: string; lastName: string; email: string; phone?: string }>;
+}) => {
+    const response = await api.post('/api/deputy/users/student-family', data);
+    return response.data;
+};
+
+export const createStaff = async (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: 'TEACHER' | 'DEPUTY';
+    workloadPercentage: number;
+}) => {
+    const response = await api.post('/api/deputy/users/staff', data);
+    return response.data;
+};
+
