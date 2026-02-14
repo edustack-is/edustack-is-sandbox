@@ -10,7 +10,6 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Sparkles, Send, Loader2, Bot, User, Trash2 } from 'lucide-react';
-import { api } from '@/api';
 import { getAvailableProviders, AiProvider } from '@/api/ai';
 import { cn } from '@/lib/utils';
 import { useSchool } from '@/context/SchoolContext';
@@ -27,11 +26,29 @@ interface ChatMessage {
 // AiChatDrawer — global chat side-panel
 // ═══════════════════════════════════════════════════════════════
 
+// Tool name → human-readable label
+const TOOL_LABELS: Record<string, string> = {
+    seed_school_structure: 'Naplnění struktury školy',
+    seed_teaching_staff: 'Vytváření učitelského sboru',
+    get_school_detail: 'Načítání detailů školy',
+    list_schools: 'Načítání seznamu škol',
+    list_users: 'Načítání uživatelů',
+    get_user_detail: 'Načítání detailu uživatele',
+    fetchStudentGrades: 'Načítání známek studenta',
+};
+
+interface ToolProgress {
+    name: string;
+    status: 'running' | 'done' | 'error';
+}
+
 export function AiChatDrawer() {
     const [open, setOpen] = useState(false);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadingSeconds, setLoadingSeconds] = useState(0);
+    const [statusMessage, setStatusMessage] = useState('');
+    const [toolsUsed, setToolsUsed] = useState<ToolProgress[]>([]);
     const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useTranslation();
 
@@ -130,6 +147,136 @@ export function AiChatDrawer() {
         }
     }, [open]);
 
+    const startLoading = useCallback(() => {
+        setLoading(true);
+        setLoadingSeconds(0);
+        setStatusMessage('Připravuji odpověď...');
+        setToolsUsed([]);
+        loadingTimerRef.current = setInterval(() => {
+            setLoadingSeconds(s => s + 1);
+        }, 1000);
+    }, []);
+
+    const stopLoading = useCallback(() => {
+        setLoading(false);
+        setLoadingSeconds(0);
+        setStatusMessage('');
+        setToolsUsed([]);
+        if (loadingTimerRef.current) {
+            clearInterval(loadingTimerRef.current);
+            loadingTimerRef.current = null;
+        }
+    }, []);
+
+    const streamChat = useCallback(async (history: ChatMessage[]) => {
+        const token = localStorage.getItem('access_token');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 180000); // 3min timeout
+
+        try {
+            const response = await fetch('/api/ai/chat/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Accept-Language': 'cs',
+                },
+                body: JSON.stringify({
+                    messages: history,
+                    provider: selectedProvider,
+                }),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(response.statusText || 'Chyba komunikace s AI');
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('Stream not supported');
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Parse SSE events from buffer
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                let currentEventType = '';
+                for (const line of lines) {
+                    if (line.startsWith('event: ')) {
+                        currentEventType = line.slice(7).trim();
+                    } else if (line.startsWith('data: ') && currentEventType) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            handleStreamEvent(currentEventType, data, history);
+                        } catch {
+                            // Skip malformed JSON
+                        }
+                        currentEventType = '';
+                    }
+                }
+            }
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                setMessages(prev => [...prev, { role: 'model', text: '⚠️ AI odpověď trvala příliš dlouho. Zkuste to znovu.' }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: `⚠️ ${err.message || t('aitutor.errors.communication')}` }]);
+            }
+        } finally {
+            clearTimeout(timeout);
+            stopLoading();
+        }
+    }, [selectedProvider, stopLoading]);
+
+    const handleStreamEvent = useCallback((type: string, data: any, _history: ChatMessage[]) => {
+        switch (type) {
+            case 'status':
+                setStatusMessage(data.message || '');
+                break;
+
+            case 'tool_start':
+                setStatusMessage(`Volám nástroj: ${TOOL_LABELS[data.name] || data.name}...`);
+                setToolsUsed(prev => [...prev, { name: data.name, status: 'running' }]);
+                break;
+
+            case 'tool_done':
+                setToolsUsed(prev => prev.map(t =>
+                    t.name === data.name ? { ...t, status: data.success ? 'done' : 'error' } : t
+                ));
+                setStatusMessage(data.success
+                    ? `✓ ${TOOL_LABELS[data.name] || data.name} – hotovo`
+                    : `✗ ${TOOL_LABELS[data.name] || data.name} – chyba`);
+                break;
+
+            case 'data_changed':
+                // Dispatch custom event for other components to refresh
+                window.dispatchEvent(new CustomEvent('ai-data-changed', { detail: { tool: data.tool } }));
+                break;
+
+            case 'response':
+                setMessages(prev => [...prev, { role: 'model', text: data.text || t('aitutor.errors.no_answer') }]);
+                if (data.dataChanged) {
+                    window.dispatchEvent(new CustomEvent('ai-data-changed', { detail: { finished: true } }));
+                }
+                break;
+
+            case 'error':
+                setMessages(prev => [...prev, { role: 'model', text: `⚠️ ${data.message}` }]);
+                break;
+
+            case 'done':
+                // Stream finished
+                break;
+        }
+    }, []);
+
     const sendMessage = useCallback(async () => {
         const trimmed = input.trim();
         if (!trimmed || loading) return;
@@ -138,42 +285,15 @@ export function AiChatDrawer() {
         const newHistory = [...messages, userMsg];
         setMessages(newHistory);
         setInput('');
-        setLoading(true);
-        setLoadingSeconds(0);
-
-        // Start elapsed timer
-        loadingTimerRef.current = setInterval(() => {
-            setLoadingSeconds(s => s + 1);
-        }, 1000);
 
         // Reset height content
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
         }
 
-        try {
-            const res = await api.post('/api/ai/chat', {
-                messages: newHistory,
-                provider: selectedProvider
-            }, {
-                timeout: 120000, // 120s timeout for AI with tool calling
-            });
-            const aiText = res.data?.response || t('aitutor.errors.no_answer');
-            setMessages((prev) => [...prev, { role: 'model', text: aiText }]);
-        } catch (err: any) {
-            const errMsg = err.response?.data?.message || err.code === 'ECONNABORTED'
-                ? t('aitutor.errors.timeout', 'AI odpověď trvala příliš dlouho. Zkuste to znovu.')
-                : err.response?.data?.message || t('aitutor.errors.communication');
-            setMessages((prev) => [...prev, { role: 'model', text: `⚠️ ${errMsg}` }]);
-        } finally {
-            setLoading(false);
-            setLoadingSeconds(0);
-            if (loadingTimerRef.current) {
-                clearInterval(loadingTimerRef.current);
-                loadingTimerRef.current = null;
-            }
-        }
-    }, [input, loading, messages, selectedProvider]);
+        startLoading();
+        await streamChat(newHistory);
+    }, [input, loading, messages, startLoading, streamChat]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -274,39 +394,12 @@ export function AiChatDrawer() {
                     >
                         {messages.length === 0 && !loading && (
                             <EmptyState onSuggestionClick={(text) => {
-                                setInput(text);
-                                // Use setTimeout to let state update, then send
-                                setTimeout(() => {
-                                    // Directly invoke the send logic
-                                    const userMsg: ChatMessage = { role: 'user', text };
-                                    const newHistory = [...messages, userMsg];
-                                    setMessages(newHistory);
-                                    setLoading(true);
-                                    setLoadingSeconds(0);
-                                    loadingTimerRef.current = setInterval(() => {
-                                        setLoadingSeconds(s => s + 1);
-                                    }, 1000);
-                                    setInput('');
-                                    api.post('/api/ai/chat', {
-                                        messages: newHistory,
-                                        provider: selectedProvider
-                                    }, { timeout: 120000 }).then(res => {
-                                        const aiText = res.data?.response || t('aitutor.errors.no_answer');
-                                        setMessages(prev => [...prev, { role: 'model', text: aiText }]);
-                                    }).catch((err: any) => {
-                                        const errMsg = err.code === 'ECONNABORTED'
-                                            ? 'AI odpověď trvala příliš dlouho. Zkuste to znovu.'
-                                            : err.response?.data?.message || t('aitutor.errors.communication');
-                                        setMessages(prev => [...prev, { role: 'model', text: `⚠️ ${errMsg}` }]);
-                                    }).finally(() => {
-                                        setLoading(false);
-                                        setLoadingSeconds(0);
-                                        if (loadingTimerRef.current) {
-                                            clearInterval(loadingTimerRef.current);
-                                            loadingTimerRef.current = null;
-                                        }
-                                    });
-                                }, 0);
+                                const userMsg: ChatMessage = { role: 'user', text };
+                                const newHistory = [...messages, userMsg];
+                                setMessages(newHistory);
+                                setInput('');
+                                startLoading();
+                                streamChat(newHistory);
                             }} />
                         )}
 
@@ -314,7 +407,7 @@ export function AiChatDrawer() {
                             <MessageBubble key={i} message={msg} />
                         ))}
 
-                        {loading && <TypingIndicator seconds={loadingSeconds} />}
+                        {loading && <TypingIndicator seconds={loadingSeconds} statusMessage={statusMessage} toolsUsed={toolsUsed} />}
                     </div>
 
                     {/* Input area */}
@@ -445,25 +538,21 @@ function SuggestionPill({ emoji, text, onClick }: { emoji: string; text: string;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Typing Indicator
+// Typing Indicator with Tool Monitoring
 // ═══════════════════════════════════════════════════════════════
 
-function TypingIndicator({ seconds }: { seconds: number }) {
-    // Dynamic status message based on elapsed time
-    const getStatusText = () => {
-        if (seconds < 3) return 'Přemýšlím...';
-        if (seconds < 8) return 'Zpracovávám dotaz...';
-        if (seconds < 15) return 'Vyhledávám data...';
-        if (seconds < 30) return 'Analyzuji výsledky...';
-        return 'Stále pracuji, prosím čekejte...';
-    };
-
+function TypingIndicator({ seconds, statusMessage, toolsUsed }: {
+    seconds: number;
+    statusMessage: string;
+    toolsUsed: ToolProgress[];
+}) {
     return (
         <div className="flex gap-3">
             <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
                 <Bot className="h-4 w-4" />
             </div>
-            <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 min-w-[180px]">
+                {/* Bouncing dots + timer */}
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-violet-500/60 animate-bounce [animation-delay:0ms]" />
@@ -474,9 +563,37 @@ function TypingIndicator({ seconds }: { seconds: number }) {
                         <span className="text-xs text-muted-foreground ml-1">{seconds}s</span>
                     )}
                 </div>
+
+                {/* Status message */}
                 <p className="text-xs text-muted-foreground mt-1.5 animate-pulse">
-                    {getStatusText()}
+                    {statusMessage || 'Přemýšlím...'}
                 </p>
+
+                {/* Tool call log */}
+                {toolsUsed.length > 0 && (
+                    <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
+                        {toolsUsed.map((tool, i) => (
+                            <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                                {tool.status === 'running' && (
+                                    <Loader2 className="h-3 w-3 animate-spin text-violet-500" />
+                                )}
+                                {tool.status === 'done' && (
+                                    <span className="text-green-500 font-bold">✓</span>
+                                )}
+                                {tool.status === 'error' && (
+                                    <span className="text-red-500 font-bold">✗</span>
+                                )}
+                                <span className={cn(
+                                    'text-muted-foreground',
+                                    tool.status === 'done' && 'line-through opacity-60',
+                                    tool.status === 'error' && 'text-red-400',
+                                )}>
+                                    {TOOL_LABELS[tool.name] || tool.name}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

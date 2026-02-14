@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, Req, Res, ForbiddenException } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -42,12 +42,72 @@ export class AiController {
 
         const userId = req.user.userId;
         let role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
-        // Map JWT 'ADMIN' role (from selectSchool) to 'SYSTEM_ADMIN' for AI instructions
         if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
         const schoolId = req.user.schoolId || null;
         const provider = body.provider || 'google-flash';
         const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';
 
         return this.aiChatService.chat(userId, role, schoolId, body.messages, provider, preferredLanguage);
+    }
+
+    /**
+     * POST /api/ai/chat/stream
+     * SSE streaming version — sends real-time progress events for tool calls.
+     */
+    @Post('chat/stream')
+    async chatStream(
+        @Req() req: any,
+        @Res({ passthrough: false }) res: any,
+        @Body() body: {
+            messages: Array<{ role: 'user' | 'model'; text: string }>;
+            provider?: string;
+        },
+    ) {
+        if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
+            res.status(400).json({ error: 'messages array is required.' });
+            return;
+        }
+
+        const userId = req.user.userId;
+        let role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
+        if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
+        const schoolId = req.user.schoolId || null;
+        const provider = body.provider || 'google-flash';
+        const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';
+
+        // Setup SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // disable nginx buffering
+        res.flushHeaders();
+
+        const sendEvent = (type: string, data: any) => {
+            try {
+                res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+            } catch (e) {
+                // Client may have disconnected
+            }
+        };
+
+        try {
+            const result = await this.aiChatService.chatStream(
+                userId, role, schoolId, body.messages, provider, preferredLanguage,
+                (event) => sendEvent(event.type, event.data),
+            );
+
+            sendEvent('response', {
+                text: result.response,
+                usage: result.usage,
+                dataChanged: result.dataChanged,
+            });
+        } catch (error: any) {
+            sendEvent('error', {
+                message: error.message || 'AI služba není dostupná.',
+            });
+        }
+
+        sendEvent('done', {});
+        res.end();
     }
 }

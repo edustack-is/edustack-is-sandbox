@@ -94,7 +94,11 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
         const contextParts: string[] = [];
         contextParts.push(`Aktuální uživatel: userId="${userId}", role="${role}".`);
         if (schoolId) {
-            contextParts.push(`Uživatel pracuje v kontextu školy s ID: schoolId="${schoolId}". Pokud budeš volat nástroje (Tools) vyžadující schoolId, automaticky použij toto ID, pokud uživatel nespecifikuje jiné.`);
+            // Fetch school name for user-friendly context
+            const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+            const schoolName = school?.name || 'Neznámá škola';
+            contextParts.push(`Uživatel pracuje v kontextu školy "${schoolName}" (interní ID: ${schoolId}). Pokud budeš volat nástroje (Tools) vyžadující schoolId, automaticky použij toto ID, pokud uživatel nespecifikuje jiné.`);
+            contextParts.push(`DŮLEŽITÉ: Uživateli NIKDY neukazuj surová UUID (schoolId, userId apod.). Místo ID vždy uváděj název školy, jméno uživatele nebo jiný srozumitelný popis.`);
         } else {
             contextParts.push(`Uživatel není v kontextu žádné školy (globální režim). Pokud nástroj vyžaduje schoolId, zeptej se uživatele, jakou školu má na mysli, nebo nejprve použij list_schools.`);
         }
@@ -239,6 +243,167 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                 usage: result.usage,
             };
 
+        } catch (error: any) {
+            this.logger.error(`AI Error (${provider}):`, error);
+            if (error.status === 429 || error.statusCode === 429 || error.message?.includes('429')) {
+                throw new ServiceUnavailableException('AI je momentálně přetížená (Rate Limit). Zkuste to za chvíli.');
+            }
+            throw new ServiceUnavailableException(`Chyba AI služby: ${error.message}`);
+        }
+    }
+
+    // ─── STREAMING CHAT WITH PROGRESS ───────────────────────────
+
+    // Tools that modify data (prefix-based detection)
+    private readonly MUTATING_PREFIXES = ['seed_', 'create_', 'update_', 'delete_', 'assign_', 'remove_', 'batch_', 'link_'];
+
+    async chatStream(
+        userId: string,
+        role: string,
+        schoolId: string | null,
+        messages: Array<{ role: 'user' | 'model'; text: string }>,
+        provider: string = 'google-flash',
+        preferredLanguage: 'Czech' | 'English' = 'Czech',
+        onProgress: (event: { type: string; data: any }) => void,
+    ) {
+        // 1. Setup (reuse same logic as chat)
+        const languageModel = await this.getModelProvider(provider);
+
+        let system = SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.STUDENT;
+        const languageRule = `
+DŮLEŽITÉ: Veškerá data v databázi a vstupy z nástrojů jsou v češtině. 
+Ty ale MUSÍŠ s uživatelem komunikovat, odpovídat na dotazy a formátovat výstupy striktně v jazyce: ${preferredLanguage}.
+Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je přelož a finální odpověď prezentuj v ${preferredLanguage}.
+`;
+
+        const contextParts: string[] = [];
+        contextParts.push(`Aktuální uživatel: userId="${userId}", role="${role}".`);
+        if (schoolId) {
+            const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+            const schoolName = school?.name || 'Neznámá škola';
+            contextParts.push(`Uživatel pracuje v kontextu školy "${schoolName}" (interní ID: ${schoolId}). Pokud budeš volat nástroje (Tools) vyžadující schoolId, automaticky použij toto ID, pokud uživatel nespecifikuje jiné.`);
+            contextParts.push(`DŮLEŽITÉ: Uživateli NIKDY neukazuj surová UUID (schoolId, userId apod.). Místo ID vždy uváděj název školy, jméno uživatele nebo jiný srozumitelný popis.`);
+        } else {
+            contextParts.push(`Uživatel není v kontextu žádné školy (globální režim). Pokud nástroj vyžaduje schoolId, zeptej se uživatele, jakou školu má na mysli, nebo nejprve použij list_schools.`);
+        }
+        const contextBlock = `\nKONTEXT UŽIVATELE:\n${contextParts.join('\n')}\n`;
+        system = `${system}\n${languageRule}\n${contextBlock}`;
+
+        // 2. Build tools with progress hooks
+        const validRoles = ['TEACHER', 'DEPUTY', 'PRINCIPAL', 'DIRECTOR', 'ADMIN', 'SYSTEM_ADMIN'];
+        const hasTools = validRoles.includes(role);
+        let dataChanged = false;
+
+        let tools: ToolSet = {
+            fetchStudentGrades: tool({
+                description: 'Načte známky studenta z databáze.',
+                inputSchema: z.object({
+                    studentId: z.string().describe('UUID identifikátor studenta (StudentProfile ID)'),
+                }),
+                execute: async ({ studentId }) => {
+                    onProgress({ type: 'tool_start', data: { name: 'fetchStudentGrades', args: { studentId } } });
+                    const result = await this.executeFetchStudentGrades(studentId);
+                    onProgress({ type: 'tool_done', data: { name: 'fetchStudentGrades', success: true } });
+                    return result;
+                },
+            }),
+        };
+
+        if (hasTools && this.mcpClient) {
+            try {
+                const mcpToolsResult = await this.mcpClient.listTools();
+                for (const t of mcpToolsResult.tools) {
+                    const mcpSchema = t.inputSchema || {};
+                    const { type: _type, ...schemaRest } = mcpSchema as any;
+                    const toolName = t.name;
+                    const isMutating = this.MUTATING_PREFIXES.some(p => toolName.startsWith(p));
+
+                    tools[toolName] = tool({
+                        description: t.description || '',
+                        inputSchema: jsonSchema({ type: 'object', ...schemaRest }),
+                        execute: async (args: any) => {
+                            onProgress({ type: 'tool_start', data: { name: toolName, args } });
+                            this.logger.log(`Executing MCP tool: ${toolName} with args: ${JSON.stringify(args)}`);
+
+                            const result = await this.mcpClient!.callTool({ name: toolName, arguments: args });
+
+                            if ((result as any).isError) {
+                                const errText = (result as any).content.map((c: any) => c.text).join('\n');
+                                onProgress({ type: 'tool_done', data: { name: toolName, success: false, error: errText } });
+                                throw new Error(errText);
+                            }
+
+                            const text = (result as any).content.map((c: any) => c.text).join('\n');
+                            onProgress({ type: 'tool_done', data: { name: toolName, success: true } });
+
+                            if (isMutating) {
+                                dataChanged = true;
+                                onProgress({ type: 'data_changed', data: { tool: toolName } });
+                            }
+
+                            return text;
+                        },
+                    } as any);
+                }
+            } catch (err) {
+                this.logger.error('Failed to list remote tools:', err);
+            }
+        }
+
+        // 3. Convert messages
+        const history = messages.map(m => ({
+            role: m.role === 'model' ? 'assistant' : 'user',
+            content: m.text,
+        })) as any[];
+
+        onProgress({ type: 'status', data: { message: 'Připravuji odpověď...' } });
+
+        // 4. Generate
+        try {
+            const result = await this.generateWithRetry(async () => {
+                const options: any = { model: languageModel, system, messages: history };
+                if (hasTools) {
+                    options.tools = tools;
+                    options.maxSteps = 10;
+                }
+                return generateText(options);
+            });
+
+            // Collect tool results for fallback
+            const toolResults: string[] = [];
+            if (result.steps && result.steps.length > 0) {
+                for (const step of result.steps) {
+                    if (step.toolResults && step.toolResults.length > 0) {
+                        for (const tr of step.toolResults as any[]) {
+                            if (tr.result) toolResults.push(String(tr.result));
+                        }
+                    }
+                }
+            }
+
+            let finalText = result.text;
+
+            // Follow-up if empty text after tool calls
+            if ((!finalText || finalText.trim().length === 0) && toolResults.length > 0) {
+                onProgress({ type: 'status', data: { message: 'Zpracovávám výsledky...' } });
+                const followUpMessages = [
+                    ...history,
+                    { role: 'assistant', content: `Zavolal jsem nástroje a získal tato data:\n\n${toolResults.join('\n\n')}` },
+                    { role: 'user', content: 'Shrň a prezentuj výsledky z nástrojů uživateli srozumitelnou formou.' },
+                ];
+                const followUp = await this.generateWithRetry(async () => {
+                    return generateText({ model: languageModel, system, messages: followUpMessages as any[] });
+                });
+                finalText = followUp.text;
+            }
+
+            await this.trackUsage(userId, schoolId, provider, languageModel.modelId, result.usage);
+
+            return {
+                response: finalText || 'Nepodařilo se zpracovat výsledek.',
+                usage: result.usage,
+                dataChanged,
+            };
         } catch (error: any) {
             this.logger.error(`AI Error (${provider}):`, error);
             if (error.status === 429 || error.statusCode === 429 || error.message?.includes('429')) {
