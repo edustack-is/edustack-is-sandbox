@@ -1,113 +1,108 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as crypto from 'crypto';
-
-const SETTINGS_ID = 'global';
-
-// Simple AES-256 encryption for API key storage
-const ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_KEY = process.env.SETTINGS_ENCRYPTION_KEY || 'edu-stack-default-key-change-me!!'; // 32 chars
-
-function encrypt(text: string): string {
-    const iv = crypto.randomBytes(16);
-    const key = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32));
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
-}
-
-function decrypt(encryptedText: string): string {
-    const [ivHex, encrypted] = encryptedText.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const key = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32));
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
-}
+import { CryptoService } from '../utils/crypto.service';
+import { SecretType } from '@prisma/client';
 
 @Injectable()
 export class SystemAdminAiService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cryptoService: CryptoService,
+    ) { }
 
     // ─── PUT SETTINGS ───────────────────────────────────────────
 
     async upsertAiSettings(keys: { geminiApiKey?: string; openAiApiKey?: string; anthropicApiKey?: string }) {
-        const updateData: any = {};
-        const response: any = { isConfigured: {}, updatedAt: new Date() };
+        const services = [
+            { id: 'google', key: 'API_KEY', value: keys.geminiApiKey },
+            { id: 'openai', key: 'API_KEY', value: keys.openAiApiKey },
+            { id: 'anthropic', key: 'API_KEY', value: keys.anthropicApiKey },
+        ];
 
-        if (keys.geminiApiKey) {
-            updateData.geminiApiKey = encrypt(keys.geminiApiKey);
-            response.isConfigured.gemini = true;
-        }
-        if (keys.openAiApiKey) {
-            updateData.openAiApiKey = encrypt(keys.openAiApiKey);
-            response.isConfigured.openai = true;
-        }
-        if (keys.anthropicApiKey) {
-            updateData.anthropicApiKey = encrypt(keys.anthropicApiKey);
-            response.isConfigured.anthropic = true;
+        for (const s of services) {
+            if (s.value) {
+                await this.prisma.systemSecret.upsert({
+                    where: {
+                        type_service_key: {
+                            type: SecretType.AI,
+                            service: s.id,
+                            key: s.key,
+                        }
+                    },
+                    create: {
+                        type: SecretType.AI,
+                        service: s.id,
+                        key: s.key,
+                        value: this.cryptoService.encrypt(s.value),
+                    },
+                    update: {
+                        value: this.cryptoService.encrypt(s.value),
+                    }
+                });
+            }
         }
 
-        const settings = await this.prisma.systemSettings.upsert({
-            where: { id: SETTINGS_ID },
-            create: { id: SETTINGS_ID, ...updateData },
-            update: updateData,
-        });
-
-        return {
-            ...await this.getAiSettings(),
-            updatedAt: settings.updatedAt,
-        };
+        return this.getAiSettings();
     }
 
     // ─── GET SETTINGS (MASKED) ──────────────────────────────────
 
     async getAiSettings() {
-        const settings = await this.prisma.systemSettings.findUnique({
-            where: { id: SETTINGS_ID },
+        const secrets = await this.prisma.systemSecret.findMany({
+            where: { type: SecretType.AI },
         });
 
-        const maskKey = (key: string | null | undefined) => {
-            if (!key) return null;
+        const findSecret = (service: string, key: string) =>
+            secrets.find(s => s.service === service && s.key === key);
+
+        const maskKey = (encryptedValue: string | undefined) => {
+            if (!encryptedValue) return null;
             try {
-                const decrypted = decrypt(key);
+                const decrypted = this.cryptoService.decrypt(encryptedValue);
                 return '****' + decrypted.slice(-4);
             } catch {
                 return '****';
             }
         };
 
+        const gemini = findSecret('google', 'API_KEY');
+        const openai = findSecret('openai', 'API_KEY');
+        const anthropic = findSecret('anthropic', 'API_KEY');
+
         return {
             gemini: {
-                isConfigured: !!settings?.geminiApiKey,
-                keyHint: maskKey(settings?.geminiApiKey),
+                isConfigured: !!gemini,
+                keyHint: maskKey(gemini?.value),
             },
             openai: {
-                isConfigured: !!settings?.openAiApiKey,
-                keyHint: maskKey(settings?.openAiApiKey),
+                isConfigured: !!openai,
+                keyHint: maskKey(openai?.value),
             },
             anthropic: {
-                isConfigured: !!settings?.anthropicApiKey,
-                keyHint: maskKey(settings?.anthropicApiKey),
+                isConfigured: !!anthropic,
+                keyHint: maskKey(anthropic?.value),
             },
-            updatedAt: settings?.updatedAt ?? null,
+            updatedAt: secrets.length > 0 ? secrets[0].updatedAt : null,
         };
     }
 
     /**
-     * Retrieve the decrypted API key for internal use (e.g., by AI services).
+     * Retrieve the decrypted API key for internal use.
      */
-    async getDecryptedApiKey(): Promise<string | null> {
-        // This method might be deprecated in favor of AiChatService's own key retrieval, 
-        // but keeping it for backward compatibility if needed.
-        const settings = await this.prisma.systemSettings.findUnique({
-            where: { id: SETTINGS_ID },
+    async getDecryptedApiKey(service: string = 'google'): Promise<string | null> {
+        const secret = await this.prisma.systemSecret.findUnique({
+            where: {
+                type_service_key: {
+                    type: SecretType.AI,
+                    service,
+                    key: 'API_KEY',
+                }
+            },
         });
-        if (!settings?.geminiApiKey) return null;
+
+        if (!secret) return null;
         try {
-            return decrypt(settings.geminiApiKey);
+            return this.cryptoService.decrypt(secret.value);
         } catch {
             return null;
         }

@@ -407,6 +407,26 @@ model SystemSettings {
   updatedAt       DateTime @updatedAt
 }
 
+enum SecretType {
+  AI
+  SSO
+}
+
+model SystemSecret {
+  id        String     @id @default(uuid())
+  type      SecretType
+  service   String     // e.g., 'GOOGLE', 'GITHUB', 'OPENAI'
+  key       String     // e.g., 'API_KEY', 'CLIENT_ID', 'CLIENT_SECRET'
+  value     String     // Encrypted (AES-256-GCM)
+  isActive  Boolean    @default(true)
+  metadata  Json?      // Optional provider-specific metadata
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([type, service, key])
+}
+
 model AiTokenUsage {
   id            String   @id @default(uuid())
 
