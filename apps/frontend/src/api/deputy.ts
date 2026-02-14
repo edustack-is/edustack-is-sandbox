@@ -39,6 +39,16 @@ export const getRooms = async () => {
     return response.data;
 };
 
+export const createRoom = async (data: {
+    name: string;
+    capacity?: number;
+    isComputerLab?: boolean;
+    specialEquipment?: string[];
+}) => {
+    const response = await api.post('/api/deputy/rooms', data);
+    return response.data;
+};
+
 export const updateRoom = async (id: string, data: {
     name?: string;
     capacity?: number;
@@ -46,6 +56,11 @@ export const updateRoom = async (id: string, data: {
     specialEquipment?: string[];
 }) => {
     const response = await api.put(`/api/deputy/rooms/${id}`, data);
+    return response.data;
+};
+
+export const deleteRoom = async (id: string) => {
+    const response = await api.delete(`/api/deputy/rooms/${id}`);
     return response.data;
 };
 

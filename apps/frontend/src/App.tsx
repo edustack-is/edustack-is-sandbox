@@ -6,6 +6,7 @@ import { Registry } from './pages/Registry';
 import { Grading } from './pages/Grading';
 import { Schedule } from './pages/Schedule';
 import Users from './pages/Users';
+import RoomsManagement from './pages/RoomsManagement';
 import { Setup } from './pages/Setup';
 import { DeputyYearSetup } from './pages/DeputyYearSetup';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
@@ -62,6 +63,7 @@ function App() {
               <Route path="grading" element={<Grading />} />
               <Route path="schedule" element={<Schedule />} />
               <Route path="users" element={<Users />} />
+              <Route path="rooms" element={<RoomsManagement />} />
               <Route path="year-setup" element={<DeputyYearSetup />} />
               <Route path="system/schools" element={<SystemAdminSchools />} />
               <Route path="system/users" element={<SystemAdminUsers />} />
