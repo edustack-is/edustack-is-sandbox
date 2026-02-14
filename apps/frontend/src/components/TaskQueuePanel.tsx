@@ -61,10 +61,9 @@ export function TaskQueuePanel() {
     return (
         <div
             className={cn(
-                'fixed bottom-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out',
-                'bg-background/95 backdrop-blur-md border-t border-border shadow-2xl',
-                // Leave room for the AI FAB on the right
-                'mr-0',
+                'fixed bottom-0 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-in-out',
+                'w-1/3 min-w-[360px] max-w-[520px]',
+                'bg-background/95 backdrop-blur-md border border-border border-b-0 rounded-t-xl shadow-2xl',
             )}
             style={{
                 maxHeight: expanded ? '320px' : '0px',
