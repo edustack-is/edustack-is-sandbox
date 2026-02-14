@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Put, Body, Param, UseGuards, BadRequestException, Req } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Put, Delete, Body, Param, UseGuards, BadRequestException, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
@@ -80,5 +80,10 @@ export class SystemAdminController {
         @Body('lastName') lastName: string,
     ) {
         return this.systemAdminService.assignSchoolAdmin(id, email, firstName, lastName);
+    }
+
+    @Delete('schools/:id')
+    deleteSchool(@Param('id') id: string) {
+        return this.systemAdminService.deleteSchool(id);
     }
 }

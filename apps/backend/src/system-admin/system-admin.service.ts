@@ -278,4 +278,89 @@ export class SystemAdminService {
             });
         }
     }
+
+    async deleteSchool(schoolId: string) {
+        const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+        if (!school) throw new NotFoundException('School not found');
+
+        // Cascade delete all related data in a transaction
+        return this.prisma.$transaction(async (tx: any) => {
+            // Delete grades (depend on studentProfile, subjectInstance, teacherProfile)
+            await tx.grade.deleteMany({ where: { schoolId } });
+
+            // Delete attendance
+            await tx.attendance.deleteMany({ where: { schoolId } });
+
+            // Delete schedule events
+            await tx.scheduleEvent.deleteMany({ where: { schoolId } });
+
+            // Delete subject instances (depend on subjectTemplate, academicYear, gradeLevel)
+            await tx.subjectInstance.deleteMany({ where: { schoolId } });
+
+            // Delete subject templates
+            await tx.subjectTemplate.deleteMany({ where: { schoolId } });
+
+            // Get member user IDs for profile cleanup
+            const memberships = await tx.schoolMembership.findMany({
+                where: { schoolId },
+                select: { userId: true },
+            });
+            const memberUserIds = memberships.map((m: any) => m.userId);
+
+            // Delete student enrollments for members
+            if (memberUserIds.length > 0) {
+                await tx.studentEnrollment.deleteMany({
+                    where: { studentId: { in: memberUserIds } },
+                });
+
+                // Delete teacher workloads for members
+                await tx.teacherWorkload.deleteMany({
+                    where: { teacherId: { in: memberUserIds } },
+                });
+
+                // Delete parent-student links for members
+                await tx.parentStudent.deleteMany({
+                    where: {
+                        OR: [
+                            { parentId: { in: memberUserIds } },
+                            { studentId: { in: memberUserIds } },
+                        ],
+                    },
+                });
+
+                // Delete student profiles for members
+                await tx.studentProfile.deleteMany({
+                    where: { userId: { in: memberUserIds } },
+                });
+
+                // Delete teacher profiles for members
+                await tx.teacherProfile.deleteMany({
+                    where: { userId: { in: memberUserIds } },
+                });
+            }
+
+            // Delete rooms
+            await tx.room.deleteMany({ where: { schoolId } });
+
+            // Delete classrooms
+            await tx.classroom.deleteMany({ where: { schoolId } });
+
+            // Delete grade levels
+            await tx.gradeLevel.deleteMany({ where: { schoolId } });
+
+            // Delete academic years
+            await tx.academicYear.deleteMany({ where: { schoolId } });
+
+            // Delete AI token usage
+            await tx.aiTokenUsage.deleteMany({ where: { schoolId } });
+
+            // Delete school memberships
+            await tx.schoolMembership.deleteMany({ where: { schoolId } });
+
+            // Finally delete the school
+            await tx.school.delete({ where: { id: schoolId } });
+
+            return { message: `Škola '${school.name}' byla úspěšně smazána.` };
+        });
+    }
 }

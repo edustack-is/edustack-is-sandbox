@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getSystemSchools, createSystemSchool, updateSystemSchool, getUsers } from '../api';
+import { getSystemSchools, createSystemSchool, updateSystemSchool, deleteSystemSchool, getUsers } from '../api';
 import { toast } from 'sonner';
 import { useSchool } from '@/context/SchoolContext';
-import { LogIn, Settings } from 'lucide-react';
+import { LogIn, Settings, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,16 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
     Table,
     TableBody,
@@ -128,6 +138,12 @@ export function SystemAdminSchools() {
     const [editUserSearch, setEditUserSearch] = useState('');
     const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
     const [selectedEditUser, setSelectedEditUser] = useState<UserOption | null>(null);
+
+    // Delete state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deletingSchool, setDeletingSchool] = useState<School | null>(null);
+    const [deleteConfirmName, setDeleteConfirmName] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     const form = useForm<CreateSchoolFormValues>({
         resolver: zodResolver(createSchoolSchema),
@@ -295,6 +311,23 @@ export function SystemAdminSchools() {
             toast.error(t('system_schools.failed_select') + ': ' + (err.response?.data?.message || err.message));
         } finally {
             setSelecting(null);
+        }
+    };
+
+    const handleDeleteSchool = async () => {
+        if (!deletingSchool) return;
+        setDeleting(true);
+        try {
+            await deleteSystemSchool(deletingSchool.id);
+            toast.success(t('system_schools.deleted_success', `Škola '${deletingSchool.name}' byla smazána.`));
+            setDeleteDialogOpen(false);
+            setDeletingSchool(null);
+            setDeleteConfirmName('');
+            await fetchSchools();
+        } catch (err: any) {
+            toast.error(t('system_schools.failed_delete', 'Smazání školy selhalo') + ': ' + (err.response?.data?.message || err.message));
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -811,6 +844,19 @@ export function SystemAdminSchools() {
                                                 <LogIn className="mr-1 h-3.5 w-3.5" />
                                                 {selecting === school.id ? '...' : t('common.select')}
                                             </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setDeletingSchool(school);
+                                                    setDeleteConfirmName('');
+                                                    setDeleteDialogOpen(true);
+                                                }}
+                                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                <span className="sr-only">{t('common.delete')}</span>
+                                            </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -819,6 +865,40 @@ export function SystemAdminSchools() {
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={(open: boolean) => { setDeleteDialogOpen(open); if (!open) { setDeletingSchool(null); setDeleteConfirmName(''); } }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('system_schools.delete_title', 'Smazat školu')}</AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-3">
+                            <span className="block">
+                                {t('system_schools.delete_warning', 'Tato akce je nevratná. Budou smazána VŠECHNA data školy včetně uživatelů, tříd, známek, rozvrhů a docházky.')}
+                            </span>
+                            <span className="block font-medium text-foreground">
+                                {t('system_schools.delete_confirm_prompt', 'Pro potvrzení napište název školy:')}{' '}
+                                <span className="font-bold">{deletingSchool?.name}</span>
+                            </span>
+                            <Input
+                                value={deleteConfirmName}
+                                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                                placeholder={deletingSchool?.name || ''}
+                                className="mt-2"
+                            />
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteSchool}
+                            disabled={deleting || deleteConfirmName !== deletingSchool?.name}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleting ? t('system_schools.deleting', 'Mazání...') : t('system_schools.delete_confirm', 'Smazat školu')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

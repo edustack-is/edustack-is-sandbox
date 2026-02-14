@@ -154,3 +154,7 @@ export const updateSystemSchool = async (id: string, payload: { name?: string; a
     const response = await api.patch(`/api/system/schools/${id}`, payload);
     return response.data;
 };
+export const deleteSystemSchool = async (id: string) => {
+    const response = await api.delete(`/api/system/schools/${id}`);
+    return response.data;
+};
