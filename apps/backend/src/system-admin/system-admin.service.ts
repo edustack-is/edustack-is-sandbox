@@ -40,7 +40,7 @@ export class SystemAdminService {
                     data: {
                         userId: user.id,
                         schoolId: school.id,
-                        role: UserRole.ADMIN,
+                        role: UserRole.PRINCIPAL,
                         status: UserStatus.ACTIVE,
                     },
                 });
@@ -78,7 +78,7 @@ export class SystemAdminService {
                     data: {
                         userId: user.id,
                         schoolId: school.id,
-                        role: UserRole.ADMIN,
+                        role: UserRole.PRINCIPAL,
                         status: UserStatus.PENDING,
                     },
                 });
@@ -100,7 +100,7 @@ export class SystemAdminService {
             include: {
                 members: {
                     include: { user: { select: { id: true, email: true, firstName: true, lastName: true } } },
-                    where: { role: UserRole.ADMIN },
+                    where: { role: { in: [UserRole.PRINCIPAL, UserRole.DEPUTY] } },
                 },
             },
         });

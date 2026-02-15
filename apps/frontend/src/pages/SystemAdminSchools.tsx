@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { getSystemSchools, createSystemSchool, updateSystemSchool, deleteSystemSchool, getUsers } from '../api';
 import { toast } from 'sonner';
 import { useSchool } from '@/context/SchoolContext';
-import { LogIn, Settings, Trash2 } from 'lucide-react';
+import { LogIn, Settings, Trash2, ChevronDown, Crown, Shield, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -48,14 +48,28 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 // ---- Types ----
+interface SchoolMember {
+    role: string;
+    user: { id: string; email: string; firstName: string; lastName: string };
+}
+
 interface School {
     id: string;
     name: string;
     address: string | null;
     createdAt: string;
-    members?: { user: { id: string; email: string; firstName: string; lastName: string } }[];
+    members?: SchoolMember[];
 }
 
 interface UserOption {
@@ -66,13 +80,12 @@ interface UserOption {
 }
 
 // ---- Zod Schemas ----
-const createSchoolSchema = z.discriminatedUnion('adminType', [
+const createSchoolSchema = z.discriminatedUnion('principalType', [
     z.object({
         schoolName: z.string().min(1, 'School name is required'),
         address: z.string().optional(),
-        adminType: z.literal('EXISTING'),
+        principalType: z.literal('EXISTING'),
         userId: z.string().min(1, 'Please select a user'),
-        // Unused but needed for type safety
         firstName: z.string().optional(),
         lastName: z.string().optional(),
         email: z.string().optional(),
@@ -80,7 +93,7 @@ const createSchoolSchema = z.discriminatedUnion('adminType', [
     z.object({
         schoolName: z.string().min(1, 'School name is required'),
         address: z.string().optional(),
-        adminType: z.literal('NEW'),
+        principalType: z.literal('NEW'),
         userId: z.string().optional(),
         firstName: z.string().min(1, 'First name is required'),
         lastName: z.string().min(1, 'Last name is required'),
@@ -91,18 +104,18 @@ const createSchoolSchema = z.discriminatedUnion('adminType', [
 const editSchoolSchema = z.object({
     name: z.string().min(1, 'School name is required'),
     address: z.string().optional(),
-    hasAdminChange: z.boolean(),
-    adminType: z.enum(['EXISTING', 'NEW']).optional(),
+    hasPrincipalChange: z.boolean(),
+    principalType: z.enum(['EXISTING', 'NEW']).optional(),
     userId: z.string().optional(),
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     email: z.string().optional(),
 }).superRefine((data, ctx) => {
-    if (data.hasAdminChange) {
-        if (data.adminType === 'EXISTING' && (!data.userId || data.userId.length === 0)) {
+    if (data.hasPrincipalChange) {
+        if (data.principalType === 'EXISTING' && (!data.userId || data.userId.length === 0)) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please select a user', path: ['userId'] });
         }
-        if (data.adminType === 'NEW') {
+        if (data.principalType === 'NEW') {
             if (!data.firstName || data.firstName.length === 0) {
                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'First name is required', path: ['firstName'] });
             }
@@ -118,6 +131,7 @@ const editSchoolSchema = z.object({
 
 type CreateSchoolFormValues = z.infer<typeof createSchoolSchema>;
 type EditSchoolFormValues = z.infer<typeof editSchoolSchema>;
+
 
 // ---- Component ----
 export function SystemAdminSchools() {
@@ -150,7 +164,7 @@ export function SystemAdminSchools() {
         defaultValues: {
             schoolName: '',
             address: '',
-            adminType: 'EXISTING',
+            principalType: 'NEW',
             userId: '',
             firstName: '',
             lastName: '',
@@ -163,8 +177,8 @@ export function SystemAdminSchools() {
         defaultValues: {
             name: '',
             address: '',
-            hasAdminChange: false,
-            adminType: 'EXISTING',
+            hasPrincipalChange: false,
+            principalType: 'EXISTING',
             userId: '',
             firstName: '',
             lastName: '',
@@ -172,9 +186,9 @@ export function SystemAdminSchools() {
         },
     });
 
-    const adminType = form.watch('adminType');
-    const editHasAdminChange = editForm.watch('hasAdminChange');
-    const editAdminType = editForm.watch('adminType');
+    const principalType = form.watch('principalType');
+    const editHasPrincipalChange = editForm.watch('hasPrincipalChange');
+    const editPrincipalType = editForm.watch('principalType');
 
     const fetchSchools = async () => {
         setLoading(true);
@@ -209,20 +223,22 @@ export function SystemAdminSchools() {
     }, []);
 
     useEffect(() => {
-        fetchUsers(userSearch, setUsers);
-    }, [userSearch]);
+        if (principalType === 'EXISTING') {
+            fetchUsers(userSearch, setUsers);
+        }
+    }, [userSearch, principalType]);
 
     useEffect(() => {
-        if (editHasAdminChange) {
+        if (editHasPrincipalChange && editPrincipalType === 'EXISTING') {
             fetchUsers(editUserSearch, setUsers);
         }
-    }, [editUserSearch, editHasAdminChange]);
+    }, [editUserSearch, editHasPrincipalChange, editPrincipalType]);
 
     const onSubmit = async (values: CreateSchoolFormValues) => {
         setSubmitting(true);
         try {
             const payload =
-                values.adminType === 'EXISTING'
+                values.principalType === 'EXISTING'
                     ? {
                         schoolName: values.schoolName,
                         address: values.address,
@@ -260,8 +276,8 @@ export function SystemAdminSchools() {
                 address: values.address,
             };
 
-            if (values.hasAdminChange) {
-                payload.admin = values.adminType === 'EXISTING'
+            if (values.hasPrincipalChange) {
+                payload.admin = values.principalType === 'EXISTING'
                     ? { type: 'EXISTING', userId: values.userId }
                     : { type: 'NEW', firstName: values.firstName, lastName: values.lastName, email: values.email };
             }
@@ -302,18 +318,16 @@ export function SystemAdminSchools() {
         editForm.reset({
             name: school.name,
             address: school.address || '',
-            hasAdminChange: false,
+            hasPrincipalChange: false,
         });
         setEditDialogOpen(true);
     };
 
-    const handleSelectSchool = async (schoolId: string) => {
+    const handleSelectSchool = async (schoolId: string, role: string) => {
         setSelecting(schoolId);
         try {
-            // Navigate away from the SystemAdminGuard FIRST to prevent it
-            // from calling leaveSchool() when it sees the TENANT token
             navigate('/dashboard');
-            await selectSchool(schoolId);
+            await selectSchool(schoolId, role);
         } catch (err: any) {
             toast.error(t('system_schools.failed_select') + ': ' + (err.response?.data?.message || err.message));
         } finally {
@@ -338,6 +352,33 @@ export function SystemAdminSchools() {
         }
     };
 
+    // Helper to render member names grouped by role
+    const renderMembers = (members?: SchoolMember[]) => {
+        if (!members || members.length === 0) return <span className="text-muted-foreground">—</span>;
+
+        const principals = members.filter(m => m.role === 'PRINCIPAL');
+        const deputies = members.filter(m => m.role === 'DEPUTY');
+
+        return (
+            <div className="space-y-1">
+                {principals.map(m => (
+                    <div key={m.user.id} className="flex items-center gap-1.5">
+                        <Crown size={14} className="text-amber-500 shrink-0" />
+                        <span className="text-sm font-medium">{m.user.firstName} {m.user.lastName}</span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t('system_schools.role_principal', 'Ředitel')}</Badge>
+                    </div>
+                ))}
+                {deputies.map(m => (
+                    <div key={m.user.id} className="flex items-center gap-1.5">
+                        <Shield size={14} className="text-blue-500 shrink-0" />
+                        <span className="text-sm">{m.user.firstName} {m.user.lastName}</span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t('system_schools.role_deputy', 'Zástupce')}</Badge>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -348,20 +389,7 @@ export function SystemAdminSchools() {
                 <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
                         <Button className="gap-2">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M5 12h14" />
-                                <path d="M12 5v14" />
-                            </svg>
+                            <Plus size={16} />
                             {t('system_schools.create_new')}
                         </Button>
                     </DialogTrigger>
@@ -402,12 +430,15 @@ export function SystemAdminSchools() {
                                     )}
                                 />
 
-                                {/* Admin Section */}
+                                {/* Principal Section */}
                                 <div className="space-y-3 rounded-lg border p-4">
-                                    <Label className="text-sm font-semibold">{t('system_schools.initial_admin')}</Label>
+                                    <Label className="text-sm font-semibold flex items-center gap-2">
+                                        <Crown size={14} className="text-amber-500" />
+                                        {t('system_schools.initial_principal')}
+                                    </Label>
                                     <FormField
                                         control={form.control}
-                                        name="adminType"
+                                        name="principalType"
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormControl>
@@ -421,15 +452,15 @@ export function SystemAdminSchools() {
                                                         className="flex gap-4"
                                                     >
                                                         <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem value="EXISTING" id="admin-existing" />
-                                                            <Label htmlFor="admin-existing" className="cursor-pointer">
-                                                                {t('system_schools.select_existing')}
+                                                            <RadioGroupItem value="NEW" id="principal-new" />
+                                                            <Label htmlFor="principal-new" className="cursor-pointer">
+                                                                {t('system_schools.create_new_user')}
                                                             </Label>
                                                         </div>
                                                         <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem value="NEW" id="admin-new" />
-                                                            <Label htmlFor="admin-new" className="cursor-pointer">
-                                                                {t('system_schools.create_new_user')}
+                                                            <RadioGroupItem value="EXISTING" id="principal-existing" />
+                                                            <Label htmlFor="principal-existing" className="cursor-pointer">
+                                                                {t('system_schools.select_existing')}
                                                             </Label>
                                                         </div>
                                                     </RadioGroup>
@@ -439,7 +470,7 @@ export function SystemAdminSchools() {
                                         )}
                                     />
 
-                                    {adminType === 'EXISTING' && (
+                                    {principalType === 'EXISTING' && (
                                         <div className="space-y-2">
                                             <FormField
                                                 control={form.control}
@@ -450,7 +481,7 @@ export function SystemAdminSchools() {
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <Input
-                                                                    placeholder="Type to search by name or email..."
+                                                                    placeholder={t('system_schools.search_placeholder')}
                                                                     value={
                                                                         selectedUser
                                                                             ? `${selectedUser.firstName} ${selectedUser.lastName} (${selectedUser.email})`
@@ -501,7 +532,7 @@ export function SystemAdminSchools() {
                                         </div>
                                     )}
 
-                                    {adminType === 'NEW' && (
+                                    {principalType === 'NEW' && (
                                         <div className="space-y-3">
                                             <div className="grid grid-cols-2 gap-3">
                                                 <FormField
@@ -612,7 +643,7 @@ export function SystemAdminSchools() {
                             <div className="space-y-3 rounded-lg border p-4">
                                 <FormField
                                     control={editForm.control}
-                                    name="hasAdminChange"
+                                    name="hasPrincipalChange"
                                     render={({ field }) => (
                                         <FormItem className="flex items-center space-x-2">
                                             <FormControl>
@@ -622,20 +653,20 @@ export function SystemAdminSchools() {
                                                         const changing = val === 'YES';
                                                         field.onChange(changing);
                                                         if (changing) {
-                                                            editForm.setValue('adminType', 'EXISTING');
+                                                            editForm.setValue('principalType', 'EXISTING');
                                                         }
                                                     }}
                                                     className="flex gap-4"
                                                 >
                                                     <div className="flex items-center space-x-2">
-                                                        <RadioGroupItem value="NO" id="edit-admin-no" />
-                                                        <Label htmlFor="edit-admin-no" className="cursor-pointer">
+                                                        <RadioGroupItem value="NO" id="edit-principal-no" />
+                                                        <Label htmlFor="edit-principal-no" className="cursor-pointer">
                                                             {t('system_schools.keep_principal')}
                                                         </Label>
                                                     </div>
                                                     <div className="flex items-center space-x-2">
-                                                        <RadioGroupItem value="YES" id="edit-admin-yes" />
-                                                        <Label htmlFor="edit-admin-yes" className="cursor-pointer">
+                                                        <RadioGroupItem value="YES" id="edit-principal-yes" />
+                                                        <Label htmlFor="edit-principal-yes" className="cursor-pointer">
                                                             {t('system_schools.change_principal')}
                                                         </Label>
                                                     </div>
@@ -645,12 +676,12 @@ export function SystemAdminSchools() {
                                     )}
                                 />
 
-                                {editHasAdminChange && (
+                                {editHasPrincipalChange && (
                                     <>
                                         <div className="pt-2">
                                             <FormField
                                                 control={editForm.control}
-                                                name="adminType"
+                                                name="principalType"
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormControl>
@@ -664,14 +695,14 @@ export function SystemAdminSchools() {
                                                                 className="flex gap-4"
                                                             >
                                                                 <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="EXISTING" id="edit-admin-existing" />
-                                                                    <Label htmlFor="edit-admin-existing" className="text-xs cursor-pointer">
+                                                                    <RadioGroupItem value="EXISTING" id="edit-principal-existing" />
+                                                                    <Label htmlFor="edit-principal-existing" className="text-xs cursor-pointer">
                                                                         {t('system_schools.ex_user')}
                                                                     </Label>
                                                                 </div>
                                                                 <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="NEW" id="edit-admin-new" />
-                                                                    <Label htmlFor="edit-admin-new" className="text-xs cursor-pointer">
+                                                                    <RadioGroupItem value="NEW" id="edit-principal-new" />
+                                                                    <Label htmlFor="edit-principal-new" className="text-xs cursor-pointer">
                                                                         {t('system_schools.new_user')}
                                                                     </Label>
                                                                 </div>
@@ -682,7 +713,7 @@ export function SystemAdminSchools() {
                                             />
                                         </div>
 
-                                        {editAdminType === 'EXISTING' && (
+                                        {editPrincipalType === 'EXISTING' && (
                                             <FormField
                                                 control={editForm.control}
                                                 name="userId"
@@ -693,7 +724,7 @@ export function SystemAdminSchools() {
                                                             <div className="relative">
                                                                 <Input
                                                                     className="h-8"
-                                                                    placeholder="Search..."
+                                                                    placeholder={t('system_schools.search_placeholder')}
                                                                     value={
                                                                         selectedEditUser
                                                                             ? `${selectedEditUser.firstName} ${selectedEditUser.lastName}`
@@ -730,7 +761,7 @@ export function SystemAdminSchools() {
                                             />
                                         )}
 
-                                        {editAdminType === 'NEW' && (
+                                        {editPrincipalType === 'NEW' && (
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField
                                                     control={editForm.control}
@@ -794,7 +825,7 @@ export function SystemAdminSchools() {
                         <TableRow>
                             <TableHead>{t('system_schools.school_name_column')}</TableHead>
                             <TableHead>{t('system_schools.address_column')}</TableHead>
-                            <TableHead>{t('system_schools.admins_column')}</TableHead>
+                            <TableHead>{t('system_schools.leadership_column')}</TableHead>
                             <TableHead>{t('system_schools.created_at_column')}</TableHead>
                             <TableHead className="text-right">{t('system_schools.actions_column')}</TableHead>
                         </TableRow>
@@ -817,18 +848,9 @@ export function SystemAdminSchools() {
                                 <TableRow key={school.id}>
                                     <TableCell className="font-medium">{school.name}</TableCell>
                                     <TableCell>{school.address || '—'}</TableCell>
+                                    <TableCell>{renderMembers(school.members)}</TableCell>
                                     <TableCell>
-                                        {school.members && school.members.length > 0
-                                            ? school.members
-                                                .map(
-                                                    (m) =>
-                                                        `${m.user.firstName} ${m.user.lastName}`
-                                                )
-                                                .join(', ')
-                                            : '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        {new Date(school.createdAt).toLocaleDateString()}
+                                        {new Date(school.createdAt).toLocaleDateString('cs-CZ')}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
@@ -841,16 +863,43 @@ export function SystemAdminSchools() {
                                                 <Settings className="h-4 w-4" />
                                                 <span className="sr-only">{t('system_schools.edit_settings')}</span>
                                             </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleSelectSchool(school.id)}
-                                                disabled={selecting === school.id}
-                                                className="h-8"
-                                            >
-                                                <LogIn className="mr-1 h-3.5 w-3.5" />
-                                                {selecting === school.id ? '...' : t('common.select')}
-                                            </Button>
+
+                                            {/* Role-based school entry dropdown */}
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 gap-1"
+                                                        disabled={selecting === school.id}
+                                                    >
+                                                        <LogIn className="h-3.5 w-3.5" />
+                                                        {selecting === school.id
+                                                            ? t('select_school.entering')
+                                                            : t('system_schools.enter_school')}
+                                                        <ChevronDown className="h-3 w-3 ml-0.5 opacity-60" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel className="text-xs">
+                                                        {t('system_schools.enter_as')}
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleSelectSchool(school.id, 'ADMIN')}>
+                                                        <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                        {t('select_school.enter_as_admin')}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleSelectSchool(school.id, 'PRINCIPAL')}>
+                                                        <Crown className="mr-2 h-4 w-4 text-amber-500" />
+                                                        {t('select_school.enter_as_principal')}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleSelectSchool(school.id, 'DEPUTY')}>
+                                                        <Shield className="mr-2 h-4 w-4 text-blue-500" />
+                                                        {t('select_school.enter_as_deputy')}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
