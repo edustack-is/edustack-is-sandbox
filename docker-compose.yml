@@ -35,6 +35,7 @@ services:
     working_dir: /app
     volumes:
       - ./apps/backend:/app
+      - ./data:/app/data
       - /app/node_modules
     ports:
       - "3000:3000"

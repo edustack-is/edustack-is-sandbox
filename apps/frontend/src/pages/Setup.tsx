@@ -1,11 +1,19 @@
-import { useState } from 'react';
-import { setupApp } from '../api';
+import { useState, useEffect } from 'react';
+import { setupApp, getSeedFiles, setupWithSeed } from '../api';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
 import { useTranslation } from 'react-i18next';
+import {
+    Sparkles, User, Loader2, CheckCircle2, Database, Key, Users, BookOpen,
+    GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2
+} from 'lucide-react';
+
+type SeedFile = { filename: string; name: string; description: string };
 
 export const Setup = () => {
     const { t } = useTranslation();
+
+    // ─── Form state ─────────────────────────────────────────
     const [formData, setFormData] = useState({
         adminFirstName: '',
         adminLastName: '',
@@ -15,6 +23,24 @@ export const Setup = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // ─── Seed state ─────────────────────────────────────────
+    const [seedMode, setSeedMode] = useState<'none' | 'file'>('none');
+    const [seedFiles, setSeedFiles] = useState<SeedFile[]>([]);
+    const [selectedSeed, setSelectedSeed] = useState('');
+    const [showAiKeys, setShowAiKeys] = useState(false);
+    const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
+    const [seedResult, setSeedResult] = useState<any>(null);
+
+    // ─── Load seed files on mount ───────────────────────────
+    useEffect(() => {
+        getSeedFiles()
+            .then((files: SeedFile[]) => {
+                setSeedFiles(files);
+                if (files.length > 0) setSelectedSeed(files[0].filename);
+            })
+            .catch(() => { /* no seed files available */ });
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,8 +63,22 @@ export const Setup = () => {
 
         setLoading(true);
         try {
-            await setupApp(formData);
-            window.location.href = '/login';
+            if (seedMode === 'file' && selectedSeed) {
+                // Combined setup + seed
+                const result = await setupWithSeed({
+                    ...formData,
+                    seedFilename: selectedSeed,
+                    aiKeys: hasAnyAiKey() ? aiKeys : undefined,
+                });
+                setSeedResult(result.seed);
+                // After 3s redirect
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 4000);
+            } else {
+                await setupApp(formData);
+                window.location.href = '/login';
+            }
         } catch (err: any) {
             const msg = err.response?.data?.message || 'Setup failed';
             if (msg.includes('already initialized') || err.response?.status === 403) {
@@ -51,88 +91,279 @@ export const Setup = () => {
         }
     };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 bg-white p-8 rounded shadow">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        {t('setup.title')}
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-600">
-                        {t('setup.subtitle')}
-                    </p>
-                </div>
-                {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+    const hasAnyAiKey = () => aiKeys.geminiApiKey || aiKeys.openAiApiKey || aiKeys.anthropicApiKey;
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        <div className="mb-4">
-                            <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">{t('setup.first_name')}</label>
-                            <input
-                                id="adminFirstName"
-                                name="adminFirstName"
-                                type="text"
-                                required
-                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                value={formData.adminFirstName}
-                                onChange={handleChange}
-                            />
+    // ─── Seed completed ─────────────────────────────────────
+    if (seedResult) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
+                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-indigo-100">
+                    <div className="text-center space-y-3">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
+                            <CheckCircle2 className="h-8 w-8 text-green-600" />
                         </div>
-                        <div className="mb-4">
-                            <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">{t('setup.last_name')}</label>
-                            <input
-                                id="adminLastName"
-                                name="adminLastName"
-                                type="text"
-                                required
-                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                value={formData.adminLastName}
-                                onChange={handleChange}
-                            />
+                        <h2 className="text-2xl font-bold text-gray-900">{t('setup.seed_complete')}</h2>
+                        <p className="text-muted-foreground">{t('setup.seed_complete_desc')}</p>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-5 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <Building2 className="h-5 w-5 text-indigo-500" />
+                            <span className="font-medium">{seedResult.school.name}</span>
                         </div>
-                        <div className="mb-4">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            {[
+                                { icon: <GraduationCap className="h-4 w-4" />, label: t('setup.seed_grades'), count: seedResult.counts.gradeLevels },
+                                { icon: <BookOpen className="h-4 w-4" />, label: t('setup.seed_subjects'), count: seedResult.counts.subjects },
+                                { icon: <Layers className="h-4 w-4" />, label: t('setup.seed_entries'), count: seedResult.counts.curriculumEntries },
+                                { icon: <Users className="h-4 w-4" />, label: t('setup.seed_staff'), count: seedResult.counts.staff },
+                                { icon: <User className="h-4 w-4" />, label: t('setup.seed_students'), count: seedResult.counts.students },
+                                { icon: <School className="h-4 w-4" />, label: t('setup.seed_rooms'), count: seedResult.counts.rooms },
+                            ].filter(i => i.count > 0).map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-gray-600">
+                                    {item.icon}
+                                    <span>{item.count} {item.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+                        <div className="font-medium mb-1">{t('setup.seed_password_title')}</div>
+                        <code className="bg-amber-100 px-2 py-0.5 rounded text-amber-900 font-mono text-sm">
+                            {seedResult.defaultPassword}
+                        </code>
+                        <p className="mt-1 text-xs text-amber-600">{t('setup.seed_password_hint')}</p>
+                    </div>
+
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t('setup.redirecting')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── Main setup form ────────────────────────────────────
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4">
+            <div className="max-w-xl w-full space-y-6">
+                {/* Header */}
+                <div className="text-center space-y-2">
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 mx-auto shadow-lg">
+                        <School className="h-7 w-7 text-white" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-gray-900">{t('setup.title')}</h2>
+                    <p className="text-gray-500">{t('setup.subtitle')}</p>
+                </div>
+
+                {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 text-center">
+                        {error}
+                    </div>
+                )}
+
+                <form className="space-y-6" onSubmit={handleSubmit}>
+                    {/* ─── Admin Account Card ────────────────────── */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                        <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                            <User className="h-5 w-5 text-indigo-500" />
+                            {t('setup.admin_section')}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">{t('setup.first_name')}</label>
+                                <input
+                                    id="adminFirstName"
+                                    name="adminFirstName"
+                                    type="text"
+                                    required
+                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                    value={formData.adminFirstName}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">{t('setup.last_name')}</label>
+                                <input
+                                    id="adminLastName"
+                                    name="adminLastName"
+                                    type="text"
+                                    required
+                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                    value={formData.adminLastName}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
                             <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">{t('setup.admin_email')}</label>
                             <input
                                 id="adminEmail"
                                 name="adminEmail"
                                 type="email"
                                 required
-                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                 value={formData.adminEmail}
                                 onChange={handleChange}
                             />
                         </div>
-                        <div className="mb-4">
-                            <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 mb-1">{t('setup.password')}</label>
-                            <PasswordInput
-                                id="adminPassword"
-                                name="adminPassword"
-                                required
-                                value={formData.adminPassword}
-                                onChange={handleChange}
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">{t('setup.confirm_password')}</label>
-                            <PasswordInput
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                required
-                                showStrength={false}
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                            />
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700">{t('setup.password')}</label>
+                                <PasswordInput
+                                    id="adminPassword"
+                                    name="adminPassword"
+                                    required
+                                    value={formData.adminPassword}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">{t('setup.confirm_password')}</label>
+                                <PasswordInput
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    required
+                                    showStrength={false}
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                />
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                        >
-                            {loading ? t('setup.creating') : t('setup.create_button')}
-                        </button>
-                    </div>
+
+                    {/* ─── Demo Data Card ────────────────────────── */}
+                    {seedFiles.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                            <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                <Database className="h-5 w-5 text-violet-500" />
+                                {t('setup.demo_data_section')}
+                            </div>
+
+                            <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
+
+                            {/* Mode selector */}
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setSeedMode('none')}
+                                    className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
+                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                        : 'border-gray-200 hover:border-indigo-200 text-gray-600'
+                                        }`}
+                                >
+                                    {t('setup.no_demo_data')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSeedMode('file')}
+                                    className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
+                                        ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                        : 'border-gray-200 hover:border-violet-200 text-gray-600'
+                                        }`}
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    {t('setup.load_demo_data')}
+                                </button>
+                            </div>
+
+                            {/* Seed file picker */}
+                            {seedMode === 'file' && (
+                                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="space-y-2">
+                                        {seedFiles.map((sf) => (
+                                            <label
+                                                key={sf.filename}
+                                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
+                                                    ? 'border-violet-400 bg-violet-50'
+                                                    : 'border-gray-200 hover:border-violet-200'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="seedFile"
+                                                    value={sf.filename}
+                                                    checked={selectedSeed === sf.filename}
+                                                    onChange={() => setSelectedSeed(sf.filename)}
+                                                    className="mt-1 accent-violet-500"
+                                                />
+                                                <div>
+                                                    <div className="font-medium text-sm">{sf.name}</div>
+                                                    {sf.description && (
+                                                        <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
+                                                    )}
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+
+                                    {/* AI Keys (optional) */}
+                                    <div className="border-t pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAiKeys(!showAiKeys)}
+                                            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                                        >
+                                            {showAiKeys ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                            <Key className="h-4 w-4" />
+                                            {t('setup.ai_keys_optional')}
+                                        </button>
+
+                                        {showAiKeys && (
+                                            <div className="space-y-3 mt-3 animate-in slide-in-from-top-2 duration-200">
+                                                <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
+                                                {[
+                                                    { key: 'geminiApiKey', label: 'Google Gemini API Key', placeholder: 'AIza...' },
+                                                    { key: 'openAiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...' },
+                                                    { key: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...' },
+                                                ].map(({ key, label, placeholder }) => (
+                                                    <div key={key} className="space-y-1">
+                                                        <label className="text-xs font-medium text-gray-600">{label}</label>
+                                                        <input
+                                                            type="password"
+                                                            placeholder={placeholder}
+                                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                                            value={(aiKeys as any)[key]}
+                                                            onChange={(e) => setAiKeys({ ...aiKeys, [key]: e.target.value })}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ─── Submit ─────────────────────────────────── */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
+                            bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700
+                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
+                            disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                {seedMode === 'file' ? t('setup.creating_with_seed') : t('setup.creating')}
+                            </>
+                        ) : (
+                            <>
+                                {seedMode === 'file' && <Sparkles className="h-5 w-5" />}
+                                {seedMode === 'file' ? t('setup.create_with_seed') : t('setup.create_button')}
+                            </>
+                        )}
+                    </button>
                 </form>
             </div>
         </div>

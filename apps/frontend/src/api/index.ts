@@ -80,6 +80,16 @@ export const setupApp = async (data: any) => {
     const response = await api.post('/api/init/setup', data);
     return response.data; // { school: SchoolConfig, admin: User }
 };
+
+export const getSeedFiles = async () => {
+    const response = await api.get('/api/init/seed-files');
+    return response.data; // Array<{ filename, name, description }>
+};
+
+export const setupWithSeed = async (data: any) => {
+    const response = await api.post('/api/init/setup-with-seed', data, { timeout: 60000 });
+    return response.data; // { admin, seed: SeedResult }
+};
 export const acceptInvitation = async (payload: { token: string; password: string }) => {
     const response = await api.post('/api/auth/accept-invite', payload);
     return response.data; // { access_token: string }
@@ -156,5 +166,21 @@ export const updateSystemSchool = async (id: string, payload: { name?: string; a
 };
 export const deleteSystemSchool = async (id: string) => {
     const response = await api.delete(`/api/system/schools/${id}`);
+    return response.data;
+};
+
+// System Admin Management
+export const getSystemAdmins = async () => {
+    const response = await api.get('/api/system/admins');
+    return response.data;
+};
+
+export const promoteToSysAdmin = async (data: { email: string; firstName?: string; lastName?: string }) => {
+    const response = await api.post('/api/system/admins', data);
+    return response.data;
+};
+
+export const demoteFromSysAdmin = async (id: string) => {
+    const response = await api.delete(`/api/system/admins/${id}`);
     return response.data;
 };
