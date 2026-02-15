@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { toast } from 'sonner';
+import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
 const SSO_ICONS: Record<string, any> = {
     google: Globe,
@@ -139,6 +140,7 @@ export const Login = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <InlineLanguageSwitcher />
             <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
                 <div className="text-center">
                     <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">

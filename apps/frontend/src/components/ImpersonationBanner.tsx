@@ -48,7 +48,7 @@ export const ImpersonationBanner = () => {
     if (!isImpersonating) return null;
 
     return (
-        <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-white font-semibold shadow-lg">
+        <div className="flex-shrink-0 flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-white font-semibold shadow-lg z-50">
             <ShieldAlert size={18} />
             <span>
                 {t('impersonation.banner_text')} <strong>{targetEmail}</strong>

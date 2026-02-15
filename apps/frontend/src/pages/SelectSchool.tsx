@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
+import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
 interface SchoolMembership {
     schoolId: string;
@@ -141,6 +142,7 @@ export function SelectSchool() {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-background p-4">
+            <InlineLanguageSwitcher />
             <div className="w-full max-w-lg space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl font-bold tracking-tight">

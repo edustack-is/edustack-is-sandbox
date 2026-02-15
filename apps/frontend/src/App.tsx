@@ -22,7 +22,6 @@ import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { TaskQueueProvider } from './context/TaskQueueContext';
 import { getInitStatus } from './api';
 import { Toaster } from 'sonner';
-import { FloatingLanguageSwitcher } from './components/FloatingLanguageSwitcher';
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem('access_token');
@@ -30,10 +29,12 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" replace />;
   }
   return (
-    <>
+    <div className="flex flex-col h-dvh overflow-hidden">
       <ImpersonationBanner />
-      <Outlet />
-    </>
+      <div className="flex-1 min-h-0">
+        <Outlet />
+      </div>
+    </div>
   );
 };
 
@@ -86,7 +87,6 @@ function App() {
       <SchoolProvider>
         <TaskQueueProvider>
           <Toaster position="top-right" duration={5000} closeButton richColors />
-          <FloatingLanguageSwitcher />
           <Routes>
             <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
             <Route path="/activate" element={<ActivateAccount />} />

@@ -1,15 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import {
-    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Sparkles, Send, Loader2, Bot, User, Trash2 } from 'lucide-react';
+import { Sparkles, Send, Loader2, Bot, User, Trash2, PanelRightClose } from 'lucide-react';
 import { getAvailableProviders, AiProvider } from '@/api/ai';
 import { cn } from '@/lib/utils';
 import { useSchool } from '@/context/SchoolContext';
@@ -317,137 +314,147 @@ export function AiChatDrawer() {
 
     return (
         <>
-            {/* ─── FAB ───────────────────────────────────── */}
-            <button
-                onClick={() => setOpen(true)}
-                className={cn(
-                    'fixed bottom-6 right-6 z-40',
-                    'flex items-center justify-center',
-                    'h-14 w-14 rounded-full',
-                    'bg-gradient-to-br from-violet-600 to-indigo-600',
-                    'text-white shadow-lg shadow-violet-500/30',
-                    'hover:shadow-xl hover:shadow-violet-500/40 hover:scale-105',
-                    'active:scale-95',
-                    'transition-all duration-200',
-                    'group',
-                )}
-                aria-label={t('aitutor.open_chat')}
-            >
-                <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform" />
-
-                {/* Pulse ring */}
-                <span className="absolute inset-0 rounded-full bg-violet-500/20 animate-ping pointer-events-none" />
-            </button>
-
-            {/* ─── Sheet ─────────────────────────────────── */}
-            <Sheet open={open} onOpenChange={setOpen}>
-                <SheetContent
-                    side="right"
-                    className="flex flex-col p-0 w-full sm:max-w-md"
+            {/* ─── FAB (shown when panel is closed) ──────── */}
+            {!open && (
+                <button
+                    onClick={() => setOpen(true)}
+                    className={cn(
+                        'fixed bottom-6 right-6 z-40',
+                        'flex items-center justify-center',
+                        'h-14 w-14 rounded-full',
+                        'bg-gradient-to-br from-violet-600 to-indigo-600',
+                        'text-white shadow-lg shadow-violet-500/30',
+                        'hover:shadow-xl hover:shadow-violet-500/40 hover:scale-105',
+                        'active:scale-95',
+                        'transition-all duration-200',
+                        'group',
+                    )}
+                    aria-label={t('aitutor.open_chat')}
                 >
-                    {/* Header */}
-                    <SheetHeader className="px-5 pt-5 pb-3 border-b bg-gradient-to-r from-violet-600/5 to-indigo-600/5 space-y-4">
-                        <div className="flex items-center justify-between pr-8">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
-                                    <Sparkles className="h-4 w-4" />
-                                </div>
-                                <div>
-                                    <SheetTitle>{t('aitutor.title')}</SheetTitle>
-                                    <SheetDescription className="text-xs">{t('aitutor.description')}</SheetDescription>
-                                </div>
+                    <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform" />
+                    <span className="absolute inset-0 rounded-full bg-violet-500/20 animate-ping pointer-events-none" />
+                </button>
+            )}
+
+            {/* ─── Inline Panel ──────────────────────────── */}
+            <div
+                className={cn(
+                    'h-full border-l border-border bg-card flex flex-col overflow-hidden transition-all duration-300 ease-in-out shrink-0',
+                    open ? 'w-[384px]' : 'w-0'
+                )}
+            >
+                {/* Header */}
+                <div className="px-4 pt-4 pb-3 border-b bg-gradient-to-r from-violet-600/5 to-indigo-600/5 space-y-3 shrink-0">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white shrink-0">
+                                <Sparkles className="h-4 w-4" />
                             </div>
+                            <div className="min-w-0">
+                                <h2 className="text-sm font-semibold">{t('aitutor.title')}</h2>
+                                <p className="text-xs text-muted-foreground truncate">{t('aitutor.description')}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
                             {messages.length > 0 && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={clearChat}
-                                    className="text-muted-foreground hover:text-destructive"
+                                    className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <Select value={selectedProvider} onValueChange={setSelectedProvider} disabled={providers.length === 0}>
-                                <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-input/50">
-                                    <SelectValue placeholder={t('aitutor.loading_models')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {providersLoading ? (
-                                        <div className="flex items-center justify-center p-2 text-xs text-muted-foreground">
-                                            <Loader2 className="h-3 w-3 animate-spin mr-2" /> {t('aitutor.loading_models')}
-                                        </div>
-                                    ) : providers.length > 0 ? (
-                                        providers.map(p => (
-                                            <SelectItem key={p.id} value={p.id} className="text-xs">
-                                                {p.name}
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <div className="p-2 text-xs text-muted-foreground">{t('aitutor.no_models')}</div>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </SheetHeader>
-
-                    {/* Messages area */}
-                    <div
-                        ref={scrollRef}
-                        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
-                    >
-                        {messages.length === 0 && !loading && (
-                            <EmptyState onSuggestionClick={(text) => {
-                                const userMsg: ChatMessage = { role: 'user', text };
-                                const newHistory = [...messages, userMsg];
-                                setMessages(newHistory);
-                                setInput('');
-                                startLoading();
-                                streamChat(newHistory);
-                            }} />
-                        )}
-
-                        {messages.map((msg, i) => (
-                            <MessageBubble key={i} message={msg} />
-                        ))}
-
-                        {loading && <TypingIndicator seconds={loadingSeconds} statusMessage={statusMessage} toolsUsed={toolsUsed} />}
-                    </div>
-
-                    {/* Input area */}
-                    <div className="border-t bg-muted/30 p-4">
-                        <div className="flex gap-2 items-end">
-                            <Textarea
-                                ref={inputRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={providers.length > 0 ? t('aitutor.placeholder') : t('aitutor.disabled_placeholder')}
-                                disabled={loading || providers.length === 0}
-                                className="flex-1 bg-background min-h-[44px] max-h-[150px] resize-none py-3"
-                                rows={1}
-                            />
                             <Button
-                                onClick={sendMessage}
-                                disabled={loading || !input.trim() || providers.length === 0}
-                                size="icon"
-                                className="bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shrink-0 h-10 w-10 mb-[2px]"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setOpen(false)}
+                                className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
                             >
-                                {loading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="h-4 w-4" />
-                                )}
+                                <PanelRightClose className="h-4 w-4" />
                             </Button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                            {t('aitutor.footer_note')}
-                        </p>
                     </div>
-                </SheetContent>
-            </Sheet>
+
+                    <div className="flex items-center gap-2">
+                        <Select value={selectedProvider} onValueChange={setSelectedProvider} disabled={providers.length === 0}>
+                            <SelectTrigger className="w-full h-8 text-xs bg-background/50 border-input/50">
+                                <SelectValue placeholder={t('aitutor.loading_models')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {providersLoading ? (
+                                    <div className="flex items-center justify-center p-2 text-xs text-muted-foreground">
+                                        <Loader2 className="h-3 w-3 animate-spin mr-2" /> {t('aitutor.loading_models')}
+                                    </div>
+                                ) : providers.length > 0 ? (
+                                    providers.map(p => (
+                                        <SelectItem key={p.id} value={p.id} className="text-xs">
+                                            {p.name}
+                                        </SelectItem>
+                                    ))
+                                ) : (
+                                    <div className="p-2 text-xs text-muted-foreground">{t('aitutor.no_models')}</div>
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                {/* Messages area */}
+                <div
+                    ref={scrollRef}
+                    className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+                >
+                    {messages.length === 0 && !loading && (
+                        <EmptyState onSuggestionClick={(text) => {
+                            const userMsg: ChatMessage = { role: 'user', text };
+                            const newHistory = [...messages, userMsg];
+                            setMessages(newHistory);
+                            setInput('');
+                            startLoading();
+                            streamChat(newHistory);
+                        }} />
+                    )}
+
+                    {messages.map((msg, i) => (
+                        <MessageBubble key={i} message={msg} />
+                    ))}
+
+                    {loading && <TypingIndicator seconds={loadingSeconds} statusMessage={statusMessage} toolsUsed={toolsUsed} />}
+                </div>
+
+                {/* Input area */}
+                <div className="border-t bg-muted/30 p-4 shrink-0">
+                    <div className="flex gap-2 items-end">
+                        <Textarea
+                            ref={inputRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={providers.length > 0 ? t('aitutor.placeholder') : t('aitutor.disabled_placeholder')}
+                            disabled={loading || providers.length === 0}
+                            className="flex-1 bg-background min-h-[44px] max-h-[150px] resize-none py-3"
+                            rows={1}
+                        />
+                        <Button
+                            onClick={sendMessage}
+                            disabled={loading || !input.trim() || providers.length === 0}
+                            size="icon"
+                            className="bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shrink-0 h-10 w-10 mb-[2px]"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Send className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                        {t('aitutor.footer_note')}
+                    </p>
+                </div>
+            </div>
         </>
     );
 }

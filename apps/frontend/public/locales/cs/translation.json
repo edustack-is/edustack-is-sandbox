@@ -32,7 +32,9 @@
         "select": "Vybrat",
         "close": "Zavřít",
         "confirm": "Potvrdit",
-        "save_changes": "Uložit změny"
+        "save_changes": "Uložit změny",
+        "active": "Aktivní",
+        "pending": "Čeká"
     },
     "sidebar": {
         "administration": "Administrace",
@@ -80,8 +82,14 @@
         "data_coming_soon": "Data budou k dispozici",
         "active_classes": "Aktivní třídy",
         "teachers": "Učitelé",
+        "subjects": "Předměty",
+        "rooms_count": "Učeben: {{count}}",
+        "pending_invitations": "Čeká na pozvání: {{count}}",
+        "current_academic_year": "Aktuální školní rok",
         "quick_overview": "Rychlý přehled",
         "overview_placeholder": "Zde bude graf nebo seznam posledních aktivit.",
+        "recent_members": "Poslední členové",
+        "no_members_yet": "Zatím žádní členové.",
         "upcoming_events": "Nadcházející události",
         "no_events_today": "Žádné události pro dnešek."
     },

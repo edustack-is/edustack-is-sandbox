@@ -12,6 +12,67 @@ export class DeputyService {
         private readonly mailService: MailService,
     ) { }
 
+    // ─── SCHOOL DASHBOARD ────────────────────────────────────────────
+
+    async getSchoolDashboard(schoolId: string) {
+        const [
+            studentCount,
+            teacherCount,
+            classroomCount,
+            subjectCount,
+            roomCount,
+            currentAcademicYear,
+            recentMembers,
+        ] = await Promise.all([
+            this.prisma.schoolMembership.count({
+                where: { schoolId, role: 'STUDENT', status: UserStatus.ACTIVE },
+            }),
+            this.prisma.schoolMembership.count({
+                where: { schoolId, role: 'TEACHER', status: UserStatus.ACTIVE },
+            }),
+            this.prisma.classroom.count({ where: { schoolId } }),
+            this.prisma.subjectTemplate.count({ where: { schoolId } }),
+            this.prisma.room.count({ where: { schoolId } }),
+            this.prisma.academicYear.findFirst({
+                where: { schoolId, isCurrent: true },
+                select: { id: true, name: true, startDate: true, endDate: true },
+            }),
+            this.prisma.schoolMembership.findMany({
+                where: { schoolId },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                include: {
+                    user: { select: { id: true, firstName: true, lastName: true, email: true } },
+                },
+            }),
+        ]);
+
+        // Count all members (not just active)
+        const totalMembers = await this.prisma.schoolMembership.count({ where: { schoolId } });
+        const pendingMembers = await this.prisma.schoolMembership.count({
+            where: { schoolId, status: UserStatus.PENDING },
+        });
+
+        return {
+            studentCount,
+            teacherCount,
+            classroomCount,
+            subjectCount,
+            roomCount,
+            totalMembers,
+            pendingMembers,
+            currentAcademicYear,
+            recentMembers: recentMembers.map(m => ({
+                id: m.user.id,
+                name: `${m.user.firstName} ${m.user.lastName}`,
+                email: m.user.email,
+                role: m.role,
+                status: m.status,
+                createdAt: m.createdAt,
+            })),
+        };
+    }
+
     // ─── CLASSROOM CRUD ──────────────────────────────────────────────
 
     async getClassrooms(schoolId: string) {

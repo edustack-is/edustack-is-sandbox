@@ -14,6 +14,15 @@ import { DeputyService } from './deputy.service';
 export class DeputyController {
     constructor(private readonly deputyService: DeputyService) { }
 
+    // ─── SCHOOL DASHBOARD (all roles) ────────────────────────────────
+
+    @Get('dashboard')
+    @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
+    async getSchoolDashboard(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getSchoolDashboard(req.user.schoolId);
+    }
+
     // ─── CLASSROOM ───────────────────────────────────────────────────
 
     @Get('classrooms')

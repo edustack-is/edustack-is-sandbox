@@ -32,7 +32,9 @@
         "select": "Select",
         "close": "Close",
         "confirm": "Confirm",
-        "save_changes": "Save Changes"
+        "save_changes": "Save Changes",
+        "active": "Active",
+        "pending": "Pending"
     },
     "sidebar": {
         "administration": "Administration",
@@ -80,8 +82,14 @@
         "data_coming_soon": "Data will be available",
         "active_classes": "Active Classes",
         "teachers": "Teachers",
+        "subjects": "Subjects",
+        "rooms_count": "Rooms: {{count}}",
+        "pending_invitations": "Pending invitations: {{count}}",
+        "current_academic_year": "Current Academic Year",
         "quick_overview": "Quick Overview",
         "overview_placeholder": "Chart or activity list will appear here.",
+        "recent_members": "Recent Members",
+        "no_members_yet": "No members yet.",
         "upcoming_events": "Upcoming Events",
         "no_events_today": "No events for today."
     },
