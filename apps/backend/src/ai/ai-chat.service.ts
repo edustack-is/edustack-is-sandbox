@@ -369,6 +369,14 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                 return generateText(options);
             });
 
+            // Debug logging
+            this.logger.log(`AI result: text length=${result.text?.length || 0}, steps=${result.steps?.length || 0}`);
+            if (result.steps) {
+                for (const [i, step] of result.steps.entries()) {
+                    this.logger.log(`  Step ${i}: toolCalls=${step.toolCalls?.length || 0}, toolResults=${step.toolResults?.length || 0}, text="${(step.text || '').substring(0, 100)}"`);
+                }
+            }
+
             // Collect tool results for fallback
             const toolResults: string[] = [];
             if (result.steps && result.steps.length > 0) {
@@ -381,20 +389,34 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                 }
             }
 
+            this.logger.log(`Tool results collected: ${toolResults.length}, total chars: ${toolResults.join('').length}`);
+
             let finalText = result.text;
 
             // Follow-up if empty text after tool calls
             if ((!finalText || finalText.trim().length === 0) && toolResults.length > 0) {
+                this.logger.warn('Empty AI response after tool calls, attempting follow-up...');
                 onProgress({ type: 'status', data: { message: 'Zpracovávám výsledky...' } });
+
+                // Truncate tool results if too long (avoid token limit)
+                const truncatedResults = toolResults.map(r =>
+                    r.length > 4000 ? r.substring(0, 4000) + '... (zkráceno)' : r
+                );
+
                 const followUpMessages = [
                     ...history,
-                    { role: 'assistant', content: `Zavolal jsem nástroje a získal tato data:\n\n${toolResults.join('\n\n')}` },
+                    { role: 'assistant', content: `Zavolal jsem nástroje a získal tato data:\n\n${truncatedResults.join('\n\n')}` },
                     { role: 'user', content: 'Shrň a prezentuj výsledky z nástrojů uživateli srozumitelnou formou.' },
                 ];
                 const followUp = await this.generateWithRetry(async () => {
                     return generateText({ model: languageModel, system, messages: followUpMessages as any[] });
                 });
+                this.logger.log(`Follow-up result: text length=${followUp.text?.length || 0}`);
                 finalText = followUp.text;
+            }
+
+            if (!finalText || finalText.trim().length === 0) {
+                this.logger.error('Final text is still empty after all attempts');
             }
 
             await this.trackUsage(userId, schoolId, provider, languageModel.modelId, result.usage);
@@ -405,7 +427,7 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
                 dataChanged,
             };
         } catch (error: any) {
-            this.logger.error(`AI Error (${provider}):`, error);
+            this.logger.error(`AI Error (${provider}):`, error?.message || error);
             if (error.status === 429 || error.statusCode === 429 || error.message?.includes('429')) {
                 throw new ServiceUnavailableException('AI je momentálně přetížená (Rate Limit). Zkuste to za chvíli.');
             }

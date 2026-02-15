@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTaskQueue, TaskItem, TaskStatus } from '@/context/TaskQueueContext';
+import { useTaskQueue, TaskItem } from '@/context/TaskQueueContext';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import {
@@ -44,13 +44,7 @@ export function TaskQueuePanel() {
     if (tasks.length === 0 && !expanded) return null;
 
     // Sort: running first, then by time (newest first for running, oldest first for done)
-    const sortedTasks = [...tasks].sort((a, b) => {
-        const statusOrder: Record<TaskStatus, number> = { running: 0, error: 1, done: 2 };
-        const sDiff = statusOrder[a.status] - statusOrder[b.status];
-        if (sDiff !== 0) return sDiff;
-        if (a.status === 'running') return b.createdAt - a.createdAt;
-        return (b.finishedAt || b.createdAt) - (a.finishedAt || a.createdAt);
-    });
+    const sortedTasks = [...tasks].sort((a, b) => b.createdAt - a.createdAt);
 
     const doneCount = tasks.filter(t => t.status === 'done').length;
     const errorCount = tasks.filter(t => t.status === 'error').length;

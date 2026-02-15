@@ -523,7 +523,20 @@
             "create_student_and_parent": "Vytváření studenta a rodiče",
             "get_attendance_summary": "Načítání docházky",
             "get_academic_performance": "Načítání studijních výsledků",
-            "fetchStudentGrades": "Načítání známek studenta"
+            "fetchStudentGrades": "Načítání známek studenta",
+            "create_academic_year": "Vytváření školního roku",
+            "list_academic_years": "Načítání školních roků",
+            "list_grade_levels": "Načítání ročníků",
+            "list_subject_templates": "Načítání šablon předmětů",
+            "create_subject_template": "Vytváření šablony předmětu",
+            "create_subject_instance": "Přiřazení předmětu k ročníku",
+            "list_subject_instances": "Načítání instancí předmětů",
+            "enroll_students": "Zápis studentů do ročníku",
+            "create_grade": "Zadávání známky",
+            "list_student_grades": "Načítání známek studenta",
+            "record_attendance": "Záznam docházky",
+            "create_room": "Vytváření učebny",
+            "list_rooms": "Načítání učeben"
         }
     }
 }

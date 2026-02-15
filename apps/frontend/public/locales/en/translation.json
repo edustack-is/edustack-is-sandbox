@@ -523,7 +523,20 @@
             "create_student_and_parent": "Creating student and parent",
             "get_attendance_summary": "Loading attendance summary",
             "get_academic_performance": "Loading academic performance",
-            "fetchStudentGrades": "Loading student grades"
+            "fetchStudentGrades": "Loading student grades",
+            "create_academic_year": "Creating academic year",
+            "list_academic_years": "Loading academic years",
+            "list_grade_levels": "Loading grade levels",
+            "list_subject_templates": "Loading subject templates",
+            "create_subject_template": "Creating subject template",
+            "create_subject_instance": "Assigning subject to grade level",
+            "list_subject_instances": "Loading subject instances",
+            "enroll_students": "Enrolling students",
+            "create_grade": "Recording grade",
+            "list_student_grades": "Loading student grades",
+            "record_attendance": "Recording attendance",
+            "create_room": "Creating room",
+            "list_rooms": "Loading rooms"
         }
     }
 }

@@ -135,3 +135,81 @@ server.tool(
         }
     }
 );
+
+// ═══════════════════════════════════════════════════════════════
+// ROOMS (UČEBNY)
+// ═══════════════════════════════════════════════════════════════
+
+server.tool(
+    "create_room",
+    "Vytvoří novou učebnu/místnost v dané škole.",
+    {
+        schoolId: z.string().describe("ID školy"),
+        name: z.string().describe("Název učebny, např. 'A101', 'PC učebna'"),
+        capacity: z.number().int().optional().describe("Kapacita (výchozí: 30)"),
+        isComputerLab: z.boolean().optional().describe("Je to počítačová učebna?"),
+        specialEquipment: z.array(z.string()).optional().describe("Speciální vybavení, např. ['projektor', 'interaktivní tabule']"),
+    },
+    async ({ schoolId, name, capacity, isComputerLab, specialEquipment }) => {
+        try {
+            const existing = await prisma.room.findUnique({
+                where: { name_schoolId: { name, schoolId } },
+            });
+            if (existing) {
+                return { isError: true, content: [{ type: "text", text: `Místnost '${name}' v této škole již existuje (ID: ${existing.id}).` }] };
+            }
+
+            const room = await prisma.room.create({
+                data: {
+                    name,
+                    capacity: capacity || 30,
+                    isComputerLab: isComputerLab || false,
+                    specialEquipment: specialEquipment || [],
+                    schoolId,
+                },
+            });
+
+            return {
+                content: [{
+                    type: "text",
+                    text: `Učebna '${name}' vytvořena (kapacita: ${room.capacity}${room.isComputerLab ? ', PC učebna' : ''}). ID: ${room.id}`,
+                }],
+            };
+        } catch (error: any) {
+            return { isError: true, content: [{ type: "text", text: `Chyba: ${error.message}` }] };
+        }
+    }
+);
+
+server.tool(
+    "list_rooms",
+    "Vypíše všechny učebny/místnosti v dané škole.",
+    {
+        schoolId: z.string().describe("ID školy"),
+    },
+    async ({ schoolId }) => {
+        try {
+            const rooms = await prisma.room.findMany({
+                where: { schoolId },
+                orderBy: { name: "asc" },
+            });
+
+            if (rooms.length === 0) {
+                return { content: [{ type: "text", text: "Škola nemá žádné učebny." }] };
+            }
+
+            const lines = rooms.map(r => {
+                const extras = [];
+                if (r.isComputerLab) extras.push("PC");
+                if (r.specialEquipment && Array.isArray(r.specialEquipment) && (r.specialEquipment as string[]).length > 0) {
+                    extras.push((r.specialEquipment as string[]).join(", "));
+                }
+                return `- ${r.name} (kapacita: ${r.capacity})${extras.length > 0 ? ` [${extras.join(", ")}]` : ''} | ID: ${r.id}`;
+            });
+
+            return { content: [{ type: "text", text: `Učebny (${rooms.length}):\n${lines.join("\n")}` }] };
+        } catch (error: any) {
+            return { isError: true, content: [{ type: "text", text: `Chyba: ${error.message}` }] };
+        }
+    }
+);
