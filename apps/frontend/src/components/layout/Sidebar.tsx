@@ -90,7 +90,7 @@ export const Sidebar: React.FC = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
-    const { tokenType, isSystemAdmin, currentSchool, leaveSchool, role } = useSchool();
+    const { tokenType, isSystemAdmin, currentSchool, leaveSchool, role, schoolCount } = useSchool();
     const [collapsed, setCollapsed] = useState(() => {
         return localStorage.getItem('sidebar-collapsed') === 'true';
     });
@@ -144,6 +144,7 @@ export const Sidebar: React.FC = () => {
     const hasSchoolContext = tokenType === 'TENANT';
     const isSchoolAdmin = role === 'ADMIN' || role === 'DEPUTY' || role === 'PRINCIPAL';
     const isPrincipalOrAdmin = role === 'ADMIN' || role === 'PRINCIPAL';
+    const canSwitchSchool = isSystemAdmin || schoolCount > 1;
 
     return (
         <TooltipProvider>
@@ -170,31 +171,35 @@ export const Sidebar: React.FC = () => {
                                                 {currentSchool.name}
                                             </span>
                                         </div>
-                                        <div className="flex gap-1.5">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-7 px-2.5 text-xs flex-1"
-                                                onClick={handleLeaveSchool}
-                                            >
-                                                <ArrowLeft size={12} className="mr-1" />
-                                                {t('sidebar.change_school', 'Změnit školu')}
-                                            </Button>
-                                            {isSystemAdmin && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-7 px-2.5 text-xs flex-1"
-                                                    onClick={async () => {
-                                                        await leaveSchool();
-                                                        navigate('/dashboard');
-                                                    }}
-                                                >
-                                                    <Settings size={12} className="mr-1" />
-                                                    {t('sidebar.system_admin_short', 'Systém')}
-                                                </Button>
-                                            )}
-                                        </div>
+                                        {(canSwitchSchool || isSystemAdmin) && (
+                                            <div className="flex gap-1.5">
+                                                {canSwitchSchool && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 px-2.5 text-xs flex-1"
+                                                        onClick={handleLeaveSchool}
+                                                    >
+                                                        <ArrowLeft size={12} className="mr-1" />
+                                                        {t('sidebar.change_school', 'Změnit školu')}
+                                                    </Button>
+                                                )}
+                                                {isSystemAdmin && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 px-2.5 text-xs flex-1"
+                                                        onClick={async () => {
+                                                            await leaveSchool();
+                                                            navigate('/dashboard');
+                                                        }}
+                                                    >
+                                                        <Settings size={12} className="mr-1" />
+                                                        {t('sidebar.system_admin_short', 'Systém')}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

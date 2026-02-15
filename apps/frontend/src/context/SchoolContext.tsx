@@ -17,6 +17,7 @@ interface SchoolContextType {
     readOnly: boolean;
     role: string | null;
     currentSchool: SchoolInfo | null;
+    schoolCount: number;
     selectSchool: (schoolId: string, role?: string) => Promise<void>;
     leaveSchool: () => Promise<void>;
     refreshTokenInfo: () => void;
@@ -32,6 +33,7 @@ const SchoolContext = createContext<SchoolContextType>({
     readOnly: false,
     role: null,
     currentSchool: null,
+    schoolCount: 0,
     selectSchool: async () => { },
     leaveSchool: async () => { },
     refreshTokenInfo: () => { },
@@ -67,6 +69,7 @@ function getTokenInfo() {
 export function SchoolProvider({ children }: { children: ReactNode }) {
     const [tokenInfo, setTokenInfo] = useState(getTokenInfo);
     const [currentSchool, setCurrentSchool] = useState<SchoolInfo | null>(null);
+    const [schoolCount, setSchoolCount] = useState(0);
 
     // When token changes, re-read info
     const refreshTokenInfo = useCallback(() => {
@@ -83,6 +86,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
             api.get('/api/auth/schools')
                 .then((res) => {
                     const schools = res.data;
+                    setSchoolCount(Array.isArray(schools) ? schools.length : 0);
                     const school = schools.find((s: any) => s.schoolId === schoolId || s.school?.id === schoolId);
                     if (school) {
                         setCurrentSchool({
@@ -112,6 +116,12 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                 .catch(() => setCurrentSchool(null));
         } else {
             setCurrentSchool(null);
+            // Still fetch school count for global token so UI can decide whether to show "change school"
+            if (tokenInfo.userId) {
+                api.get('/api/auth/schools')
+                    .then((res) => setSchoolCount(Array.isArray(res.data) ? res.data.length : 0))
+                    .catch(() => setSchoolCount(0));
+            }
         }
     }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin]);
 
@@ -166,6 +176,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
             value={{
                 ...tokenInfo,
                 currentSchool,
+                schoolCount,
                 selectSchool,
                 leaveSchool,
                 refreshTokenInfo,
