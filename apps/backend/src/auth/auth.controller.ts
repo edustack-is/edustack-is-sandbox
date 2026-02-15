@@ -10,6 +10,16 @@ import passport from 'passport';
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
+    /** Parse cookies from the raw Cookie header (no cookie-parser needed) */
+    private parseCookies(req: Request): Record<string, string> {
+        const header = req.headers.cookie || '';
+        return header.split(';').reduce((acc, part) => {
+            const [key, ...val] = part.trim().split('=');
+            if (key) acc[key] = decodeURIComponent(val.join('='));
+            return acc;
+        }, {} as Record<string, string>);
+    }
+
     @Public()
     @Get('sso-options')
     async getSsoOptions() {
@@ -18,8 +28,23 @@ export class AuthController {
 
     @Public()
     @Get('sso/:provider')
-    async ssoAuth(@Param('provider') provider: string, @Req() req: Request, @Res() res: Response) {
+    async ssoAuth(
+        @Param('provider') provider: string,
+        @Query('invitationToken') invitationToken: string | undefined,
+        @Query('token') linkToken: string | undefined,
+        @Req() req: Request,
+        @Res() res: Response,
+    ) {
         try {
+            // Store tokens in short-lived httpOnly cookies so they survive the OAuth redirect
+            const cookieOpts = { httpOnly: true, maxAge: 5 * 60 * 1000, sameSite: 'lax' as const, path: '/' };
+            if (invitationToken) {
+                res.cookie('__edu_inv_token', invitationToken, cookieOpts);
+            }
+            if (linkToken) {
+                res.cookie('__edu_link_token', linkToken, cookieOpts);
+            }
+
             passport.authenticate(provider, {
                 session: false,
                 callbackURL: `/api/auth/callback/${provider}`,
@@ -45,24 +70,36 @@ export class AuthController {
                 const email = profile.emails?.[0]?.value || profile.email;
                 if (!email) throw new Error('No email found in SSO profile');
 
-                // Check if user is already logged in (linking scenario)
-                // For simplicity, we can check for an auth header or a cookie if implemented.
-                // But the user prompt says "triggers the OAuth flow while passing a secure linking state (or reading the existing auth cookie on the callback)"
-                // I'll implement a basic linking check by looking at the JWT if present in cookies or header.
+                // Read tokens from cookies set before the OAuth redirect (manual parsing)
+                const cookies = this.parseCookies(req);
+                const invitationToken = cookies['__edu_inv_token'];
+                const linkToken = cookies['__edu_link_token'];
 
-                let existingUser = null;
-                const authHeader = req.headers.authorization;
-                if (authHeader?.startsWith('Bearer ')) {
-                    const token = authHeader.split(' ')[1];
-                    try {
-                        const payload = await this.authService.verifyToken(token);
-                        existingUser = await this.authService.getMe(payload.sub);
-                    } catch (e) { /* ignore */ }
+                // Always clear the cookies
+                res.clearCookie('__edu_inv_token', { path: '/' });
+                res.clearCookie('__edu_link_token', { path: '/' });
+
+                // Invitation activation scenario — activate account via SSO
+                if (invitationToken) {
+                    const result = await this.authService.acceptInvitationViaSso(
+                        invitationToken,
+                        provider,
+                        profile.id,
+                        email,
+                    );
+                    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?token=${result.access_token}`);
                 }
 
-                if (existingUser) {
-                    await this.authService.linkIdentity(existingUser.id, provider, profile.id);
-                    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/profile?linked=success`);
+                // Identity linking scenario — user already logged in
+                if (linkToken) {
+                    try {
+                        const payload = await this.authService.verifyToken(linkToken);
+                        const existingUser = await this.authService.getMe(payload.sub);
+                        if (existingUser) {
+                            await this.authService.linkIdentity(existingUser.id, provider, profile.id);
+                            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/profile?linked=success`);
+                        }
+                    } catch { /* token invalid, fall through to normal login */ }
                 }
 
                 // Normal Login

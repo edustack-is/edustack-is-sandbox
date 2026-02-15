@@ -57,7 +57,7 @@ export class SystemAdminController {
     @Patch('schools/:id')
     updateSchool(
         @Param('id') id: string,
-        @Body() body: { name?: string; address?: string },
+        @Body() body: { name?: string; address?: string; requireSsoEmailMatch?: boolean },
         @Req() req: any
     ) {
         return this.systemAdminService.updateSchool(id, body, req.user.userId);

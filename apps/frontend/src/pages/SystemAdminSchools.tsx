@@ -57,6 +57,7 @@ import {
     DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 
 // ---- Types ----
 interface SchoolMember {
@@ -68,6 +69,7 @@ interface School {
     id: string;
     name: string;
     address: string | null;
+    requireSsoEmailMatch?: boolean;
     createdAt: string;
     members?: SchoolMember[];
 }
@@ -104,6 +106,7 @@ const createSchoolSchema = z.discriminatedUnion('principalType', [
 const editSchoolSchema = z.object({
     name: z.string().min(1, 'School name is required'),
     address: z.string().optional(),
+    requireSsoEmailMatch: z.boolean(),
     hasPrincipalChange: z.boolean(),
     principalType: z.enum(['EXISTING', 'NEW']).optional(),
     userId: z.string().optional(),
@@ -274,6 +277,7 @@ export function SystemAdminSchools() {
             const payload: any = {
                 name: values.name,
                 address: values.address,
+                requireSsoEmailMatch: values.requireSsoEmailMatch,
             };
 
             if (values.hasPrincipalChange) {
@@ -318,6 +322,7 @@ export function SystemAdminSchools() {
         editForm.reset({
             name: school.name,
             address: school.address || '',
+            requireSsoEmailMatch: school.requireSsoEmailMatch ?? false,
             hasPrincipalChange: false,
         });
         setEditDialogOpen(true);
@@ -635,6 +640,30 @@ export function SystemAdminSchools() {
                                             <Input {...field} />
                                         </FormControl>
                                         <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* SSO Email Match Toggle */}
+                            <FormField
+                                control={editForm.control}
+                                name="requireSsoEmailMatch"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-sm font-medium">
+                                                {t('system_schools.require_sso_email_match')}
+                                            </FormLabel>
+                                            <p className="text-xs text-muted-foreground">
+                                                {t('system_schools.require_sso_email_match_desc')}
+                                            </p>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
                                     </FormItem>
                                 )}
                             />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { login, getSsoOptions } from '../api';
-import { Globe, Github, Apple, Mail, Loader2, Shield } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,20 +9,12 @@ import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { toast } from 'sonner';
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
-
-const SSO_ICONS: Record<string, any> = {
-    google: Globe,
-    github: Github,
-    microsoft: Mail,
-    apple: Apple,
-};
-
-const SSO_COLORS: Record<string, string> = {
-    google: 'hover:bg-blue-50 border-blue-200 text-blue-700',
-    github: 'hover:bg-slate-100 border-slate-200 text-slate-900',
-    microsoft: 'hover:bg-blue-50 border-blue-200 text-blue-600',
-    apple: 'hover:bg-slate-100 border-slate-200 text-black',
-};
+import {
+    SSO_PROVIDER_ICON,
+    SSO_PROVIDER_COLORS,
+    SSO_PROVIDER_LABEL,
+    SsoFallbackIcon,
+} from '@/components/sso-providers';
 
 // Map known backend error messages to i18n keys
 const ERROR_MAP: Record<string, string> = {
@@ -223,16 +215,18 @@ export const Login = () => {
 
                         <div className="grid grid-cols-1 gap-3">
                             {ssoOptions.map((provider) => {
-                                const Icon = SSO_ICONS[provider] || Globe;
+                                const Icon = SSO_PROVIDER_ICON[provider] || SsoFallbackIcon;
+                                const label = SSO_PROVIDER_LABEL[provider] || provider;
+                                const colors = SSO_PROVIDER_COLORS[provider] || '';
                                 return (
                                     <Button
                                         key={provider}
                                         variant="outline"
-                                        className={`w-full h-11 justify-center gap-2 font-medium capitalize transition-all ${SSO_COLORS[provider] || ''}`}
+                                        className={`w-full h-11 justify-center gap-2.5 font-medium transition-all ${colors}`}
                                         onClick={() => handleSsoClick(provider)}
                                     >
-                                        <Icon className="h-4 w-4" />
-                                        {provider}
+                                        <Icon className="h-5 w-5" />
+                                        {label}
                                     </Button>
                                 );
                             })}

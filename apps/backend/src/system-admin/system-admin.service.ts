@@ -139,6 +139,7 @@ export class SystemAdminService {
         data: {
             name?: string;
             address?: string;
+            requireSsoEmailMatch?: boolean;
             admin?: { type: 'EXISTING'; userId: string } | { type: 'NEW'; firstName: string; lastName: string; email: string };
         },
         actorId: string
@@ -152,12 +153,14 @@ export class SystemAdminService {
         const oldValues: any = {
             name: school.name,
             address: school.address,
+            requireSsoEmailMatch: school.requireSsoEmailMatch,
             primaryAdmin: school.members[0]?.user?.email || null,
         };
 
         const newValues: any = {};
         if (data.name !== undefined && data.name !== school.name) newValues.name = data.name;
         if (data.address !== undefined && data.address !== school.address) newValues.address = data.address;
+        if (data.requireSsoEmailMatch !== undefined && data.requireSsoEmailMatch !== school.requireSsoEmailMatch) newValues.requireSsoEmailMatch = data.requireSsoEmailMatch;
 
         return this.prisma.$transaction(async (tx: any) => {
             // Update basic info

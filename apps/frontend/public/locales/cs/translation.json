@@ -150,7 +150,7 @@
     },
     "activate": {
         "title": "Aktivace účtu",
-        "subtitle": "Nastavte si heslo ke svému novému účtu.",
+        "subtitle": "Zvolte způsob přihlašování ke svému novému účtu.",
         "new_password": "Nové heslo",
         "confirm_password": "Potvrzení hesla",
         "invalid_link": "Neplatný odkaz",
@@ -160,7 +160,10 @@
         "passwords_mismatch": "Hesla se neshodují.",
         "activating": "Aktivuji...",
         "activate_button": "Aktivovat účet",
-        "success": "Účet byl úspěšně aktivován."
+        "success": "Účet byl úspěšně aktivován.",
+        "sso_section_title": "Propojit s účtem organizace",
+        "activate_via_sso": "Pokračovat přes {{provider}}",
+        "or_use_password": "nebo si nastavte heslo"
     },
     "users_page": {
         "title": "Správa uživatelů",
@@ -380,7 +383,9 @@
         "failed_update": "Nepodařilo se aktualizovat školu",
         "failed_select": "Nepodařilo se vybrat školu",
         "deleted_success": "Škola byla úspěšně smazána",
-        "failed_delete": "Smazání školy selhalo"
+        "failed_delete": "Smazání školy selhalo",
+        "require_sso_email_match": "Vyžadovat shodu SSO emailu",
+        "require_sso_email_match_desc": "Při aktivaci účtu přes SSO musí email z poskytovatele (Google, Microsoft…) odpovídat emailu uživatele v systému."
     },
     "system_users": {
         "title": "Systémoví administrátoři",

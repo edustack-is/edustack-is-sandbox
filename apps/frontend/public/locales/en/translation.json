@@ -150,7 +150,7 @@
     },
     "activate": {
         "title": "Account Activation",
-        "subtitle": "Set a password for your new account.",
+        "subtitle": "Choose how you want to sign in to your new account.",
         "new_password": "New Password",
         "confirm_password": "Confirm Password",
         "invalid_link": "Invalid Link",
@@ -160,7 +160,10 @@
         "passwords_mismatch": "Passwords do not match.",
         "activating": "Activating...",
         "activate_button": "Activate Account",
-        "success": "Account activated successfully."
+        "success": "Account activated successfully.",
+        "sso_section_title": "Link with your organization account",
+        "activate_via_sso": "Continue with {{provider}}",
+        "or_use_password": "or set a password"
     },
     "users_page": {
         "title": "User Management",
@@ -380,7 +383,9 @@
         "failed_update": "Failed to update school",
         "failed_select": "Failed to select school",
         "deleted_success": "School deleted successfully",
-        "failed_delete": "Failed to delete school"
+        "failed_delete": "Failed to delete school",
+        "require_sso_email_match": "Require SSO email match",
+        "require_sso_email_match_desc": "When activating an account via SSO, the provider email (Google, Microsoft…) must match the user's system email."
     },
     "system_users": {
         "title": "System Administrators",

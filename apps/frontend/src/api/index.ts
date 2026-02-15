@@ -160,7 +160,7 @@ export const searchUsers = async (query: string) => {
     const response = await api.get('/api/users', { params: { search: query, limit: 20 } });
     return response.data;
 };
-export const updateSystemSchool = async (id: string, payload: { name?: string; address?: string }) => {
+export const updateSystemSchool = async (id: string, payload: { name?: string; address?: string; requireSsoEmailMatch?: boolean }) => {
     const response = await api.patch(`/api/system/schools/${id}`, payload);
     return response.data;
 };

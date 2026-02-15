@@ -142,6 +142,95 @@ export class AuthService {
         return this.login(updatedUser);
     }
 
+    /**
+     * Activate an invited account via SSO instead of setting a password.
+     * Validates the invitation token, activates memberships, links the SSO identity, and returns a JWT.
+     */
+    async acceptInvitationViaSso(token: string, provider: string, providerId: string, ssoEmail: string) {
+        const parts = token.split('.');
+        const userId = parts[0];
+        const rawToken = parts[1];
+        const linkedStudentId = parts[2] || null;
+
+        if (!userId || !rawToken) throw new BadRequestException('Invalid token format');
+
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.invitationToken || !user.invitationExpires) {
+            throw new BadRequestException('Invalid invitation');
+        }
+
+        if (new Date() > user.invitationExpires) {
+            throw new BadRequestException('Invitation expired');
+        }
+
+        const isMatch = await bcrypt.compare(rawToken, user.invitationToken);
+        if (!isMatch) throw new BadRequestException('Invalid token');
+
+        // Check school-level constraints
+        const memberships = await this.prisma.schoolMembership.findMany({
+            where: { userId: user.id },
+            include: { school: true },
+        });
+
+        for (const membership of memberships) {
+            if (membership.role === 'STUDENT' && !membership.school.allowStudentSelfRegistration) {
+                throw new BadRequestException(
+                    `School "${membership.school.name}" does not allow student self-registration.`
+                );
+            }
+            // Check SSO email match requirement
+            if (membership.school.requireSsoEmailMatch && ssoEmail.toLowerCase() !== user.email.toLowerCase()) {
+                throw new BadRequestException(
+                    `School "${membership.school.name}" requires the SSO email to match your account email (${user.email}).`
+                );
+            }
+        }
+
+        const updatedUser = await this.prisma.$transaction(async (tx: any) => {
+            // Clear invitation token, keep passwordHash null (SSO-only user)
+            const updated = await tx.user.update({
+                where: { id: user.id },
+                data: {
+                    invitationToken: null,
+                    invitationExpires: null,
+                    lastLogin: new Date(),
+                },
+            });
+
+            // Activate all PENDING memberships
+            await tx.schoolMembership.updateMany({
+                where: { userId: user.id, status: 'PENDING' },
+                data: { status: 'ACTIVE' },
+            });
+
+            // Link SSO identity
+            const existingIdentity = await tx.identity.findFirst({
+                where: { provider, providerId },
+            });
+            if (!existingIdentity) {
+                await tx.identity.create({
+                    data: { userId: user.id, provider, providerId },
+                });
+            }
+
+            // Auto-create ParentStudent link for parent invitations
+            if (linkedStudentId) {
+                const existingLink = await tx.parentStudent.findFirst({
+                    where: { parentId: user.id, studentId: linkedStudentId },
+                });
+                if (!existingLink) {
+                    await tx.parentStudent.create({
+                        data: { parentId: user.id, studentId: linkedStudentId },
+                    });
+                }
+            }
+
+            return updated;
+        });
+
+        return this.login(updatedUser);
+    }
+
     async login(user: any, ip?: string, userAgent?: string) {
         // Log successful login
         await this.logLoginAttempt(user.email, true, ip, userAgent, user.id);

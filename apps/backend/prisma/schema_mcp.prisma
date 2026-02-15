@@ -44,6 +44,7 @@ model School {
   address     String?
   contactEmail String?
   allowStudentSelfRegistration Boolean @default(false)
+  requireSsoEmailMatch Boolean @default(false)
   ssoConfig   Json?
   aiConfig    Json?
   
