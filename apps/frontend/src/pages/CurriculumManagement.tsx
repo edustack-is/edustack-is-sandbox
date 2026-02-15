@@ -86,6 +86,7 @@ export default function CurriculumManagement() {
     const [activeTab, setActiveTab] = useState<'versions' | 'subjects' | 'grades'>('versions');
     const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
     const [isCreatingSubject, setIsCreatingSubject] = useState(false);
+    const [showRvpImport, setShowRvpImport] = useState(false);
 
     const subjectForm = useForm<{ name: string; code: string; svpDescription: string }>({
         defaultValues: { name: '', code: '', svpDescription: '' },
@@ -165,7 +166,6 @@ export default function CurriculumManagement() {
         );
     }
 
-    const [showRvpImport, setShowRvpImport] = useState(false);
 
     return (
         <div className="space-y-6">
