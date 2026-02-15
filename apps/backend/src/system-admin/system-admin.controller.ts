@@ -105,7 +105,7 @@ export class SystemAdminController {
     }
 
     @Delete('admins/:id')
-    demoteFromSysAdmin(@Req() req: any, @Param('id') id: string) {
-        return this.systemAdminService.demoteFromSysAdmin(req.user.userId, id);
+    removeSystemAdmin(@Req() req: any, @Param('id') id: string) {
+        return this.systemAdminService.removeSystemAdmin(req.user.userId, id);
     }
 }

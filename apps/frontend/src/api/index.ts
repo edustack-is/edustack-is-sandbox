@@ -180,7 +180,7 @@ export const promoteToSysAdmin = async (data: { email: string; firstName?: strin
     return response.data;
 };
 
-export const demoteFromSysAdmin = async (id: string) => {
+export const removeSystemAdmin = async (id: string) => {
     const response = await api.delete(`/api/system/admins/${id}`);
     return response.data;
 };

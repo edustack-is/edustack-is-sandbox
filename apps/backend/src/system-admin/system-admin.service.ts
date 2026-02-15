@@ -361,31 +361,31 @@ export class SystemAdminService {
         return { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName };
     }
 
-    async demoteFromSysAdmin(actorId: string, targetUserId: string) {
+    async removeSystemAdmin(actorId: string, targetUserId: string) {
         if (actorId === targetUserId) {
-            throw new BadRequestException('Cannot demote yourself from system admin.');
+            throw new BadRequestException('Cannot remove yourself.');
         }
 
         const target = await this.prisma.user.findUnique({ where: { id: targetUserId } });
         if (!target) throw new NotFoundException('User not found.');
-        if (!target.isSystemAdmin) throw new BadRequestException('User is not a system admin.');
+        if (target.deletedAt) throw new BadRequestException('User is already removed.');
 
         await this.prisma.user.update({
             where: { id: targetUserId },
-            data: { isSystemAdmin: false },
+            data: { deletedAt: new Date() },
         });
 
         // Audit
         await this.prisma.auditLog.create({
             data: {
                 actorId,
-                action: 'DEMOTE_SYS_ADMIN',
+                action: 'REMOVE_SYS_ADMIN',
                 entity: 'User',
                 entityId: targetUserId,
-                newValues: { email: target.email, isSystemAdmin: false },
+                newValues: { email: target.email, deletedAt: true },
             },
         });
 
-        return { message: `User ${target.email} is no longer a system admin.` };
+        return { message: `User ${target.email} has been removed.` };
     }
 }
