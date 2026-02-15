@@ -21,7 +21,7 @@ import {
     updateRoom,
     getSubjectTemplates,
     getSubjectInstances,
-    createSubjectInstance,
+    getCurriculumVersions,
 } from '@/api/deputy';
 
 // ═══════════════════════════════════════════════════════════════
@@ -66,6 +66,13 @@ interface SubjectInstance {
     gradeLevel?: GradeLevel;
 }
 
+interface CurriculumVersionSimple {
+    id: string;
+    name: string;
+    validFrom: string;
+    validTo: string | null;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════
@@ -77,17 +84,20 @@ export function DeputyYearSetup() {
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [selectedYear, setSelectedYear] = useState<AcademicYear | null>(null);
     const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([]);
+    const [curriculumVersions, setCurriculumVersions] = useState<CurriculumVersionSimple[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchBaseData = useCallback(async () => {
         try {
             setLoading(true);
-            const [years, levels] = await Promise.all([
+            const [years, levels, cvs] = await Promise.all([
                 getAcademicYears().catch(() => []),
                 getGradeLevels().catch(() => []),
+                getCurriculumVersions().catch(() => []),
             ]);
             setAcademicYears(years);
             setGradeLevels(levels);
+            setCurriculumVersions(cvs);
             // Auto-select current year
             const current = years.find((y: AcademicYear) => y.isCurrent);
             if (current) setSelectedYear(current);
@@ -157,6 +167,7 @@ export function DeputyYearSetup() {
                         academicYears={academicYears}
                         selectedYear={selectedYear}
                         gradeLevels={gradeLevels}
+                        curriculumVersions={curriculumVersions}
                         onSelectYear={setSelectedYear}
                         onRefresh={fetchBaseData}
                     />
@@ -186,12 +197,14 @@ function StepAcademicYear({
     academicYears,
     selectedYear,
     gradeLevels,
+    curriculumVersions,
     onSelectYear,
     onRefresh,
 }: {
     academicYears: AcademicYear[];
     selectedYear: AcademicYear | null;
     gradeLevels: GradeLevel[];
+    curriculumVersions: CurriculumVersionSimple[];
     onSelectYear: (y: AcademicYear) => void;
     onRefresh: () => Promise<void>;
 }) {
@@ -201,6 +214,7 @@ function StepAcademicYear({
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [isCurrent, setIsCurrent] = useState(false);
+    const [selectedCvId, setSelectedCvId] = useState('');
     const [saving, setSaving] = useState(false);
 
     const [showLevelForm, setShowLevelForm] = useState(false);
@@ -215,9 +229,15 @@ function StepAcademicYear({
         try {
             setSaving(true);
             setError('');
-            await createAcademicYear({ name: yearName, startDate, endDate, isCurrent });
+            await createAcademicYear({
+                name: yearName,
+                startDate,
+                endDate,
+                isCurrent,
+                curriculumVersionId: selectedCvId || undefined,
+            });
             setYearName(''); setStartDate(''); setEndDate('');
-            setIsCurrent(false); setShowForm(false);
+            setIsCurrent(false); setSelectedCvId(''); setShowForm(false);
             await onRefresh();
         } catch (err: any) {
             setError(err.response?.data?.message || t('year_setup.create_year_error'));
@@ -275,6 +295,19 @@ function StepAcademicYear({
                                     <label className="text-xs text-muted-foreground">{t('year_setup.end_label')}</label>
                                     <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                                 </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-muted-foreground">{t('year_setup.svp_version_label')}</label>
+                                <select
+                                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                    value={selectedCvId}
+                                    onChange={(e) => setSelectedCvId(e.target.value)}
+                                >
+                                    <option value="">{t('year_setup.no_svp_selected')}</option>
+                                    {curriculumVersions.map((cv) => (
+                                        <option key={cv.id} value={cv.id}>{cv.name}</option>
+                                    ))}
+                                </select>
                             </div>
                             <label className="flex items-center gap-2 text-sm cursor-pointer">
                                 <input type="checkbox" checked={isCurrent} onChange={(e) => setIsCurrent(e.target.checked)} className="rounded" />
@@ -657,13 +690,8 @@ function StepCurriculum({
     const [templates, setTemplates] = useState<SubjectTemplate[]>([]);
     const [instances, setInstances] = useState<SubjectInstance[]>([]);
     const [loading, setLoading] = useState(true);
-    const [cellValues, setCellValues] = useState<Record<string, number>>({});
-    const [saving, setSaving] = useState<string | null>(null);
-    const [saved, setSaved] = useState<Record<string, boolean>>({});
 
     const sortedLevels = [...gradeLevels].sort((a, b) => a.levelNumber - b.levelNumber);
-
-    const cellKey = (templateId: string, levelId: string) => `${templateId}__${levelId}`;
 
     const fetchData = useCallback(async () => {
         if (!selectedYear) return;
@@ -675,44 +703,12 @@ function StepCurriculum({
             ]);
             setTemplates(tpls);
             setInstances(insts);
-
-            // Pre-fill cell values from existing instances
-            const values: Record<string, number> = {};
-            for (const inst of insts) {
-                values[cellKey(inst.templateId, inst.gradeLevelId)] = inst.hoursPerWeek;
-            }
-            setCellValues(values);
         } finally {
             setLoading(false);
         }
     }, [selectedYear]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
-
-    const handleSaveCell = async (templateId: string, gradeLevelId: string) => {
-        if (!selectedYear) return;
-        const key = cellKey(templateId, gradeLevelId);
-        const hours = cellValues[key];
-        if (!hours || hours < 1) return;
-
-        try {
-            setSaving(key);
-            await createSubjectInstance({
-                templateId,
-                academicYearId: selectedYear.id,
-                gradeLevelId,
-                hoursPerWeek: hours,
-            });
-            setSaved((prev) => ({ ...prev, [key]: true }));
-            setTimeout(() => setSaved((prev) => ({ ...prev, [key]: false })), 2000);
-            await fetchData();
-        } catch {
-            // already exists or validation error — silently refresh
-            await fetchData();
-        } finally {
-            setSaving(null);
-        }
-    };
 
     if (!selectedYear) {
         return (
@@ -749,12 +745,18 @@ function StepCurriculum({
         );
     }
 
+    // Build lookup: templateId__gradeLevelId -> hoursPerWeek
+    const hoursMap: Record<string, number> = {};
+    for (const inst of instances) {
+        hoursMap[`${inst.templateId}__${inst.gradeLevelId}`] = inst.hoursPerWeek;
+    }
+
     // Calculate totals per grade level
     const totalPerLevel: Record<string, number> = {};
     for (const level of sortedLevels) {
         totalPerLevel[level.id] = 0;
         for (const tpl of templates) {
-            totalPerLevel[level.id] += cellValues[cellKey(tpl.id, level.id)] || 0;
+            totalPerLevel[level.id] += hoursMap[`${tpl.id}__${level.id}`] || 0;
         }
     }
 
@@ -764,7 +766,10 @@ function StepCurriculum({
                 <CardTitle className="text-lg">{t('year_setup.curriculum_svp')}</CardTitle>
                 <CardDescription>
                     {t('year_setup.curriculum_matrix', { name: selectedYear.name })}
-                    {t('year_setup.enter_hours_hint')} <Save className="inline h-3 w-3" />.
+                    <br />
+                    <span className="text-xs text-muted-foreground italic mt-1 inline-block">
+                        {t('year_setup.curriculum_read_only_hint')}
+                    </span>
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -774,7 +779,7 @@ function StepCurriculum({
                             <TableRow>
                                 <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">{t('year_setup.subject_column')}</TableHead>
                                 {sortedLevels.map((level) => (
-                                    <TableHead key={level.id} className="text-center min-w-[110px]">
+                                    <TableHead key={level.id} className="text-center min-w-[90px]">
                                         <div className="flex flex-col items-center">
                                             <span className="font-medium">{level.name}</span>
                                             <span className="text-[10px] text-muted-foreground">{t('year_setup.hours_per_week')}</span>
@@ -793,42 +798,16 @@ function StepCurriculum({
                                         </div>
                                     </TableCell>
                                     {sortedLevels.map((level) => {
-                                        const key = cellKey(tpl.id, level.id);
-                                        const existingInstance = instances.find(
-                                            (i) => i.templateId === tpl.id && i.gradeLevelId === level.id
-                                        );
+                                        const hours = hoursMap[`${tpl.id}__${level.id}`];
                                         return (
                                             <TableCell key={level.id} className="text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <Input
-                                                        type="number"
-                                                        min={0}
-                                                        max={20}
-                                                        className="h-8 w-16 text-center"
-                                                        value={cellValues[key] ?? ''}
-                                                        onChange={(e) =>
-                                                            setCellValues((prev) => ({
-                                                                ...prev,
-                                                                [key]: parseInt(e.target.value) || 0,
-                                                            }))
-                                                        }
-                                                    />
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="h-8 w-8 p-0"
-                                                        onClick={() => handleSaveCell(tpl.id, level.id)}
-                                                        disabled={saving === key || (existingInstance?.hoursPerWeek === cellValues[key])}
-                                                    >
-                                                        {saving === key ? (
-                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                        ) : saved[key] ? (
-                                                            <Check className="h-3 w-3 text-emerald-500" />
-                                                        ) : (
-                                                            <Save className="h-3 w-3" />
-                                                        )}
-                                                    </Button>
-                                                </div>
+                                                {hours ? (
+                                                    <span className="inline-flex items-center justify-center h-8 w-12 rounded bg-primary/10 text-primary font-medium text-sm">
+                                                        {hours}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground/40">—</span>
+                                                )}
                                             </TableCell>
                                         );
                                     })}

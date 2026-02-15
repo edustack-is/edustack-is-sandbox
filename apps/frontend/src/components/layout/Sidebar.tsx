@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -107,6 +107,7 @@ export const Sidebar: React.FC = () => {
         { path: '/dashboard', label: t('common.dashboard'), icon: LayoutDashboard },
         { path: '/schedule', label: t('sidebar.schedule', 'Rozvrh'), icon: Calendar },
         { path: '/grading', label: t('sidebar.grading', 'Klasifikace'), icon: GraduationCap },
+        { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
     ];
 
     const schoolAdminItems = [
@@ -114,6 +115,11 @@ export const Sidebar: React.FC = () => {
         { path: '/school/rooms', label: t('sidebar.rooms', 'Učebny'), icon: DoorOpen },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
+    ];
+
+    // Principal-only items (also visible to ADMIN)
+    const principalItems = [
+        { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: ClipboardList },
     ];
 
     useEffect(() => {
@@ -137,6 +143,7 @@ export const Sidebar: React.FC = () => {
 
     const hasSchoolContext = tokenType === 'TENANT';
     const isSchoolAdmin = role === 'ADMIN' || role === 'DEPUTY' || role === 'PRINCIPAL';
+    const isPrincipalOrAdmin = role === 'ADMIN' || role === 'PRINCIPAL';
 
     return (
         <TooltipProvider>
@@ -270,6 +277,15 @@ export const Sidebar: React.FC = () => {
                                                     collapsed={false}
                                                 />
                                             ))}
+                                            {isPrincipalOrAdmin && principalItems.map((item) => (
+                                                <SidebarNavItem
+                                                    key={item.path}
+                                                    to={item.path}
+                                                    icon={item.icon}
+                                                    label={item.label}
+                                                    collapsed={false}
+                                                />
+                                            ))}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
@@ -280,6 +296,15 @@ export const Sidebar: React.FC = () => {
                                 <>
                                     <div className="my-2 border-t border-border" />
                                     {schoolAdminItems.map((item) => (
+                                        <SidebarNavItem
+                                            key={item.path}
+                                            to={item.path}
+                                            icon={item.icon}
+                                            label={item.label}
+                                            collapsed={collapsed}
+                                        />
+                                    ))}
+                                    {isPrincipalOrAdmin && principalItems.map((item) => (
                                         <SidebarNavItem
                                             key={item.path}
                                             to={item.path}

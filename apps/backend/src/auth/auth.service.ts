@@ -227,12 +227,21 @@ export class AuthService {
             const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
             if (!school) throw new NotFoundException('School not found');
 
+            // Check if admin actually has a membership in this school
+            const membership = await this.prisma.schoolMembership.findFirst({
+                where: { userId, schoolId, status: 'ACTIVE' },
+            });
+
+            const effectiveRole = role || (membership?.role as string) || 'ADMIN';
+            const isSysAdminOverride = !membership; // true if admin enters school without membership
+
             const payload = {
                 sub: userId,
                 email: user.email,
                 isSystemAdmin: true,
+                isSysAdminOverride,
                 schoolId: school.id,
-                role: role || 'ADMIN',
+                role: effectiveRole,
                 type: 'TENANT'
             };
 

@@ -8,8 +8,10 @@ import { Schedule } from './pages/Schedule';
 import Users from './pages/Users';
 import RoomsManagement from './pages/RoomsManagement';
 import CurriculumManagement from './pages/CurriculumManagement';
+import WhiteBook from './pages/WhiteBook';
 import { Setup } from './pages/Setup';
 import { DeputyYearSetup } from './pages/DeputyYearSetup';
+import { AuditLog } from './pages/AuditLog';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { SystemAdminSettings } from './pages/SystemAdminSettings';
@@ -103,7 +105,9 @@ function App() {
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
                 <Route path="school/curriculum" element={<CurriculumManagement />} />
+                <Route path="school/white-book" element={<WhiteBook />} />
                 <Route path="year-setup" element={<DeputyYearSetup />} />
+                <Route path="school/audit-log" element={<AuditLog />} />
                 <Route element={<SystemAdminGuard />}>
                   <Route path="system/schools" element={<SystemAdminSchools />} />
                   <Route path="system/users" element={<SystemAdminUsers />} />

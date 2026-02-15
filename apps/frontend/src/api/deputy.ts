@@ -12,6 +12,7 @@ export const createAcademicYear = async (data: {
     startDate: string;
     endDate: string;
     isCurrent?: boolean;
+    curriculumVersionId?: string;
 }) => {
     const response = await api.post('/api/deputy/academic-years', data);
     return response.data;
@@ -29,6 +30,19 @@ export const createGradeLevel = async (data: {
     levelNumber: number;
 }) => {
     const response = await api.post('/api/deputy/grade-levels', data);
+    return response.data;
+};
+
+export const updateGradeLevel = async (id: string, data: {
+    name?: string;
+    levelNumber?: number;
+}) => {
+    const response = await api.put(`/api/deputy/grade-levels/${id}`, data);
+    return response.data;
+};
+
+export const deleteGradeLevel = async (id: string) => {
+    const response = await api.delete(`/api/deputy/grade-levels/${id}`);
     return response.data;
 };
 
@@ -133,12 +147,85 @@ export const createSubjectInstance = async (data: {
     academicYearId: string;
     gradeLevelId: string;
     hoursPerWeek: number;
+    curriculumVersionId?: string;
 }) => {
     const response = await api.post('/api/deputy/subjects/instances', data);
     return response.data;
 };
 
-// ─── BATCH ENROLLMENT ───────────────────────────────────────────
+// ─── CURRICULUM VERSIONING (ŠVP) ────────────────────────────────
+
+export const getCurriculumVersions = async () => {
+    const response = await api.get('/api/deputy/curriculum-versions');
+    return response.data;
+};
+
+export const getCurriculumVersion = async (id: string) => {
+    const response = await api.get(`/api/deputy/curriculum-versions/${id}`);
+    return response.data;
+};
+
+export const createCurriculumVersion = async (data: {
+    name: string;
+    validFrom: string;
+    validTo?: string;
+}) => {
+    const response = await api.post('/api/deputy/curriculum-versions', data);
+    return response.data;
+};
+
+export const updateCurriculumVersion = async (id: string, data: {
+    name?: string;
+    validFrom?: string;
+    validTo?: string | null;
+}) => {
+    const response = await api.put(`/api/deputy/curriculum-versions/${id}`, data);
+    return response.data;
+};
+
+export const deleteCurriculumVersion = async (id: string) => {
+    const response = await api.delete(`/api/deputy/curriculum-versions/${id}`);
+    return response.data;
+};
+
+// ─── CURRICULUM ENTRIES (předmět × ročník) ──────────────────────
+
+export const saveCurriculumEntry = async (data: {
+    curriculumVersionId: string;
+    subjectTemplateId: string;
+    gradeLevelId: string;
+    hoursPerWeek: number;
+    rvpDescription?: string;
+    svpApproach?: string;
+    equipmentRequirements?: string[];
+    needsComputerLab?: boolean;
+}) => {
+    const response = await api.post('/api/deputy/curriculum-entries', data);
+    return response.data;
+};
+
+export const deleteCurriculumEntry = async (id: string) => {
+    const response = await api.delete(`/api/deputy/curriculum-entries/${id}`);
+    return response.data;
+};
+
+// ─── WHITE BOOK ─────────────────────────────────────────────────
+
+export const getWhiteBookData = async () => {
+    const response = await api.get('/api/deputy/white-book');
+    return response.data;
+};
+
+// ─── SEMESTERS ──────────────────────────────────────────────────
+
+export const createSemesters = async (data: {
+    academicYearId: string;
+    semesters: Array<{ number: number; name: string; startDate: string; endDate: string }>;
+}) => {
+    const response = await api.post('/api/deputy/semesters', data);
+    return response.data;
+};
+
 
 export const batchEnroll = async (data: {
     studentIds: string[];
@@ -181,3 +268,66 @@ export const resendInvitation = async (userId: string) => {
     return response.data;
 };
 
+// ─── SCHOOL USER MANAGEMENT (remove, alumni, impersonate) ───────
+
+export const removeSchoolUser = async (userId: string) => {
+    const response = await api.delete(`/api/deputy/users/${userId}`);
+    return response.data;
+};
+
+export const setUserAlumni = async (userId: string) => {
+    const response = await api.patch(`/api/deputy/users/${userId}/alumni`);
+    return response.data;
+};
+
+export const impersonateSchoolUser = async (userId: string) => {
+    const response = await api.post(`/api/deputy/users/${userId}/impersonate`);
+    return response.data;
+};
+
+// ─── RVP AI IMPORT ──────────────────────────────────────────────
+
+export const analyzeRvpFromUrl = async (url: string) => {
+    const formData = new FormData();
+    formData.append('url', url);
+    const response = await api.post('/api/deputy/rvp-import/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000, // 2 min – AI can be slow
+    });
+    return response.data;
+};
+
+export const analyzeRvpFromPdf = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/deputy/rvp-import/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+    });
+    return response.data;
+};
+
+export const confirmRvpImport = async (data: {
+    versionName: string;
+    validFrom: string;
+    validTo?: string;
+    subjectMappings: Array<{
+        extractedName: string;
+        extractedCode: string;
+        existingId: string | null;
+    }>;
+    gradeMappings: Array<{
+        gradeLevel: number;
+        existingId: string | null;
+        name: string;
+    }>;
+    allocations: Array<{
+        subjectName: string;
+        gradeLevel: number;
+        hoursPerWeek: number;
+        rvpDescription?: string;
+    }>;
+}) => {
+    const response = await api.post('/api/deputy/rvp-import/confirm', data);
+    return response.data;
+};

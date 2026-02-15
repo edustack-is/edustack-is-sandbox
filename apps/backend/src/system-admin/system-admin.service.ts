@@ -301,4 +301,91 @@ export class SystemAdminService {
 
         return { message: `Škola '${school.name}' byla úspěšně smazána.` };
     }
+
+    // ─── SYSTEM ADMIN MANAGEMENT ─────────────────────────────────────
+
+    async getSystemAdmins() {
+        return this.prisma.user.findMany({
+            where: { isSystemAdmin: true, deletedAt: null },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                lastLogin: true,
+                createdAt: true,
+            },
+            orderBy: { lastName: 'asc' },
+        });
+    }
+
+    async promoteToSysAdmin(actorId: string, email: string, firstName?: string, lastName?: string) {
+        let user = await this.prisma.user.findUnique({ where: { email } });
+
+        if (user && user.isSystemAdmin) {
+            throw new BadRequestException('User is already a system admin.');
+        }
+
+        if (!user) {
+            // Create new user
+            if (!firstName || !lastName) {
+                throw new BadRequestException('firstName and lastName are required for new users.');
+            }
+            user = await this.prisma.user.create({
+                data: {
+                    email,
+                    firstName,
+                    lastName,
+                    isSystemAdmin: true,
+                },
+            });
+        } else {
+            // Promote existing user
+            user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: { isSystemAdmin: true },
+            });
+        }
+
+        // Audit
+        await this.prisma.auditLog.create({
+            data: {
+                actorId,
+                action: 'PROMOTE_SYS_ADMIN',
+                entity: 'User',
+                entityId: user.id,
+                newValues: { email: user.email, isSystemAdmin: true },
+            },
+        });
+
+        return { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName };
+    }
+
+    async demoteFromSysAdmin(actorId: string, targetUserId: string) {
+        if (actorId === targetUserId) {
+            throw new BadRequestException('Cannot demote yourself from system admin.');
+        }
+
+        const target = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+        if (!target) throw new NotFoundException('User not found.');
+        if (!target.isSystemAdmin) throw new BadRequestException('User is not a system admin.');
+
+        await this.prisma.user.update({
+            where: { id: targetUserId },
+            data: { isSystemAdmin: false },
+        });
+
+        // Audit
+        await this.prisma.auditLog.create({
+            data: {
+                actorId,
+                action: 'DEMOTE_SYS_ADMIN',
+                entity: 'User',
+                entityId: targetUserId,
+                newValues: { email: target.email, isSystemAdmin: false },
+            },
+        });
+
+        return { message: `User ${target.email} is no longer a system admin.` };
+    }
 }

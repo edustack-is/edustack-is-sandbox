@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
-import { UserCog, Send, Plus, Trash2 } from 'lucide-react';
+import { UserCog, Send, Plus, Trash2, GraduationCap, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
-import { impersonateUser, getUsers } from '../api';
-import { getDeputyUsers, createStudentFamily, createStaff, resendInvitation } from '../api/deputy';
+import { getUsers } from '../api';
+import {
+    getDeputyUsers, createStudentFamily, createStaff, resendInvitation,
+    removeSchoolUser, setUserAlumni, impersonateSchoolUser,
+} from '../api/deputy';
 
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -20,6 +23,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -62,6 +70,15 @@ const roleBadgeVariant = (role: string) => {
     }
 };
 
+const statusBadgeVariant = (status: string) => {
+    switch (status) {
+        case 'ACTIVE': return 'default';
+        case 'PENDING': return 'secondary';
+        case 'ALUMNI': return 'outline';
+        default: return 'secondary';
+    }
+};
+
 // ─── Component ──────────────────────────────────────────────────
 
 export default function Users() {
@@ -71,6 +88,12 @@ export default function Users() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('student');
     const [submitting, setSubmitting] = useState(false);
+
+    // Confirm dialogs
+    const [removeTarget, setRemoveTarget] = useState<SchoolUser | null>(null);
+    const [alumniTarget, setAlumniTarget] = useState<SchoolUser | null>(null);
+    const [removing, setRemoving] = useState(false);
+    const [settingAlumni, setSettingAlumni] = useState(false);
 
     // ── Student + Family form ──────────────────────────────
     const studentForm = useForm<StudentFamilyFormData>({
@@ -131,18 +154,53 @@ export default function Users() {
 
     useEffect(() => { loadUsers(); }, []);
 
-    // ── Impersonate ────────────────────────────────────────
+    // ── Impersonate (school-scoped) ────────────────────────
     const handleImpersonate = async (targetId: string) => {
-        const aid = prompt(t('users_page.enter_admin_id'), "admin");
-        if (!aid) return;
         try {
-            const { access_token } = await impersonateUser(targetId, aid);
             const currentToken = localStorage.getItem('access_token');
-            if (currentToken) localStorage.setItem('impersonation_original_token', currentToken);
+            if (!currentToken) {
+                toast.error(t('users_page.impersonation_failed'));
+                return;
+            }
+            const { access_token } = await impersonateSchoolUser(targetId);
+            localStorage.setItem('original_admin_token', currentToken);
             localStorage.setItem('access_token', access_token);
+            toast.success(t('users_page.impersonation_started'));
             window.location.reload();
         } catch (error: any) {
             toast.error(t('users_page.impersonation_failed') + ': ' + (error.response?.data?.message || error.message));
+        }
+    };
+
+    // ── Remove user ────────────────────────────────────────
+    const handleRemoveUser = async () => {
+        if (!removeTarget) return;
+        setRemoving(true);
+        try {
+            await removeSchoolUser(removeTarget.id);
+            toast.success(t('users_page.user_removed'));
+            setRemoveTarget(null);
+            loadUsers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message);
+        } finally {
+            setRemoving(false);
+        }
+    };
+
+    // ── Set alumni ─────────────────────────────────────────
+    const handleSetAlumni = async () => {
+        if (!alumniTarget) return;
+        setSettingAlumni(true);
+        try {
+            await setUserAlumni(alumniTarget.id);
+            toast.success(t('users_page.alumni_set'));
+            setAlumniTarget(null);
+            loadUsers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message);
+        } finally {
+            setSettingAlumni(false);
         }
     };
 
@@ -259,7 +317,7 @@ export default function Users() {
             accessorKey: 'status',
             header: t('common.status'),
             cell: ({ row }) => (
-                <Badge variant={row.original.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                <Badge variant={statusBadgeVariant(row.original.status) as any}>
                     {t(`statuses.${row.original.status}`, row.original.status)}
                 </Badge>
             ),
@@ -268,7 +326,8 @@ export default function Users() {
             id: 'actions',
             header: t('common.actions'),
             cell: ({ row }) => (
-                <div className="flex gap-2">
+                <div className="flex gap-1">
+                    {/* Resend invitation */}
                     {row.original.status === 'PENDING' && (
                         <Button
                             variant="ghost"
@@ -279,12 +338,45 @@ export default function Users() {
                             <Send className="h-4 w-4" />
                         </Button>
                     )}
-                    {row.original.status !== 'PENDING' && (
-                        <Button variant="ghost" size="icon" title={t('users_page.impersonate')}
-                            onClick={() => handleImpersonate(row.original.id)}>
-                            <UserCog className="h-4 w-4" />
-                        </Button>
-                    )}
+
+                    {/* Impersonate — only active students/teachers/parents */}
+                    {row.original.status === 'ACTIVE' &&
+                        !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.impersonate')}
+                                onClick={() => handleImpersonate(row.original.id)}
+                            >
+                                <UserCog className="h-4 w-4 text-amber-600" />
+                            </Button>
+                        )}
+
+                    {/* Set as alumni — only active students */}
+                    {row.original.role === 'STUDENT' &&
+                        row.original.status === 'ACTIVE' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.set_alumni')}
+                                onClick={() => setAlumniTarget(row.original)}
+                            >
+                                <GraduationCap className="h-4 w-4 text-blue-600" />
+                            </Button>
+                        )}
+
+                    {/* Remove from school — anyone except PRINCIPAL */}
+                    {row.original.role !== 'PRINCIPAL' &&
+                        row.original.status !== 'ARCHIVED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.remove_user')}
+                                onClick={() => setRemoveTarget(row.original)}
+                            >
+                                <UserMinus className="h-4 w-4 text-destructive" />
+                            </Button>
+                        )}
                 </div>
             ),
         },
@@ -477,6 +569,54 @@ export default function Users() {
                     </Tabs>
                 </DialogContent>
             </Dialog>
+
+            {/* ─── Remove User Confirm ───────────────────────── */}
+            <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('users_page.remove_title')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t('users_page.remove_description', {
+                                name: removeTarget ? `${removeTarget.firstName} ${removeTarget.lastName}` : '',
+                                role: removeTarget ? t(`roles.${removeTarget.role}`, removeTarget.role) : '',
+                            })}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleRemoveUser}
+                            disabled={removing}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {removing ? t('common.saving') : t('users_page.confirm_remove')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ─── Alumni Confirm ────────────────────────────── */}
+            <AlertDialog open={!!alumniTarget} onOpenChange={(open) => !open && setAlumniTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('users_page.alumni_title')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t('users_page.alumni_description', {
+                                name: alumniTarget ? `${alumniTarget.firstName} ${alumniTarget.lastName}` : '',
+                            })}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleSetAlumni}
+                            disabled={settingAlumni}
+                        >
+                            {settingAlumni ? t('common.saving') : t('users_page.confirm_alumni')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

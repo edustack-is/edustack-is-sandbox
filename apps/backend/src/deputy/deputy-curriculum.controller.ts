@@ -1,24 +1,34 @@
-import { Controller, Post, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { DeputyCurriculumService } from './deputy-curriculum.service';
+import { RvpImportService } from './rvp-import.service';
+import type { RvpConfirmData } from './rvp-import.service';
 
 @Controller('api/deputy')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.DEPUTY, UserRole.PRINCIPAL)
+@Roles(UserRole.ADMIN, UserRole.DEPUTY, UserRole.PRINCIPAL)
 export class DeputyCurriculumController {
-    constructor(private readonly curriculumService: DeputyCurriculumService) { }
+    constructor(
+        private readonly curriculumService: DeputyCurriculumService,
+        private readonly rvpImportService: RvpImportService,
+    ) { }
 
-    /**
-     * POST /api/deputy/academic-years
-     * Creates a new academic year for the school.
-     */
+    // ─── ACADEMIC YEARS ─────────────────────────────────────────────
+
+    @Get('academic-years')
+    async getAcademicYears(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getAcademicYears(req.user.schoolId);
+    }
+
     @Post('academic-years')
     async createAcademicYear(
         @Req() req: any,
-        @Body() body: { name: string; startDate: string; endDate: string; isCurrent?: boolean },
+        @Body() body: { name: string; startDate: string; endDate: string; isCurrent?: boolean; curriculumVersionId?: string },
     ) {
         this.ensureTenant(req);
         return this.curriculumService.createAcademicYear(
@@ -26,14 +36,99 @@ export class DeputyCurriculumController {
         );
     }
 
-    /**
-     * POST /api/deputy/subjects/instances
-     * Assigns a SubjectTemplate to a GradeLevel + AcademicYear with hoursPerWeek.
-     */
+    // ─── GRADE LEVELS ───────────────────────────────────────────────
+
+    @Get('grade-levels')
+    async getGradeLevels(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getGradeLevels(req.user.schoolId);
+    }
+
+    @Post('grade-levels')
+    async createGradeLevel(
+        @Req() req: any,
+        @Body() body: { name: string; levelNumber: number },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.createGradeLevel(
+            req.user.userId, req.user.schoolId, body,
+        );
+    }
+
+    @Put('grade-levels/:id')
+    async updateGradeLevel(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: { name?: string; levelNumber?: number },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.updateGradeLevel(
+            req.user.userId, req.user.schoolId, id, body,
+        );
+    }
+
+    @Delete('grade-levels/:id')
+    async deleteGradeLevel(
+        @Req() req: any,
+        @Param('id') id: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.deleteGradeLevel(
+            req.user.userId, req.user.schoolId, id,
+        );
+    }
+
+    // ─── TEACHERS ───────────────────────────────────────────────────
+
+    @Get('teachers')
+    async getTeachers(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getTeachers(req.user.schoolId);
+    }
+
+    // ─── TEACHER WORKLOADS ──────────────────────────────────────────
+
+    @Get('teacher-workloads')
+    async getTeacherWorkloads(
+        @Req() req: any,
+        @Query('academicYearId') academicYearId: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.getTeacherWorkloads(req.user.schoolId, academicYearId);
+    }
+
+    @Post('teacher-workloads')
+    async saveTeacherWorkload(
+        @Req() req: any,
+        @Body() body: { teacherId: string; academicYearId: string; workloadPercentage: number },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.saveTeacherWorkload(
+            req.user.userId, req.user.schoolId, body,
+        );
+    }
+
+    // ─── SUBJECT INSTANCES ──────────────────────────────────────────
+
+    @Get('subjects/instances')
+    async getSubjectInstances(
+        @Req() req: any,
+        @Query('academicYearId') academicYearId: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.getSubjectInstances(req.user.schoolId, academicYearId);
+    }
+
     @Post('subjects/instances')
     async createSubjectInstance(
         @Req() req: any,
-        @Body() body: { templateId: string; academicYearId: string; gradeLevelId: string; hoursPerWeek: number },
+        @Body() body: {
+            templateId: string;
+            academicYearId: string;
+            gradeLevelId: string;
+            hoursPerWeek: number;
+            curriculumVersionId?: string;
+        },
     ) {
         this.ensureTenant(req);
         return this.curriculumService.createSubjectInstance(
@@ -41,10 +136,119 @@ export class DeputyCurriculumController {
         );
     }
 
-    /**
-     * POST /api/deputy/enrollments/batch
-     * Batch-enrolls students into a specific academic year + grade level.
-     */
+    // ─── CURRICULUM VERSIONING ──────────────────────────────────────
+
+    @Get('curriculum-versions')
+    async getCurriculumVersions(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getCurriculumVersions(req.user.schoolId);
+    }
+
+    @Get('curriculum-versions/:id')
+    async getCurriculumVersion(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.curriculumService.getCurriculumVersion(req.user.schoolId, id);
+    }
+
+    @Post('curriculum-versions')
+    async createCurriculumVersion(
+        @Req() req: any,
+        @Body() body: {
+            name: string;
+            validFrom: string;
+            validTo?: string;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.createCurriculumVersion(
+            req.user.userId, req.user.schoolId, body,
+        );
+    }
+
+    @Put('curriculum-versions/:id')
+    async updateCurriculumVersion(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: {
+            name?: string;
+            validFrom?: string;
+            validTo?: string | null;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.updateCurriculumVersion(
+            req.user.userId, req.user.schoolId, id, body,
+        );
+    }
+
+    @Delete('curriculum-versions/:id')
+    async deleteCurriculumVersion(
+        @Req() req: any,
+        @Param('id') id: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.deleteCurriculumVersion(
+            req.user.userId, req.user.schoolId, id,
+        );
+    }
+
+    // ─── CURRICULUM ENTRIES (předmět × ročník) ──────────────────────
+
+    @Post('curriculum-entries')
+    async saveCurriculumEntry(
+        @Req() req: any,
+        @Body() body: {
+            curriculumVersionId: string;
+            subjectTemplateId: string;
+            gradeLevelId: string;
+            hoursPerWeek: number;
+            rvpDescription?: string;
+            svpApproach?: string;
+            equipmentRequirements?: string[];
+            needsComputerLab?: boolean;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.saveCurriculumEntry(
+            req.user.userId, req.user.schoolId, body,
+        );
+    }
+
+    @Delete('curriculum-entries/:id')
+    async deleteCurriculumEntry(
+        @Req() req: any,
+        @Param('id') id: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.deleteCurriculumEntry(
+            req.user.userId, req.user.schoolId, id,
+        );
+    }
+
+    // ─── WHITE BOOK (read-only, all school users) ───────────────────
+
+    @Get('white-book')
+    async getWhiteBook(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getWhiteBookData(req.user.schoolId);
+    }
+
+    // ─── SEMESTERS ──────────────────────────────────────────────────
+
+    @Post('semesters')
+    async createSemesters(
+        @Req() req: any,
+        @Body() body: {
+            academicYearId: string;
+            semesters: Array<{ number: number; name: string; startDate: string; endDate: string }>;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.createSemesters(
+            req.user.userId, req.user.schoolId, body,
+        );
+    }
+
     @Post('enrollments/batch')
     async batchEnroll(
         @Req() req: any,
@@ -59,6 +263,51 @@ export class DeputyCurriculumController {
         return this.curriculumService.batchEnroll(
             req.user.userId, req.user.schoolId, body,
         );
+    }
+
+    // ─── RVP IMPORT (AI-powered) ────────────────────────────────────
+
+    @Post('rvp-import/analyze')
+    @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+    async analyzeRvp(
+        @Req() req: any,
+        @UploadedFile() file: any,
+        @Body() body: { url?: string },
+    ) {
+        this.ensureTenant(req);
+        const { schoolId, userId } = req.user;
+
+        let documentText: string;
+
+        if (file) {
+            // PDF upload
+            documentText = await this.rvpImportService.extractTextFromPdf(file.buffer);
+        } else if (body.url) {
+            // URL fetch
+            documentText = await this.rvpImportService.extractTextFromUrl(body.url);
+        } else {
+            throw new BadRequestException('Zadejte URL nebo nahrajte PDF soubor.');
+        }
+
+        // AI extraction
+        const extraction = await this.rvpImportService.extractRvpData(
+            documentText,
+            userId,
+            schoolId,
+        );
+
+        // Build preview with matching
+        return this.rvpImportService.buildPreview(extraction, schoolId);
+    }
+
+    @Post('rvp-import/confirm')
+    async confirmRvpImport(
+        @Req() req: any,
+        @Body() body: RvpConfirmData,
+    ) {
+        this.ensureTenant(req);
+        const { schoolId, userId } = req.user;
+        return this.rvpImportService.confirmImport(userId, schoolId, body);
     }
 
     private ensureTenant(req: any) {

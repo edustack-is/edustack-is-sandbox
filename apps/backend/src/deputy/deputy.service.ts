@@ -587,6 +587,118 @@ export class DeputyService {
         return { success: true };
     }
 
+    // ─── REMOVE USER FROM SCHOOL ────────────────────────────────────
+
+    async removeSchoolUser(actorId: string, schoolId: string, targetUserId: string) {
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId: targetUserId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+
+        // Cannot remove yourself
+        if (actorId === targetUserId) {
+            throw new BadRequestException('Cannot remove yourself from the school.');
+        }
+
+        // Cannot remove PRINCIPAL unless you are PRINCIPAL
+        if (membership.role === 'PRINCIPAL') {
+            throw new BadRequestException('Cannot remove the principal. Contact system admin.');
+        }
+
+        await this.prisma.schoolMembership.update({
+            where: { id: membership.id },
+            data: { status: 'ARCHIVED' },
+        });
+
+        await this.audit(actorId, 'REMOVE_SCHOOL_USER', 'SchoolMembership', membership.id, {
+            userId: targetUserId,
+            email: membership.user.email,
+            role: membership.role,
+            newStatus: 'ARCHIVED',
+        });
+
+        return { message: `User ${membership.user.email} has been removed from the school.` };
+    }
+
+    // ─── SET STUDENT AS ALUMNI ────────────────────────────────────────
+
+    async setAlumniStatus(actorId: string, schoolId: string, targetUserId: string) {
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId: targetUserId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+
+        if (membership.role !== 'STUDENT') {
+            throw new BadRequestException('Only students can be set as alumni.');
+        }
+
+        if (membership.status === 'ALUMNI') {
+            throw new BadRequestException('User is already marked as alumni.');
+        }
+
+        const oldStatus = membership.status;
+        await this.prisma.schoolMembership.update({
+            where: { id: membership.id },
+            data: { status: 'ALUMNI' },
+        });
+
+        await this.audit(actorId, 'SET_ALUMNI', 'SchoolMembership', membership.id, {
+            userId: targetUserId,
+            email: membership.user.email,
+            newStatus: 'ALUMNI',
+        }, {
+            oldStatus,
+        });
+
+        return { message: `Student ${membership.user.firstName} ${membership.user.lastName} has been marked as alumni.` };
+    }
+
+    // ─── IMPERSONATE SCHOOL USER (read-only) ─────────────────────────
+
+    async impersonateSchoolUser(
+        actorId: string,
+        schoolId: string,
+        targetUserId: string,
+        jwtService: any,
+    ) {
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId: targetUserId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+
+        // Cannot impersonate PRINCIPAL or DEPUTY
+        if (['PRINCIPAL', 'DEPUTY'].includes(membership.role)) {
+            throw new BadRequestException('Cannot impersonate school management.');
+        }
+
+        // Audit
+        await this.audit(actorId, 'IMPERSONATE_SCHOOL_USER', 'User', targetUserId, {
+            email: membership.user.email,
+            role: membership.role,
+            schoolId,
+            readOnly: true,
+        });
+
+        // Generate a read-only tenant token for the target user
+        const payload = {
+            sub: membership.user.id,
+            email: membership.user.email,
+            schoolId,
+            role: membership.role,
+            type: 'TENANT',
+            isImpersonated: true,
+            readOnly: true,
+            actorId,
+        };
+
+        return {
+            access_token: jwtService.sign(payload),
+        };
+    }
+
     // ─── AUDIT HELPER ────────────────────────────────────────────────
 
     private async audit(actorId: string, action: string, entity: string, entityId: string, newValues?: any, oldValues?: any) {

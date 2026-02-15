@@ -35,6 +35,7 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   ARCHIVED
+  ALUMNI
 }
 
 model School {
@@ -57,6 +58,7 @@ model School {
   gradeLevels   GradeLevel[]
   scheduleEvents ScheduleEvent[]
   aiTokenUsages   AiTokenUsage[]
+  curriculumVersions CurriculumVersion[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -199,12 +201,17 @@ model SubjectTemplate {
   id              String   @id @default(uuid())
   name            String   // e.g. "Informatika"
   code            String   // e.g. "INF"
-  svpDescription  String?  // Link to ŠVP description
+  svpDescription  String?  // Link to ŠVP document
   
   schoolId  String
   school    School   @relation(fields: [schoolId], references: [id])
 
-  instances SubjectInstance[]
+  // Optional: subject belongs to a specific ŠVP version
+  curriculumVersionId  String?
+  curriculumVersion    CurriculumVersion? @relation("VersionSubjects", fields: [curriculumVersionId], references: [id])
+
+  instances          SubjectInstance[]
+  curriculumEntries  CurriculumEntry[]
 
   @@unique([code, schoolId])
 }
@@ -221,6 +228,10 @@ model SubjectInstance {
 
   gradeLevelId    String
   gradeLevel      GradeLevel      @relation(fields: [gradeLevelId], references: [id])
+
+  // Link to the ŠVP version this instance was created from
+  curriculumVersionId  String?
+  curriculumVersion    CurriculumVersion? @relation(fields: [curriculumVersionId], references: [id])
 
   schoolId        String
   school          School          @relation(fields: [schoolId], references: [id])
@@ -331,6 +342,11 @@ model AcademicYear {
   schoolId  String
   school    School   @relation(fields: [schoolId], references: [id])
 
+  // Which ŠVP version governs this academic year (selected on creation)
+  curriculumVersionId  String?
+  curriculumVersion    CurriculumVersion? @relation("YearCurriculum", fields: [curriculumVersionId], references: [id])
+
+  semesters           Semester[]
   grades              Grade[]
   studentEnrollments  StudentEnrollment[]
   teacherWorkloads    TeacherWorkload[]
@@ -350,8 +366,9 @@ model GradeLevel {
   schoolId    String
   school      School @relation(fields: [schoolId], references: [id])
 
-  studentEnrollments StudentEnrollment[]
-  subjectInstances   SubjectInstance[]
+  studentEnrollments       StudentEnrollment[]
+  subjectInstances         SubjectInstance[]
+  curriculumEntries        CurriculumEntry[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -397,6 +414,70 @@ model TeacherWorkload {
   updatedAt          DateTime     @updatedAt
 
   @@unique([teacherId, academicYearId])
+}
+
+// ─── SEMESTERS (pololetí) ────────────────────────────────────
+
+model Semester {
+  id            String       @id @default(uuid())
+  number        Int          // 1 = first semester, 2 = second semester
+  name          String       // e.g. "1. pololetí"
+  startDate     DateTime
+  endDate       DateTime
+
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([academicYearId, number])
+}
+
+// ─── CURRICULUM VERSIONING (ŠVP verze) ──────────────────────
+// CurriculumVersion = celoskolní verze ŠVP s platností od pololetí
+// CurriculumEntry   = předmět × ročník v rámci dané verze ŠVP
+
+model CurriculumVersion {
+  id                String          @id @default(uuid())
+  name              String          // e.g. "ŠVP v1.0", "ŠVP 2024"
+
+  validFrom         DateTime        // Datum platnosti od
+  validTo           DateTime?       // Datum platnosti do (null = stále platí)
+
+  schoolId          String
+  school            School          @relation(fields: [schoolId], references: [id])
+
+  entries           CurriculumEntry[]
+  subjectInstances  SubjectInstance[]
+  subjectTemplates  SubjectTemplate[] @relation("VersionSubjects")
+  academicYears     AcademicYear[]    @relation("YearCurriculum")
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model CurriculumEntry {
+  id                    String            @id @default(uuid())
+  hoursPerWeek          Int
+  rvpDescription        String?           // RVP – national framework expectations
+  svpApproach           String?           // ŠVP – school's teaching approach
+  equipmentRequirements Json?             // e.g. ["projektor", "mikroskop"]
+  needsComputerLab      Boolean           @default(false)
+
+  curriculumVersionId   String
+  curriculumVersion     CurriculumVersion @relation(fields: [curriculumVersionId], references: [id], onDelete: Cascade)
+
+  subjectTemplateId     String
+  subjectTemplate       SubjectTemplate   @relation(fields: [subjectTemplateId], references: [id])
+
+  gradeLevelId          String
+  gradeLevel            GradeLevel        @relation(fields: [gradeLevelId], references: [id])
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@unique([curriculumVersionId, subjectTemplateId, gradeLevelId])
 }
 
 // ─── AI CONFIGURATION & BILLING ─────────────────────────────────

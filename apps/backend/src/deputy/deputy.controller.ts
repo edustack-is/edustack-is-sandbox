@@ -1,7 +1,8 @@
 import {
-    Controller, Get, Post, Put, Delete,
+    Controller, Get, Post, Put, Patch, Delete,
     Body, Param, UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -12,7 +13,10 @@ import { DeputyService } from './deputy.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.DEPUTY, UserRole.PRINCIPAL)
 export class DeputyController {
-    constructor(private readonly deputyService: DeputyService) { }
+    constructor(
+        private readonly deputyService: DeputyService,
+        private readonly jwtService: JwtService,
+    ) { }
 
     // ─── SCHOOL DASHBOARD (all roles) ────────────────────────────────
 
@@ -161,6 +165,35 @@ export class DeputyController {
     async resendInvitation(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.resendInvitation(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── REMOVE USER FROM SCHOOL ────────────────────────────────────
+
+    @Delete('users/:id')
+    async removeUser(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.removeSchoolUser(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── SET STUDENT AS ALUMNI ────────────────────────────────────────
+
+    @Patch('users/:id/alumni')
+    async setAlumni(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.setAlumniStatus(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── IMPERSONATE SCHOOL USER ─────────────────────────────────────
+
+    @Post('users/:id/impersonate')
+    async impersonateUser(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.impersonateSchoolUser(
+            req.user.userId,
+            req.user.schoolId,
+            id,
+            this.jwtService,
+        );
     }
 
     // ─── HELPER ──────────────────────────────────────────────────────

@@ -12,6 +12,9 @@ interface SchoolContextType {
     userId: string | null;
     schoolId: string | null;
     isSystemAdmin: boolean;
+    isSysAdminOverride: boolean;
+    isImpersonated: boolean;
+    readOnly: boolean;
     role: string | null;
     currentSchool: SchoolInfo | null;
     selectSchool: (schoolId: string, role?: string) => Promise<void>;
@@ -24,6 +27,9 @@ const SchoolContext = createContext<SchoolContextType>({
     userId: null,
     schoolId: null,
     isSystemAdmin: false,
+    isSysAdminOverride: false,
+    isImpersonated: false,
+    readOnly: false,
     role: null,
     currentSchool: null,
     selectSchool: async () => { },
@@ -43,7 +49,7 @@ function decodeJwtPayload(token: string): any {
 function getTokenInfo() {
     const token = localStorage.getItem('access_token');
     if (!token) {
-        return { tokenType: 'GLOBAL' as const, userId: null, schoolId: null, isSystemAdmin: false, role: null };
+        return { tokenType: 'GLOBAL' as const, userId: null, schoolId: null, isSystemAdmin: false, isSysAdminOverride: false, isImpersonated: false, readOnly: false, role: null };
     }
     const payload = decodeJwtPayload(token);
     return {
@@ -51,6 +57,9 @@ function getTokenInfo() {
         userId: payload.sub || null,
         schoolId: payload.schoolId || null,
         isSystemAdmin: payload.isSystemAdmin || false,
+        isSysAdminOverride: payload.isSysAdminOverride || false,
+        isImpersonated: payload.isImpersonated || false,
+        readOnly: payload.readOnly || false,
         role: payload.role || null,
     };
 }

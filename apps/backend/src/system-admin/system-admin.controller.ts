@@ -86,4 +86,26 @@ export class SystemAdminController {
     deleteSchool(@Param('id') id: string) {
         return this.systemAdminService.deleteSchool(id);
     }
+
+    // ─── SYSTEM ADMIN MANAGEMENT ─────────────────────────────────────
+
+    @Get('admins')
+    getSystemAdmins() {
+        return this.systemAdminService.getSystemAdmins();
+    }
+
+    @Post('admins')
+    promoteToSysAdmin(
+        @Req() req: any,
+        @Body('email') email: string,
+        @Body('firstName') firstName?: string,
+        @Body('lastName') lastName?: string,
+    ) {
+        return this.systemAdminService.promoteToSysAdmin(req.user.userId, email, firstName, lastName);
+    }
+
+    @Delete('admins/:id')
+    demoteFromSysAdmin(@Req() req: any, @Param('id') id: string) {
+        return this.systemAdminService.demoteFromSysAdmin(req.user.userId, id);
+    }
 }
