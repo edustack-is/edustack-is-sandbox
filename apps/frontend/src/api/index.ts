@@ -91,7 +91,8 @@ const setupHeaders = (token?: string) =>
     token ? { 'x-setup-token': token } : {};
 
 export const setupApp = async (data: any, setupToken?: string) => {
-    const response = await api.post('/api/init/setup', data, { headers: setupHeaders(setupToken) });
+    const { confirmPassword, ...payload } = data;
+    const response = await api.post('/api/init/setup', payload, { headers: setupHeaders(setupToken) });
     return response.data; // { school: SchoolConfig, admin: User }
 };
 
@@ -101,7 +102,8 @@ export const getSeedFiles = async (setupToken?: string) => {
 };
 
 export const setupWithSeed = async (data: any, setupToken?: string) => {
-    const response = await api.post('/api/init/setup-with-seed', data, {
+    const { confirmPassword, ...payload } = data;
+    const response = await api.post('/api/init/setup-with-seed', payload, {
         timeout: 60000,
         headers: setupHeaders(setupToken),
     });
