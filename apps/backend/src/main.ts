@@ -26,7 +26,18 @@ async function bootstrap() {
 
   // ─── Security headers (Helmet) ─────────────────────────────────
   app.use(helmet({
-    contentSecurityPolicy: false, // CSP may interfere with Swagger UI
+    contentSecurityPolicy: process.env.NODE_ENV === 'production'
+      ? {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+        },
+      }
+      : false, // Disable in dev — Swagger UI and Vite HMR need inline scripts
   }));
 
   // ─── CORS ──────────────────────────────────────────────────────
@@ -51,26 +62,28 @@ async function bootstrap() {
     transform: true,               // auto-transform payloads to DTO instances
   }));
 
-  // Swagger / OpenAPI configuration
-  const config = new DocumentBuilder()
-    .setTitle('EduStack IS API')
-    .setDescription('Školní informační systém – REST API dokumentace')
-    .setVersion('1.0')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      'JWT-auth',
-    )
-    .addTag('auth', 'Autentizace a pozvánky')
-    .addTag('student', 'Studentský modul')
-    .addTag('parent', 'Rodičovský modul')
-    .addTag('teacher', 'Učitelský modul')
-    .addTag('deputy', 'Zástupce školy – administrativa')
-    .addTag('principal', 'Ředitel – audit a vedení')
-    .addTag('system', 'Systémová administrace')
-    .build();
+  // ─── Swagger / OpenAPI (disabled in production) ─────────────────
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('EduStack IS API')
+      .setDescription('Školní informační systém – REST API dokumentace')
+      .setVersion('1.0')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        'JWT-auth',
+      )
+      .addTag('auth', 'Autentizace a pozvánky')
+      .addTag('student', 'Studentský modul')
+      .addTag('parent', 'Rodičovský modul')
+      .addTag('teacher', 'Učitelský modul')
+      .addTag('deputy', 'Zástupce školy – administrativa')
+      .addTag('principal', 'Ředitel – audit a vedení')
+      .addTag('system', 'Systémová administrace')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('/', app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('/api/docs', app, document);
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 

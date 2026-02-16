@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UserRole, SecretType } from '@prisma/client';
+import { validatePasswordStrength } from '../utils/password-policy';
 
 @Injectable()
 export class AuthService {
@@ -100,6 +101,9 @@ export class AuthService {
                 );
             }
         }
+
+        // Enforce password policy server-side
+        validatePasswordStrength(password);
 
         const passwordHash = await bcrypt.hash(password, 10);
 

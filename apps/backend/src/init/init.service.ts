@@ -2,7 +2,8 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { UserRole, UserStatus } from '@prisma/client';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { validatePasswordStrength } from '../utils/password-policy';
 
 export class SetupDto {
     @IsString()
@@ -18,6 +19,10 @@ export class SetupDto {
 
     @IsString()
     @MinLength(8, { message: 'Password must be at least 8 characters long.' })
+    @MaxLength(72, { message: 'Password must not exceed 72 characters.' })
+    @Matches(/[a-z]/, { message: 'Password must contain at least one lowercase letter.' })
+    @Matches(/[A-Z]/, { message: 'Password must contain at least one uppercase letter.' })
+    @Matches(/[0-9]/, { message: 'Password must contain at least one number.' })
     adminPassword: string;
 }
 
@@ -42,6 +47,9 @@ export class InitService {
         if (status.initialized) {
             throw new ForbiddenException('Application is already initialized.');
         }
+
+        // Validate password policy server-side (belt + suspenders with DTO decorators)
+        validatePasswordStrength(data.adminPassword);
 
         const hashedPassword = await bcrypt.hash(data.adminPassword, 10);
 

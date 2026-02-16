@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
       POSTGRES_DB: ${POSTGRES_DB:-skola_db}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,8 +23,9 @@ services:
     image: adminer
     container_name: edu_stack_sandbox_adminer
     restart: always
+    profiles: [ dev ] # Only starts with: docker compose --profile dev up
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - postgres
 
