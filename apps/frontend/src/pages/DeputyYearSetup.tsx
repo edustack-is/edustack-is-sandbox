@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useSchool } from '@/context/SchoolContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,17 +11,14 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-    Calendar, BookOpen, Building2, Users, Plus, Save, Check, Loader2, AlertCircle,
+    Calendar, Building2, Users, Plus, Save, Check, Loader2, AlertCircle, ExternalLink,
 } from 'lucide-react';
 import {
     getAcademicYears,
     createAcademicYear,
     getGradeLevels,
-    createGradeLevel,
     getRooms,
     updateRoom,
-    getSubjectTemplates,
-    getSubjectInstances,
     getCurriculumVersions,
 } from '@/api/deputy';
 
@@ -48,22 +46,6 @@ interface Room {
     capacity: number;
     isComputerLab: boolean;
     specialEquipment: string[] | undefined;
-}
-
-interface SubjectTemplate {
-    id: string;
-    name: string;
-    code: string;
-    svpDescription?: string;
-}
-
-interface SubjectInstance {
-    id: string;
-    templateId: string;
-    gradeLevelId: string;
-    hoursPerWeek: number;
-    template?: SubjectTemplate;
-    gradeLevel?: GradeLevel;
 }
 
 interface CurriculumVersionSimple {
@@ -139,7 +121,7 @@ export function DeputyYearSetup() {
 
             {/* ─── Wizard Tabs ─────────────────────────────── */}
             <Tabs defaultValue="year" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4 h-12">
+                <TabsList className="grid w-full grid-cols-3 h-12">
                     <TabsTrigger value="year" className="gap-2 text-xs sm:text-sm">
                         <Calendar className="h-4 w-4" />
                         <span className="hidden sm:inline">{t('year_setup.tab_year')}</span>
@@ -154,11 +136,6 @@ export function DeputyYearSetup() {
                         <Users className="h-4 w-4" />
                         <span className="hidden sm:inline">{t('year_setup.tab_workloads')}</span>
                         <span className="sm:hidden">{t('year_setup.tab_workloads_short')}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="curriculum" className="gap-2 text-xs sm:text-sm">
-                        <BookOpen className="h-4 w-4" />
-                        <span className="hidden sm:inline">{t('year_setup.tab_curriculum')}</span>
-                        <span className="sm:hidden">{t('year_setup.tab_curriculum_short')}</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -179,10 +156,6 @@ export function DeputyYearSetup() {
 
                 <TabsContent value="teachers">
                     <StepTeacherWorkloads selectedYear={selectedYear} />
-                </TabsContent>
-
-                <TabsContent value="curriculum">
-                    <StepCurriculum selectedYear={selectedYear} gradeLevels={gradeLevels} />
                 </TabsContent>
             </Tabs>
         </div>
@@ -209,6 +182,7 @@ function StepAcademicYear({
     onRefresh: () => Promise<void>;
 }) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [showForm, setShowForm] = useState(false);
     const [yearName, setYearName] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -216,11 +190,6 @@ function StepAcademicYear({
     const [isCurrent, setIsCurrent] = useState(false);
     const [selectedCvId, setSelectedCvId] = useState('');
     const [saving, setSaving] = useState(false);
-
-    const [showLevelForm, setShowLevelForm] = useState(false);
-    const [levelName, setLevelName] = useState('');
-    const [levelNumber, setLevelNumber] = useState('');
-    const [savingLevel, setSavingLevel] = useState(false);
 
     const [error, setError] = useState('');
 
@@ -246,20 +215,7 @@ function StepAcademicYear({
         }
     };
 
-    const handleCreateLevel = async () => {
-        if (!levelName || !levelNumber) return;
-        try {
-            setSavingLevel(true);
-            setError('');
-            await createGradeLevel({ name: levelName, levelNumber: parseInt(levelNumber) });
-            setLevelName(''); setLevelNumber(''); setShowLevelForm(false);
-            await onRefresh();
-        } catch (err: any) {
-            setError(err.response?.data?.message || t('year_setup.create_level_error'));
-        } finally {
-            setSavingLevel(false);
-        }
-    };
+
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
@@ -354,34 +310,20 @@ function StepAcademicYear({
                 </CardContent>
             </Card>
 
-            {/* Grade Levels */}
+            {/* Grade Levels — read-only, managed in Správa ŠVP */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle className="text-lg">{t('year_setup.grade_levels')}</CardTitle>
-                            <CardDescription>{t('year_setup.define_grade_levels')}</CardDescription>
+                            <CardDescription>{t('year_setup.grade_levels_readonly_hint', 'Ročníky se spravují ve Správě ŠVP.')}</CardDescription>
                         </div>
-                        <Button size="sm" variant="outline" onClick={() => setShowLevelForm(!showLevelForm)}>
-                            <Plus className="h-4 w-4 mr-1" /> {t('year_setup.new_button')}
+                        <Button size="sm" variant="outline" onClick={() => navigate('/school/curriculum')}>
+                            <ExternalLink className="h-4 w-4 mr-1" /> {t('year_setup.manage_in_svp', 'Spravovat')}
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    {showLevelForm && (
-                        <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                            <Input placeholder={t('year_setup.level_name_placeholder')} value={levelName} onChange={(e) => setLevelName(e.target.value)} />
-                            <Input type="number" placeholder={t('year_setup.level_number_placeholder')} value={levelNumber} onChange={(e) => setLevelNumber(e.target.value)} />
-                            <div className="flex gap-2">
-                                <Button size="sm" onClick={handleCreateLevel} disabled={savingLevel}>
-                                    {savingLevel ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                                    {t('year_setup.create_button')}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setShowLevelForm(false)}>{t('common.cancel')}</Button>
-                            </div>
-                        </div>
-                    )}
-
+                <CardContent>
                     {gradeLevels.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">{t('year_setup.no_levels')}</p>
                     ) : (
@@ -675,162 +617,4 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// STEP 4: Curriculum (ŠVP) Matrix
-// ═══════════════════════════════════════════════════════════════
 
-function StepCurriculum({
-    selectedYear,
-    gradeLevels,
-}: {
-    selectedYear: AcademicYear | null;
-    gradeLevels: GradeLevel[];
-}) {
-    const { t } = useTranslation();
-    const [templates, setTemplates] = useState<SubjectTemplate[]>([]);
-    const [instances, setInstances] = useState<SubjectInstance[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const sortedLevels = [...gradeLevels].sort((a, b) => a.levelNumber - b.levelNumber);
-
-    const fetchData = useCallback(async () => {
-        if (!selectedYear) return;
-        try {
-            setLoading(true);
-            const [tpls, insts] = await Promise.all([
-                getSubjectTemplates().catch(() => []),
-                getSubjectInstances(selectedYear.id).catch(() => []),
-            ]);
-            setTemplates(tpls);
-            setInstances(insts);
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedYear]);
-
-    useEffect(() => { fetchData(); }, [fetchData]);
-
-    if (!selectedYear) {
-        return (
-            <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    <AlertCircle className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
-                    {t('year_setup.select_year_first')}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (loading) {
-        return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-    }
-
-    if (templates.length === 0) {
-        return (
-            <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    {t('year_setup.no_subject_templates')}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (sortedLevels.length === 0) {
-        return (
-            <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                    {t('year_setup.no_grade_levels')}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    // Build lookup: templateId__gradeLevelId -> hoursPerWeek
-    const hoursMap: Record<string, number> = {};
-    for (const inst of instances) {
-        hoursMap[`${inst.templateId}__${inst.gradeLevelId}`] = inst.hoursPerWeek;
-    }
-
-    // Calculate totals per grade level
-    const totalPerLevel: Record<string, number> = {};
-    for (const level of sortedLevels) {
-        totalPerLevel[level.id] = 0;
-        for (const tpl of templates) {
-            totalPerLevel[level.id] += hoursMap[`${tpl.id}__${level.id}`] || 0;
-        }
-    }
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">{t('year_setup.curriculum_svp')}</CardTitle>
-                <CardDescription>
-                    {t('year_setup.curriculum_matrix', { name: selectedYear.name })}
-                    <br />
-                    <span className="text-xs text-muted-foreground italic mt-1 inline-block">
-                        {t('year_setup.curriculum_read_only_hint')}
-                    </span>
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">{t('year_setup.subject_column')}</TableHead>
-                                {sortedLevels.map((level) => (
-                                    <TableHead key={level.id} className="text-center min-w-[90px]">
-                                        <div className="flex flex-col items-center">
-                                            <span className="font-medium">{level.name}</span>
-                                            <span className="text-[10px] text-muted-foreground">{t('year_setup.hours_per_week')}</span>
-                                        </div>
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {templates.map((tpl) => (
-                                <TableRow key={tpl.id}>
-                                    <TableCell className="sticky left-0 bg-card z-10">
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className="text-[10px] font-mono">{tpl.code}</Badge>
-                                            <span className="text-sm font-medium">{tpl.name}</span>
-                                        </div>
-                                    </TableCell>
-                                    {sortedLevels.map((level) => {
-                                        const hours = hoursMap[`${tpl.id}__${level.id}`];
-                                        return (
-                                            <TableCell key={level.id} className="text-center">
-                                                {hours ? (
-                                                    <span className="inline-flex items-center justify-center h-8 w-12 rounded bg-primary/10 text-primary font-medium text-sm">
-                                                        {hours}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-muted-foreground/40">—</span>
-                                                )}
-                                            </TableCell>
-                                        );
-                                    })}
-                                </TableRow>
-                            ))}
-
-                            {/* Totals row */}
-                            <TableRow className="bg-muted/30 font-medium">
-                                <TableCell className="sticky left-0 bg-muted/30 z-10 text-sm">
-                                    {t('year_setup.total_hours_per_week')}
-                                </TableCell>
-                                {sortedLevels.map((level) => (
-                                    <TableCell key={level.id} className="text-center">
-                                        <span className={`text-sm font-bold ${totalPerLevel[level.id] > 30 ? 'text-destructive' : 'text-primary'}`}>
-                                            {totalPerLevel[level.id] || '—'}
-                                        </span>
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
