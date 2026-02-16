@@ -7,6 +7,7 @@ import {
     Sparkles, User, Loader2, CheckCircle2, Database, Key, Users, BookOpen,
     GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2
 } from 'lucide-react';
+import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
 type SeedFile = { filename: string; name: string; description: string };
 
@@ -153,6 +154,7 @@ export const Setup = () => {
     // ─── Main setup form ────────────────────────────────────
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4">
+            <InlineLanguageSwitcher />
             <div className="max-w-xl w-full space-y-6">
                 {/* Header */}
                 <div className="text-center space-y-2">
