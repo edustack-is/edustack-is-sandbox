@@ -188,6 +188,22 @@ export const deleteCurriculumVersion = async (id: string) => {
     return response.data;
 };
 
+export const duplicateCurriculumVersion = async (id: string, data: {
+    name: string;
+    validFrom: string;
+    validTo?: string;
+}) => {
+    const response = await api.post(`/api/deputy/curriculum-versions/${id}/duplicate`, data);
+    return response.data;
+};
+
+export const compareCurriculumVersions = async (versionAId: string, versionBId: string) => {
+    const response = await api.get('/api/deputy/curriculum-versions/compare', {
+        params: { versionA: versionAId, versionB: versionBId },
+    });
+    return response.data;
+};
+
 // ─── CURRICULUM ENTRIES (předmět × ročník) ──────────────────────
 
 export const saveCurriculumEntry = async (data: {
@@ -234,6 +250,63 @@ export const batchEnroll = async (data: {
     classroomId?: string;
 }) => {
     const response = await api.post('/api/deputy/enrollments/batch', data);
+    return response.data;
+};
+
+// ─── STAFF WORKLOADS ────────────────────────────────────────────
+
+export const getSchoolStaff = async () => {
+    const response = await api.get('/api/deputy/staff');
+    return response.data;
+};
+
+export const getStaffWorkloads = async (academicYearId: string) => {
+    const response = await api.get('/api/deputy/staff-workloads', {
+        params: { academicYearId },
+    });
+    return response.data;
+};
+
+export const createStaffWorkload = async (data: {
+    userId: string;
+    academicYearId: string;
+    versionLabel: string;
+    validFrom: string;
+    teachingLoad: number;
+    adminLoad: number;
+    note?: string;
+}) => {
+    const response = await api.post('/api/deputy/staff-workloads', data);
+    return response.data;
+};
+
+export const updateStaffWorkload = async (id: string, data: {
+    versionLabel?: string;
+    validFrom?: string;
+    teachingLoad?: number;
+    adminLoad?: number;
+    note?: string | null;
+}) => {
+    const response = await api.put(`/api/deputy/staff-workloads/${id}`, data);
+    return response.data;
+};
+
+export const deleteStaffWorkload = async (id: string) => {
+    const response = await api.delete(`/api/deputy/staff-workloads/${id}`);
+    return response.data;
+};
+
+export const saveStaffSubjectAssignments = async (workloadId: string, assignments: Array<{
+    subjectTemplateId: string;
+    gradeLevelIds: string[];
+    canSubstitute: boolean;
+}>) => {
+    const response = await api.put(`/api/deputy/staff-workloads/${workloadId}/subjects`, { assignments });
+    return response.data;
+};
+
+export const getSubjectTemplatesForWorkloads = async () => {
+    const response = await api.get('/api/deputy/subject-templates');
     return response.data;
 };
 
@@ -291,7 +364,6 @@ export const analyzeRvpFromUrl = async (url: string) => {
     const formData = new FormData();
     formData.append('url', url);
     const response = await api.post('/api/deputy/rvp-import/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000, // 2 min – AI can be slow
     });
     return response.data;
@@ -301,7 +373,6 @@ export const analyzeRvpFromPdf = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post('/api/deputy/rvp-import/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
     });
     return response.data;

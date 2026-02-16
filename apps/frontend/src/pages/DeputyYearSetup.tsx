@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import {
     Calendar, Building2, Users, Plus, Save, Check, Loader2, AlertCircle, ExternalLink,
+    Trash2, ChevronDown, ChevronRight, BookOpen,
 } from 'lucide-react';
 import {
     getAcademicYears,
@@ -486,25 +487,50 @@ function StepRooms() {
 
 function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | null }) {
     const { t } = useTranslation();
-    const [teachers, setTeachers] = useState<any[]>([]);
-    const [workloads, setWorkloads] = useState<Record<string, number>>({});
+    const [staff, setStaff] = useState<any[]>([]);
+    const [workloads, setWorkloads] = useState<any[]>([]);
+    const [subjectTemplates, setSubjectTemplates] = useState<any[]>([]);
+    const [gradeLevels, setGradeLevels] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState<string | null>(null);
-    const [saved, setSaved] = useState<Record<string, boolean>>({});
+    const [saving, setSaving] = useState(false);
+
+    // Form state
+    const [showForm, setShowForm] = useState(false);
+    const [formUserId, setFormUserId] = useState('');
+    const [formVersionLabel, setFormVersionLabel] = useState('');
+    const [formValidFrom, setFormValidFrom] = useState('');
+    const [formTeachingLoad, setFormTeachingLoad] = useState(100);
+    const [formAdminLoad, setFormAdminLoad] = useState(0);
+    const [formNote, setFormNote] = useState('');
+
+    // Expanded rows for subject assignments
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [editAssignments, setEditAssignments] = useState<Array<{
+        subjectTemplateId: string;
+        gradeLevelIds: string[];
+        canSubstitute: boolean;
+    }>>([]);
+    const [savingAssignments, setSavingAssignments] = useState(false);
+
+    // Editing inline
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editValues, setEditValues] = useState<any>({});
 
     const fetchData = useCallback(async () => {
         if (!selectedYear) return;
         try {
             setLoading(true);
-            const teacherData = await import('@/api/deputy').then((m) => m.getTeachers()).catch(() => []);
-            setTeachers(teacherData);
-
-            const workloadData = await import('@/api/deputy').then((m) => m.getTeacherWorkloads(selectedYear.id)).catch(() => []);
-            const map: Record<string, number> = {};
-            for (const w of workloadData) {
-                map[w.teacherId] = w.workloadPercentage * 100;
-            }
-            setWorkloads(map);
+            const deputy = await import('@/api/deputy');
+            const [staffData, wlData, tplData, glData] = await Promise.all([
+                deputy.getSchoolStaff().catch(() => []),
+                deputy.getStaffWorkloads(selectedYear.id).catch(() => []),
+                deputy.getSubjectTemplatesForWorkloads().catch(() => []),
+                deputy.getGradeLevels().catch(() => []),
+            ]);
+            setStaff(staffData);
+            setWorkloads(wlData);
+            setSubjectTemplates(tplData);
+            setGradeLevels(glData.sort((a: any, b: any) => a.levelNumber - b.levelNumber));
         } finally {
             setLoading(false);
         }
@@ -512,20 +538,123 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const handleSave = async (teacherId: string) => {
-        if (!selectedYear) return;
+    const resetForm = () => {
+        setFormUserId('');
+        setFormVersionLabel('');
+        setFormValidFrom('');
+        setFormTeachingLoad(100);
+        setFormAdminLoad(0);
+        setFormNote('');
+        setShowForm(false);
+    };
+
+    const handleCreate = async () => {
+        if (!selectedYear || !formUserId || !formVersionLabel || !formValidFrom) return;
         try {
-            setSaving(teacherId);
-            const { saveTeacherWorkload } = await import('@/api/deputy');
-            await saveTeacherWorkload({
-                teacherId,
+            setSaving(true);
+            const { createStaffWorkload } = await import('@/api/deputy');
+            await createStaffWorkload({
+                userId: formUserId,
                 academicYearId: selectedYear.id,
-                workloadPercentage: (workloads[teacherId] ?? 100) / 100,
+                versionLabel: formVersionLabel,
+                validFrom: formValidFrom,
+                teachingLoad: formTeachingLoad / 100,
+                adminLoad: formAdminLoad / 100,
+                note: formNote || undefined,
             });
-            setSaved((prev) => ({ ...prev, [teacherId]: true }));
-            setTimeout(() => setSaved((prev) => ({ ...prev, [teacherId]: false })), 2000);
+            resetForm();
+            await fetchData();
         } finally {
-            setSaving(null);
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        try {
+            const { deleteStaffWorkload } = await import('@/api/deputy');
+            await deleteStaffWorkload(id);
+            await fetchData();
+        } catch { /* ignore */ }
+    };
+
+    const startEdit = (wl: any) => {
+        setEditingId(wl.id);
+        setEditValues({
+            teachingLoad: Math.round(wl.teachingLoad * 100),
+            adminLoad: Math.round(wl.adminLoad * 100),
+            note: wl.note || '',
+        });
+    };
+
+    const handleSaveEdit = async (id: string) => {
+        try {
+            setSaving(true);
+            const { updateStaffWorkload } = await import('@/api/deputy');
+            await updateStaffWorkload(id, {
+                teachingLoad: editValues.teachingLoad / 100,
+                adminLoad: editValues.adminLoad / 100,
+                note: editValues.note || null,
+            });
+            setEditingId(null);
+            await fetchData();
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const toggleExpand = (wl: any) => {
+        if (expandedId === wl.id) {
+            setExpandedId(null);
+            return;
+        }
+        setExpandedId(wl.id);
+        // Load current assignments into edit state
+        setEditAssignments(
+            (wl.subjectAssignments || []).map((a: any) => ({
+                subjectTemplateId: a.subjectTemplateId,
+                gradeLevelIds: Array.isArray(a.gradeLevelIds) ? a.gradeLevelIds : [],
+                canSubstitute: a.canSubstitute,
+            }))
+        );
+    };
+
+    const addAssignment = () => {
+        setEditAssignments((prev) => [
+            ...prev,
+            { subjectTemplateId: '', gradeLevelIds: [], canSubstitute: false },
+        ]);
+    };
+
+    const removeAssignment = (index: number) => {
+        setEditAssignments((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const updateAssignment = (index: number, field: string, value: any) => {
+        setEditAssignments((prev) => prev.map((a, i) => i === index ? { ...a, [field]: value } : a));
+    };
+
+    const toggleGradeLevel = (index: number, glId: string) => {
+        setEditAssignments((prev) => prev.map((a, i) => {
+            if (i !== index) return a;
+            const ids = a.gradeLevelIds.includes(glId)
+                ? a.gradeLevelIds.filter((id) => id !== glId)
+                : [...a.gradeLevelIds, glId];
+            return { ...a, gradeLevelIds: ids };
+        }));
+    };
+
+    const handleSaveAssignments = async () => {
+        if (!expandedId) return;
+        try {
+            setSavingAssignments(true);
+            const { saveStaffSubjectAssignments } = await import('@/api/deputy');
+            await saveStaffSubjectAssignments(
+                expandedId,
+                editAssignments.filter((a) => a.subjectTemplateId),
+            );
+            await fetchData();
+        } finally {
+            setSavingAssignments(false);
         }
     };
 
@@ -544,77 +673,324 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
         return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
     }
 
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">{t('year_setup.teacher_workloads')}</CardTitle>
-                <CardDescription>
-                    {t('year_setup.set_workload_for_year', { name: selectedYear.name })}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {teachers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">{t('year_setup.no_teachers')}</p>
+    // Group workloads by version label
+    const versionLabels = [...new Set(workloads.map((w: any) => w.versionLabel))];
+    const staffWithoutWorkload = staff.filter(
+        (s) => !workloads.some((w: any) => w.userId === s.id)
+    );
+
+    const renderAssignmentEditor = (_wl: any) => {
+        const usedTemplateIds = editAssignments.map((a) => a.subjectTemplateId).filter(Boolean);
+        return (
+            <div className="p-4 bg-muted/20 border-t space-y-3">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        {t('year_setup.subject_assignments', 'Přiřazené předměty')}
+                    </h4>
+                    <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={addAssignment}>
+                            <Plus className="h-3 w-3 mr-1" /> {t('year_setup.add_subject', 'Přidat předmět')}
+                        </Button>
+                        <Button size="sm" onClick={handleSaveAssignments} disabled={savingAssignments}>
+                            {savingAssignments ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                            {t('common.save', 'Uložit')}
+                        </Button>
+                    </div>
+                </div>
+
+                {editAssignments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                        {t('year_setup.no_subject_assignments', 'Žádné přiřazené předměty.')}
+                    </p>
                 ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>{t('year_setup.teacher_column')}</TableHead>
-                                <TableHead>{t('common.email')}</TableHead>
-                                <TableHead className="w-[150px]">{t('year_setup.workload_percent')}</TableHead>
-                                <TableHead className="w-[100px]" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {teachers.map((teacher: any) => {
-                                const teacherId = teacher.teacherProfile?.id || teacher.id;
-                                return (
-                                    <TableRow key={teacherId}>
-                                        <TableCell className="font-medium">
-                                            {teacher.firstName} {teacher.lastName}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">{teacher.email}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={200}
-                                                    className="h-8 w-20"
-                                                    value={workloads[teacherId] ?? 100}
-                                                    onChange={(e) =>
-                                                        setWorkloads((prev) => ({ ...prev, [teacherId]: parseFloat(e.target.value) || 0 }))
-                                                    }
-                                                />
-                                                <span className="text-xs text-muted-foreground">%</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-8"
-                                                onClick={() => handleSave(teacherId)}
-                                                disabled={saving === teacherId}
-                                            >
-                                                {saving === teacherId ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : saved[teacherId] ? (
-                                                    <Check className="h-4 w-4 text-emerald-500" />
-                                                ) : (
-                                                    <Save className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                    <div className="space-y-3">
+                        {editAssignments.map((assignment, index) => (
+                            <div key={index} className="border rounded-lg p-3 bg-card space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <select
+                                        className="flex-1 h-8 rounded-md border border-input bg-background px-3 text-sm"
+                                        value={assignment.subjectTemplateId}
+                                        onChange={(e) => updateAssignment(index, 'subjectTemplateId', e.target.value)}
+                                    >
+                                        <option value="">{t('year_setup.select_subject', 'Vyberte předmět...')}</option>
+                                        {subjectTemplates
+                                            .filter((tpl: any) => tpl.id === assignment.subjectTemplateId || !usedTemplateIds.includes(tpl.id))
+                                            .map((tpl: any) => (
+                                                <option key={tpl.id} value={tpl.id}>{tpl.name} ({tpl.code})</option>
+                                            ))}
+                                    </select>
+                                    <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            checked={assignment.canSubstitute}
+                                            onChange={(e) => updateAssignment(index, 'canSubstitute', e.target.checked)}
+                                            className="rounded"
+                                        />
+                                        {t('year_setup.can_substitute', 'Může suplovat')}
+                                    </label>
+                                    <Button size="sm" variant="ghost" className="h-8 px-2 text-destructive" onClick={() => removeAssignment(index)}>
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    <span className="text-xs text-muted-foreground mr-1 self-center">
+                                        {t('year_setup.grade_levels_label', 'Ročníky:')}
+                                    </span>
+                                    {gradeLevels.map((gl: any) => (
+                                        <button
+                                            key={gl.id}
+                                            type="button"
+                                            className={`inline-flex items-center justify-center h-7 min-w-[2rem] px-2 rounded-md text-xs font-medium border transition-colors ${assignment.gradeLevelIds.includes(gl.id)
+                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                : 'bg-background text-muted-foreground border-input hover:bg-muted'
+                                                }`}
+                                            onClick={() => toggleGradeLevel(index, gl.id)}
+                                        >
+                                            {gl.levelNumber}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Create workload */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-lg">{t('year_setup.staff_workloads', 'Úvazky zaměstnanců')}</CardTitle>
+                            <CardDescription>
+                                {t('year_setup.staff_workloads_desc', 'Spravujte úvazky zaměstnanců pro školní rok {{name}}.', { name: selectedYear.name })}
+                            </CardDescription>
+                        </div>
+                        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+                            <Plus className="h-4 w-4 mr-1" /> {t('year_setup.new_workload', 'Nový úvazek')}
+                        </Button>
+                    </div>
+                </CardHeader>
+
+                {showForm && (
+                    <CardContent className="border-t pt-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                    {t('year_setup.employee', 'Zaměstnanec')}
+                                </label>
+                                <select
+                                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                                    value={formUserId}
+                                    onChange={(e) => setFormUserId(e.target.value)}
+                                >
+                                    <option value="">{t('year_setup.select_employee', 'Vyberte zaměstnance...')}</option>
+                                    {staff.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.lastName} {s.firstName} ({s.role})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                    {t('year_setup.version_label', 'Označení verze')}
+                                </label>
+                                <Input
+                                    placeholder={t('year_setup.version_label_placeholder', 'např. září 2025')}
+                                    value={formVersionLabel}
+                                    onChange={(e) => setFormVersionLabel(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                    {t('year_setup.valid_from', 'Platnost od')}
+                                </label>
+                                <Input
+                                    type="date"
+                                    value={formValidFrom}
+                                    onChange={(e) => setFormValidFrom(e.target.value)}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                        {t('year_setup.teaching_load', 'Vyučování %')}
+                                    </label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={formTeachingLoad}
+                                        onChange={(e) => setFormTeachingLoad(parseFloat(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                        {t('year_setup.admin_load', 'Administrativa %')}
+                                    </label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={formAdminLoad}
+                                        onChange={(e) => setFormAdminLoad(parseFloat(e.target.value) || 0)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                    {t('year_setup.note', 'Poznámka')}
+                                </label>
+                                <Input
+                                    placeholder={t('year_setup.note_placeholder', 'Volitelná poznámka...')}
+                                    value={formNote}
+                                    onChange={(e) => setFormNote(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                            <Button onClick={handleCreate} disabled={saving || !formUserId || !formVersionLabel || !formValidFrom}>
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                                {t('year_setup.create_workload', 'Vytvořit úvazek')}
+                            </Button>
+                            <Button variant="ghost" onClick={resetForm}>{t('common.cancel', 'Zrušit')}</Button>
+                        </div>
+                    </CardContent>
+                )}
+            </Card>
+
+            {/* Workload list */}
+            {workloads.length === 0 ? (
+                <Card>
+                    <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                        {staffWithoutWorkload.length > 0
+                            ? t('year_setup.no_workloads_yet', 'Zatím nejsou vytvořeny žádné úvazky. Klikněte na "Nový úvazek" výše.')
+                            : t('year_setup.no_staff', 'V této škole nejsou žádní zaměstnanci.')}
+                    </CardContent>
+                </Card>
+            ) : (
+                versionLabels.map((label) => {
+                    const versionWorkloads = workloads.filter((w: any) => w.versionLabel === label);
+                    return (
+                        <Card key={label}>
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">{label}</Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('year_setup.workload_count', '{{count}} záznamů', { count: versionWorkloads.length })}
+                                    </span>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[40px]" />
+                                            <TableHead>{t('year_setup.employee', 'Zaměstnanec')}</TableHead>
+                                            <TableHead className="w-[100px] text-center">{t('year_setup.teaching_short', 'Vyuč.')}</TableHead>
+                                            <TableHead className="w-[100px] text-center">{t('year_setup.admin_short', 'Admin.')}</TableHead>
+                                            <TableHead className="w-[100px] text-center">{t('year_setup.total_short', 'Celkem')}</TableHead>
+                                            <TableHead className="w-[80px] text-center">{t('year_setup.subjects_count', 'Předm.')}</TableHead>
+                                            <TableHead className="w-[120px]" />
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {versionWorkloads.map((wl: any) => {
+                                            const totalLoad = Math.round((wl.teachingLoad + wl.adminLoad) * 100);
+                                            const isExpanded = expandedId === wl.id;
+                                            const isEditing = editingId === wl.id;
+                                            return (
+                                                <>
+                                                    <TableRow key={wl.id} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleExpand(wl)}>
+                                                        <TableCell className="px-2">
+                                                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">
+                                                            <div>
+                                                                {wl.user.lastName} {wl.user.firstName}
+                                                                {wl.note && <span className="text-xs text-muted-foreground ml-2">({wl.note})</span>}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center" onClick={(e) => { e.stopPropagation(); if (!isEditing) startEdit(wl); }}>
+                                                            {isEditing ? (
+                                                                <Input
+                                                                    type="number" min={0} max={100}
+                                                                    className="h-7 w-16 mx-auto text-center text-xs"
+                                                                    value={editValues.teachingLoad}
+                                                                    onChange={(e) => setEditValues({ ...editValues, teachingLoad: parseFloat(e.target.value) || 0 })}
+                                                                />
+                                                            ) : (
+                                                                <Badge variant="secondary" className="text-xs">{Math.round(wl.teachingLoad * 100)}%</Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-center" onClick={(e) => { e.stopPropagation(); if (!isEditing) startEdit(wl); }}>
+                                                            {isEditing ? (
+                                                                <Input
+                                                                    type="number" min={0} max={100}
+                                                                    className="h-7 w-16 mx-auto text-center text-xs"
+                                                                    value={editValues.adminLoad}
+                                                                    onChange={(e) => setEditValues({ ...editValues, adminLoad: parseFloat(e.target.value) || 0 })}
+                                                                />
+                                                            ) : (
+                                                                <Badge variant="outline" className="text-xs">{Math.round(wl.adminLoad * 100)}%</Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <span className={`text-sm font-bold ${totalLoad > 100 ? 'text-destructive' : 'text-primary'}`}>
+                                                                {totalLoad}%
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {wl.subjectAssignments?.length || 0}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell onClick={(e) => e.stopPropagation()}>
+                                                            <div className="flex gap-1 justify-end">
+                                                                {isEditing ? (
+                                                                    <>
+                                                                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => handleSaveEdit(wl.id)} disabled={saving}>
+                                                                            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 text-emerald-500" />}
+                                                                        </Button>
+                                                                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingId(null)}>
+                                                                            ✕
+                                                                        </Button>
+                                                                    </>
+                                                                ) : (
+                                                                    <Button
+                                                                        size="sm" variant="ghost"
+                                                                        className="h-7 px-2 text-destructive hover:text-destructive"
+                                                                        onClick={() => handleDelete(wl.id)}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    {isExpanded && (
+                                                        <TableRow key={`${wl.id}-expand`}>
+                                                            <TableCell colSpan={7} className="p-0">
+                                                                {renderAssignmentEditor(wl)}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    );
+                })
+            )}
+        </div>
     );
 }
-
-

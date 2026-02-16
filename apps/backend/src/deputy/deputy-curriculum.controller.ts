@@ -144,6 +144,18 @@ export class DeputyCurriculumController {
         return this.curriculumService.getCurriculumVersions(req.user.schoolId);
     }
 
+    @Get('curriculum-versions/compare')
+    async compareCurriculumVersions(
+        @Req() req: any,
+        @Query('versionA') versionA: string,
+        @Query('versionB') versionB: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.compareCurriculumVersions(
+            req.user.schoolId, versionA, versionB,
+        );
+    }
+
     @Get('curriculum-versions/:id')
     async getCurriculumVersion(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
@@ -191,6 +203,20 @@ export class DeputyCurriculumController {
             req.user.userId, req.user.schoolId, id,
         );
     }
+
+    @Post('curriculum-versions/:id/duplicate')
+    async duplicateCurriculumVersion(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: { name: string; validFrom: string; validTo?: string },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.duplicateCurriculumVersion(
+            req.user.userId, req.user.schoolId, id, body,
+        );
+    }
+
+
 
     // ─── CURRICULUM ENTRIES (předmět × ročník) ──────────────────────
 
@@ -263,6 +289,95 @@ export class DeputyCurriculumController {
         return this.curriculumService.batchEnroll(
             req.user.userId, req.user.schoolId, body,
         );
+    }
+
+    // ─── STAFF WORKLOADS ────────────────────────────────────────────
+
+    @Get('staff')
+    async getSchoolStaff(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getSchoolStaff(req.user.schoolId);
+    }
+
+    @Get('staff-workloads')
+    async getStaffWorkloads(
+        @Req() req: any,
+        @Query('academicYearId') academicYearId: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.getStaffWorkloads(req.user.schoolId, academicYearId);
+    }
+
+    @Post('staff-workloads')
+    async createStaffWorkload(
+        @Req() req: any,
+        @Body() body: {
+            userId: string;
+            academicYearId: string;
+            versionLabel: string;
+            validFrom: string;
+            teachingLoad: number;
+            adminLoad: number;
+            note?: string;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.createStaffWorkload(
+            req.user.userId, req.user.schoolId, body,
+        );
+    }
+
+    @Put('staff-workloads/:id')
+    async updateStaffWorkload(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: {
+            versionLabel?: string;
+            validFrom?: string;
+            teachingLoad?: number;
+            adminLoad?: number;
+            note?: string | null;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.updateStaffWorkload(
+            req.user.userId, req.user.schoolId, id, body,
+        );
+    }
+
+    @Delete('staff-workloads/:id')
+    async deleteStaffWorkload(
+        @Req() req: any,
+        @Param('id') id: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.deleteStaffWorkload(
+            req.user.userId, req.user.schoolId, id,
+        );
+    }
+
+    @Put('staff-workloads/:id/subjects')
+    async saveStaffSubjectAssignments(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: {
+            assignments: Array<{
+                subjectTemplateId: string;
+                gradeLevelIds: string[];
+                canSubstitute: boolean;
+            }>;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.saveStaffSubjectAssignments(
+            req.user.userId, req.user.schoolId, id, body.assignments,
+        );
+    }
+
+    @Get('subject-templates')
+    async getSubjectTemplates(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.curriculumService.getSubjectTemplates(req.user.schoolId);
     }
 
     // ─── RVP IMPORT (AI-powered) ────────────────────────────────────

@@ -12,7 +12,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 // ─── Zod schema for structured AI extraction ────────────────────
 
@@ -98,14 +98,18 @@ export class RvpImportService {
 
     async extractTextFromPdf(buffer: Buffer): Promise<string> {
         try {
-            const data = await pdfParse(buffer);
-            if (!data.text || data.text.trim().length < 100) {
+            const parser = new PDFParse({ data: buffer, verbosity: 0 });
+            await parser.load();
+            const result = await parser.getText();
+            const text = result.text || '';
+
+            if (text.trim().length < 100) {
                 throw new BadRequestException(
                     'PDF neobsahuje dostatek textu. Zkontrolujte, že nejde o skenovaný dokument.',
                 );
             }
-            this.logger.log(`PDF parsed: ${data.numpages} pages, ${data.text.length} chars`);
-            return data.text;
+            this.logger.log(`PDF parsed: ${result.total} pages, ${text.length} chars`);
+            return text;
         } catch (err: any) {
             if (err instanceof BadRequestException) throw err;
             this.logger.error('PDF parse error:', err);

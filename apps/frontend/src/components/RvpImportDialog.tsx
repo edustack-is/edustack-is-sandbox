@@ -70,7 +70,33 @@ export function RvpImportDialog({
     const [inputMode, setInputMode] = useState<'url' | 'pdf'>('url');
     const [url, setUrl] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file && (file.type === 'application/pdf' || file.name.endsWith('.pdf'))) {
+            setSelectedFile(file);
+            setInputMode('pdf');
+        } else if (file) {
+            toast.error(t('rvp_import.pdf_only', 'Podporovány jsou pouze PDF soubory.'));
+        }
+    }, [t]);
 
     const [preview, setPreview] = useState<RvpPreviewData | null>(null);
 
@@ -204,7 +230,12 @@ export function RvpImportDialog({
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* ─── STEP: Input ─────────────────────────────────────── */}
                     {step === 'input' && (
-                        <div className="space-y-6 max-w-2xl mx-auto">
+                        <div
+                            className="space-y-6 max-w-2xl mx-auto"
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
                             <div className="text-center space-y-2">
                                 <p className="text-muted-foreground">{t('rvp_import.input_desc')}</p>
                             </div>
@@ -241,8 +272,14 @@ export function RvpImportDialog({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">{t('rvp_import.pdf_label')}</label>
                                     <div
-                                        className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/30 transition-colors"
+                                        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging
+                                            ? 'border-primary bg-primary/5'
+                                            : 'hover:bg-muted/30'
+                                            }`}
                                         onClick={() => fileInputRef.current?.click()}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
                                     >
                                         {selectedFile ? (
                                             <div className="flex items-center justify-center gap-3">
@@ -250,10 +287,16 @@ export function RvpImportDialog({
                                                 <span className="font-medium">{selectedFile.name}</span>
                                                 <Badge variant="secondary">{(selectedFile.size / 1024 / 1024).toFixed(1)} MB</Badge>
                                             </div>
+                                        ) : isDragging ? (
+                                            <div className="space-y-2 text-primary">
+                                                <Upload className="h-8 w-8 mx-auto" />
+                                                <p className="text-sm font-medium">{t('rvp_import.drop_here', 'Pusťte soubor zde')}</p>
+                                            </div>
                                         ) : (
                                             <div className="space-y-2 text-muted-foreground">
                                                 <Upload className="h-8 w-8 mx-auto opacity-50" />
                                                 <p className="text-sm">{t('rvp_import.pdf_dropzone')}</p>
+                                                <p className="text-xs opacity-70">{t('rvp_import.drag_or_click', 'Přetáhněte PDF nebo klikněte pro výběr')}</p>
                                             </div>
                                         )}
                                     </div>

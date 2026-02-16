@@ -94,6 +94,7 @@ model User {
   // Yearly records
   studentEnrollments StudentEnrollment[]
   teacherWorkloads   TeacherWorkload[]
+  staffWorkloads     StaffWorkload[]
 
   // AI usage
   aiTokenUsages      AiTokenUsage[]
@@ -209,8 +210,9 @@ model SubjectTemplate {
   curriculumVersionId  String?
   curriculumVersion    CurriculumVersion? @relation("VersionSubjects", fields: [curriculumVersionId], references: [id])
 
-  instances          SubjectInstance[]
-  curriculumEntries  CurriculumEntry[]
+  instances                SubjectInstance[]
+  curriculumEntries        CurriculumEntry[]
+  staffSubjectAssignments  StaffSubjectAssignment[]
 
   @@unique([code, schoolId])
 }
@@ -349,6 +351,7 @@ model AcademicYear {
   grades              Grade[]
   studentEnrollments  StudentEnrollment[]
   teacherWorkloads    TeacherWorkload[]
+  staffWorkloads      StaffWorkload[]
   subjectInstances    SubjectInstance[]
 
   createdAt DateTime @default(now())
@@ -413,6 +416,50 @@ model TeacherWorkload {
   updatedAt          DateTime     @updatedAt
 
   @@unique([teacherId, academicYearId])
+}
+
+// ─── STAFF WORKLOADS (versioned per academic year) ──────────
+
+model StaffWorkload {
+  id              String       @id @default(uuid())
+
+  user            User         @relation(fields: [userId], references: [id])
+  userId          String
+
+  academicYear    AcademicYear @relation(fields: [academicYearId], references: [id])
+  academicYearId  String
+
+  versionLabel    String       // e.g. "září 2025", "únor 2026"
+  validFrom       DateTime     // when this version becomes effective
+
+  teachingLoad    Float        @default(0) // teaching workload 0-1.0 (100%)
+  adminLoad       Float        @default(0) // administrative workload 0-1.0
+  note            String?      // optional note
+
+  subjectAssignments StaffSubjectAssignment[]
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId, academicYearId])
+}
+
+model StaffSubjectAssignment {
+  id                String        @id @default(uuid())
+
+  staffWorkload     StaffWorkload @relation(fields: [staffWorkloadId], references: [id], onDelete: Cascade)
+  staffWorkloadId   String
+
+  subjectTemplate   SubjectTemplate @relation(fields: [subjectTemplateId], references: [id])
+  subjectTemplateId String
+
+  gradeLevelIds     Json          // string[] of GradeLevel IDs this teacher can teach
+  canSubstitute     Boolean       @default(false) // can substitute for this subject
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([staffWorkloadId, subjectTemplateId])
 }
 
 // ─── SEMESTERS (pololetí) ────────────────────────────────────

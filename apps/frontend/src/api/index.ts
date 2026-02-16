@@ -4,9 +4,6 @@ import i18n from '../i18n';
 export const api = axios.create({
     baseURL: '/',
     withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    },
 });
 
 api.interceptors.request.use((config) => {
@@ -16,6 +13,10 @@ api.interceptors.request.use((config) => {
     }
     // Inject current language
     config.headers['Accept-Language'] = i18n.language;
+    // Let axios auto-set Content-Type for FormData (multipart/form-data with boundary)
+    if (!(config.data instanceof FormData)) {
+        config.headers['Content-Type'] = config.headers['Content-Type'] || 'application/json';
+    }
     return config;
 });
 
