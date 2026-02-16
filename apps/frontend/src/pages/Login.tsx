@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { login, getSsoOptions } from '../api';
+import { login, getSsoOptions, exchangeSsoToken } from '../api';
 import { Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +58,24 @@ export const Login = () => {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        // Handle SSO callback token
+        // Handle SSO callback — token is in an httpOnly cookie, exchange it
+        const ssoOk = searchParams.get('sso');
+        if (ssoOk === 'ok') {
+            exchangeSsoToken()
+                .then((data) => {
+                    if (data.access_token) {
+                        localStorage.setItem('access_token', data.access_token);
+                        refreshTokenInfo();
+                        navigate('/');
+                    }
+                })
+                .catch(() => {
+                    toast.error(t('login.sso_failed'));
+                });
+            return; // don't load SSO options while exchanging
+        }
+
+        // Legacy: still handle ?token= for backwards compatibility (e.g. invitation links)
         const token = searchParams.get('token');
         if (token) {
             localStorage.setItem('access_token', token);

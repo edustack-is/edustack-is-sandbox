@@ -51,6 +51,10 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       MAIL_FROM: ${MAIL_FROM:-noreply@edustack.local}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       MCP_SERVER_URL: http://mcp-server:3001/sse
     depends_on:
       postgres:

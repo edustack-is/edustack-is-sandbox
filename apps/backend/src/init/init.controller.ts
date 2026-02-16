@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/public.decorator';
 import { InitService, SetupDto } from './init.service';
 import { SeedService, SeedData } from './seed.service';
+import { SetupTokenGuard } from './setup-token.guard';
 
 @Controller('api/init')
 export class InitController {
@@ -10,13 +12,30 @@ export class InitController {
         private readonly seedService: SeedService,
     ) { }
 
+    /**
+     * GET /api/init/status
+     * Public — needed by frontend to decide whether to show setup or login.
+     * Rate-limited to 10 requests per 60 seconds.
+     */
     @Public()
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     @Get('status')
     async getStatus() {
         return this.initService.getStatus();
     }
 
+    /**
+     * POST /api/init/setup
+     * Creates the first system admin user.
+     *
+     * Protected by:
+     *  1. InitService check: refuses if already initialized
+     *  2. SetupTokenGuard: if SETUP_TOKEN env is set, requires x-setup-token header
+     *  3. Rate limit: 3 attempts per 60 seconds
+     */
     @Public()
+    @UseGuards(SetupTokenGuard)
+    @Throttle({ default: { limit: 3, ttl: 60000 } })
     @Post('setup')
     async setup(@Body() body: SetupDto) {
         return this.initService.setup(body);
@@ -25,8 +44,15 @@ export class InitController {
     /**
      * POST /api/init/setup-with-seed
      * Combined setup: creates admin + seeds demo data in one step.
+     *
+     * Protected by:
+     *  1. InitService check: refuses if already initialized
+     *  2. SetupTokenGuard: if SETUP_TOKEN env is set, requires x-setup-token header
+     *  3. Rate limit: 3 attempts per 60 seconds
      */
     @Public()
+    @UseGuards(SetupTokenGuard)
+    @Throttle({ default: { limit: 3, ttl: 60000 } })
     @Post('setup-with-seed')
     async setupWithSeed(
         @Body() body: SetupDto & {
@@ -55,9 +81,18 @@ export class InitController {
 
     /**
      * GET /api/init/seed-files
-     * Returns available seed files the user can choose from.
+     * Returns available seed files.
+     *
+     * Protected by:
+     *  1. SetupTokenGuard: if SETUP_TOKEN env is set, requires x-setup-token header
+     *  2. Rate limit: 5 requests per 60 seconds
+     *
+     * This endpoint reveals internal file structure, so it's guarded
+     * to only be accessible during legitimate setup workflows.
      */
     @Public()
+    @UseGuards(SetupTokenGuard)
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Get('seed-files')
     async getSeedFiles() {
         return this.seedService.getAvailableSeedFiles();

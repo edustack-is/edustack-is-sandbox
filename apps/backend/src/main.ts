@@ -1,12 +1,55 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { InitService } from './init/init.service';
 import { SeedService } from './init/seed.service';
+import helmet from 'helmet';
 
 async function bootstrap() {
+  // ─── Fail-fast: required environment variables ──────────────
+  const missingVars: string[] = [];
+  if (!process.env.JWT_SECRET) missingVars.push('JWT_SECRET       (generate with: openssl rand -base64 64)');
+  if (!process.env.ENCRYPTION_KEY) missingVars.push('ENCRYPTION_KEY   (generate with: openssl rand -base64 32)');
+
+  if (missingVars.length > 0) {
+    console.error(
+      '\n❌  Required environment variables are not set!\n' +
+      '    The application cannot start without them.\n\n' +
+      missingVars.map(v => `    • ${v}`).join('\n') + '\n\n' +
+      '    Add them to your .env file and restart.\n',
+    );
+    process.exit(1);
+  }
+
   const app = await NestFactory.create(AppModule);
+
+  // ─── Security headers (Helmet) ─────────────────────────────────
+  app.use(helmet({
+    contentSecurityPolicy: false, // CSP may interfere with Swagger UI
+  }));
+
+  // ─── CORS ──────────────────────────────────────────────────────
+  // CORS_ORIGIN accepts a single origin or comma-separated list.
+  // Examples:
+  //   CORS_ORIGIN=https://app.example.com
+  //   CORS_ORIGIN=https://app.example.com,https://admin.example.com
+  const rawOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  const allowedOrigins = rawOrigin.split(',').map(o => o.trim()).filter(Boolean);
+
+  app.enableCors({
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-setup-token'],
+  });
+
+  // ─── Global validation pipe ────────────────────────────────────
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,               // strip properties not in DTO
+    forbidNonWhitelisted: true,    // reject requests with unknown properties
+    transform: true,               // auto-transform payloads to DTO instances
+  }));
 
   // Swagger / OpenAPI configuration
   const config = new DocumentBuilder()

@@ -491,4 +491,32 @@ export class AuthService {
         const { passwordHash, ...result } = user;
         return result;
     }
+
+    // ─── Impersonation authorization helpers ─────────────────────
+
+    /**
+     * Returns school IDs where the user has a management role (ADMIN, DEPUTY, PRINCIPAL).
+     */
+    async getCallerManagementSchools(userId: string): Promise<string[]> {
+        const memberships = await this.prisma.schoolMembership.findMany({
+            where: {
+                userId,
+                role: { in: ['ADMIN', 'DEPUTY', 'PRINCIPAL'] },
+                status: 'ACTIVE',
+            },
+            select: { schoolId: true },
+        });
+        return memberships.map(m => m.schoolId);
+    }
+
+    /**
+     * Returns all school IDs that a user belongs to (any role, any status).
+     */
+    async getUserSchoolIds(userId: string): Promise<string[]> {
+        const memberships = await this.prisma.schoolMembership.findMany({
+            where: { userId },
+            select: { schoolId: true },
+        });
+        return memberships.map(m => m.schoolId);
+    }
 }

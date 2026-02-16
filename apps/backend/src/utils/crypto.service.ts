@@ -8,12 +8,19 @@ export class CryptoService {
     private readonly key: Buffer;
 
     constructor(private configService: ConfigService) {
-        const encryptionKey = this.configService.get<string>('ENCRYPTION_KEY') ||
-            this.configService.get<string>('SETTINGS_ENCRYPTION_KEY') ||
-            'edu-stack-default-key-change-me!!';
+        const encryptionKey = this.configService.get<string>('ENCRYPTION_KEY');
 
-        // Ensure key is exactly 32 bytes
-        this.key = crypto.scryptSync(encryptionKey, 'salt', 32);
+        if (!encryptionKey) {
+            throw new Error(
+                '❌ ENCRYPTION_KEY is not set! The application cannot start without a valid encryption key.\n' +
+                '   Generate one with:  openssl rand -base64 32\n' +
+                '   Then add it to your .env file.',
+            );
+        }
+
+        // Derive a 32-byte AES key using scrypt with a unique salt
+        const salt = crypto.createHash('sha256').update('edustack-encryption-salt').digest();
+        this.key = crypto.scryptSync(encryptionKey, salt, 32);
     }
 
     encrypt(text: string): string {

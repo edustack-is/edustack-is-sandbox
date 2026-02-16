@@ -13,6 +13,9 @@ type SeedFile = { filename: string; name: string; description: string };
 export const Setup = () => {
     const { t } = useTranslation();
 
+    // ─── Read setup token from URL ?token=... ────────────────
+    const setupToken = new URLSearchParams(window.location.search).get('token') || undefined;
+
     // ─── Form state ─────────────────────────────────────────
     const [formData, setFormData] = useState({
         adminFirstName: '',
@@ -34,7 +37,7 @@ export const Setup = () => {
 
     // ─── Load seed files on mount ───────────────────────────
     useEffect(() => {
-        getSeedFiles()
+        getSeedFiles(setupToken)
             .then((files: SeedFile[]) => {
                 setSeedFiles(files);
                 if (files.length > 0) setSelectedSeed(files[0].filename);
@@ -69,14 +72,14 @@ export const Setup = () => {
                     ...formData,
                     seedFilename: selectedSeed,
                     aiKeys: hasAnyAiKey() ? aiKeys : undefined,
-                });
+                }, setupToken);
                 setSeedResult(result.seed);
                 // After 3s redirect
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 4000);
             } else {
-                await setupApp(formData);
+                await setupApp(formData, setupToken);
                 window.location.href = '/login';
             }
         } catch (err: any) {

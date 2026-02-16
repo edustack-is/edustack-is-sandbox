@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, Get, Query, BadRequestException, Req, Res, UseGuards, Patch, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query, BadRequestException, ForbiddenException, Req, Res, UseGuards, Patch, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
@@ -61,9 +61,11 @@ export class AuthController {
     @Public()
     @Get('callback/:provider')
     async ssoCallback(@Param('provider') provider: string, @Req() req: Request, @Res() res: Response) {
+        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
         passport.authenticate(provider, { session: false }, async (err: any, profile: any) => {
             if (err || !profile) {
-                return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=sso_failed`);
+                return res.redirect(`${FRONTEND_URL}/login?error=sso_failed`);
             }
 
             try {
@@ -79,6 +81,17 @@ export class AuthController {
                 res.clearCookie('__edu_inv_token', { path: '/' });
                 res.clearCookie('__edu_link_token', { path: '/' });
 
+                // Helper: set token as httpOnly cookie instead of exposing in URL
+                const setTokenCookie = (token: string) => {
+                    res.cookie('__edu_sso_token', token, {
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'lax',
+                        maxAge: 60 * 1000, // 60 seconds — just enough for the redirect
+                        path: '/',
+                    });
+                };
+
                 // Invitation activation scenario — activate account via SSO
                 if (invitationToken) {
                     const result = await this.authService.acceptInvitationViaSso(
@@ -87,7 +100,8 @@ export class AuthController {
                         profile.id,
                         email,
                     );
-                    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?token=${result.access_token}`);
+                    setTokenCookie(result.access_token);
+                    return res.redirect(`${FRONTEND_URL}/login?sso=ok`);
                 }
 
                 // Identity linking scenario — user already logged in
@@ -97,7 +111,7 @@ export class AuthController {
                         const existingUser = await this.authService.getMe(payload.sub);
                         if (existingUser) {
                             await this.authService.linkIdentity(existingUser.id, provider, profile.id);
-                            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/profile?linked=success`);
+                            return res.redirect(`${FRONTEND_URL}/profile?linked=success`);
                         }
                     } catch { /* token invalid, fall through to normal login */ }
                 }
@@ -111,12 +125,41 @@ export class AuthController {
                     profile.name?.familyName || profile.displayName?.split(' ').slice(1).join(' ')
                 );
 
-                // Redirect to frontend with token
-                return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?token=${result.access_token}`);
+                // Set token as httpOnly cookie, redirect without token in URL
+                setTokenCookie(result.access_token);
+                return res.redirect(`${FRONTEND_URL}/login?sso=ok`);
             } catch (err: any) {
-                return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=${encodeURIComponent(err.message)}`);
+                return res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
             }
         })(req, res);
+    }
+
+    /**
+     * POST /api/auth/sso/exchange-token
+     * Exchanges the httpOnly __edu_sso_token cookie for a JSON response.
+     * This avoids exposing the JWT in the URL during SSO redirects.
+     */
+    @Public()
+    @Post('sso/exchange-token')
+    async exchangeSsoToken(@Req() req: Request, @Res() res: Response) {
+        const cookies = this.parseCookies(req);
+        const token = cookies['__edu_sso_token'];
+
+        // Always clear the cookie
+        res.clearCookie('__edu_sso_token', { path: '/' });
+
+        if (!token) {
+            return res.status(400).json({ message: 'No SSO token cookie found.' });
+        }
+
+        // Verify the token is valid before returning it
+        try {
+            this.authService.verifyToken(token);
+        } catch {
+            return res.status(401).json({ message: 'Invalid or expired SSO token.' });
+        }
+
+        return res.json({ access_token: token });
     }
 
     @Post('invite/:userId')
@@ -138,14 +181,29 @@ export class AuthController {
         return this.authService.getIdentities(req.user.userId);
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('impersonate/:id')
-    async impersonate(@Param('id') targetUserId: string, @Body('adminId') adminId: string) {
-        // In real app: Use @UseGuards(RolesGuard), @Roles('ADMIN', 'DIRECTOR')
-        // and get adminId from req.user.id
-        if (!adminId) throw new BadRequestException('Admin ID required (simulated)');
+    async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
+        const adminId = req.user.userId;
 
-        // Evaluate if adminId is valid/has rights (mock check)
-        // const admin = await this.prisma.user.findUnique(...)
+        // Only system admins or school admins/deputies/principals can impersonate
+        if (!req.user.isSystemAdmin) {
+            // Verify the caller has a management role in at least one school
+            // that the target user also belongs to
+            const callerMemberships = await this.authService.getCallerManagementSchools(adminId);
+            if (callerMemberships.length === 0) {
+                throw new ForbiddenException('Only administrators can impersonate users.');
+            }
+
+            // Verify target user shares at least one school with the caller
+            const targetMemberships = await this.authService.getUserSchoolIds(targetUserId);
+            const sharedSchool = callerMemberships.some(
+                (schoolId: string) => targetMemberships.includes(schoolId),
+            );
+            if (!sharedSchool) {
+                throw new ForbiddenException('You can only impersonate users within your managed schools.');
+            }
+        }
 
         return this.authService.impersonate(adminId, targetUserId);
     }

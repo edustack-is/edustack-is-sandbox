@@ -3,6 +3,7 @@ import i18n from '../i18n';
 
 export const api = axios.create({
     baseURL: '/',
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -51,8 +52,8 @@ export const importUsers = async (file: File) => {
     return response.data;
 };
 
-export const impersonateUser = async (targetId: string, adminId: string) => {
-    const response = await api.post(`/api/auth/impersonate/${targetId}`, { adminId });
+export const impersonateUser = async (targetId: string) => {
+    const response = await api.post(`/api/auth/impersonate/${targetId}`);
     return response.data; // { access_token }
 };
 
@@ -71,23 +72,39 @@ export const validateSchedule = async (data: any) => {
     return response.data;
 };
 
+/**
+ * Exchange the httpOnly __edu_sso_token cookie for a JWT.
+ * Must be called with credentials (withCredentials is already set on the api instance).
+ */
+export const exchangeSsoToken = async () => {
+    const response = await api.post('/api/auth/sso/exchange-token');
+    return response.data; // { access_token: string }
+};
+
 export const getInitStatus = async () => {
     const response = await api.get('/api/init/status');
     return response.data; // { initialized: boolean }
 };
 
-export const setupApp = async (data: any) => {
-    const response = await api.post('/api/init/setup', data);
+/** Build optional setup-token headers */
+const setupHeaders = (token?: string) =>
+    token ? { 'x-setup-token': token } : {};
+
+export const setupApp = async (data: any, setupToken?: string) => {
+    const response = await api.post('/api/init/setup', data, { headers: setupHeaders(setupToken) });
     return response.data; // { school: SchoolConfig, admin: User }
 };
 
-export const getSeedFiles = async () => {
-    const response = await api.get('/api/init/seed-files');
+export const getSeedFiles = async (setupToken?: string) => {
+    const response = await api.get('/api/init/seed-files', { headers: setupHeaders(setupToken) });
     return response.data; // Array<{ filename, name, description }>
 };
 
-export const setupWithSeed = async (data: any) => {
-    const response = await api.post('/api/init/setup-with-seed', data, { timeout: 60000 });
+export const setupWithSeed = async (data: any, setupToken?: string) => {
+    const response = await api.post('/api/init/setup-with-seed', data, {
+        timeout: 60000,
+        headers: setupHeaders(setupToken),
+    });
     return response.data; // { admin, seed: SeedResult }
 };
 export const acceptInvitation = async (payload: { token: string; password: string }) => {
