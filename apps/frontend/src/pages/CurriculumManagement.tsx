@@ -58,6 +58,7 @@ interface CurriculumEntry {
     svpApproach: string | null;
     equipmentRequirements: string[] | null;
     needsComputerLab: boolean;
+    gradingType: string;
     gradeLevel?: GradeLevel;
     subjectTemplate?: SubjectTemplate;
 }
@@ -844,6 +845,7 @@ function EntryForm({
     const [svp, setSvp] = useState(existing?.svpApproach || '');
     const [equip, setEquip] = useState((existing?.equipmentRequirements || []).join(', '));
     const [computerLab, setComputerLab] = useState(existing?.needsComputerLab || false);
+    const [gradingType, setGradingType] = useState(existing?.gradingType || 'BOTH');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
 
@@ -854,6 +856,7 @@ function EntryForm({
         setSvp(existing?.svpApproach || '');
         setEquip((existing?.equipmentRequirements || []).join(', '));
         setComputerLab(existing?.needsComputerLab || false);
+        setGradingType(existing?.gradingType || 'BOTH');
         setSaved(false);
     }, [existing?.id, gradeLevelId]);
 
@@ -870,6 +873,7 @@ function EntryForm({
                 svpApproach: svp || undefined,
                 equipmentRequirements: equipment.length > 0 ? equipment : undefined,
                 needsComputerLab: computerLab,
+                gradingType,
             });
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
@@ -931,6 +935,31 @@ function EntryForm({
                         {equip.split(',').map((item, i) => item.trim() && <Badge key={i} variant="secondary" className="text-xs">{item.trim()}</Badge>)}
                     </div>
                 )}
+            </div>
+
+            {/* Grading Type */}
+            <div className="space-y-2">
+                <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-purple-500" /><Label className="font-medium">{t('curriculum.grading_type', 'Typ hodnocení')}</Label></div>
+                <p className="text-xs text-muted-foreground">{t('curriculum.grading_type_hint', 'Jaký typ hodnocení je povolen pro tento předmět v tomto ročníku?')}</p>
+                <div className="flex gap-2">
+                    {[
+                        { value: 'NUMERIC_ONLY', label: 'Jen známky' },
+                        { value: 'VERBAL_ONLY', label: 'Jen slovní' },
+                        { value: 'BOTH', label: 'Obojí' },
+                    ].map(opt => (
+                        <button
+                            key={opt.value}
+                            className={`px-3 py-1.5 rounded-md text-sm border transition-all ${gradingType === opt.value
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-muted/30 hover:bg-muted border-border text-muted-foreground'
+                                }`}
+                            onClick={() => setGradingType(opt.value)}
+                            type="button"
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Actions */}

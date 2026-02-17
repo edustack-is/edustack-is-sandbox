@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -108,12 +108,16 @@ export const Sidebar: React.FC = () => {
         { path: '/schedule', label: t('sidebar.schedule', 'Rozvrh'), icon: Calendar },
         { path: '/grading', label: t('sidebar.grading', 'Klasifikace'), icon: GraduationCap },
         { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
+        { path: '/messages', label: t('sidebar.messages', 'Zprávy'), icon: MessageSquare },
     ];
 
     const schoolAdminItems = [
         { path: '/school/users', label: t('common.users'), icon: Users },
         { path: '/school/rooms', label: t('sidebar.rooms', 'Učebny'), icon: DoorOpen },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
+        { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
+        { path: '/schedule/substitutions', label: t('sidebar.substitutions', 'Suplování'), icon: CalendarDays },
+        { path: '/grading/report-cards', label: t('sidebar.report_cards', 'Vysvědčení'), icon: FileText },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
     ];
 
@@ -171,35 +175,30 @@ export const Sidebar: React.FC = () => {
                                                 {currentSchool.name}
                                             </span>
                                         </div>
-                                        {(canSwitchSchool || isSystemAdmin) && (
-                                            <div className="flex gap-1.5">
-                                                {canSwitchSchool && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 px-2.5 text-xs flex-1"
-                                                        onClick={handleLeaveSchool}
-                                                    >
-                                                        <ArrowLeft size={12} className="mr-1" />
-                                                        {t('sidebar.change_school', 'Změnit školu')}
-                                                    </Button>
-                                                )}
-                                                {isSystemAdmin && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 px-2.5 text-xs flex-1"
-                                                        onClick={async () => {
-                                                            await leaveSchool();
-                                                            navigate('/dashboard');
-                                                        }}
-                                                    >
-                                                        <Settings size={12} className="mr-1" />
-                                                        {t('sidebar.system_admin_short', 'Systém')}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
+                                        {isSystemAdmin ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 w-full text-xs"
+                                                onClick={async () => {
+                                                    await leaveSchool();
+                                                    navigate('/dashboard');
+                                                }}
+                                            >
+                                                <ArrowLeft size={12} className="mr-1" />
+                                                {t('sidebar.back_to_system', 'Zpět na správu')}
+                                            </Button>
+                                        ) : canSwitchSchool ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 w-full text-xs"
+                                                onClick={handleLeaveSchool}
+                                            >
+                                                <ArrowLeft size={12} className="mr-1" />
+                                                {t('sidebar.change_school', 'Změnit školu')}
+                                            </Button>
+                                        ) : null}
                                     </div>
                                 )}
                             </div>
@@ -238,7 +237,6 @@ export const Sidebar: React.FC = () => {
                     {isSystemAdmin && !hasSchoolContext && (
                         <>
                             <SidebarNavItem to="/dashboard" icon={LayoutDashboard} label={t('common.dashboard')} collapsed={collapsed} />
-                            <SidebarNavItem to="/select-school" icon={Building2} label={t('sidebar.enter_school', 'Vstoupit do školy')} collapsed={collapsed} />
 
                             {!collapsed && (
                                 <div className="px-4 py-2.5 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">

@@ -23,6 +23,7 @@ import { ClsModule } from 'nestjs-cls';
 import { UserContextInterceptor } from './auth/user-context.interceptor';
 import { MailModule } from './mail/mail.module';
 import { CryptoModule } from './shared/crypto/crypto.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -40,7 +41,8 @@ import { CryptoModule } from './shared/crypto/crypto.module';
     CryptoModule,
     MailModule,
     UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
-    SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule
+    SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule,
+    MessagingModule,
   ],
   controllers: [AppController],
   providers: [

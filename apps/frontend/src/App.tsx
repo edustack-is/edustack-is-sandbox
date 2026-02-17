@@ -4,7 +4,10 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Registry } from './pages/Registry';
 import { Grading } from './pages/Grading';
+import { ReportCards } from './pages/ReportCards';
 import { Schedule } from './pages/Schedule';
+import { SchedulePlanner } from './pages/SchedulePlanner';
+import { ScheduleSubstitutions } from './pages/ScheduleSubstitutions';
 import Users from './pages/Users';
 import RoomsManagement from './pages/RoomsManagement';
 import CurriculumManagement from './pages/CurriculumManagement';
@@ -21,6 +24,7 @@ import { UserProfile } from './pages/UserProfile';
 import { Login } from './pages/Login';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
+import Messages from './pages/Messages';
 import { TaskQueueProvider } from './context/TaskQueueContext';
 import { getInitStatus } from './api';
 import { Toaster } from 'sonner';
@@ -101,13 +105,17 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="registry" element={<Registry />} />
                 <Route path="grading" element={<Grading />} />
+                <Route path="grading/report-cards" element={<ReportCards />} />
                 <Route path="schedule" element={<Schedule />} />
+                <Route path="schedule/planner" element={<SchedulePlanner />} />
+                <Route path="schedule/substitutions" element={<ScheduleSubstitutions />} />
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
                 <Route path="school/curriculum" element={<CurriculumManagement />} />
                 <Route path="school/white-book" element={<WhiteBook />} />
                 <Route path="year-setup" element={<DeputyYearSetup />} />
                 <Route path="school/audit-log" element={<AuditLog />} />
+                <Route path="messages" element={<Messages />} />
                 <Route element={<SystemAdminGuard />}>
                   <Route path="system/schools" element={<SystemAdminSchools />} />
                   <Route path="system/users" element={<SystemAdminUsers />} />

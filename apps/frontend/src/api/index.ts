@@ -68,8 +68,83 @@ export const getAverageGrade = async (studentId: string, subjectId: string) => {
     return response.data;
 };
 
+// ─── SCHEDULE API ───────────────────────────────────────────
+
+export const getTimeSlots = async () => {
+    const response = await api.get('/api/schedule/slots');
+    return response.data;
+};
+
+export const upsertTimeSlots = async (slots: { lessonNumber: number; startTime: string; endTime: string }[]) => {
+    const response = await api.put('/api/schedule/slots', { slots });
+    return response.data;
+};
+
+export const getScheduleEvents = async (filters?: { academicYearId?: string; classroomId?: string; teacherId?: string }) => {
+    const response = await api.get('/api/schedule/events', { params: filters });
+    return response.data;
+};
+
+export const createScheduleEvent = async (data: {
+    dayOfWeek: number; lessonNumber: number; subjectInstanceId: string;
+    classroomId: string; teacherId: string; roomId?: string; academicYearId: string;
+}) => {
+    const response = await api.post('/api/schedule/events', data);
+    return response.data;
+};
+
+export const updateScheduleEvent = async (id: string, data: any) => {
+    const response = await api.put(`/api/schedule/events/${id}`, data);
+    return response.data;
+};
+
+export const deleteScheduleEvent = async (id: string) => {
+    const response = await api.delete(`/api/schedule/events/${id}`);
+    return response.data;
+};
+
+export const bulkCreateScheduleEvents = async (events: any[]) => {
+    const response = await api.post('/api/schedule/events/bulk', { events });
+    return response.data;
+};
+
 export const validateSchedule = async (data: any) => {
     const response = await api.post('/api/schedule/validate', data);
+    return response.data;
+};
+
+export const getClassroomSchedule = async (classroomId: string, academicYearId?: string) => {
+    const response = await api.get(`/api/schedule/view/classroom/${classroomId}`, { params: { academicYearId } });
+    return response.data;
+};
+
+export const getTeacherSchedule = async (teacherId: string, academicYearId?: string) => {
+    const response = await api.get(`/api/schedule/view/teacher/${teacherId}`, { params: { academicYearId } });
+    return response.data;
+};
+
+export const getStudentSchedule = async (studentUserId: string, academicYearId?: string) => {
+    const response = await api.get(`/api/schedule/view/student/${studentUserId}`, { params: { academicYearId } });
+    return response.data;
+};
+
+export const getSubstitutions = async (filters?: { date?: string; weekStart?: string; weekEnd?: string }) => {
+    const response = await api.get('/api/schedule/substitutions', { params: filters });
+    return response.data;
+};
+
+export const createSubstitution = async (data: any) => {
+    const response = await api.post('/api/schedule/substitutions', data);
+    return response.data;
+};
+
+export const updateSubstitution = async (id: string, data: any) => {
+    const response = await api.put(`/api/schedule/substitutions/${id}`, data);
+    return response.data;
+};
+
+export const deleteSubstitution = async (id: string) => {
+    const response = await api.delete(`/api/schedule/substitutions/${id}`);
     return response.data;
 };
 
@@ -202,5 +277,161 @@ export const promoteToSysAdmin = async (data: { email: string; firstName?: strin
 
 export const removeSystemAdmin = async (id: string) => {
     const response = await api.delete(`/api/system/admins/${id}`);
+    return response.data;
+};
+
+// ─── GRADING ────────────────────────────────────────────────
+
+export const createGrade = async (data: {
+    studentId: string;
+    subjectInstanceId: string;
+    value: string;
+    weight: number;
+    description?: string;
+    type?: string;
+    verbalText?: string;
+    category?: string;
+    semesterId?: string;
+}) => {
+    const response = await api.post('/api/grading/grades', data);
+    return response.data;
+};
+
+export const updateGrade = async (id: string, data: {
+    value?: string;
+    weight?: number;
+    description?: string;
+    verbalText?: string;
+    category?: string;
+}) => {
+    const response = await api.put(`/api/grading/grades/${id}`, data);
+    return response.data;
+};
+
+export const deleteGrade = async (id: string) => {
+    const response = await api.delete(`/api/grading/grades/${id}`);
+    return response.data;
+};
+
+export const getGradesForClassroom = async (classroomId: string, semesterId?: string) => {
+    const response = await api.get(`/api/grading/classroom/${classroomId}`, { params: { semesterId } });
+    return response.data;
+};
+
+export const getStudentGrades = async (studentId: string, semesterId?: string) => {
+    const response = await api.get(`/api/grading/student/${studentId}`, { params: { semesterId } });
+    return response.data;
+};
+
+export const getGradeAverage = async (studentId: string, subjectInstanceId: string) => {
+    const response = await api.get(`/api/grading/average/${studentId}/${subjectInstanceId}`);
+    return response.data;
+};
+
+export const getReportCards = async (classroomId: string, semesterId: string) => {
+    const response = await api.get(`/api/grading/report-cards/${classroomId}/${semesterId}`);
+    return response.data;
+};
+
+export const upsertReportCard = async (data: {
+    studentId: string;
+    subjectInstanceId: string;
+    semesterId: string;
+    finalGrade?: string;
+    verbalEvaluation?: string;
+    aiPolished?: boolean;
+}) => {
+    const response = await api.post('/api/grading/report-cards', data);
+    return response.data;
+};
+
+export const polishVerbalEvaluation = async (data: {
+    text: string;
+    studentName: string;
+    subjectName: string;
+}) => {
+    const response = await api.post('/api/grading/ai-polish', data);
+    return response.data;
+};
+
+export const getGradingTypes = async (classroomId: string) => {
+    const response = await api.get(`/api/grading/grading-types/${classroomId}`);
+    return response.data;
+};
+
+// ─── MESSAGING ──────────────────────────────────────────────
+
+export const getConversations = async () => {
+    const response = await api.get('/api/messaging/conversations');
+    return response.data;
+};
+
+export const getMessages = async (conversationId: string, limit = 50, offset = 0) => {
+    const response = await api.get(`/api/messaging/conversations/${conversationId}/messages`, {
+        params: { limit, offset },
+    });
+    return response.data;
+};
+
+export const sendMessage = async (conversationId: string, content: string) => {
+    const response = await api.post(`/api/messaging/conversations/${conversationId}/messages`, { content });
+    return response.data;
+};
+
+export const createConversation = async (data: {
+    recipientIds: string[];
+    subject?: string;
+    type?: string;
+    classroomId?: string;
+    initialMessage?: string;
+}) => {
+    const response = await api.post('/api/messaging/conversations', data);
+    return response.data;
+};
+
+export const getAvailableRecipients = async () => {
+    const response = await api.get('/api/messaging/recipients');
+    return response.data;
+};
+
+export const getMessagingClassrooms = async () => {
+    const response = await api.get('/api/messaging/classrooms');
+    return response.data;
+};
+
+export const createClassBroadcast = async (data: { classroomId: string; subject: string; message: string }) => {
+    const response = await api.post('/api/messaging/broadcast/class', data);
+    return response.data;
+};
+
+export const createSchoolBroadcast = async (data: { subject: string; message: string }) => {
+    const response = await api.post('/api/messaging/broadcast/school', data);
+    return response.data;
+};
+
+// ─── NOTIFICATIONS ──────────────────────────────────────────
+
+export const getNotifications = async (limit = 20, offset = 0) => {
+    const response = await api.get('/api/messaging/notifications', { params: { limit, offset } });
+    return response.data;
+};
+
+export const getUnreadNotificationCount = async () => {
+    const response = await api.get('/api/messaging/notifications/unread-count');
+    return response.data;
+};
+
+export const markNotificationRead = async (id: string) => {
+    const response = await api.put(`/api/messaging/notifications/${id}/read`);
+    return response.data;
+};
+
+export const markAllNotificationsRead = async () => {
+    const response = await api.put('/api/messaging/notifications/read-all');
+    return response.data;
+};
+
+export const toggleEmailNotifications = async (enabled: boolean) => {
+    const response = await api.put('/api/messaging/email-notifications', { enabled });
     return response.data;
 };

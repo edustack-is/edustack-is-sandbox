@@ -232,6 +232,7 @@ export class DeputyCurriculumController {
             svpApproach?: string;
             equipmentRequirements?: string[];
             needsComputerLab?: boolean;
+            gradingType?: string;
         },
     ) {
         this.ensureTenant(req);

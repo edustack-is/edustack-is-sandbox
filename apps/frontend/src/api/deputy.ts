@@ -215,6 +215,7 @@ export const saveCurriculumEntry = async (data: {
     svpApproach?: string;
     equipmentRequirements?: string[];
     needsComputerLab?: boolean;
+    gradingType?: string;
 }) => {
     const response = await api.post('/api/deputy/curriculum-entries', data);
     return response.data;

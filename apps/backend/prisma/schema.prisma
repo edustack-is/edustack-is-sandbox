@@ -51,13 +51,17 @@ model School {
   subjectTemplates SubjectTemplate[]
   subjectInstances SubjectInstance[]
   grades      Grade[]
+  reportCards ReportCard[]
   attendances Attendance[]
   rooms       Room[]
   academicYears AcademicYear[]
   gradeLevels   GradeLevel[]
   scheduleEvents ScheduleEvent[]
+  lessonTimeSlots LessonTimeSlot[]
+  scheduleSubstitutions ScheduleSubstitution[]
   aiTokenUsages   AiTokenUsage[]
   curriculumVersions CurriculumVersion[]
+  conversations      Conversation[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -73,6 +77,7 @@ model User {
   avatarUrl         String?
   // role and status moved to SchoolMembership
   isSystemAdmin     Boolean     @default(false)
+  emailNotificationsEnabled Boolean @default(true)
   
   invitationToken   String?
   invitationExpires DateTime?
@@ -96,8 +101,16 @@ model User {
   teacherWorkloads   TeacherWorkload[]
   staffWorkloads     StaffWorkload[]
 
+  // Schedule substitutions created by this user
+  createdSubstitutions ScheduleSubstitution[] @relation("SubstitutionCreator")
+
   // AI usage
   aiTokenUsages      AiTokenUsage[]
+
+  // Messaging
+  sentMessages              Message[]
+  conversationParticipations ConversationParticipant[]
+  notifications              Notification[]
 }
 
 model SchoolMembership {
@@ -181,6 +194,7 @@ model StudentProfile {
   classroom   Classroom? @relation(fields: [classroomId], references: [id])
   classroomId String?
   grades      Grade[]
+  reportCards ReportCard[]
   attendances Attendance[]
 }
 
@@ -195,6 +209,7 @@ model TeacherProfile {
   createdGrades Grade[]
   attendances   Attendance[]
   scheduleEvents ScheduleEvent[]
+  substituteScheduleEvents ScheduleSubstitution[]
 }
 
 model SubjectTemplate {
@@ -238,7 +253,9 @@ model SubjectInstance {
   school          School          @relation(fields: [schoolId], references: [id])
 
   grades          Grade[]
+  reportCards      ReportCard[]
   scheduleEvents  ScheduleEvent[]
+  substituteSubjectInstances ScheduleSubstitution[]
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -252,6 +269,9 @@ model Grade {
   weight          Float          // 0.1 - 1.0
   description     String?
   date            DateTime       @default(now())
+  type            String         @default("NUMERIC") // NUMERIC | VERBAL
+  verbalText      String?        // verbal evaluation text (for VERBAL type)
+  category        String?        // EXAM, HOMEWORK, CLASSWORK, PROJECT, OTHER
   
   schoolId        String
   school          School         @relation(fields: [schoolId], references: [id])
@@ -267,13 +287,41 @@ model Grade {
 
   academicYear    AcademicYear?  @relation(fields: [academicYearId], references: [id])
   academicYearId  String?
+
+  semester        Semester?      @relation(fields: [semesterId], references: [id])
+  semesterId      String?
   
   createdAt       DateTime       @default(now())
 }
 
+model ReportCard {
+  id                String          @id @default(uuid())
+  finalGrade        String?         // 1-5 or "N" (nehodnocen)
+  verbalEvaluation  String?         // verbal evaluation text for report
+  aiPolished        Boolean         @default(false)
+
+  studentProfile    StudentProfile  @relation(fields: [studentId], references: [id])
+  studentId         String
+
+  subjectInstance   SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  subjectInstanceId String
+
+  semester          Semester        @relation(fields: [semesterId], references: [id])
+  semesterId        String
+
+  schoolId          String
+  school            School          @relation(fields: [schoolId], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([studentId, subjectInstanceId, semesterId])
+}
+
 model ScheduleEvent {
   id              String         @id @default(uuid())
-  dayOfWeek       Int            // 0=Sunday, 1=Monday...
+  dayOfWeek       Int            // 1=Monday...5=Friday
+  lessonNumber    Int            // 1-10 (lesson slot number)
   startTime       String         // "HH:mm"
   endTime         String         // "HH:mm"
   
@@ -288,6 +336,74 @@ model ScheduleEvent {
   
   teacherProfile  TeacherProfile @relation(fields: [teacherId], references: [id])
   teacherId       String
+
+  room            Room?          @relation(fields: [roomId], references: [id])
+  roomId          String?
+
+  academicYear    AcademicYear   @relation(fields: [academicYearId], references: [id])
+  academicYearId  String
+
+  substitutions   ScheduleSubstitution[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([schoolId, dayOfWeek, lessonNumber, classroomId, academicYearId])
+}
+
+// ─── LESSON TIME SLOTS (zvonění) ─────────────────────────────
+
+model LessonTimeSlot {
+  id           String @id @default(uuid())
+  lessonNumber Int    // 1-10
+  startTime    String // "08:00"
+  endTime      String // "08:45"
+  
+  schoolId     String
+  school       School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, lessonNumber])
+}
+
+// ─── SCHEDULE SUBSTITUTIONS (suplování) ──────────────────────
+
+enum SubstitutionType {
+  SUBSTITUTION   // different teacher teaches
+  CANCELLED      // lesson cancelled
+  MERGED         // classes merged
+  ROOM_CHANGE    // room change only
+  SUBJECT_CHANGE // different subject
+}
+
+model ScheduleSubstitution {
+  id              String           @id @default(uuid())
+  date            DateTime         // specific date of substitution
+
+  type            SubstitutionType
+  note            String?
+
+  originalEvent   ScheduleEvent    @relation(fields: [originalEventId], references: [id])
+  originalEventId String
+
+  substituteTeacher   TeacherProfile? @relation(fields: [substituteTeacherId], references: [id])
+  substituteTeacherId String?
+
+  substituteRoom    Room? @relation(fields: [substituteRoomId], references: [id])
+  substituteRoomId  String?
+
+  substituteSubject   SubjectInstance? @relation(fields: [substituteSubjectId], references: [id])
+  substituteSubjectId String?
+
+  createdBy       User             @relation("SubstitutionCreator", fields: [createdById], references: [id])
+  createdById     String
+
+  schoolId        String
+  school          School           @relation(fields: [schoolId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([originalEventId, date])
 }
 
 enum AttendanceStatus {
@@ -327,6 +443,9 @@ model Room {
   schoolId    String
   school      School   @relation(fields: [schoolId], references: [id])
 
+  scheduleEvents       ScheduleEvent[]
+  substituteScheduleEvents ScheduleSubstitution[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -353,6 +472,7 @@ model AcademicYear {
   teacherWorkloads    TeacherWorkload[]
   staffWorkloads      StaffWorkload[]
   subjectInstances    SubjectInstance[]
+  scheduleEvents      ScheduleEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -474,6 +594,9 @@ model Semester {
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
 
+  grades        Grade[]
+  reportCards   ReportCard[]
+
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -510,6 +633,7 @@ model CurriculumEntry {
   svpApproach           String?           // ŠVP – school's teaching approach
   equipmentRequirements Json?             // e.g. ["projektor", "mikroskop"]
   needsComputerLab      Boolean           @default(false)
+  gradingType           String            @default("BOTH") // NUMERIC_ONLY, VERBAL_ONLY, BOTH
 
   curriculumVersionId   String
   curriculumVersion     CurriculumVersion @relation(fields: [curriculumVersionId], references: [id], onDelete: Cascade)
@@ -574,4 +698,73 @@ model AiTokenUsage {
   promptType    String   // e.g. 'CHAT', 'SEEDING'
 
   createdAt     DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MESSAGING & NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+
+model Conversation {
+  id          String   @id @default(uuid())
+  subject     String?  // Thread subject / title
+  type        String   @default("DIRECT") // DIRECT, CLASS_BROADCAST, SCHOOL_BROADCAST, GROUP
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  schoolId    String
+
+  // For CLASS_BROADCAST: the target classroom
+  classroomId String?
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+
+  lastReadAt     DateTime?    // null = never read
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+
+  sender         User         @relation(fields: [senderId], references: [id])
+  senderId       String
+
+  content        String
+
+  createdAt      DateTime     @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  type      String   @default("MESSAGE") // MESSAGE, GRADE, SYSTEM, ATTENDANCE
+  title     String
+  body      String?
+  linkUrl   String?  // e.g. /messages?conversation=<id>
+  read      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
 }

@@ -36,45 +36,24 @@ export function SelectSchool() {
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
+        // System admins enter schools via the admin table, not this page
+        if (isSystemAdmin) {
+            navigate('/system/schools', { replace: true });
+            return;
+        }
         loadSchools();
-    }, []);
+    }, [isSystemAdmin]);
 
     const loadSchools = async () => {
         setLoading(true);
         try {
-            if (isSystemAdmin) {
-                // System admin sees ALL schools, not just memberships
-                const [memberRes, allSchoolsRes] = await Promise.all([
-                    api.get('/api/auth/schools'),
-                    api.get('/api/system/schools').catch(() => ({ data: [] })),
-                ]);
+            const res = await api.get('/api/auth/schools');
+            const list = res.data;
+            setSchools(list);
 
-                const memberships: SchoolMembership[] = memberRes.data;
-                const allSchools: any[] = allSchoolsRes.data;
-                const memberSchoolIds = new Set(memberships.map(m => m.schoolId || m.school?.id));
-
-                // Merge: keep memberships as-is, add schools with no membership
-                const merged: SchoolMembership[] = [
-                    ...memberships,
-                    ...allSchools
-                        .filter(s => !memberSchoolIds.has(s.id))
-                        .map(s => ({
-                            schoolId: s.id,
-                            role: 'ADMIN',
-                            school: { id: s.id, name: s.name, address: s.address },
-                        })),
-                ];
-
-                setSchools(merged);
-            } else {
-                const res = await api.get('/api/auth/schools');
-                const list = res.data;
-                setSchools(list);
-
-                // Auto-select if user has exactly 1 school
-                if (list.length === 1 && !isCreating) {
-                    handleSelect(list[0].schoolId || list[0].school.id);
-                }
+            // Auto-select if user has exactly 1 school
+            if (list.length === 1 && !isCreating) {
+                handleSelect(list[0].schoolId || list[0].school.id);
             }
         } catch (err) {
             console.error('Failed to load schools', err);
@@ -222,70 +201,21 @@ export function SelectSchool() {
                                             </div>
                                         </CardHeader>
                                         <CardContent className="p-4 pt-0 flex flex-wrap gap-2">
-                                            {isSystemAdmin ? (
-                                                <>
-                                                    <Button
-                                                        variant="default"
-                                                        size="sm"
-                                                        className="flex-1"
-                                                        disabled={selecting === (membership.schoolId || membership.school.id)}
-                                                        onClick={() => handleSelect(membership.schoolId || membership.school.id, 'PRINCIPAL')}
-                                                    >
-                                                        {t('select_school.enter_as_principal')}
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="flex-1"
-                                                        disabled={selecting === (membership.schoolId || membership.school.id)}
-                                                        onClick={() => handleSelect(membership.schoolId || membership.school.id, 'DEPUTY')}
-                                                    >
-                                                        {t('select_school.enter_as_deputy')}
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="w-full text-xs"
-                                                        disabled={selecting === (membership.schoolId || membership.school.id)}
-                                                        onClick={() => handleSelect(membership.schoolId || membership.school.id, 'ADMIN')}
-                                                    >
-                                                        {t('select_school.enter_as_admin')}
-                                                    </Button>
-                                                </>
-                                            ) : (
-                                                <Button
-                                                    variant="secondary"
-                                                    className="w-full"
-                                                    disabled={selecting === (membership.schoolId || membership.school.id)}
-                                                    onClick={() => handleSelect(membership.schoolId || membership.school.id)}
-                                                >
-                                                    {selecting === (membership.schoolId || membership.school.id) ? t('select_school.entering') : t('select_school.enter')}
-                                                </Button>
-                                            )}
+                                            <Button
+                                                variant="secondary"
+                                                className="w-full"
+                                                disabled={selecting === (membership.schoolId || membership.school.id)}
+                                                onClick={() => handleSelect(membership.schoolId || membership.school.id)}
+                                            >
+                                                {selecting === (membership.schoolId || membership.school.id) ? t('select_school.entering') : t('select_school.enter')}
+                                            </Button>
                                         </CardContent>
                                     </Card>
                                 ))}
                             </div>
                         )}
 
-                        {isSystemAdmin && !isCreating && schools.length > 0 && (
-                            <div className="text-center pt-4 flex flex-col gap-2">
-                                <Button variant="outline" className="w-full border-dashed" onClick={() => setIsCreating(true)}>
-                                    <Plus className="mr-2 h-4 w-4" /> {t('select_school.create_another')}
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => navigate('/system/schools')}>
-                                    {t('select_school.go_to_system')}
-                                </Button>
-                            </div>
-                        )}
 
-                        {isSystemAdmin && !isCreating && schools.length === 0 && (
-                            <div className="text-center pt-2">
-                                <Button variant="ghost" size="sm" onClick={() => navigate('/system/schools')}>
-                                    {t('select_school.go_to_system')}
-                                </Button>
-                            </div>
-                        )}
                     </>
                 )}
             </div>

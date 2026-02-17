@@ -597,6 +597,7 @@ export class DeputyCurriculumService {
             svpApproach?: string;
             equipmentRequirements?: string[];
             needsComputerLab?: boolean;
+            gradingType?: string;
         },
     ) {
         // Validate version belongs to school
@@ -638,6 +639,7 @@ export class DeputyCurriculumService {
                 svpApproach: data.svpApproach,
                 equipmentRequirements: data.equipmentRequirements,
                 needsComputerLab: data.needsComputerLab ?? false,
+                gradingType: data.gradingType ?? 'BOTH',
             },
             update: {
                 hoursPerWeek: data.hoursPerWeek,
@@ -645,6 +647,7 @@ export class DeputyCurriculumService {
                 svpApproach: data.svpApproach,
                 equipmentRequirements: data.equipmentRequirements,
                 needsComputerLab: data.needsComputerLab,
+                ...(data.gradingType !== undefined && { gradingType: data.gradingType }),
             },
             include: { subjectTemplate: true, gradeLevel: true },
         });
