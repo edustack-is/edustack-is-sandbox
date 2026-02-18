@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { TimetableGrid, ScheduleEventData, TimeSlot } from '@/components/schedule/TimetableGrid';
@@ -8,8 +8,9 @@ import {
     getTeacherSchedule,
     getStudentSchedule,
     api,
+    getMe,
 } from '@/api';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -19,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { Calendar, GraduationCap, UserCheck, Users } from 'lucide-react';
 
 interface ClassroomOption {
@@ -52,32 +54,49 @@ export const Schedule: React.FC = () => {
     const [selectedClassroomId, setSelectedClassroomId] = useState<string>('');
     const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
 
+    // Student/teacher homeroom info
+    const [myClassroomId, setMyClassroomId] = useState<string>('');
+    const [myHomeroomTeacherId, setMyHomeroomTeacherId] = useState<string>('');
+
     // Academic year & semester
     const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
     const [semesters, setSemesters] = useState<SemesterOption[]>([]);
     const [selectedAcademicYearId, setSelectedAcademicYearId] = useState('');
     const [selectedSemesterId, setSelectedSemesterId] = useState('');
 
+    // Print ref
+    const printRef = useRef<HTMLDivElement>(null);
+
     // Today for highlighting substitutions
     const today = new Date().toISOString().slice(0, 10);
 
-    // Load classrooms, teachers, and academic years
+    // Load classrooms, teachers, and academic years + student info
     useEffect(() => {
         if (!schoolId) return;
 
+        // Load classrooms
         api.get('/api/deputy/classrooms').then(res => {
             setClassrooms(Array.isArray(res.data) ? res.data : []);
         }).catch(() => setClassrooms([]));
 
-        api.get('/api/deputy/dashboard').then(res => {
-            const data = res.data;
-            if (data?.teachers) {
-                setTeachers(data.teachers.map((t: any) => ({
-                    id: t.teacherProfile?.id || t.id,
+        // Load teachers with profiles from the teachers endpoint
+        api.get('/api/deputy/teachers').then(res => {
+            const data = Array.isArray(res.data) ? res.data : [];
+            setTeachers(data.map((t: any) => ({
+                id: t.id, // TeacherProfile id
+                user: { firstName: t.user?.firstName || t.firstName || '', lastName: t.user?.lastName || t.lastName || '' },
+            })));
+        }).catch(() => {
+            // Fallback: try getting from users list
+            api.get('/api/deputy/users').then(res => {
+                const data = Array.isArray(res.data) ? res.data : [];
+                const teacherUsers = data.filter((u: any) => u.role === 'TEACHER');
+                setTeachers(teacherUsers.map((t: any) => ({
+                    id: t.teacherProfileId || t.id,
                     user: { firstName: t.firstName, lastName: t.lastName },
                 })));
-            }
-        }).catch(() => setTeachers([]));
+            }).catch(() => setTeachers([]));
+        });
 
         // Load academic years
         api.get('/api/deputy/academic-years').then(res => {
@@ -88,7 +107,36 @@ export const Schedule: React.FC = () => {
                 setSelectedAcademicYearId(current.id);
             }
         }).catch(() => setAcademicYears([]));
-    }, [schoolId]);
+
+        // Get student's homeroom info
+        if (role === 'STUDENT' && userId) {
+            getMe().then((me: any) => {
+                if (me?.studentProfile?.classroomId) {
+                    setMyClassroomId(me.studentProfile.classroomId);
+                    setSelectedClassroomId(me.studentProfile.classroomId);
+                }
+                // Try to find homeroom teacher for this classroom
+                if (me?.studentProfile?.classroom?.homeroomTeacher) {
+                    setMyHomeroomTeacherId(me.studentProfile.classroom.homeroomTeacher.id);
+                    setSelectedTeacherId(me.studentProfile.classroom.homeroomTeacher.id);
+                }
+            }).catch(() => { /* ignore */ });
+        }
+    }, [schoolId, role, userId]);
+
+    // When teachers loaded + we have a classroom, try to find homeroom teacher
+    useEffect(() => {
+        if (myClassroomId && teachers.length > 0 && !myHomeroomTeacherId) {
+            // If we didn't get homeroom teacher from getMe, try finding via classrooms
+            api.get('/api/deputy/classrooms').then(res => {
+                const cls = (Array.isArray(res.data) ? res.data : []).find((c: any) => c.id === myClassroomId);
+                if (cls?.homeroomTeacher?.id) {
+                    setMyHomeroomTeacherId(cls.homeroomTeacher.id);
+                    if (!selectedTeacherId) setSelectedTeacherId(cls.homeroomTeacher.id);
+                }
+            }).catch(() => { /* ignore */ });
+        }
+    }, [myClassroomId, teachers, myHomeroomTeacherId]);
 
     // Load semesters when academic year changes
     useEffect(() => {
@@ -145,7 +193,7 @@ export const Schedule: React.FC = () => {
                             data = await getStudentSchedule(userId, yearId);
                         }
                     } else {
-                        // For PRINCIPAL/DEPUTY/ADMIN — show all events or first classroom
+                        // For PRINCIPAL/DEPUTY/ADMIN — show first classroom
                         if (classrooms.length > 0) {
                             const firstClassroom = classrooms[0];
                             setSelectedClassroomId(firstClassroom.id);
@@ -200,6 +248,89 @@ export const Schedule: React.FC = () => {
         }
     };
 
+    // Print handler
+    const handlePrint = () => {
+        const printContent = printRef.current;
+        if (!printContent) return;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const title = getViewTitle();
+        const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name || '';
+        const semesterName = semesters.find(s => s.id === selectedSemesterId)?.name || '';
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${title} – ${yearName}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; }
+                    h1 { font-size: 18px; margin-bottom: 4px; }
+                    .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; vertical-align: top; }
+                    th { background: #f5f5f5; font-weight: 600; }
+                    td.slot { background: #fafafa; font-weight: 600; width: 60px; }
+                    .subject-code { font-weight: 700; font-size: 12px; }
+                    .teacher-name { font-size: 10px; color: #555; }
+                    .room-name { font-size: 10px; color: #888; }
+                    .empty { min-height: 40px; }
+                    @media print { body { padding: 10px; } }
+                </style>
+            </head>
+            <body>
+                <h1>${title}</h1>
+                <div class="subtitle">${[yearName, semesterName].filter(Boolean).join(' · ')}</div>
+                ${buildPrintTable()}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 300);
+    };
+
+    const buildPrintTable = () => {
+        const days = [
+            { num: 1, label: 'Pondělí' },
+            { num: 2, label: 'Úterý' },
+            { num: 3, label: 'Středa' },
+            { num: 4, label: 'Čtvrtek' },
+            { num: 5, label: 'Pátek' },
+        ];
+
+        const maxLesson = events.length > 0 ? Math.max(...events.map(e => e.lessonNumber)) : 8;
+        const usedSlots = slots.length > 0 ? slots : [];
+
+        let html = '<table><thead><tr><th>Hodina</th>';
+        days.forEach(d => { html += `<th>${d.label}</th>`; });
+        html += '</tr></thead><tbody>';
+
+        for (let l = 1; l <= maxLesson; l++) {
+            const slot = usedSlots.find(s => s.lessonNumber === l);
+            html += `<tr><td class="slot">${l}.<br/>${slot ? `${slot.startTime}` : ''}</td>`;
+            days.forEach(d => {
+                const ev = events.find(e => e.dayOfWeek === d.num && e.lessonNumber === l);
+                if (ev) {
+                    html += `<td>
+                        <div class="subject-code">${ev.subject.template.code}</div>
+                        <div class="teacher-name">${ev.teacherProfile.user.lastName}</div>
+                        ${ev.room ? `<div class="room-name">📍 ${ev.room.name}</div>` : ''}
+                    </td>`;
+                } else {
+                    html += '<td class="empty"></td>';
+                }
+            });
+            html += '</tr>';
+        }
+
+        html += '</tbody></table>';
+        return html;
+    };
+
     if (!schoolId) {
         return (
             <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -217,7 +348,7 @@ export const Schedule: React.FC = () => {
                     <h1 className="text-2xl font-bold">{t('schedule.title', 'Rozvrh')}</h1>
                 </div>
 
-                {/* Year & Semester selectors */}
+                {/* Year & Semester selectors + Print */}
                 <div className="flex items-center gap-2 flex-wrap">
                     {academicYears.length > 0 && (
                         <Select value={selectedAcademicYearId} onValueChange={(val) => {
@@ -250,13 +381,26 @@ export const Schedule: React.FC = () => {
                             </SelectContent>
                         </Select>
                     )}
+                    <Button variant="outline" size="icon" onClick={handlePrint} title="Vytisknout rozvrh">
+                        <Printer className="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
 
             {/* View mode tabs */}
             <Tabs
                 value={viewMode}
-                onValueChange={(v) => setViewMode(v as ViewMode)}
+                onValueChange={(v) => {
+                    const mode = v as ViewMode;
+                    setViewMode(mode);
+                    // Set smart defaults when switching tabs
+                    if (mode === 'classroom' && !selectedClassroomId && myClassroomId) {
+                        setSelectedClassroomId(myClassroomId);
+                    }
+                    if (mode === 'teacher' && !selectedTeacherId && myHomeroomTeacherId) {
+                        setSelectedTeacherId(myHomeroomTeacherId);
+                    }
+                }}
                 className="w-full"
             >
                 <TabsList className="grid w-full grid-cols-3 max-w-md">
@@ -289,7 +433,7 @@ export const Schedule: React.FC = () => {
                         <SelectContent>
                             {classrooms.map(c => (
                                 <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
+                                    {c.name} {c.id === myClassroomId ? '(moje třída)' : ''}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -309,6 +453,7 @@ export const Schedule: React.FC = () => {
                             {teachers.map(t => (
                                 <SelectItem key={t.id} value={t.id}>
                                     {t.user.lastName} {t.user.firstName}
+                                    {t.id === myHomeroomTeacherId ? ' (třídní učitel)' : ''}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -321,7 +466,7 @@ export const Schedule: React.FC = () => {
                 <CardHeader className="pb-2">
                     <CardTitle className="text-lg">{getViewTitle()}</CardTitle>
                 </CardHeader>
-                <CardContent className="p-2 sm:p-4">
+                <CardContent className="p-2 sm:p-4" ref={printRef}>
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -349,7 +494,6 @@ export const Schedule: React.FC = () => {
                             timeSlots={slots}
                             showTeacher={viewMode !== 'teacher'}
                             showClassroom={viewMode === 'teacher'}
-                            showRoom
                             highlightDate={today}
                         />
                     )}

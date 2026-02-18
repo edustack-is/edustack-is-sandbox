@@ -132,7 +132,6 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
     maxLessons,
     showTeacher = true,
     showClassroom = false,
-    showRoom = false,
     onCellClick,
     editable = false,
     highlightDate,
@@ -225,8 +224,8 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                                     {event.classroom.name}
                                                                 </div>
                                                             )}
-                                                            {showRoom && event.room && (
-                                                                <div className="text-[10px] leading-tight opacity-70">
+                                                            {event.room && (
+                                                                <div className="text-[10px] leading-tight opacity-60">
                                                                     📍 {event.room.name}
                                                                 </div>
                                                             )}
