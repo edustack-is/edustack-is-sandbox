@@ -168,6 +168,16 @@ export const Schedule: React.FC = () => {
             .catch(() => setSlots([]));
     }, [schoolId]);
 
+    // For PRINCIPAL/DEPUTY/ADMIN: auto-switch to classroom view when classrooms load
+    useEffect(() => {
+        if (viewMode === 'my' && classrooms.length > 0 &&
+            role !== 'TEACHER' && role !== 'STUDENT' && role !== 'PARENT') {
+            const first = classrooms[0];
+            setSelectedClassroomId(prev => prev || first.id);
+            setViewMode('classroom');
+        }
+    }, [classrooms, role]); // only runs when classrooms load, not on every render
+
     // Load schedule based on view mode
     const loadSchedule = useCallback(async () => {
         if (!schoolId) return;
@@ -183,7 +193,6 @@ export const Schedule: React.FC = () => {
             switch (viewMode) {
                 case 'my': {
                     if (role === 'TEACHER') {
-                        // Get teacher profile id
                         const profileRes = await api.get('/api/teacher/profile');
                         if (profileRes.data?.id) {
                             data = await getTeacherSchedule(profileRes.data.id, yearId);
@@ -191,14 +200,6 @@ export const Schedule: React.FC = () => {
                     } else if (role === 'STUDENT') {
                         if (userId) {
                             data = await getStudentSchedule(userId, yearId);
-                        }
-                    } else {
-                        // For PRINCIPAL/DEPUTY/ADMIN — show first classroom
-                        if (classrooms.length > 0) {
-                            const firstClassroom = classrooms[0];
-                            setSelectedClassroomId(firstClassroom.id);
-                            data = await getClassroomSchedule(firstClassroom.id, yearId);
-                            setViewMode('classroom');
                         }
                     }
                     break;
@@ -224,7 +225,7 @@ export const Schedule: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, classrooms, selectedAcademicYearId]);
+    }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, selectedAcademicYearId]);
 
     useEffect(() => {
         loadSchedule();
