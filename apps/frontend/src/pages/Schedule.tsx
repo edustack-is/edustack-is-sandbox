@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { TimetableGrid, ScheduleEventData, TimeSlot } from '@/components/schedule/TimetableGrid';
@@ -70,73 +70,79 @@ export const Schedule: React.FC = () => {
     // Today for highlighting substitutions
     const today = new Date().toISOString().slice(0, 10);
 
-    // Load classrooms, teachers, and academic years + student info
+    // ─── One-time init: classrooms, teachers, academic years, student info ────
     useEffect(() => {
         if (!schoolId) return;
+        let cancelled = false;
 
-        // Load classrooms
-        api.get('/api/deputy/classrooms').then(res => {
-            setClassrooms(Array.isArray(res.data) ? res.data : []);
-        }).catch(() => setClassrooms([]));
+        const init = async () => {
+            // Load classrooms
+            const clsRes = await api.get('/api/deputy/classrooms').catch(() => ({ data: [] }));
+            const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
+            if (!cancelled) setClassrooms(clsList);
 
-        // Load teachers with profiles from the teachers endpoint
-        api.get('/api/deputy/teachers').then(res => {
-            const data = Array.isArray(res.data) ? res.data : [];
-            setTeachers(data.map((t: any) => ({
-                id: t.id, // TeacherProfile id
-                user: { firstName: t.user?.firstName || t.firstName || '', lastName: t.user?.lastName || t.lastName || '' },
-            })));
-        }).catch(() => {
-            // Fallback: try getting from users list
-            api.get('/api/deputy/users').then(res => {
-                const data = Array.isArray(res.data) ? res.data : [];
-                const teacherUsers = data.filter((u: any) => u.role === 'TEACHER');
-                setTeachers(teacherUsers.map((t: any) => ({
-                    id: t.teacherProfileId || t.id,
-                    user: { firstName: t.firstName, lastName: t.lastName },
-                })));
-            }).catch(() => setTeachers([]));
-        });
-
-        // Load academic years
-        api.get('/api/deputy/academic-years').then(res => {
-            const years = Array.isArray(res.data) ? res.data : [];
-            setAcademicYears(years);
-            const current = years.find((y: any) => y.isCurrent);
-            if (current && !selectedAcademicYearId) {
-                setSelectedAcademicYearId(current.id);
+            // Load teachers (fallback to users list)
+            let teacherList: TeacherOption[] = [];
+            try {
+                const tRes = await api.get('/api/deputy/teachers');
+                const tData = Array.isArray(tRes.data) ? tRes.data : [];
+                teacherList = tData.map((t: any) => ({
+                    id: t.id,
+                    user: { firstName: t.user?.firstName || t.firstName || '', lastName: t.user?.lastName || t.lastName || '' },
+                }));
+            } catch {
+                try {
+                    const uRes = await api.get('/api/deputy/users');
+                    const uData = Array.isArray(uRes.data) ? uRes.data : [];
+                    teacherList = uData
+                        .filter((u: any) => u.role === 'TEACHER')
+                        .map((t: any) => ({
+                            id: t.teacherProfileId || t.id,
+                            user: { firstName: t.firstName, lastName: t.lastName },
+                        }));
+                } catch { /* ignore */ }
             }
-        }).catch(() => setAcademicYears([]));
+            if (!cancelled) setTeachers(teacherList);
 
-        // Get student's homeroom info
-        if (role === 'STUDENT' && userId) {
-            getMe().then((me: any) => {
-                if (me?.studentProfile?.classroomId) {
-                    setMyClassroomId(me.studentProfile.classroomId);
-                    setSelectedClassroomId(me.studentProfile.classroomId);
+            // Load academic years
+            try {
+                const ayRes = await api.get('/api/deputy/academic-years');
+                const years = Array.isArray(ayRes.data) ? ayRes.data : [];
+                if (!cancelled) {
+                    setAcademicYears(years);
+                    const current = years.find((y: any) => y.isCurrent);
+                    if (current) setSelectedAcademicYearId(prev => prev || current.id);
                 }
-                // Try to find homeroom teacher for this classroom
-                if (me?.studentProfile?.classroom?.homeroomTeacher) {
-                    setMyHomeroomTeacherId(me.studentProfile.classroom.homeroomTeacher.id);
-                    setSelectedTeacherId(me.studentProfile.classroom.homeroomTeacher.id);
-                }
-            }).catch(() => { /* ignore */ });
-        }
-    }, [schoolId, role, userId]);
+            } catch { /* ignore */ }
 
-    // When teachers loaded + we have a classroom, try to find homeroom teacher
-    useEffect(() => {
-        if (myClassroomId && teachers.length > 0 && !myHomeroomTeacherId) {
-            // If we didn't get homeroom teacher from getMe, try finding via classrooms
-            api.get('/api/deputy/classrooms').then(res => {
-                const cls = (Array.isArray(res.data) ? res.data : []).find((c: any) => c.id === myClassroomId);
-                if (cls?.homeroomTeacher?.id) {
-                    setMyHomeroomTeacherId(cls.homeroomTeacher.id);
-                    if (!selectedTeacherId) setSelectedTeacherId(cls.homeroomTeacher.id);
+            // Student homeroom defaults
+            if (role === 'STUDENT' && userId) {
+                try {
+                    const me: any = await getMe();
+                    if (!cancelled && me?.studentProfile?.classroomId) {
+                        setMyClassroomId(me.studentProfile.classroomId);
+                        setSelectedClassroomId(prev => prev || me.studentProfile.classroomId);
+                    }
+                    if (!cancelled && me?.studentProfile?.classroom?.homeroomTeacher?.id) {
+                        const htId = me.studentProfile.classroom.homeroomTeacher.id;
+                        setMyHomeroomTeacherId(htId);
+                        setSelectedTeacherId(prev => prev || htId);
+                    }
+                } catch { /* ignore */ }
+            }
+
+            // Admin/Principal/Deputy: default to first classroom
+            if (role !== 'TEACHER' && role !== 'STUDENT' && role !== 'PARENT' && clsList.length > 0) {
+                if (!cancelled) {
+                    setSelectedClassroomId(prev => prev || clsList[0].id);
+                    setViewMode(prev => prev === 'my' ? 'classroom' : prev);
                 }
-            }).catch(() => { /* ignore */ });
-        }
-    }, [myClassroomId, teachers, myHomeroomTeacherId]);
+            }
+        };
+
+        init();
+        return () => { cancelled = true; };
+    }, [schoolId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load semesters when academic year changes
     useEffect(() => {
@@ -148,7 +154,6 @@ export const Schedule: React.FC = () => {
             .then(res => {
                 const sems = Array.isArray(res.data) ? res.data : [];
                 setSemesters(sems);
-                // Auto-select current semester based on today's date
                 const now = new Date();
                 const currentSem = sems.find((s: any) => {
                     const start = new Date(s.startDate);
@@ -168,68 +173,61 @@ export const Schedule: React.FC = () => {
             .catch(() => setSlots([]));
     }, [schoolId]);
 
-    // For PRINCIPAL/DEPUTY/ADMIN: auto-switch to classroom view when classrooms load
+    // ─── Load schedule when view/filter changes ──────────────────────
     useEffect(() => {
-        if (viewMode === 'my' && classrooms.length > 0 &&
-            role !== 'TEACHER' && role !== 'STUDENT' && role !== 'PARENT') {
-            const first = classrooms[0];
-            setSelectedClassroomId(prev => prev || first.id);
-            setViewMode('classroom');
-        }
-    }, [classrooms, role]); // only runs when classrooms load, not on every render
-
-    // Load schedule based on view mode
-    const loadSchedule = useCallback(async () => {
         if (!schoolId) return;
+        let cancelled = false;
 
-        setLoading(true);
-        setError(null);
+        const load = async () => {
+            setLoading(true);
+            setError(null);
+            const yearId = selectedAcademicYearId || undefined;
 
-        const yearId = selectedAcademicYearId || undefined;
+            try {
+                let data: ScheduleEventData[] = [];
 
-        try {
-            let data: ScheduleEventData[] = [];
-
-            switch (viewMode) {
-                case 'my': {
-                    if (role === 'TEACHER') {
-                        const profileRes = await api.get('/api/teacher/profile');
-                        if (profileRes.data?.id) {
-                            data = await getTeacherSchedule(profileRes.data.id, yearId);
+                switch (viewMode) {
+                    case 'my': {
+                        if (role === 'TEACHER') {
+                            const profileRes = await api.get('/api/teacher/profile');
+                            if (profileRes.data?.id) {
+                                data = await getTeacherSchedule(profileRes.data.id, yearId);
+                            }
+                        } else if (role === 'STUDENT') {
+                            if (userId) {
+                                data = await getStudentSchedule(userId, yearId);
+                            }
                         }
-                    } else if (role === 'STUDENT') {
-                        if (userId) {
-                            data = await getStudentSchedule(userId, yearId);
+                        break;
+                    }
+                    case 'classroom': {
+                        if (selectedClassroomId) {
+                            data = await getClassroomSchedule(selectedClassroomId, yearId);
                         }
+                        break;
                     }
-                    break;
-                }
-                case 'classroom': {
-                    if (selectedClassroomId) {
-                        data = await getClassroomSchedule(selectedClassroomId, yearId);
+                    case 'teacher': {
+                        if (selectedTeacherId) {
+                            data = await getTeacherSchedule(selectedTeacherId, yearId);
+                        }
+                        break;
                     }
-                    break;
                 }
-                case 'teacher': {
-                    if (selectedTeacherId) {
-                        data = await getTeacherSchedule(selectedTeacherId, yearId);
-                    }
-                    break;
+
+                if (!cancelled) setEvents(Array.isArray(data) ? data : []);
+            } catch (err: any) {
+                if (!cancelled) {
+                    console.error('Failed to load schedule:', err);
+                    setError(err?.response?.data?.message || 'Nepodařilo se načíst rozvrh');
                 }
+            } finally {
+                if (!cancelled) setLoading(false);
             }
+        };
 
-            setEvents(Array.isArray(data) ? data : []);
-        } catch (err: any) {
-            console.error('Failed to load schedule:', err);
-            setError(err?.response?.data?.message || 'Nepodařilo se načíst rozvrh');
-        } finally {
-            setLoading(false);
-        }
+        load();
+        return () => { cancelled = true; };
     }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, selectedAcademicYearId]);
-
-    useEffect(() => {
-        loadSchedule();
-    }, [loadSchedule]);
 
     // Get current view title
     const getViewTitle = () => {
