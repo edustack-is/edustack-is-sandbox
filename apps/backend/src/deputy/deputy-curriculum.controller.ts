@@ -262,6 +262,15 @@ export class DeputyCurriculumController {
 
     // ─── SEMESTERS ──────────────────────────────────────────────────
 
+    @Get('semesters')
+    async getSemesters(
+        @Req() req: any,
+        @Query('academicYearId') academicYearId: string,
+    ) {
+        this.ensureTenant(req);
+        return this.curriculumService.getSemesters(req.user.schoolId, academicYearId);
+    }
+
     @Post('semesters')
     async createSemesters(
         @Req() req: any,

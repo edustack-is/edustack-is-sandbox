@@ -435,3 +435,34 @@ export const toggleEmailNotifications = async (enabled: boolean) => {
     const response = await api.put('/api/messaging/email-notifications', { enabled });
     return response.data;
 };
+
+// ─── TEST DATA ──────────────────────────────────────────────
+
+export const generateTestData = async (config: {
+    schoolName: string;
+    schoolType: string;
+    teacherCount?: number;
+    teacherActiveCount?: number;
+    teacherInvitedCount?: number;
+    studentCount?: number;
+    studentActiveCount?: number;
+    studentInvitedCount?: number;
+    parentCount?: number;
+    generateSubjects?: boolean;
+    generateSchedule?: boolean;
+    generateGrades?: boolean;
+    generateCommunication?: boolean;
+}) => {
+    const response = await api.post('/api/system/test-data/generate', config);
+    return response.data;
+};
+
+export const wipeSchoolData = async (schoolId: string) => {
+    const response = await api.delete(`/api/system/test-data/wipe/${schoolId}`);
+    return response.data;
+};
+
+export const wipeAllData = async () => {
+    const response = await api.delete('/api/system/test-data/wipe-all');
+    return response.data;
+};

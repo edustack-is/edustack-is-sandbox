@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import {
-    GraduationCap, Plus, Trash2, Pencil, User, Sparkles, ArrowLeft,
+    GraduationCap, Plus, Trash2, Pencil, User, Sparkles, ArrowLeft, CalendarDays,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────
@@ -76,7 +76,8 @@ interface GradeItem {
 }
 
 interface ClassroomOption { id: string; name: string; grade: number; }
-interface SemesterOption { id: string; name: string; number: number; }
+interface SemesterOption { id: string; name: string; number: number; startDate: string; endDate: string; }
+interface AcademicYearOption { id: string; name: string; isCurrent: boolean; }
 
 const CATEGORIES = [
     { value: 'EXAM', label: 'Písemná práce' },
@@ -101,6 +102,7 @@ export const Grading: React.FC = () => {
     // Data
     const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
     const [semesters, setSemesters] = useState<SemesterOption[]>([]);
+    const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
     const [students, setStudents] = useState<StudentBrief[]>([]);
     const [subjects, setSubjects] = useState<SubjectBrief[]>([]);
     const [grades, setGrades] = useState<GradeItem[]>([]);
@@ -109,6 +111,7 @@ export const Grading: React.FC = () => {
     // Filters
     const [selectedClassroomId, setSelectedClassroomId] = useState('');
     const [selectedSemesterId, setSelectedSemesterId] = useState('');
+    const [selectedAcademicYearId, setSelectedAcademicYearId] = useState('');
 
     // Student detail
     const [selectedStudent, setSelectedStudent] = useState<StudentBrief | null>(null);
@@ -144,22 +147,40 @@ export const Grading: React.FC = () => {
             })
             .catch(() => setClassrooms([]));
 
-        // Load semesters for current academic year
+        // Load academic years
         api.get('/api/deputy/academic-years')
             .then(res => {
                 const years = Array.isArray(res.data) ? res.data : [];
+                setAcademicYears(years);
                 const current = years.find((y: any) => y.isCurrent);
-                if (current?.id) {
-                    api.get(`/api/deputy/semesters`, { params: { academicYearId: current.id } })
-                        .then(semRes => {
-                            const sems = Array.isArray(semRes.data) ? semRes.data : [];
-                            setSemesters(sems);
-                        })
-                        .catch(() => setSemesters([]));
+                if (current && !selectedAcademicYearId) {
+                    setSelectedAcademicYearId(current.id);
                 }
             })
-            .catch(() => setSemesters([]));
+            .catch(() => setAcademicYears([]));
     }, [schoolId]);
+
+    // Load semesters when academic year changes
+    useEffect(() => {
+        if (!schoolId || !selectedAcademicYearId) {
+            setSemesters([]);
+            return;
+        }
+        api.get('/api/deputy/semesters', { params: { academicYearId: selectedAcademicYearId } })
+            .then(res => {
+                const sems = Array.isArray(res.data) ? res.data : [];
+                setSemesters(sems);
+                // Auto-select current semester based on today's date
+                const now = new Date();
+                const currentSem = sems.find((s: any) => {
+                    const start = new Date(s.startDate);
+                    const end = new Date(s.endDate);
+                    return now >= start && now <= end;
+                });
+                setSelectedSemesterId(currentSem?.id || '');
+            })
+            .catch(() => setSemesters([]));
+    }, [schoolId, selectedAcademicYearId]);
 
     // ─── Load grades grid ───────────────────────────────────
 
@@ -333,6 +354,26 @@ export const Grading: React.FC = () => {
 
                 {/* Filters */}
                 <div className="flex items-center gap-2 flex-wrap">
+                    {academicYears.length > 0 && (
+                        <Select value={selectedAcademicYearId} onValueChange={(val) => {
+                            setSelectedAcademicYearId(val);
+                            setSelectedSemesterId('');
+                            setSelectedStudent(null);
+                        }}>
+                            <SelectTrigger className="w-40">
+                                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                                <SelectValue placeholder="Rok..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {academicYears.map(y => (
+                                    <SelectItem key={y.id} value={y.id}>
+                                        {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
                     <Select value={selectedClassroomId} onValueChange={val => {
                         setSelectedClassroomId(val);
                         setSelectedStudent(null);

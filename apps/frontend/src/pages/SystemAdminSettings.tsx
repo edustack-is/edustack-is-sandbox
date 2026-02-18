@@ -18,8 +18,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Key, Save, Check, Loader2, AlertCircle, Zap, TrendingUp, BarChart3, Shield, Settings,
-    Globe, Github, Apple, Mail
+    Globe, Github, Apple, Mail, Database
 } from 'lucide-react';
+import { TestDataGenerator } from './TestDataGenerator';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -137,7 +138,7 @@ export function SystemAdminSettings() {
             </div>
 
             <Tabs defaultValue="ai" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
                     <TabsTrigger value="ai" className="flex items-center gap-2">
                         <Zap className="h-4 w-4" />
                         {t('system_settings.ai_management')}
@@ -145,6 +146,10 @@ export function SystemAdminSettings() {
                     <TabsTrigger value="sso" className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
                         {t('system_settings.sso_integrations')}
+                    </TabsTrigger>
+                    <TabsTrigger value="testdata" className="flex items-center gap-2">
+                        <Database className="h-4 w-4" />
+                        Testovací data
                     </TabsTrigger>
                 </TabsList>
 
@@ -205,6 +210,10 @@ export function SystemAdminSettings() {
 
                 <TabsContent value="sso" className="space-y-6 animate-in fade-in-50 duration-300">
                     <SsoIntegrations settings={ssoSettings} onSaved={fetchData} />
+                </TabsContent>
+
+                <TabsContent value="testdata" className="space-y-6 animate-in fade-in-50 duration-300">
+                    <TestDataGenerator />
                 </TabsContent>
             </Tabs>
         </div>

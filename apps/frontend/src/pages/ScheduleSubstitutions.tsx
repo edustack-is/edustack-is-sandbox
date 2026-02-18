@@ -147,7 +147,7 @@ export const ScheduleSubstitutions: React.FC = () => {
             .catch(() => setEvents([]));
 
         // Load teachers
-        api.get('/api/deputy/school-dashboard')
+        api.get('/api/deputy/dashboard')
             .then(res => {
                 if (res.data?.teachers) {
                     setTeachers(res.data.teachers.filter((u: any) => u.teacherProfile).map((u: any) => ({

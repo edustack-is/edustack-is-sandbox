@@ -9,6 +9,7 @@ import {
     getStudentSchedule,
     api,
 } from '@/api';
+import { CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -30,6 +31,9 @@ interface TeacherOption {
     user: { firstName: string; lastName: string };
 }
 
+interface AcademicYearOption { id: string; name: string; isCurrent: boolean; }
+interface SemesterOption { id: string; name: string; number: number; startDate: string; endDate: string; }
+
 type ViewMode = 'my' | 'classroom' | 'teacher';
 
 export const Schedule: React.FC = () => {
@@ -48,10 +52,16 @@ export const Schedule: React.FC = () => {
     const [selectedClassroomId, setSelectedClassroomId] = useState<string>('');
     const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
 
+    // Academic year & semester
+    const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
+    const [semesters, setSemesters] = useState<SemesterOption[]>([]);
+    const [selectedAcademicYearId, setSelectedAcademicYearId] = useState('');
+    const [selectedSemesterId, setSelectedSemesterId] = useState('');
+
     // Today for highlighting substitutions
     const today = new Date().toISOString().slice(0, 10);
 
-    // Load classrooms and teachers for filter dropdowns
+    // Load classrooms, teachers, and academic years
     useEffect(() => {
         if (!schoolId) return;
 
@@ -59,7 +69,7 @@ export const Schedule: React.FC = () => {
             setClassrooms(Array.isArray(res.data) ? res.data : []);
         }).catch(() => setClassrooms([]));
 
-        api.get('/api/deputy/school-dashboard').then(res => {
+        api.get('/api/deputy/dashboard').then(res => {
             const data = res.data;
             if (data?.teachers) {
                 setTeachers(data.teachers.map((t: any) => ({
@@ -68,7 +78,39 @@ export const Schedule: React.FC = () => {
                 })));
             }
         }).catch(() => setTeachers([]));
+
+        // Load academic years
+        api.get('/api/deputy/academic-years').then(res => {
+            const years = Array.isArray(res.data) ? res.data : [];
+            setAcademicYears(years);
+            const current = years.find((y: any) => y.isCurrent);
+            if (current && !selectedAcademicYearId) {
+                setSelectedAcademicYearId(current.id);
+            }
+        }).catch(() => setAcademicYears([]));
     }, [schoolId]);
+
+    // Load semesters when academic year changes
+    useEffect(() => {
+        if (!schoolId || !selectedAcademicYearId) {
+            setSemesters([]);
+            return;
+        }
+        api.get('/api/deputy/semesters', { params: { academicYearId: selectedAcademicYearId } })
+            .then(res => {
+                const sems = Array.isArray(res.data) ? res.data : [];
+                setSemesters(sems);
+                // Auto-select current semester based on today's date
+                const now = new Date();
+                const currentSem = sems.find((s: any) => {
+                    const start = new Date(s.startDate);
+                    const end = new Date(s.endDate);
+                    return now >= start && now <= end;
+                });
+                setSelectedSemesterId(currentSem?.id || '');
+            })
+            .catch(() => setSemesters([]));
+    }, [schoolId, selectedAcademicYearId]);
 
     // Load time slots
     useEffect(() => {
@@ -85,6 +127,8 @@ export const Schedule: React.FC = () => {
         setLoading(true);
         setError(null);
 
+        const yearId = selectedAcademicYearId || undefined;
+
         try {
             let data: ScheduleEventData[] = [];
 
@@ -94,18 +138,18 @@ export const Schedule: React.FC = () => {
                         // Get teacher profile id
                         const profileRes = await api.get('/api/teacher/profile');
                         if (profileRes.data?.id) {
-                            data = await getTeacherSchedule(profileRes.data.id);
+                            data = await getTeacherSchedule(profileRes.data.id, yearId);
                         }
                     } else if (role === 'STUDENT') {
                         if (userId) {
-                            data = await getStudentSchedule(userId);
+                            data = await getStudentSchedule(userId, yearId);
                         }
                     } else {
                         // For PRINCIPAL/DEPUTY/ADMIN — show all events or first classroom
                         if (classrooms.length > 0) {
                             const firstClassroom = classrooms[0];
                             setSelectedClassroomId(firstClassroom.id);
-                            data = await getClassroomSchedule(firstClassroom.id);
+                            data = await getClassroomSchedule(firstClassroom.id, yearId);
                             setViewMode('classroom');
                         }
                     }
@@ -113,13 +157,13 @@ export const Schedule: React.FC = () => {
                 }
                 case 'classroom': {
                     if (selectedClassroomId) {
-                        data = await getClassroomSchedule(selectedClassroomId);
+                        data = await getClassroomSchedule(selectedClassroomId, yearId);
                     }
                     break;
                 }
                 case 'teacher': {
                     if (selectedTeacherId) {
-                        data = await getTeacherSchedule(selectedTeacherId);
+                        data = await getTeacherSchedule(selectedTeacherId, yearId);
                     }
                     break;
                 }
@@ -132,7 +176,7 @@ export const Schedule: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, classrooms]);
+    }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, classrooms, selectedAcademicYearId]);
 
     useEffect(() => {
         loadSchedule();
@@ -171,6 +215,41 @@ export const Schedule: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <Calendar className="h-6 w-6 text-primary" />
                     <h1 className="text-2xl font-bold">{t('schedule.title', 'Rozvrh')}</h1>
+                </div>
+
+                {/* Year & Semester selectors */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {academicYears.length > 0 && (
+                        <Select value={selectedAcademicYearId} onValueChange={(val) => {
+                            setSelectedAcademicYearId(val);
+                            setSelectedSemesterId('');
+                        }}>
+                            <SelectTrigger className="w-40">
+                                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                                <SelectValue placeholder="Rok..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {academicYears.map(y => (
+                                    <SelectItem key={y.id} value={y.id}>
+                                        {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                    {semesters.length > 0 && (
+                        <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
+                            <SelectTrigger className="w-36">
+                                <SelectValue placeholder="Pololetí..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">Vše</SelectItem>
+                                {semesters.map(s => (
+                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
             </div>
 

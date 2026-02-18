@@ -697,6 +697,15 @@ export class DeputyCurriculumService {
 
     // ─── SEMESTERS ──────────────────────────────────────────────────
 
+    async getSemesters(schoolId: string, academicYearId?: string) {
+        const where: any = { academicYear: { schoolId } };
+        if (academicYearId) where.academicYearId = academicYearId;
+        return this.prisma.semester.findMany({
+            where,
+            orderBy: { number: 'asc' },
+        });
+    }
+
     async createSemesters(
         actorId: string,
         schoolId: string,

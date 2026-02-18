@@ -44,6 +44,7 @@ interface SubjectInstanceOption {
 }
 interface RoomOption { id: string; name: string; capacity: number; isComputerLab: boolean; }
 interface AcademicYearOption { id: string; name: string; isCurrent: boolean; }
+interface SemesterOption { id: string; name: string; number: number; startDate: string; endDate: string; }
 
 export const SchedulePlanner: React.FC = () => {
     const { t } = useTranslation();
@@ -57,10 +58,12 @@ export const SchedulePlanner: React.FC = () => {
     const [subjects, setSubjects] = useState<SubjectInstanceOption[]>([]);
     const [rooms, setRooms] = useState<RoomOption[]>([]);
     const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
+    const [semesters, setSemesters] = useState<SemesterOption[]>([]);
 
     // Selection
     const [selectedClassroomId, setSelectedClassroomId] = useState('');
     const [selectedAcademicYearId, setSelectedAcademicYearId] = useState('');
+    const [selectedSemesterId, setSelectedSemesterId] = useState('');
 
     // Dialogs
     const [addDialog, setAddDialog] = useState<{ dayOfWeek: number; lessonNumber: number } | null>(null);
@@ -101,7 +104,7 @@ export const SchedulePlanner: React.FC = () => {
             .catch(() => setClassrooms([]));
 
         // Load teachers
-        api.get('/api/deputy/school-dashboard')
+        api.get('/api/deputy/dashboard')
             .then(res => {
                 if (res.data?.teachers) {
                     setTeachers(res.data.teachers.filter((u: any) => u.teacherProfile).map((u: any) => ({
@@ -130,6 +133,28 @@ export const SchedulePlanner: React.FC = () => {
             })
             .catch(() => setAcademicYears([]));
     }, [schoolId]);
+
+    // Load semesters when academic year changes
+    useEffect(() => {
+        if (!schoolId || !selectedAcademicYearId) {
+            setSemesters([]);
+            return;
+        }
+        api.get('/api/deputy/semesters', { params: { academicYearId: selectedAcademicYearId } })
+            .then(res => {
+                const sems = Array.isArray(res.data) ? res.data : [];
+                setSemesters(sems);
+                // Auto-select current semester based on today's date
+                const now = new Date();
+                const currentSem = sems.find((s: any) => {
+                    const start = new Date(s.startDate);
+                    const end = new Date(s.endDate);
+                    return now >= start && now <= end;
+                });
+                setSelectedSemesterId(currentSem?.id || '');
+            })
+            .catch(() => setSemesters([]));
+    }, [schoolId, selectedAcademicYearId]);
 
     // Load subject instances for the selected academic year
     useEffect(() => {
@@ -295,7 +320,10 @@ export const SchedulePlanner: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                     <Label className="text-sm font-medium whitespace-nowrap">Rok:</Label>
-                    <Select value={selectedAcademicYearId} onValueChange={setSelectedAcademicYearId}>
+                    <Select value={selectedAcademicYearId} onValueChange={(val) => {
+                        setSelectedAcademicYearId(val);
+                        setSelectedSemesterId('');
+                    }}>
                         <SelectTrigger className="w-40">
                             <SelectValue placeholder="Rok..." />
                         </SelectTrigger>
@@ -308,6 +336,23 @@ export const SchedulePlanner: React.FC = () => {
                         </SelectContent>
                     </Select>
                 </div>
+
+                {semesters.length > 0 && (
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm font-medium whitespace-nowrap">Pololetí:</Label>
+                        <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
+                            <SelectTrigger className="w-36">
+                                <SelectValue placeholder="Pololetí..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">Vše</SelectItem>
+                                {semesters.map(s => (
+                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
 
             {/* Timetable grid */}

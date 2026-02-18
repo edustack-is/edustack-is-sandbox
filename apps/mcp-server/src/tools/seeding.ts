@@ -507,3 +507,190 @@ Heslo pro všechny demo učitele je 'Demo1234!' (bcrypt hash).`,
         }
     }
 );
+
+// ═══════════════════════════════════════════════════════════════
+// GENERATE FULL TEST DATA (orchestrator)
+// ═══════════════════════════════════════════════════════════════
+
+server.tool(
+    "generate_full_test_data",
+    `Vytvoří kompletní školu s realistickými testovacími daty – učitele, studenty, rodiče, předměty, rozvrh, klasifikaci a komunikaci.
+
+Podporované typy:
+- elementary_1: ZŠ – 1. stupeň
+- elementary_full: ZŠ – 1. i 2. stupeň
+- gymnasium_8: Osmileté gymnázium
+- gymnasium_4: Čtyřleté gymnázium
+
+Heslo pro všechny demo účty: Demo1234!`,
+    {
+        schoolName: z.string().describe("Název nové školy"),
+        schoolType: z.enum(["elementary_1", "elementary_full", "gymnasium_8", "gymnasium_4"]).describe("Typ školy"),
+        teacherCount: z.number().optional().describe("Počet učitelů (výchozí 10)"),
+        studentCount: z.number().optional().describe("Počet studentů (výchozí 50)"),
+    },
+    async ({ schoolName, schoolType, teacherCount, studentCount }) => {
+        try {
+            const tc = teacherCount ?? 10;
+            const sc = studentCount ?? 50;
+
+            // 1. Create school
+            const school = await prisma.school.create({ data: { name: schoolName } });
+            const schoolId = school.id;
+            const grades = getGrades(schoolType);
+            const subjects = getSubjects(schoolType);
+            const demoPasswordHash = "$2b$10$8K1p/q5zQxl0SRDV4Gqe6eruJ3Mn1.Tl5Yng3ORq0q6Z8hMO0dPHG";
+
+            const result = await prisma.$transaction(async (tx) => {
+                const stats = { teachers: 0, students: 0, parents: 0, subjects: 0, classrooms: 0 };
+
+                // Academic year
+                const academicYear = await tx.academicYear.create({
+                    data: { name: "2025/2026", startDate: new Date("2025-09-01"), endDate: new Date("2026-06-30"), isCurrent: true, schoolId },
+                });
+
+                // Grade levels & classrooms
+                const classroomIds: string[] = [];
+                const gradeLevelMap: Record<number, string> = {};
+                for (const grade of grades) {
+                    const gl = await tx.gradeLevel.create({
+                        data: { name: grade.levelName, levelNumber: grade.levelNumber, schoolId },
+                    });
+                    gradeLevelMap[grade.levelNumber] = gl.id;
+                    for (const name of grade.classrooms) {
+                        const c = await tx.classroom.create({ data: { name, grade: grade.levelNumber, schoolId } });
+                        classroomIds.push(c.id);
+                        stats.classrooms++;
+                    }
+                }
+
+                // Subject templates & instances
+                for (const subj of subjects) {
+                    const tmpl = await tx.subjectTemplate.create({ data: { name: subj.name, code: subj.code, schoolId } });
+                    stats.subjects++;
+                    for (const [lvlStr, glId] of Object.entries(gradeLevelMap)) {
+                        await tx.subjectInstance.create({
+                            data: { templateId: tmpl.id, academicYearId: academicYear.id, gradeLevelId: glId, schoolId, hoursPerWeek: 3 },
+                        });
+                    }
+                }
+
+                // Teachers
+                const teachers = getTeachingStaff(schoolType).slice(0, tc);
+                for (const t of teachers) {
+                    const existing = await tx.user.findUnique({ where: { email: t.email } });
+                    if (existing) continue;
+                    const user = await tx.user.create({ data: { email: t.email, firstName: t.firstName, lastName: t.lastName, passwordHash: demoPasswordHash } });
+                    await tx.teacherProfile.create({ data: { userId: user.id, degree: t.degree, approbation: t.approbation } });
+                    await tx.schoolMembership.create({ data: { userId: user.id, schoolId, role: "TEACHER", status: "ACTIVE", workloadPercentage: t.workload } });
+                    stats.teachers++;
+                }
+
+                // Students + parents
+                for (let i = 0; i < sc; i++) {
+                    const email = `student${i}@demo.${schoolId.slice(0, 8)}.cz`;
+                    const clsId = classroomIds[i % classroomIds.length];
+                    const stu = await tx.user.create({ data: { email, firstName: `Student`, lastName: `Demo${i + 1}`, passwordHash: demoPasswordHash } });
+                    await tx.studentProfile.create({ data: { userId: stu.id, firstName: stu.firstName, lastName: stu.lastName, classroomId: clsId } });
+                    await tx.schoolMembership.create({ data: { userId: stu.id, schoolId, role: "STUDENT", status: "ACTIVE" } });
+                    stats.students++;
+
+                    // Parent
+                    const pEmail = `rodic${i}@demo.${schoolId.slice(0, 8)}.cz`;
+                    const parent = await tx.user.create({ data: { email: pEmail, firstName: `Rodič`, lastName: `Demo${i + 1}`, passwordHash: demoPasswordHash } });
+                    await tx.schoolMembership.create({ data: { userId: parent.id, schoolId, role: "PARENT", status: "ACTIVE" } });
+                    await tx.parentStudent.create({ data: { parentId: parent.id, studentId: stu.id } });
+                    stats.parents++;
+                }
+
+                return { ...stats, schoolId, academicYear: academicYear.name };
+            });
+
+            return {
+                content: [{
+                    type: "text",
+                    text: [
+                        `✅ Škola '${schoolName}' vytvořena (ID: ${result.schoolId})`,
+                        `📅 Školní rok: ${result.academicYear}`,
+                        `👩‍🏫 Učitelů: ${result.teachers}`,
+                        `👩‍🎓 Studentů: ${result.students}`,
+                        `👪 Rodičů: ${result.parents}`,
+                        `📖 Předmětů: ${result.subjects}`,
+                        `🏫 Tříd: ${result.classrooms}`,
+                        `🔑 Heslo: Demo1234!`,
+                    ].join("\n"),
+                }],
+            };
+        } catch (error: any) {
+            return { isError: true, content: [{ type: "text", text: `Chyba: ${error.message}` }] };
+        }
+    }
+);
+
+// ═══════════════════════════════════════════════════════════════
+// WIPE SCHOOL DATA
+// ═══════════════════════════════════════════════════════════════
+
+server.tool(
+    "wipe_school_data",
+    "Smaže školu a VŠECHNA přidružená data (uživatele, předměty, rozvrh, klasifikaci, komunikaci). Nevratná akce!",
+    {
+        schoolId: z.string().describe("ID školy k smazání"),
+    },
+    async ({ schoolId }) => {
+        try {
+            const school = await prisma.school.findUnique({ where: { id: schoolId } });
+            if (!school) return { isError: true, content: [{ type: "text", text: `Škola s ID '${schoolId}' nebyla nalezena.` }] };
+
+            await prisma.$transaction(async (tx) => {
+                // Delete in dependency order
+                await tx.notification.deleteMany({ where: { userId: { in: (await tx.conversationParticipant.findMany({ where: { conversation: { schoolId } }, select: { userId: true } })).map(p => p.userId) } } });
+                await tx.message.deleteMany({ where: { conversation: { schoolId } } });
+                await tx.conversationParticipant.deleteMany({ where: { conversation: { schoolId } } });
+                await tx.conversation.deleteMany({ where: { schoolId } });
+                await tx.grade.deleteMany({ where: { schoolId } });
+                await tx.reportCard.deleteMany({ where: { schoolId } });
+                await tx.attendance.deleteMany({ where: { schoolId } });
+                await tx.scheduleSubstitution.deleteMany({ where: { schoolId } });
+                await tx.scheduleEvent.deleteMany({ where: { schoolId } });
+                await tx.lessonTimeSlot.deleteMany({ where: { schoolId } });
+                await tx.curriculumEntry.deleteMany({ where: { curriculumVersion: { schoolId } } });
+                await tx.curriculumVersion.deleteMany({ where: { schoolId } });
+                await tx.subjectInstance.deleteMany({ where: { schoolId } });
+                await tx.subjectTemplate.deleteMany({ where: { schoolId } });
+                await tx.staffSubjectAssignment.deleteMany({ where: { staffWorkload: { academicYear: { schoolId } } } });
+                await tx.staffWorkload.deleteMany({ where: { academicYear: { schoolId } } });
+                await tx.teacherWorkload.deleteMany({ where: { academicYear: { schoolId } } });
+                await tx.studentEnrollment.deleteMany({ where: { academicYear: { schoolId } } });
+                await tx.semester.deleteMany({ where: { academicYear: { schoolId } } });
+                await tx.academicYear.deleteMany({ where: { schoolId } });
+
+                const members = await tx.schoolMembership.findMany({ where: { schoolId }, select: { userId: true } });
+                const userIds = members.map(m => m.userId);
+                const soloUserIds: string[] = [];
+                for (const uid of userIds) {
+                    const other = await tx.schoolMembership.count({ where: { userId: uid, schoolId: { not: schoolId } } });
+                    const u = await tx.user.findUnique({ where: { id: uid }, select: { isSystemAdmin: true } });
+                    if (other === 0 && !u?.isSystemAdmin) soloUserIds.push(uid);
+                }
+
+                await tx.parentStudent.deleteMany({ where: { OR: [{ parentId: { in: soloUserIds } }, { studentId: { in: soloUserIds } }] } });
+                await tx.teacherProfile.deleteMany({ where: { userId: { in: soloUserIds } } });
+                await tx.studentProfile.deleteMany({ where: { userId: { in: soloUserIds } } });
+                await tx.identity.deleteMany({ where: { userId: { in: soloUserIds } } });
+                await tx.schoolMembership.deleteMany({ where: { schoolId } });
+                await tx.room.deleteMany({ where: { schoolId } });
+                await tx.classroom.deleteMany({ where: { schoolId } });
+                await tx.gradeLevel.deleteMany({ where: { schoolId } });
+                await tx.aiTokenUsage.deleteMany({ where: { schoolId } });
+                await tx.notification.deleteMany({ where: { userId: { in: soloUserIds } } });
+                await tx.user.deleteMany({ where: { id: { in: soloUserIds } } });
+                await tx.school.delete({ where: { id: schoolId } });
+            });
+
+            return { content: [{ type: "text", text: `🗑️ Škola '${school.name}' a všechna přidružená data byla smazána.` }] };
+        } catch (error: any) {
+            return { isError: true, content: [{ type: "text", text: `Chyba: ${error.message}` }] };
+        }
+    }
+);
