@@ -321,6 +321,28 @@ export class DeputyService {
                         lastName: true,
                         lastLogin: true,
                         createdAt: true,
+                        studentProfile: {
+                            select: {
+                                id: true,
+                                classroom: { select: { id: true, name: true } },
+                            },
+                        },
+                        teacherProfile: {
+                            select: {
+                                id: true,
+                                homeroomClass: { select: { id: true, name: true } },
+                            },
+                        },
+                        childOf: {
+                            select: {
+                                parent: { select: { id: true, firstName: true, lastName: true } },
+                            },
+                        },
+                        parentOf: {
+                            select: {
+                                student: { select: { id: true, firstName: true, lastName: true } },
+                            },
+                        },
                     },
                 },
             },
@@ -338,6 +360,18 @@ export class DeputyService {
             workloadPercentage: m.workloadPercentage,
             lastLogin: m.user.lastLogin,
             createdAt: m.user.createdAt,
+            classroomName: m.user.studentProfile?.classroom?.name || null,
+            classroomId: m.user.studentProfile?.classroom?.id || null,
+            homeroomClassName: m.user.teacherProfile?.homeroomClass?.name || null,
+            teacherProfileId: m.user.teacherProfile?.id || null,
+            parents: (m.user.childOf || []).map((r: any) => ({
+                id: r.parent.id,
+                name: `${r.parent.firstName} ${r.parent.lastName}`,
+            })),
+            children: (m.user.parentOf || []).map((r: any) => ({
+                id: r.student.id,
+                name: `${r.student.firstName} ${r.student.lastName}`,
+            })),
         }));
     }
 

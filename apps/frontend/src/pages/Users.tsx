@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
-import { UserCog, Send, Plus, Trash2, GraduationCap, UserMinus } from 'lucide-react';
+import { UserCog, Send, Plus, Trash2, GraduationCap, UserMinus, Filter, Users2, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
-import { getUsers } from '../api';
+import { getUsers, api } from '../api';
 import {
     getDeputyUsers, createStudentFamily, createStaff, resendInvitation,
     removeSchoolUser, setUserAlumni, impersonateSchoolUser,
@@ -16,12 +16,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -30,6 +32,8 @@ import {
 } from '@/components/ui/alert-dialog';
 
 // ─── Types ──────────────────────────────────────────────────────
+
+interface RelatedPerson { id: string; name: string; }
 
 interface SchoolUser {
     id: string;
@@ -42,6 +46,12 @@ interface SchoolUser {
     workloadPercentage: number | null;
     lastLogin: string | null;
     createdAt: string;
+    classroomName?: string | null;
+    classroomId?: string | null;
+    homeroomClassName?: string | null;
+    teacherProfileId?: string | null;
+    parents?: RelatedPerson[];
+    children?: RelatedPerson[];
 }
 
 interface StudentFamilyFormData {
@@ -50,34 +60,32 @@ interface StudentFamilyFormData {
 }
 
 interface StaffFormData {
-    firstName: string;
-    lastName: string;
-    email: string;
+    firstName: string; lastName: string; email: string;
     role: 'TEACHER' | 'DEPUTY';
     workloadPercentage: string;
 }
 
 // ─── Role & Status Badge helpers ────────────────────────────────
 
-const roleBadgeVariant = (role: string) => {
+function roleBadgeVariant(role: string) {
     switch (role) {
-        case 'STUDENT': return 'default';
+        case 'PRINCIPAL': return 'default';
+        case 'DEPUTY': return 'default';
         case 'TEACHER': return 'secondary';
-        case 'DEPUTY': return 'outline';
-        case 'PRINCIPAL': return 'outline';
-        case 'PARENT': return 'secondary';
-        default: return 'default';
+        case 'STUDENT': return 'outline';
+        case 'PARENT': return 'outline';
+        default: return 'outline';
     }
-};
+}
 
-const statusBadgeVariant = (status: string) => {
+function statusBadgeVariant(status: string) {
     switch (status) {
         case 'ACTIVE': return 'default';
         case 'PENDING': return 'secondary';
-        case 'ALUMNI': return 'outline';
-        default: return 'secondary';
+        case 'ARCHIVED': return 'destructive';
+        default: return 'outline';
     }
-};
+}
 
 // ─── Component ──────────────────────────────────────────────────
 
@@ -89,11 +97,19 @@ export default function Users() {
     const [activeTab, setActiveTab] = useState('student');
     const [submitting, setSubmitting] = useState(false);
 
+    // Filters
+    const [filterRole, setFilterRole] = useState<string>('ALL');
+    const [filterClassroom, setFilterClassroom] = useState<string>('ALL');
+    const [searchText, setSearchText] = useState('');
+
     // Confirm dialogs
     const [removeTarget, setRemoveTarget] = useState<SchoolUser | null>(null);
     const [alumniTarget, setAlumniTarget] = useState<SchoolUser | null>(null);
     const [removing, setRemoving] = useState(false);
     const [settingAlumni, setSettingAlumni] = useState(false);
+
+    // Classrooms for filter
+    const [classrooms, setClassrooms] = useState<{ id: string; name: string }[]>([]);
 
     // ── Student + Family form ──────────────────────────────
     const studentForm = useForm<StudentFamilyFormData>({
@@ -152,7 +168,36 @@ export default function Users() {
         }
     };
 
-    useEffect(() => { loadUsers(); }, []);
+    useEffect(() => {
+        loadUsers();
+        api.get('/api/deputy/classrooms')
+            .then(res => setClassrooms(Array.isArray(res.data) ? res.data : []))
+            .catch(() => setClassrooms([]));
+    }, []);
+
+    // ── Filtered data ──────────────────────────────────────
+    const filteredUsers = useMemo(() => {
+        let filtered = users;
+
+        if (filterRole !== 'ALL') {
+            filtered = filtered.filter(u => u.role === filterRole);
+        }
+
+        if (filterClassroom !== 'ALL') {
+            filtered = filtered.filter(u => u.classroomId === filterClassroom);
+        }
+
+        if (searchText.trim()) {
+            const q = searchText.trim().toLowerCase();
+            filtered = filtered.filter(u =>
+                u.firstName.toLowerCase().includes(q) ||
+                u.lastName.toLowerCase().includes(q) ||
+                u.email.toLowerCase().includes(q)
+            );
+        }
+
+        return filtered;
+    }, [users, filterRole, filterClassroom, searchText]);
 
     // ── Impersonate (school-scoped) ────────────────────────
     const handleImpersonate = async (targetId: string) => {
@@ -166,7 +211,8 @@ export default function Users() {
             localStorage.setItem('original_admin_token', currentToken);
             localStorage.setItem('access_token', access_token);
             toast.success(t('users_page.impersonation_started'));
-            window.location.reload();
+            // Navigate to dashboard after impersonation
+            window.location.href = '/dashboard';
         } catch (error: any) {
             toast.error(t('users_page.impersonation_failed') + ': ' + (error.response?.data?.message || error.message));
         }
@@ -284,6 +330,12 @@ export default function Users() {
         }
     };
 
+    // ── Unique roles in data ──────────────────────────────
+    const uniqueRoles = useMemo(() => {
+        const roles = new Set(users.map(u => u.role));
+        return Array.from(roles).sort();
+    }, [users]);
+
     // ── Column definitions ─────────────────────────────────
     const columns: ColumnDef<SchoolUser>[] = [
         {
@@ -321,6 +373,55 @@ export default function Users() {
                     {t(`statuses.${row.original.status}`, row.original.status)}
                 </Badge>
             ),
+        },
+        {
+            id: 'relations',
+            header: 'Vazby',
+            cell: ({ row }) => {
+                const u = row.original;
+                const parts: React.ReactNode[] = [];
+
+                // Classroom for students
+                if (u.role === 'STUDENT' && u.classroomName) {
+                    parts.push(
+                        <Badge key="cls" variant="outline" className="text-[10px] mr-1">
+                            🏫 {u.classroomName}
+                        </Badge>
+                    );
+                }
+
+                // Homeroom for teachers
+                if (u.role === 'TEACHER' && u.homeroomClassName) {
+                    parts.push(
+                        <Badge key="hr" variant="outline" className="text-[10px] mr-1">
+                            🏠 TÚ: {u.homeroomClassName}
+                        </Badge>
+                    );
+                }
+
+                // Parents of student
+                if (u.parents && u.parents.length > 0) {
+                    parts.push(
+                        <span key="parents" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                            <Link2 className="h-3 w-3" />
+                            {u.parents.map(p => p.name).join(', ')}
+                        </span>
+                    );
+                }
+
+                // Children of parent
+                if (u.children && u.children.length > 0) {
+                    parts.push(
+                        <span key="children" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                            <Users2 className="h-3 w-3" />
+                            {u.children.map(c => c.name).join(', ')}
+                        </span>
+                    );
+                }
+
+                if (parts.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+                return <div className="flex flex-col gap-0.5">{parts}</div>;
+            },
         },
         {
             id: 'actions',
@@ -396,10 +497,58 @@ export default function Users() {
                 </Button>
             </div>
 
+            {/* ─── Filters ─────────────────────────────────────── */}
+            <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Hledat jméno / email…"
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        className="w-52 h-8"
+                    />
+                </div>
+                <Select value={filterRole} onValueChange={setFilterRole}>
+                    <SelectTrigger className="w-40 h-8">
+                        <SelectValue placeholder="Role…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">Všechny role</SelectItem>
+                        {uniqueRoles.map(r => (
+                            <SelectItem key={r} value={r}>
+                                {t(`roles.${r}`, r)}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {(filterRole === 'STUDENT' || filterRole === 'ALL') && classrooms.length > 0 && (
+                    <Select value={filterClassroom} onValueChange={setFilterClassroom}>
+                        <SelectTrigger className="w-40 h-8">
+                            <SelectValue placeholder="Třída…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Všechny třídy</SelectItem>
+                            {classrooms.map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+                {(filterRole !== 'ALL' || filterClassroom !== 'ALL' || searchText) && (
+                    <Button variant="ghost" size="sm" className="h-8"
+                        onClick={() => { setFilterRole('ALL'); setFilterClassroom('ALL'); setSearchText(''); }}>
+                        Vyčistit filtry
+                    </Button>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto">
+                    {filteredUsers.length} / {users.length} uživatelů
+                </span>
+            </div>
+
             {loading ? (
                 <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
             ) : (
-                <DataTable columns={columns} data={users} />
+                <DataTable columns={columns} data={filteredUsers} pageSize={20} />
             )}
 
             {/* ─── Add User Dialog ──────────────────────────── */}

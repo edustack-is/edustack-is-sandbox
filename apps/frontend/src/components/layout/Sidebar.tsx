@@ -112,7 +112,6 @@ export const Sidebar: React.FC = () => {
     ];
 
     const schoolAdminItems = [
-        { path: '/school/users', label: t('common.users'), icon: Users },
         { path: '/school/rooms', label: t('sidebar.rooms', 'Učebny'), icon: DoorOpen },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
         { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
@@ -121,8 +120,9 @@ export const Sidebar: React.FC = () => {
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
     ];
 
-    // Principal-only items (also visible to ADMIN)
+    // Principal/Deputy items (also visible to ADMIN)
     const principalItems = [
+        { path: '/school/users', label: t('common.users'), icon: Users },
         { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: ClipboardList },
     ];
 
