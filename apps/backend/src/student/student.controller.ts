@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards, Req, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -15,12 +15,24 @@ export class StudentController {
     constructor(private readonly studentService: StudentService) { }
 
     @Get('my-data')
+    @ApiOperation({ summary: 'Data přihlášeného studenta' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getMyData(@Req() req: any) {
         this.ensureTenantContext(req);
         return this.studentService.getMyData(req.user.userId, req.user.schoolId);
     }
 
     @Get('schedule')
+    @ApiOperation({ summary: 'Rozvrh studenta' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getSchedule(@Req() req: any) {
         this.ensureTenantContext(req);
         return this.studentService.getSchedule(req.user.userId, req.user.schoolId);

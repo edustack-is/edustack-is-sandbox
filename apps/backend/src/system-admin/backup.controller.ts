@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Delete, Param, Res, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
@@ -13,6 +13,16 @@ export class BackupController {
     constructor(private readonly backupService: BackupService) { }
 
     @Post()
+    @ApiOperation({ summary: 'Vytvoření zálohy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createBackup() {
         return this.backupService.createBackup();
     }
@@ -33,6 +43,14 @@ export class BackupController {
     }
 
     @Post(':filename/restore')
+    @ApiOperation({ summary: 'Obnovení ze zálohy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async restoreBackup(@Param('filename') filename: string) {
         await this.backupService.restoreBackup(filename);
         return { message: 'Database restored successfully' };

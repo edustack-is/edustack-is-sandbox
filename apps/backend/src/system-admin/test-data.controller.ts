@@ -1,5 +1,5 @@
 import { Controller, Post, Delete, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { TestDataService } from './test-data.service';
@@ -13,6 +13,14 @@ export class TestDataController {
     constructor(private readonly testDataService: TestDataService) { }
 
     @Post('generate')
+    @ApiOperation({ summary: 'Generování kompletních testovacích dat' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async generateAll(@Body() body: GenerateConfig) {
         if (!body.schoolName || !body.schoolType) {
             throw new BadRequestException('schoolName and schoolType are required');

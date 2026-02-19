@@ -1,5 +1,5 @@
 import { Controller, Post, UseInterceptors, UploadedFile, Get, Query, Param } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UserRole, UserStatus } from '@prisma/client';
@@ -14,11 +14,25 @@ export class UsersController {
 
     @Post('import')
     @UseInterceptors(FileInterceptor('file'))
+    @ApiOperation({ summary: 'Import uživatelů z CSV' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async importUsers(@UploadedFile() file: any) {
         return this.usersService.importUsersFromCsv(file.buffer);
     }
 
     @Get()
+    @ApiOperation({ summary: 'Seznam všech uživatelů' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async findAll(@Query() query: {
         skip?: number;
         take?: number;
@@ -36,6 +50,14 @@ export class UsersController {
     @Get(':id')
     @UseInterceptors(LogSensitiveReadInterceptor)
     @LogSensitiveRead()
+    @ApiOperation({ summary: 'Detail uživatele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async findOne(@Param('id') id: string) {
         return this.usersService.findOne(id);
     }

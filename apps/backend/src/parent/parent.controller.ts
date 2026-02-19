@@ -1,5 +1,5 @@
 import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -20,6 +20,14 @@ export class ParentController {
      * Works across all schools (uses global identity).
      */
     @Get('children')
+    @ApiOperation({ summary: 'Seznam dětí rodiče' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getChildren(@Req() req: any) {
         return this.parentService.getChildren(req.user.userId);
     }
@@ -30,6 +38,14 @@ export class ParentController {
      * Verifies ownership — returns 403 if student doesn't belong to this parent.
      */
     @Get('child/:studentId/dashboard')
+    @ApiOperation({ summary: 'Dashboard dítěte' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getChildDashboard(
         @Param('studentId') studentId: string,
         @Req() req: any,

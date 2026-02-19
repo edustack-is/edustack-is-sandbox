@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ErrorResponseDto } from './common/dto/error-response.dto';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { InitService } from './init/init.service';
@@ -94,7 +95,9 @@ async function bootstrap() {
       .addTag('gdpr', 'GDPR – export a smazání osobních dat')
       .build();
 
-    const document = SwaggerModule.createDocument(app, config);
+    const document = SwaggerModule.createDocument(app, config, {
+      extraModels: [ErrorResponseDto],
+    });
     SwaggerModule.setup('/api/docs', app, document);
   }
 

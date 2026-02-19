@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Param, Get, Query, BadRequestException, ForbiddenException, Req, Res, UseGuards, Patch, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
@@ -24,6 +24,10 @@ export class AuthController {
 
     @Public()
     @Get('sso-options')
+    @ApiOperation({ summary: 'Dostupní SSO poskytovatelé' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getSsoOptions() {
         return this.authService.getSsoOptions();
     }
@@ -62,6 +66,10 @@ export class AuthController {
 
     @Public()
     @Get('callback/:provider')
+    @ApiOperation({ summary: 'Callback z SSO poskytovatele' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async ssoCallback(@Param('provider') provider: string, @Req() req: Request, @Res() res: Response) {
         const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -143,6 +151,8 @@ export class AuthController {
      */
     @Public()
     @Post('sso/exchange-token')
+    @ApiOperation({ summary: 'Výměna SSO cookie za JWT' })
+
     async exchangeSsoToken(@Req() req: Request, @Res() res: Response) {
         const cookies = this.parseCookies(req);
         const token = cookies['__edu_sso_token'];
@@ -165,6 +175,16 @@ export class AuthController {
     }
 
     @Post('invite/:userId')
+    @ApiOperation({ summary: 'Odeslání pozvánky uživateli' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async inviteUser(
         @Param('userId') userId: string,
         @Body('studentId') studentId?: string,
@@ -173,12 +193,18 @@ export class AuthController {
     }
 
     @Post('accept-invite')
+    @ApiOperation({ summary: 'Přijetí pozvánky a nastavení hesla' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async acceptInvite(@Body() body: { token: string; password: string }) {
         return this.authService.acceptInvitation(body.token, body.password);
     }
 
     @Public()
     @Post('forgot-password')
+    @ApiOperation({ summary: 'Žádost o reset hesla' })
+
     async forgotPassword(@Body() body: { email: string }) {
         return this.authService.requestPasswordReset(body.email);
     }
@@ -191,12 +217,28 @@ export class AuthController {
 
     @UseGuards(JwtAuthGuard)
     @Get('identities')
+    @ApiOperation({ summary: 'Propojené SSO identity uživatele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getIdentities(@Req() req: any) {
         return this.authService.getIdentities(req.user.userId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Post('impersonate/:id')
+    @ApiOperation({ summary: 'Impersonace jiného uživatele (admin)' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
         const adminId = req.user.userId;
 
@@ -224,6 +266,8 @@ export class AuthController {
 
     @Public()
     @Post('login')
+    @ApiOperation({ summary: 'Přihlášení e-mailem a heslem' })
+
     async login(@Body() body: Record<string, string>, @Req() req: Request) {
         // Extract IP and User-Agent
         const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
@@ -240,12 +284,28 @@ export class AuthController {
 
     @UseGuards(JwtAuthGuard)
     @Get('schools')
+    @ApiOperation({ summary: 'Seznam škol uživatele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getSchools(@Req() req: any) {
         return this.authService.getSchools(req.user.userId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Post('select-school/:schoolId')
+    @ApiOperation({ summary: 'Výběr školy a role' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async selectSchool(
         @Param('schoolId') schoolId: string,
         @Req() req: any,
@@ -256,18 +316,38 @@ export class AuthController {
 
     @UseGuards(JwtAuthGuard)
     @Post('refresh-global')
+    @ApiOperation({ summary: 'Obnovení globálního JWT tokenu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async refreshGlobal(@Req() req: any) {
         return this.authService.refreshGlobalToken(req.user.userId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Get('me')
+    @ApiOperation({ summary: 'Profil přihlášeného uživatele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getMe(@Req() req: any) {
         return this.authService.getMe(req.user.userId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Patch('profile')
+    @ApiOperation({ summary: 'Aktualizace profilu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async updateProfile(@Req() req: any, @Body() body: { avatarUrl?: string }) {
         return this.authService.updateProfile(req.user.userId, { avatarUrl: body.avatarUrl });
     }
@@ -275,6 +355,14 @@ export class AuthController {
     @UseGuards(JwtAuthGuard)
     @Post('avatar')
     @UseInterceptors(FileInterceptor('file'))
+    @ApiOperation({ summary: 'Nahrání avataru' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async uploadAvatar(@Req() req: any, @UploadedFile() file: any) {
         if (!file) throw new BadRequestException('No file uploaded');
 

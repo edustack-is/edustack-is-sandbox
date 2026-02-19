@@ -2,7 +2,7 @@ import {
     Controller, Get, Post, Put, Body, Param, Query, Res,
     UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -27,6 +27,14 @@ export class AttendanceController {
 
     @Post('record')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Záznam docházky třídy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async recordAttendance(
         @Req() req: any,
         @Body() body: {
@@ -44,6 +52,14 @@ export class AttendanceController {
 
     @Get('classroom/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Docházka třídy za den' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getClassroomAttendance(
         @Req() req: any,
         @Param('classroomId') classroomId: string,
@@ -57,6 +73,14 @@ export class AttendanceController {
 
     @Post('excuses')
     @Roles(UserRole.PARENT)
+    @ApiOperation({ summary: 'Omluvenka absence (rodič)' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async createExcuse(
         @Req() req: any,
         @Body() body: { studentId: string; reason: string; dateFrom: string; dateTo: string },
@@ -67,6 +91,14 @@ export class AttendanceController {
 
     @Get('excuses')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Seznam omluvenek' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getExcuses(
         @Req() req: any,
         @Query('classroomId') classroomId?: string,
@@ -78,6 +110,16 @@ export class AttendanceController {
 
     @Put('excuses/:id/review')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Schválení/zamítnutí omluvenky' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async reviewExcuse(
         @Req() req: any,
         @Param('id') id: string,
@@ -91,6 +133,14 @@ export class AttendanceController {
 
     @Get('stats/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Statistiky docházky třídy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getClassStatistics(
         @Req() req: any,
         @Param('classroomId') classroomId: string,
@@ -105,6 +155,14 @@ export class AttendanceController {
 
     @Get('export/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Export docházky (CSV)' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async exportCsv(
         @Req() req: any,
         @Res() res: Response,
@@ -123,6 +181,12 @@ export class AttendanceController {
 
     @Get('unexcused-alerts')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    @ApiOperation({ summary: 'Upozornění na neomluvené hodiny' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getUnexcusedAlerts(
         @Req() req: any,
         @Query('threshold') threshold?: string,

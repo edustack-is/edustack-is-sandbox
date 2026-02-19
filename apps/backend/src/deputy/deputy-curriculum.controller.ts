@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -23,12 +23,26 @@ export class DeputyCurriculumController {
     // ─── ACADEMIC YEARS ─────────────────────────────────────────────
 
     @Get('academic-years')
+    @ApiOperation({ summary: 'Školní roky' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getAcademicYears(@Req() req: any) {
         this.ensureTenant(req);
         return this.curriculumService.getAcademicYears(req.user.schoolId);
     }
 
     @Post('academic-years')
+    @ApiOperation({ summary: 'Vytvoření školního roku' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async createAcademicYear(
         @Req() req: any,
         @Body() body: { name: string; startDate: string; endDate: string; isCurrent?: boolean; curriculumVersionId?: string },
@@ -42,12 +56,28 @@ export class DeputyCurriculumController {
     // ─── GRADE LEVELS ───────────────────────────────────────────────
 
     @Get('grade-levels')
+    @ApiOperation({ summary: 'Ročníky' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getGradeLevels(@Req() req: any) {
         this.ensureTenant(req);
         return this.curriculumService.getGradeLevels(req.user.schoolId);
     }
 
     @Post('grade-levels')
+    @ApiOperation({ summary: 'Vytvoření ročníku' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createGradeLevel(
         @Req() req: any,
         @Body() body: { name: string; levelNumber: number },
@@ -59,6 +89,16 @@ export class DeputyCurriculumController {
     }
 
     @Put('grade-levels/:id')
+    @ApiOperation({ summary: 'Úprava ročníku' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateGradeLevel(
         @Req() req: any,
         @Param('id') id: string,
@@ -71,6 +111,14 @@ export class DeputyCurriculumController {
     }
 
     @Delete('grade-levels/:id')
+    @ApiOperation({ summary: 'Smazání ročníku' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteGradeLevel(
         @Req() req: any,
         @Param('id') id: string,
@@ -84,6 +132,12 @@ export class DeputyCurriculumController {
     // ─── TEACHERS ───────────────────────────────────────────────────
 
     @Get('teachers')
+    @ApiOperation({ summary: 'Seznam učitelů' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getTeachers(@Req() req: any) {
         this.ensureTenant(req);
         return this.curriculumService.getTeachers(req.user.schoolId);
@@ -92,6 +146,12 @@ export class DeputyCurriculumController {
     // ─── TEACHER WORKLOADS ──────────────────────────────────────────
 
     @Get('teacher-workloads')
+    @ApiOperation({ summary: 'Úvazky učitelů' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getTeacherWorkloads(
         @Req() req: any,
         @Query('academicYearId') academicYearId: string,
@@ -101,6 +161,14 @@ export class DeputyCurriculumController {
     }
 
     @Post('teacher-workloads')
+    @ApiOperation({ summary: 'Uložení úvazku učitele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async saveTeacherWorkload(
         @Req() req: any,
         @Body() body: { teacherId: string; academicYearId: string; workloadPercentage: number },
@@ -114,6 +182,12 @@ export class DeputyCurriculumController {
     // ─── SUBJECT INSTANCES ──────────────────────────────────────────
 
     @Get('subjects/instances')
+    @ApiOperation({ summary: 'Instance předmětů' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getSubjectInstances(
         @Req() req: any,
         @Query('academicYearId') academicYearId: string,
@@ -123,6 +197,14 @@ export class DeputyCurriculumController {
     }
 
     @Post('subjects/instances')
+    @ApiOperation({ summary: 'Vytvoření instance předmětu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async createSubjectInstance(
         @Req() req: any,
         @Body() body: {
@@ -142,12 +224,26 @@ export class DeputyCurriculumController {
     // ─── CURRICULUM VERSIONING ──────────────────────────────────────
 
     @Get('curriculum-versions')
+    @ApiOperation({ summary: 'Verze ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getCurriculumVersions(@Req() req: any) {
         this.ensureTenant(req);
         return this.curriculumService.getCurriculumVersions(req.user.schoolId);
     }
 
     @Get('curriculum-versions/compare')
+    @ApiOperation({ summary: 'Porovnání verzí ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async compareCurriculumVersions(
         @Req() req: any,
         @Query('versionA') versionA: string,
@@ -160,12 +256,30 @@ export class DeputyCurriculumController {
     }
 
     @Get('curriculum-versions/:id')
+    @ApiOperation({ summary: 'Detail verze ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getCurriculumVersion(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.curriculumService.getCurriculumVersion(req.user.schoolId, id);
     }
 
     @Post('curriculum-versions')
+    @ApiOperation({ summary: 'Vytvoření verze ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createCurriculumVersion(
         @Req() req: any,
         @Body() body: {
@@ -181,6 +295,16 @@ export class DeputyCurriculumController {
     }
 
     @Put('curriculum-versions/:id')
+    @ApiOperation({ summary: 'Úprava verze ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateCurriculumVersion(
         @Req() req: any,
         @Param('id') id: string,
@@ -197,6 +321,14 @@ export class DeputyCurriculumController {
     }
 
     @Delete('curriculum-versions/:id')
+    @ApiOperation({ summary: 'Smazání verze ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteCurriculumVersion(
         @Req() req: any,
         @Param('id') id: string,
@@ -208,6 +340,14 @@ export class DeputyCurriculumController {
     }
 
     @Post('curriculum-versions/:id/duplicate')
+    @ApiOperation({ summary: 'Duplikace verze ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async duplicateCurriculumVersion(
         @Req() req: any,
         @Param('id') id: string,
@@ -224,6 +364,14 @@ export class DeputyCurriculumController {
     // ─── CURRICULUM ENTRIES (předmět × ročník) ──────────────────────
 
     @Post('curriculum-entries')
+    @ApiOperation({ summary: 'Uložení záznamu ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async saveCurriculumEntry(
         @Req() req: any,
         @Body() body: {
@@ -245,6 +393,14 @@ export class DeputyCurriculumController {
     }
 
     @Delete('curriculum-entries/:id')
+    @ApiOperation({ summary: 'Smazání záznamu ŠVP' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteCurriculumEntry(
         @Req() req: any,
         @Param('id') id: string,
@@ -266,6 +422,12 @@ export class DeputyCurriculumController {
     // ─── SEMESTERS ──────────────────────────────────────────────────
 
     @Get('semesters')
+    @ApiOperation({ summary: 'Semestry školního roku' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getSemesters(
         @Req() req: any,
         @Query('academicYearId') academicYearId: string,
@@ -289,6 +451,14 @@ export class DeputyCurriculumController {
     }
 
     @Post('enrollments/batch')
+    @ApiOperation({ summary: 'Hromadný zápis studentů' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async batchEnroll(
         @Req() req: any,
         @Body() body: {

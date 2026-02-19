@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { RegistryService } from './registry.service';
 import { Prisma, Classroom, StudentProfile, TeacherProfile } from '@prisma/client';
 
@@ -9,6 +9,14 @@ export class RegistryController {
     constructor(private readonly registryService: RegistryService) { }
 
     @Post('classrooms')
+    @ApiOperation({ summary: 'Vytvoření třídy v matrice' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async createClassroom(@Body() data: Prisma.ClassroomCreateInput): Promise<Classroom> {
         return this.registryService.createClassroom(data);
     }

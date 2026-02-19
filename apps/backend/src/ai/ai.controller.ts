@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Param, Body, UseGuards, Req, Res, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -32,6 +32,12 @@ export class AiController {
      * Handles conversational AI with role-based context and function calling.
      */
     @Post('chat')
+    @ApiOperation({ summary: 'AI chat (streaming)' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async chat(
         @Req() req: any,
         @Body() body: {
@@ -117,11 +123,25 @@ export class AiController {
     // ─── NEW AI FEATURES ────────────────────────────────────
 
     @Post('refine-text')
+    @ApiOperation({ summary: 'AI vylepšení textu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async refineText(@Body() body: { existingText?: string; context: string; instruction: string }) {
         return this.aiService.refineText(body);
     }
 
     @Post('thematic-plan')
+    @ApiOperation({ summary: 'AI generování tematického plánu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async generateThematicPlan(@Body() body: {
         subjectName: string; grade: string; hoursPerWeek: number;
         semesterWeeks?: number; topics?: string;
@@ -140,6 +160,12 @@ export class AiController {
     }
 
     @Post('class-analysis')
+    @ApiOperation({ summary: 'AI analýza prospěchu třídy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async analyzeClassPerformance(@Body() body: {
         className: string;
         grades: Array<{ student: string; subject: string; grade: number }>;
@@ -149,6 +175,14 @@ export class AiController {
     }
 
     @Post('generate-test')
+    @ApiOperation({ summary: 'AI generování testu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async generateTest(@Body() body: {
         subjectName: string; topic: string; grade: string;
         questionCount?: number; difficulty?: 'easy' | 'medium' | 'hard';

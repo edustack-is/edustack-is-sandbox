@@ -2,7 +2,7 @@ import {
     Controller, Get, Post, Put, Patch, Delete,
     Body, Param, Query, Res, UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -26,6 +26,12 @@ export class DeputyController {
 
     @Get('dashboard')
     @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
+    @ApiOperation({ summary: 'Dashboard školy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getSchoolDashboard(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getSchoolDashboard(req.user.schoolId);
@@ -34,24 +40,60 @@ export class DeputyController {
     // ─── CLASSROOM ───────────────────────────────────────────────────
 
     @Get('classrooms')
+    @ApiOperation({ summary: 'Seznam tříd' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getClassrooms(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getClassrooms(req.user.schoolId);
     }
 
     @Post('classrooms')
+    @ApiOperation({ summary: 'Vytvoření třídy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createClassroom(@Req() req: any, @Body() body: { name: string; grade: number }) {
         this.ensureTenant(req);
         return this.deputyService.createClassroom(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('classrooms/:id')
+    @ApiOperation({ summary: 'Úprava třídy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateClassroom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; grade?: number }) {
         this.ensureTenant(req);
         return this.deputyService.updateClassroom(req.user.userId, req.user.schoolId, id, body);
     }
 
     @Delete('classrooms/:id')
+    @ApiOperation({ summary: 'Smazání třídy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteClassroom(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.deleteClassroom(req.user.userId, req.user.schoolId, id);
@@ -60,24 +102,60 @@ export class DeputyController {
     // ─── SUBJECT ─────────────────────────────────────────────────────
 
     @Get('subjects')
+    @ApiOperation({ summary: 'Šablony předmětů' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getSubjects(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getSubjects(req.user.schoolId);
     }
 
     @Post('subjects')
+    @ApiOperation({ summary: 'Vytvoření šablony předmětu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createSubject(@Req() req: any, @Body() body: { name: string; code: string; svpDescription?: string }) {
         this.ensureTenant(req);
         return this.deputyService.createSubject(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('subjects/:id')
+    @ApiOperation({ summary: 'Úprava šablony předmětu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateSubject(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; code?: string; svpDescription?: string }) {
         this.ensureTenant(req);
         return this.deputyService.updateSubject(req.user.userId, req.user.schoolId, id, body);
     }
 
     @Delete('subjects/:id')
+    @ApiOperation({ summary: 'Smazání šablony předmětu' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteSubject(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.deleteSubject(req.user.userId, req.user.schoolId, id);
@@ -86,24 +164,58 @@ export class DeputyController {
     // ─── ROOM ────────────────────────────────────────────────────────
 
     @Get('rooms')
+    @ApiOperation({ summary: 'Seznam místností' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getRooms(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getRooms(req.user.schoolId);
     }
 
     @Post('rooms')
+    @ApiOperation({ summary: 'Vytvoření místnosti' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createRoom(@Req() req: any, @Body() body: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string; floor?: number }) {
         this.ensureTenant(req);
         return this.deputyService.createRoom(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('rooms/:id')
+    @ApiOperation({ summary: 'Úprava místnosti' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateRoom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string | null; floor?: number | null }) {
         this.ensureTenant(req);
         return this.deputyService.updateRoom(req.user.userId, req.user.schoolId, id, body);
     }
 
     @Delete('rooms/:id')
+    @ApiOperation({ summary: 'Smazání místnosti' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteRoom(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.deleteRoom(req.user.userId, req.user.schoolId, id);
@@ -112,24 +224,60 @@ export class DeputyController {
     // ─── BUILDING ────────────────────────────────────────────────────
 
     @Get('buildings')
+    @ApiOperation({ summary: 'Seznam budov' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async getBuildings(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getBuildings(req.user.schoolId);
     }
 
     @Post('buildings')
+    @ApiOperation({ summary: 'Vytvoření budovy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createBuilding(@Req() req: any, @Body() body: { name: string; address?: string; floors?: number }) {
         this.ensureTenant(req);
         return this.deputyService.createBuilding(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('buildings/:id')
+    @ApiOperation({ summary: 'Úprava budovy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateBuilding(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; address?: string; floors?: number }) {
         this.ensureTenant(req);
         return this.deputyService.updateBuilding(req.user.userId, req.user.schoolId, id, body);
     }
 
     @Delete('buildings/:id')
+    @ApiOperation({ summary: 'Smazání budovy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteBuilding(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.deleteBuilding(req.user.userId, req.user.schoolId, id);
@@ -138,18 +286,46 @@ export class DeputyController {
     // ─── ROOM SHARING ────────────────────────────────────────────────
 
     @Post('rooms/:id/share')
+    @ApiOperation({ summary: 'Sdílení místnosti s jinou školou' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async shareRoom(@Req() req: any, @Param('id') roomId: string, @Body() body: { targetSchoolId: string }) {
         this.ensureTenant(req);
         return this.deputyService.shareRoom(req.user.userId, req.user.schoolId, roomId, body.targetSchoolId);
     }
 
     @Delete('rooms/:id/share/:schoolId')
+    @ApiOperation({ summary: 'Zrušení sdílení místnosti' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async unshareRoom(@Req() req: any, @Param('id') roomId: string, @Param('schoolId') targetSchoolId: string) {
         this.ensureTenant(req);
         return this.deputyService.unshareRoom(req.user.userId, req.user.schoolId, roomId, targetSchoolId);
     }
 
     @Get('shared-rooms')
+    @ApiOperation({ summary: 'Sdílené místnosti' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async getSharedRooms(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getSharedRooms(req.user.schoolId);
@@ -159,6 +335,12 @@ export class DeputyController {
 
     @Get('events')
     @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
+    @ApiOperation({ summary: 'Události školního roku' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getEvents(@Req() req: any) {
         this.ensureTenant(req);
         return this.deputyService.getEvents(req.user.schoolId);
@@ -166,24 +348,58 @@ export class DeputyController {
 
     @Get('events/upcoming')
     @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
+    @ApiOperation({ summary: 'Nadcházející události' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getUpcomingEvents(@Req() req: any, @Query('limit') limit?: string) {
         this.ensureTenant(req);
         return this.deputyService.getUpcomingEvents(req.user.schoolId, limit ? Number(limit) : 10);
     }
 
     @Post('events')
+    @ApiOperation({ summary: 'Vytvoření události' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async createEvent(@Req() req: any, @Body() body: { title: string; description?: string; date: string; endDate?: string; type?: string; allDay?: boolean }) {
         this.ensureTenant(req);
         return this.deputyService.createEvent(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('events/:id')
+    @ApiOperation({ summary: 'Úprava události' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async updateEvent(@Req() req: any, @Param('id') id: string, @Body() body: { title?: string; description?: string; date?: string; endDate?: string; type?: string; allDay?: boolean }) {
         this.ensureTenant(req);
         return this.deputyService.updateEvent(req.user.userId, req.user.schoolId, id, body);
     }
 
     @Delete('events/:id')
+    @ApiOperation({ summary: 'Smazání události' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async deleteEvent(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.deleteEvent(req.user.userId, req.user.schoolId, id);
@@ -192,6 +408,14 @@ export class DeputyController {
     // ─── USER INVITATION ─────────────────────────────────────────────
 
     @Post('users/invite')
+    @ApiOperation({ summary: 'Pozvání uživatele do školy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async inviteUser(
         @Req() req: any,
         @Body() body: {
@@ -267,6 +491,14 @@ export class DeputyController {
     // ─── REMOVE USER FROM SCHOOL ────────────────────────────────────
 
     @Delete('users/:id')
+    @ApiOperation({ summary: 'Odebrání uživatele ze školy' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async removeUser(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.removeSchoolUser(req.user.userId, req.user.schoolId, id);
@@ -275,6 +507,14 @@ export class DeputyController {
     // ─── SET STUDENT AS ALUMNI ────────────────────────────────────────
 
     @Patch('users/:id/alumni')
+    @ApiOperation({ summary: 'Nastavení absolventa' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async setAlumni(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.setAlumniStatus(req.user.userId, req.user.schoolId, id);
@@ -308,12 +548,28 @@ export class DeputyController {
     // ─── SUSPEND / REACTIVATE ───────────────────────────────────────
 
     @Patch('users/:id/suspend')
+    @ApiOperation({ summary: 'Suspendování uživatele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async suspendUser(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.suspendUser(req.user.userId, req.user.schoolId, id);
     }
 
     @Patch('users/:id/reactivate')
+    @ApiOperation({ summary: 'Reaktivace uživatele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+
     async reactivateUser(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.reactivateUser(req.user.userId, req.user.schoolId, id);

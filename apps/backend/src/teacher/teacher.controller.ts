@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -19,6 +19,12 @@ export class TeacherController {
      * Returns a unified schedule across ALL schools. Ignores current school context.
      */
     @Get('my-schedule')
+    @ApiOperation({ summary: 'Rozvrh učitele (všechny školy)' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getMySchedule(@Req() req: any) {
         return this.teacherService.getMySchedule(req.user.userId);
     }
@@ -28,6 +34,12 @@ export class TeacherController {
      * Returns classes and students the teacher teaches within the current school.
      */
     @Get('classes')
+    @ApiOperation({ summary: 'Třídy a studenti učitele' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
     async getClasses(@Req() req: any) {
         this.ensureTenantContext(req);
         return this.teacherService.getClasses(req.user.userId, req.user.schoolId);
@@ -38,6 +50,14 @@ export class TeacherController {
      * Creates a grade for a student. Validates teacher authority.
      */
     @Post('grades')
+    @ApiOperation({ summary: 'Zadání známky studentovi' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async createGrade(
         @Req() req: any,
         @Body() body: { studentId: string; subjectInstanceId: string; value: string; weight: number; description?: string },
@@ -51,6 +71,14 @@ export class TeacherController {
      * Records attendance for a student. Validates teacher authority.
      */
     @Post('attendance')
+    @ApiOperation({ summary: 'Záznam docházky studenta' })
+
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+
     async createAttendance(
         @Req() req: any,
         @Body() body: { studentId: string; status: AttendanceStatus; date?: string; note?: string },
