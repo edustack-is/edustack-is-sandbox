@@ -2,6 +2,36 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ErrorResponseDto } from './common/dto/error-response.dto';
 import { LoginDto, LoginResponseDto, AcceptInviteDto, ForgotPasswordDto, ResetPasswordDto, SelectSchoolResponseDto, UserProfileDto, SchoolListItemDto, SsoOptionDto, CreateGradeDto, UpdateGradeDto, GradeResponseDto, RecordAttendanceDto, AttendanceRecordItemDto, CreateScheduleEventDto, CreateSubstitutionDto, CreateConversationDto, SendMessageDto, CreateBulletinPostDto, CreatePollDto, CreateCalendarEventDto, UpsertClassbookEntryDto, CreateClassroomDto, CreateSubjectDto, CreateRoomDto, InviteSchoolUserDto, SuccessResponseDto, CountResponseDto, ToggleResponseDto } from './common/dto/api.dto';
+import {
+  ClassroomResponseDto, SubjectResponseDto, RoomResponseDto, BuildingResponseDto,
+  SchoolEventResponseDto, SchoolUserResponseDto, StudentFamilyResponseDto,
+  AuditLogEntryDto, SchoolSettingsResponseDto,
+  AcademicYearResponseDto, GradeLevelResponseDto, SubjectInstanceResponseDto,
+  TeacherWorkloadResponseDto, CurriculumVersionResponseDto, CurriculumEntryResponseDto,
+  CompetencyResponseDto, SemesterResponseDto, ThematicPlanResponseDto,
+  TeachingMaterialResponseDto, LessonPlanResponseDto, EnrollmentResponseDto,
+  ScheduleEventResponseDto, ScheduleMatrixResponseDto, SubstitutionResponseDto,
+  CollisionResultDto, SnapshotResponseDto, RecurringEventResponseDto,
+  AttendanceRecordResponseDto, ExcuseResponseDto, AttendanceStatsResponseDto, UnexcusedAlertDto,
+  ConversationResponseDto, MessageResponseDto, NotificationResponseDto, RecipientResponseDto,
+  BulletinPostResponseDto, PollResponseDto, CommunityEventResponseDto,
+  ClassbookEntryResponseDto,
+  ReportCardResponseDto, GradingTypeResponseDto, BehaviorGradeResponseDto,
+  CompetencyGradeResponseDto, MeasureResponseDto, GradeHistoryEntryDto,
+  CommissionExamResponseDto, GradingDeadlineResponseDto,
+  SchoolDashboardResponseDto, SharedRoomResponseDto,
+  SsoIdentityResponseDto, UploadResultDto, ImportResultDto,
+  StudentDataResponseDto, ChildDashboardResponseDto, ParentChildResponseDto,
+  TeacherClassResponseDto,
+  SystemDashboardResponseDto, SchoolResponseDto, SsoConfigResponseDto,
+  AiConfigResponseDto, AiUsageResponseDto, AiTextResponseDto,
+  BackupResponseDto, HealthCheckResponseDto, MetricsResponseDto,
+  RvpUploadResponseDto, CompetencyMatrixResponseDto,
+  CurriculumDiffResponseDto, ScheduleDiffResponseDto, GenerateScheduleResultDto,
+  GdprDataResponseDto, InitStatusResponseDto, SeedFileResponseDto,
+  ReportStatsResponseDto, RegistryClassroomResponseDto,
+  SystemSettingsResponseDto, PaginatedUsersResponseDto,
+} from './common/dto/response.dto';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { InitService } from './init/init.service';
@@ -97,7 +127,50 @@ async function bootstrap() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config, {
-      extraModels: [ErrorResponseDto, LoginDto, LoginResponseDto, AcceptInviteDto, ForgotPasswordDto, ResetPasswordDto, SelectSchoolResponseDto, UserProfileDto, SchoolListItemDto, SsoOptionDto, CreateGradeDto, UpdateGradeDto, GradeResponseDto, RecordAttendanceDto, AttendanceRecordItemDto, CreateScheduleEventDto, CreateSubstitutionDto, CreateConversationDto, SendMessageDto, CreateBulletinPostDto, CreatePollDto, CreateCalendarEventDto, UpsertClassbookEntryDto, CreateClassroomDto, CreateSubjectDto, CreateRoomDto, InviteSchoolUserDto, SuccessResponseDto, CountResponseDto, ToggleResponseDto],
+      extraModels: [
+        // Error
+        ErrorResponseDto,
+        // api.dto.ts (request + generic)
+        LoginDto, LoginResponseDto, AcceptInviteDto, ForgotPasswordDto, ResetPasswordDto,
+        SelectSchoolResponseDto, UserProfileDto, SchoolListItemDto, SsoOptionDto,
+        CreateGradeDto, UpdateGradeDto, GradeResponseDto,
+        RecordAttendanceDto, AttendanceRecordItemDto,
+        CreateScheduleEventDto, CreateSubstitutionDto,
+        CreateConversationDto, SendMessageDto,
+        CreateBulletinPostDto, CreatePollDto, CreateCalendarEventDto,
+        UpsertClassbookEntryDto,
+        CreateClassroomDto, CreateSubjectDto, CreateRoomDto, InviteSchoolUserDto,
+        SuccessResponseDto, CountResponseDto, ToggleResponseDto,
+        // response.dto.ts (entity responses)
+        ClassroomResponseDto, SubjectResponseDto, RoomResponseDto, BuildingResponseDto,
+        SchoolEventResponseDto, SchoolUserResponseDto, StudentFamilyResponseDto,
+        AuditLogEntryDto, SchoolSettingsResponseDto,
+        AcademicYearResponseDto, GradeLevelResponseDto, SubjectInstanceResponseDto,
+        TeacherWorkloadResponseDto, CurriculumVersionResponseDto, CurriculumEntryResponseDto,
+        CompetencyResponseDto, SemesterResponseDto, ThematicPlanResponseDto,
+        TeachingMaterialResponseDto, LessonPlanResponseDto, EnrollmentResponseDto,
+        ScheduleEventResponseDto, ScheduleMatrixResponseDto, SubstitutionResponseDto,
+        CollisionResultDto, SnapshotResponseDto, RecurringEventResponseDto,
+        AttendanceRecordResponseDto, ExcuseResponseDto, AttendanceStatsResponseDto, UnexcusedAlertDto,
+        ConversationResponseDto, MessageResponseDto, NotificationResponseDto, RecipientResponseDto,
+        BulletinPostResponseDto, PollResponseDto, CommunityEventResponseDto,
+        ClassbookEntryResponseDto,
+        ReportCardResponseDto, GradingTypeResponseDto, BehaviorGradeResponseDto,
+        CompetencyGradeResponseDto, MeasureResponseDto, GradeHistoryEntryDto,
+        CommissionExamResponseDto, GradingDeadlineResponseDto,
+        SchoolDashboardResponseDto, SharedRoomResponseDto,
+        SsoIdentityResponseDto, UploadResultDto, ImportResultDto,
+        StudentDataResponseDto, ChildDashboardResponseDto, ParentChildResponseDto,
+        TeacherClassResponseDto,
+        SystemDashboardResponseDto, SchoolResponseDto, SsoConfigResponseDto,
+        AiConfigResponseDto, AiUsageResponseDto, AiTextResponseDto,
+        BackupResponseDto, HealthCheckResponseDto, MetricsResponseDto,
+        RvpUploadResponseDto, CompetencyMatrixResponseDto,
+        CurriculumDiffResponseDto, ScheduleDiffResponseDto, GenerateScheduleResultDto,
+        GdprDataResponseDto, InitStatusResponseDto, SeedFileResponseDto,
+        ReportStatsResponseDto, RegistryClassroomResponseDto,
+        SystemSettingsResponseDto, PaginatedUsersResponseDto,
+      ],
     });
     SwaggerModule.setup('/api/docs', app, document);
   }
