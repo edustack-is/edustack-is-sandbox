@@ -225,12 +225,12 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Funkce | Stav | Poznámka |
 |--------|:----:|----------|
 | White Book – zobrazení | ✅ | Základní zobrazení dat |
-| Elektronická třídní kniha | 🔶 | Základní data, chybí plnohodnotný zápis |
-| Zápis probíraného učiva | ❌ | |
-| Zápis poznámek k hodině | ❌ | |
-| Propojení s rozvrhem a docházkou | ❌ | Automatické předvyplnění |
-| Podpis učitele (elektronický) | ❌ | |
-| Tisk třídní knihy | ❌ | |
+| Elektronická třídní kniha | ✅ | ClassBookEntry + ScheduleEvent link |
+| Zápis probíraného učiva | ✅ | Inline editace, auto-prefill z rozvrhu |
+| Zápis poznámek k hodině | ✅ | Poznámky + počet nepřítomných |
+| Propojení s rozvrhem a docházkou | ✅ | Automatické předvyplnění z ScheduleEvent |
+| Podpis učitele (elektronický) | ✅ | TeacherSignature s IP + timestamp |
+| Tisk třídní knihy | ✅ | HTML export s rozsahem dat |
 
 ---
 
@@ -313,11 +313,11 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Klasifikace | 17 | 17 | 0 | 0 |
 | Docházka | 8 | 8 | 0 | 0 |
 | Komunikace | 12 | 12 | 0 | 0 |
-| Třídní kniha | 7 | 1 | 1 | 5 |
+| Třídní kniha | 7 | 7 | 0 | 0 |
 | AI funkce | 8 | 4 | 0 | 4 |
 | MCP | 10 | 7 | 0 | 3 |
 | Reporty a výstupy | 10 | 5 | 1 | 4 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **166** | **127** | **7** | **32** |
+| **Celkem** | **166** | **133** | **6** | **27** |
 
-**Pokrytí:** přibližně **81 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **84 %** požadovaných funkcí je plně nebo částečně implementováno.

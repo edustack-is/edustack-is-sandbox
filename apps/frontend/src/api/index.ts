@@ -739,3 +739,38 @@ export const deleteCalendarEvent = async (id: string) => {
     const response = await api.delete(`/api/community/events/${id}`);
     return response.data;
 };
+
+// ─── CLASS BOOK ─────────────────────────────────────────────
+
+export const getClassBookEntries = async (classroomId: string, date: string) => {
+    const response = await api.get(`/api/classbook/entries/${classroomId}`, { params: { date } });
+    return response.data;
+};
+
+export const upsertClassBookEntry = async (data: {
+    classroomId: string; date: string; lessonNumber: number;
+    topic?: string; notes?: string; absentCount?: number;
+    scheduleEventId?: string; subjectName?: string;
+}) => {
+    const response = await api.post('/api/classbook/entries', data);
+    return response.data;
+};
+
+export const signClassBookEntry = async (entryId: string) => {
+    const response = await api.post(`/api/classbook/sign/${entryId}`);
+    return response.data;
+};
+
+export const getClassBookRange = async (classroomId: string, dateFrom: string, dateTo: string) => {
+    const response = await api.get(`/api/classbook/range/${classroomId}`, { params: { dateFrom, dateTo } });
+    return response.data;
+};
+
+export const getClassBookPrintUrl = (classroomId: string, dateFrom: string, dateTo: string) => {
+    return `/api/classbook/print/${classroomId}?dateFrom=${dateFrom}&dateTo=${dateTo}`;
+};
+
+export const getClassBookAttendance = async (classroomId: string, date: string, lessonNumber: number) => {
+    const response = await api.get(`/api/classbook/attendance/${classroomId}`, { params: { date, lessonNumber } });
+    return response.data;
+};

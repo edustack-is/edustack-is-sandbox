@@ -79,6 +79,7 @@ model School {
   bulletinPosts      BulletinPost[]
   polls              Poll[]
   calendarEvents     CalendarEvent[]
+  classBookEntries   ClassBookEntry[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -157,6 +158,10 @@ model User {
   pollVotes                  PollVote[]
   createdCalendarEvents      CalendarEvent[] @relation("EventAuthor")
   eventRsvps                 EventRsvp[]
+
+  // Class book
+  classBookEntries           ClassBookEntry[]
+  teacherSignatures          TeacherSignature[]
 }
 
 model SchoolMembership {
@@ -405,6 +410,8 @@ model ScheduleEvent {
   academicYearId  String
 
   substitutions   ScheduleSubstitution[]
+
+  classBookEntries ClassBookEntry[]
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -1253,4 +1260,45 @@ model EventRsvp {
   status    RsvpStatus
   createdAt DateTime     @default(now())
   @@unique([userId, eventId])
+}
+
+// ─── CLASS BOOK ─────────────────────────────────────────────
+
+model ClassBookEntry {
+  id               String          @id @default(uuid())
+  date             DateTime
+  lessonNumber     Int             // 1-10
+  topic            String?         // probírané učivo
+  notes            String?         // poznámky k hodině
+  absentCount      Int?            // počet nepřítomných
+
+  schoolId         String
+  school           School          @relation(fields: [schoolId], references: [id])
+
+  classroomId      String
+
+  teacherId        String
+  teacher          User            @relation(fields: [teacherId], references: [id])
+
+  scheduleEventId  String?
+  scheduleEvent    ScheduleEvent?  @relation(fields: [scheduleEventId], references: [id])
+
+  subjectName      String?         // cached subject name for quick display
+
+  signature        TeacherSignature?
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([schoolId, classroomId, date, lessonNumber])
+}
+
+model TeacherSignature {
+  id               String         @id @default(uuid())
+  classBookEntryId String         @unique
+  classBookEntry   ClassBookEntry @relation(fields: [classBookEntryId], references: [id], onDelete: Cascade)
+  teacherId        String
+  teacher          User           @relation(fields: [teacherId], references: [id])
+  signedAt         DateTime       @default(now())
+  ipAddress        String?
 }

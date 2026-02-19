@@ -21,6 +21,7 @@ import ScheduleDiff from './pages/ScheduleDiff';
 import EducationalMeasures from './pages/EducationalMeasures';
 import AttendancePage from './pages/Attendance';
 import Community from './pages/Community';
+import ClassBook from './pages/ClassBook';
 import TeachingMaterials from './pages/TeachingMaterials';
 import CompetencyMapping from './pages/CompetencyMapping';
 import { Setup } from './pages/Setup';
@@ -130,6 +131,7 @@ function App() {
                 <Route path="grading/measures" element={<EducationalMeasures />} />
                 <Route path="attendance" element={<AttendancePage />} />
                 <Route path="community" element={<Community />} />
+                <Route path="classbook" element={<ClassBook />} />
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
                 <Route path="school/events" element={<SchoolEvents />} />

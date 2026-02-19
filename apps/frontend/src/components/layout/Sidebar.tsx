@@ -108,6 +108,7 @@ export const Sidebar: React.FC = () => {
         { path: '/schedule', label: t('sidebar.schedule', 'Rozvrh'), icon: Calendar },
         { path: '/grading', label: t('sidebar.grading', 'Klasifikace'), icon: GraduationCap },
         { path: '/attendance', label: t('sidebar.attendance', 'Docházka'), icon: Calendar },
+        { path: '/classbook', label: t('sidebar.classbook', 'Třídní kniha'), icon: BookOpen },
         { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
         { path: '/messages', label: t('sidebar.messages', 'Zprávy'), icon: MessageSquare },
         { path: '/community', label: t('sidebar.community', 'Komunita'), icon: MessageSquare },

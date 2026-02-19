@@ -26,6 +26,7 @@ import { CryptoModule } from './shared/crypto/crypto.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { CommunityModule } from './community/community.module';
+import { ClassBookModule } from './classbook/classbook.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { CommunityModule } from './community/community.module';
     MessagingModule,
     AttendanceModule,
     CommunityModule,
+    ClassBookModule,
   ],
   controllers: [AppController],
   providers: [
