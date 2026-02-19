@@ -91,6 +91,7 @@ async function bootstrap() {
       .addTag('registry', 'Matrika – MŠMT registry')
       .addTag('export', 'Export dat – CSV/XML/JSON')
       .addTag('reports', 'Reporty – statistiky, výkazy ČŠI/MŠMT')
+      .addTag('gdpr', 'GDPR – export a smazání osobních dat')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

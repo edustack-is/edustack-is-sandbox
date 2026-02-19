@@ -294,11 +294,11 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | PostgreSQL databáze | ✅ | Via Prisma ORM |
 | Responsivní webové rozhraní | ✅ | React s mobilním layoutem |
 | Lokalizace (CZ/EN) | ✅ | Přepínání jazyku |
-| Dark mode | ❌ | |
-| PWA (Progressive Web App) | ❌ | Offline přístup, push notifikace |
-| Automatické zálohy | ❌ | |
-| Rate limiting | 🔶 | Zamykání účtů po neúspěšných pokusech; chybí globální throttling |
-| GDPR nástroje | ❌ | Export, smazání osobních dat |
+| Dark mode | ✅ | ThemeToggle (light/dark/system) |
+| PWA (Progressive Web App) | ✅ | manifest.json + Service Worker |
+| Automatické zálohy | ✅ | AUTO_BACKUP cron každý den 2:00 |
+| Rate limiting | ✅ | Globální ThrottlerGuard + zámek účtů |
+| GDPR nástroje | ✅ | Export + anonymizace osobních dat |
 | Mobilní aplikace | ❌ | iOS / Android |
 
 ---
@@ -320,7 +320,7 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | AI funkce | 11 | 11 | 0 | 0 |
 | MCP | 10 | 9 | 0 | 1 |
 | Reporty a výstupy | 10 | 10 | 0 | 0 |
-| Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **169** | **146** | **5** | **18** |
+| Infrastruktura | 10 | 9 | 0 | 1 |
+| **Celkem** | **169** | **151** | **4** | **14** |
 
-**Pokrytí:** přibližně **92 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **94 %** požadovaných funkcí je plně nebo částečně implementováno.

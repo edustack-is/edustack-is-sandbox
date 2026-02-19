@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare, Target, Presentation, Clock, GitCompare } from 'lucide-react';
+import { ThemeToggle } from '../ThemeToggle';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -214,13 +215,16 @@ export const Sidebar: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <button
-                                onClick={toggleCollapsed}
-                                className="ml-2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-                                title={t('sidebar.collapse', 'Sbalit menu')}
-                            >
-                                <PanelLeftClose size={18} />
-                            </button>
+                            <div className="flex items-center shrink-0">
+                                <ThemeToggle />
+                                <button
+                                    onClick={toggleCollapsed}
+                                    className="ml-1 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+                                    title={t('sidebar.collapse', 'Sbalit menu')}
+                                >
+                                    <PanelLeftClose size={18} />
+                                </button>
+                            </div>
                         </>
                     ) : (
                         <Tooltip delayDuration={0}>

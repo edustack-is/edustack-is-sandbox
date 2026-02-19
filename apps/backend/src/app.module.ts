@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -29,6 +30,7 @@ import { CommunityModule } from './community/community.module';
 import { ClassBookModule } from './classbook/classbook.module';
 import { ExportModule } from './export/export.module';
 import { ReportsModule } from './reports/reports.module';
+import { GdprModule } from './gdpr/gdpr.module';
 
 @Module({
   imports: [
@@ -43,6 +45,7 @@ import { ReportsModule } from './reports/reports.module';
       ttl: 60000,
       limit: 30,
     }]),
+    NestScheduleModule.forRoot(),
     CryptoModule,
     MailModule,
     UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
@@ -53,6 +56,7 @@ import { ReportsModule } from './reports/reports.module';
     ClassBookModule,
     ExportModule,
     ReportsModule,
+    GdprModule,
   ],
   controllers: [AppController],
   providers: [

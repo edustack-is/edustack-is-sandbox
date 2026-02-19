@@ -12,11 +12,12 @@ import { TestDataController } from './test-data.controller';
 import { TestDataService } from './test-data.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
+import { BackupSchedulerService } from './backup-scheduler.service';
 
 @Module({
     imports: [AuthModule],
     controllers: [SystemAdminController, SystemAdminAiController, TestDataController, BackupController, MonitoringController],
-    providers: [SystemAdminService, SystemAdminAiService, SystemAdminSsoService, SystemSettingsService, BackupService, TestDataService, PrismaService],
+    providers: [SystemAdminService, SystemAdminAiService, SystemAdminSsoService, SystemSettingsService, BackupService, BackupSchedulerService, TestDataService, PrismaService],
     exports: [SystemAdminAiService, SystemSettingsService],
 })
 export class SystemAdminModule { }
