@@ -1,6 +1,6 @@
 import {
     Controller, Get, Post, Put, Patch, Delete,
-    Body, Param, UseGuards, Req, ForbiddenException,
+    Body, Param, Query, UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -88,13 +88,13 @@ export class DeputyController {
     }
 
     @Post('rooms')
-    async createRoom(@Req() req: any, @Body() body: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
+    async createRoom(@Req() req: any, @Body() body: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string; floor?: number }) {
         this.ensureTenant(req);
         return this.deputyService.createRoom(req.user.userId, req.user.schoolId, body);
     }
 
     @Put('rooms/:id')
-    async updateRoom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
+    async updateRoom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string | null; floor?: number | null }) {
         this.ensureTenant(req);
         return this.deputyService.updateRoom(req.user.userId, req.user.schoolId, id, body);
     }
@@ -103,6 +103,86 @@ export class DeputyController {
     async deleteRoom(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.deputyService.deleteRoom(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── BUILDING ────────────────────────────────────────────────────
+
+    @Get('buildings')
+    async getBuildings(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getBuildings(req.user.schoolId);
+    }
+
+    @Post('buildings')
+    async createBuilding(@Req() req: any, @Body() body: { name: string; address?: string; floors?: number }) {
+        this.ensureTenant(req);
+        return this.deputyService.createBuilding(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Put('buildings/:id')
+    async updateBuilding(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; address?: string; floors?: number }) {
+        this.ensureTenant(req);
+        return this.deputyService.updateBuilding(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    @Delete('buildings/:id')
+    async deleteBuilding(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteBuilding(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── ROOM SHARING ────────────────────────────────────────────────
+
+    @Post('rooms/:id/share')
+    async shareRoom(@Req() req: any, @Param('id') roomId: string, @Body() body: { targetSchoolId: string }) {
+        this.ensureTenant(req);
+        return this.deputyService.shareRoom(req.user.userId, req.user.schoolId, roomId, body.targetSchoolId);
+    }
+
+    @Delete('rooms/:id/share/:schoolId')
+    async unshareRoom(@Req() req: any, @Param('id') roomId: string, @Param('schoolId') targetSchoolId: string) {
+        this.ensureTenant(req);
+        return this.deputyService.unshareRoom(req.user.userId, req.user.schoolId, roomId, targetSchoolId);
+    }
+
+    @Get('shared-rooms')
+    async getSharedRooms(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getSharedRooms(req.user.schoolId);
+    }
+
+    // ─── SCHOOL EVENTS ───────────────────────────────────────────────
+
+    @Get('events')
+    @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
+    async getEvents(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getEvents(req.user.schoolId);
+    }
+
+    @Get('events/upcoming')
+    @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
+    async getUpcomingEvents(@Req() req: any, @Query('limit') limit?: string) {
+        this.ensureTenant(req);
+        return this.deputyService.getUpcomingEvents(req.user.schoolId, limit ? Number(limit) : 10);
+    }
+
+    @Post('events')
+    async createEvent(@Req() req: any, @Body() body: { title: string; description?: string; date: string; endDate?: string; type?: string; allDay?: boolean }) {
+        this.ensureTenant(req);
+        return this.deputyService.createEvent(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Put('events/:id')
+    async updateEvent(@Req() req: any, @Param('id') id: string, @Body() body: { title?: string; description?: string; date?: string; endDate?: string; type?: string; allDay?: boolean }) {
+        this.ensureTenant(req);
+        return this.deputyService.updateEvent(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    @Delete('events/:id')
+    async deleteEvent(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteEvent(req.user.userId, req.user.schoolId, id);
     }
 
     // ─── USER INVITATION ─────────────────────────────────────────────

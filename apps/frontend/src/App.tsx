@@ -10,6 +10,7 @@ import { SchedulePlanner } from './pages/SchedulePlanner';
 import { ScheduleSubstitutions } from './pages/ScheduleSubstitutions';
 import Users from './pages/Users';
 import RoomsManagement from './pages/RoomsManagement';
+import SchoolEvents from './pages/SchoolEvents';
 import CurriculumManagement from './pages/CurriculumManagement';
 import WhiteBook from './pages/WhiteBook';
 import { Setup } from './pages/Setup';
@@ -115,6 +116,7 @@ function App() {
                 <Route path="schedule/substitutions" element={<ScheduleSubstitutions />} />
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
+                <Route path="school/events" element={<SchoolEvents />} />
                 <Route path="school/curriculum" element={<CurriculumManagement />} />
                 <Route path="school/white-book" element={<WhiteBook />} />
                 <Route path="year-setup" element={<DeputyYearSetup />} />

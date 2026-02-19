@@ -54,6 +54,7 @@ model School {
   reportCards ReportCard[]
   attendances Attendance[]
   rooms       Room[]
+  buildings   Building[]
   academicYears AcademicYear[]
   gradeLevels   GradeLevel[]
   scheduleEvents ScheduleEvent[]
@@ -62,6 +63,7 @@ model School {
   aiTokenUsages   AiTokenUsage[]
   curriculumVersions CurriculumVersion[]
   conversations      Conversation[]
+  schoolEvents       SchoolEvent[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -447,19 +449,69 @@ model Room {
   id               String   @id @default(uuid())
   name             String
   capacity         Int      @default(30)
+  floor            Int?     // floor number within building
   isComputerLab    Boolean  @default(false)
   specialEquipment Json?    // e.g. ["projector", "whiteboard", "3D printer"]
 
   schoolId    String
   school      School   @relation(fields: [schoolId], references: [id])
 
+  buildingId  String?
+  building    Building? @relation(fields: [buildingId], references: [id])
+
   scheduleEvents       ScheduleEvent[]
   substituteScheduleEvents ScheduleSubstitution[]
+  roomSharings         RoomSharing[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([name, schoolId])
+}
+
+model Building {
+  id      String  @id @default(uuid())
+  name    String          // e.g. "Budova A"
+  address String?
+  floors  Int     @default(1)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+  rooms    Room[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, schoolId])
+}
+
+model RoomSharing {
+  id                 String @id @default(uuid())
+  roomId             String
+  room               Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sharedWithSchoolId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([roomId, sharedWithSchoolId])
+}
+
+model SchoolEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  type        String    @default("OTHER") // HOLIDAY, EXAM_PERIOD, PARENT_MEETING, SCHOOL_TRIP, SPORTS_DAY, OTHER
+  allDay      Boolean   @default(true)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, date])
 }
 
 model AcademicYear {

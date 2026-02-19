@@ -90,9 +90,9 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Nastavení školy | ✅ | Self-registrace, SSO požadavky |
 | Audit log | ✅ | Záznam citlivých operací |
 | Třídní učitel (homeroom) | ✅ | Přiřazení v profilu učitele |
-| Správa budov a areálů | ❌ | Pro školy s více budovami |
-| Sdílení místností mezi školami | ❌ | |
-| Školní rok – přehled událostí | 🔶 | Dashboard ukazuje upcoming events |
+| Správa budov a areálů | ✅ | CRUD budov, přiřazení pokojů k budovám, podlaží |
+| Sdílení místností mezi školami | ✅ | Sdílení a odebírání přístupu, M:N tabulka |
+| Školní rok – přehled událostí | ✅ | CRUD událostí, dashboard upcoming, typ události |
 
 ---
 

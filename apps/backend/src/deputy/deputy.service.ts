@@ -21,8 +21,10 @@ export class DeputyService {
             classroomCount,
             subjectCount,
             roomCount,
+            buildingCount,
             currentAcademicYear,
             recentMembers,
+            upcomingEvents,
         ] = await Promise.all([
             this.prisma.schoolMembership.count({
                 where: { schoolId, role: 'STUDENT', status: UserStatus.ACTIVE },
@@ -33,6 +35,7 @@ export class DeputyService {
             this.prisma.classroom.count({ where: { schoolId } }),
             this.prisma.subjectTemplate.count({ where: { schoolId } }),
             this.prisma.room.count({ where: { schoolId } }),
+            this.prisma.building.count({ where: { schoolId } }),
             this.prisma.academicYear.findFirst({
                 where: { schoolId, isCurrent: true },
                 select: { id: true, name: true, startDate: true, endDate: true },
@@ -44,6 +47,11 @@ export class DeputyService {
                 include: {
                     user: { select: { id: true, firstName: true, lastName: true, email: true } },
                 },
+            }),
+            this.prisma.schoolEvent.findMany({
+                where: { schoolId, date: { gte: new Date() } },
+                orderBy: { date: 'asc' },
+                take: 5,
             }),
         ]);
 
@@ -59,9 +67,11 @@ export class DeputyService {
             classroomCount,
             subjectCount,
             roomCount,
+            buildingCount,
             totalMembers,
             pendingMembers,
             currentAcademicYear,
+            upcomingEvents,
             recentMembers: recentMembers.map(m => ({
                 id: m.user.id,
                 name: `${m.user.firstName} ${m.user.lastName}`,
@@ -162,17 +172,20 @@ export class DeputyService {
     async getRooms(schoolId: string) {
         return this.prisma.room.findMany({
             where: { schoolId },
+            include: { building: { select: { id: true, name: true } } },
             orderBy: { name: 'asc' },
         });
     }
 
-    async createRoom(actorId: string, schoolId: string, data: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
+    async createRoom(actorId: string, schoolId: string, data: { name: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string; floor?: number }) {
         const room = await this.prisma.room.create({
             data: {
                 name: data.name,
                 capacity: data.capacity ?? 30,
                 isComputerLab: data.isComputerLab ?? false,
                 specialEquipment: data.specialEquipment ?? [],
+                buildingId: data.buildingId || null,
+                floor: data.floor ?? null,
                 schoolId,
             },
         });
@@ -181,7 +194,7 @@ export class DeputyService {
         return room;
     }
 
-    async updateRoom(actorId: string, schoolId: string, id: string, data: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[] }) {
+    async updateRoom(actorId: string, schoolId: string, id: string, data: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string | null; floor?: number | null }) {
         const existing = await this.prisma.room.findFirst({ where: { id, schoolId } });
         if (!existing) throw new NotFoundException('Room not found');
 
@@ -196,6 +209,149 @@ export class DeputyService {
 
         await this.prisma.room.delete({ where: { id } });
         await this.audit(actorId, 'DELETE_ROOM', 'Room', id, null, existing);
+        return { deleted: true };
+    }
+
+    // ─── BUILDING CRUD ───────────────────────────────────────────────
+
+    async getBuildings(schoolId: string) {
+        return this.prisma.building.findMany({
+            where: { schoolId },
+            include: { rooms: { select: { id: true, name: true } } },
+            orderBy: { name: 'asc' },
+        });
+    }
+
+    async createBuilding(actorId: string, schoolId: string, data: { name: string; address?: string; floors?: number }) {
+        const building = await this.prisma.building.create({
+            data: { name: data.name, address: data.address, floors: data.floors ?? 1, schoolId },
+        });
+        await this.audit(actorId, 'CREATE_BUILDING', 'Building', building.id, data);
+        return building;
+    }
+
+    async updateBuilding(actorId: string, schoolId: string, id: string, data: { name?: string; address?: string; floors?: number }) {
+        const existing = await this.prisma.building.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Building not found');
+        const updated = await this.prisma.building.update({ where: { id }, data });
+        await this.audit(actorId, 'UPDATE_BUILDING', 'Building', id, data, existing);
+        return updated;
+    }
+
+    async deleteBuilding(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.building.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Building not found');
+        await this.prisma.building.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_BUILDING', 'Building', id, null, existing);
+        return { deleted: true };
+    }
+
+    // ─── ROOM SHARING ────────────────────────────────────────────────
+
+    async shareRoom(actorId: string, schoolId: string, roomId: string, targetSchoolId: string) {
+        const room = await this.prisma.room.findFirst({ where: { id: roomId, schoolId } });
+        if (!room) throw new NotFoundException('Room not found in your school');
+        if (schoolId === targetSchoolId) throw new BadRequestException('Cannot share room with the same school');
+
+        const sharing = await this.prisma.roomSharing.create({
+            data: { roomId, sharedWithSchoolId: targetSchoolId },
+        });
+        await this.audit(actorId, 'SHARE_ROOM', 'RoomSharing', sharing.id, { roomId, targetSchoolId });
+        return sharing;
+    }
+
+    async unshareRoom(actorId: string, schoolId: string, roomId: string, targetSchoolId: string) {
+        const room = await this.prisma.room.findFirst({ where: { id: roomId, schoolId } });
+        if (!room) throw new NotFoundException('Room not found in your school');
+
+        const sharing = await this.prisma.roomSharing.findUnique({
+            where: { roomId_sharedWithSchoolId: { roomId, sharedWithSchoolId: targetSchoolId } },
+        });
+        if (!sharing) throw new NotFoundException('Sharing not found');
+
+        await this.prisma.roomSharing.delete({ where: { id: sharing.id } });
+        await this.audit(actorId, 'UNSHARE_ROOM', 'RoomSharing', sharing.id, { roomId, targetSchoolId });
+        return { deleted: true };
+    }
+
+    async getSharedRooms(schoolId: string) {
+        // Rooms shared TO this school by other schools
+        const sharings = await this.prisma.roomSharing.findMany({
+            where: { sharedWithSchoolId: schoolId },
+            include: {
+                room: {
+                    include: {
+                        school: { select: { id: true, name: true } },
+                        building: { select: { id: true, name: true } },
+                    },
+                },
+            },
+        });
+        return sharings.map(s => ({
+            id: s.id,
+            room: s.room,
+            ownerSchool: s.room.school,
+        }));
+    }
+
+    async getRoomSharingsForRoom(roomId: string) {
+        return this.prisma.roomSharing.findMany({
+            where: { roomId },
+            include: { room: { include: { school: { select: { id: true, name: true } } } } },
+        });
+    }
+
+    // ─── SCHOOL EVENT CRUD ───────────────────────────────────────────
+
+    async getEvents(schoolId: string) {
+        return this.prisma.schoolEvent.findMany({
+            where: { schoolId },
+            orderBy: { date: 'asc' },
+        });
+    }
+
+    async getUpcomingEvents(schoolId: string, limit = 10) {
+        return this.prisma.schoolEvent.findMany({
+            where: { schoolId, date: { gte: new Date() } },
+            orderBy: { date: 'asc' },
+            take: limit,
+        });
+    }
+
+    async createEvent(actorId: string, schoolId: string, data: { title: string; description?: string; date: string; endDate?: string; type?: string; allDay?: boolean }) {
+        const event = await this.prisma.schoolEvent.create({
+            data: {
+                title: data.title,
+                description: data.description,
+                date: new Date(data.date),
+                endDate: data.endDate ? new Date(data.endDate) : null,
+                type: data.type ?? 'OTHER',
+                allDay: data.allDay ?? true,
+                schoolId,
+            },
+        });
+        await this.audit(actorId, 'CREATE_EVENT', 'SchoolEvent', event.id, data);
+        return event;
+    }
+
+    async updateEvent(actorId: string, schoolId: string, id: string, data: { title?: string; description?: string; date?: string; endDate?: string; type?: string; allDay?: boolean }) {
+        const existing = await this.prisma.schoolEvent.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Event not found');
+
+        const updateData: any = { ...data };
+        if (data.date) updateData.date = new Date(data.date);
+        if (data.endDate) updateData.endDate = new Date(data.endDate);
+
+        const updated = await this.prisma.schoolEvent.update({ where: { id }, data: updateData });
+        await this.audit(actorId, 'UPDATE_EVENT', 'SchoolEvent', id, data, existing);
+        return updated;
+    }
+
+    async deleteEvent(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.schoolEvent.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Event not found');
+        await this.prisma.schoolEvent.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_EVENT', 'SchoolEvent', id, null, existing);
         return { deleted: true };
     }
 

@@ -58,6 +58,8 @@ export const createRoom = async (data: {
     capacity?: number;
     isComputerLab?: boolean;
     specialEquipment?: string[];
+    buildingId?: string;
+    floor?: number;
 }) => {
     const response = await api.post('/api/deputy/rooms', data);
     return response.data;
@@ -68,6 +70,8 @@ export const updateRoom = async (id: string, data: {
     capacity?: number;
     isComputerLab?: boolean;
     specialEquipment?: string[];
+    buildingId?: string | null;
+    floor?: number | null;
 }) => {
     const response = await api.put(`/api/deputy/rooms/${id}`, data);
     return response.data;
@@ -75,6 +79,78 @@ export const updateRoom = async (id: string, data: {
 
 export const deleteRoom = async (id: string) => {
     const response = await api.delete(`/api/deputy/rooms/${id}`);
+    return response.data;
+};
+
+// ─── BUILDINGS ──────────────────────────────────────────────────
+
+export const getBuildings = async () => {
+    const response = await api.get('/api/deputy/buildings');
+    return response.data;
+};
+
+export const createBuilding = async (data: { name: string; address?: string; floors?: number }) => {
+    const response = await api.post('/api/deputy/buildings', data);
+    return response.data;
+};
+
+export const updateBuilding = async (id: string, data: { name?: string; address?: string; floors?: number }) => {
+    const response = await api.put(`/api/deputy/buildings/${id}`, data);
+    return response.data;
+};
+
+export const deleteBuilding = async (id: string) => {
+    const response = await api.delete(`/api/deputy/buildings/${id}`);
+    return response.data;
+};
+
+// ─── ROOM SHARING ───────────────────────────────────────────────
+
+export const shareRoom = async (roomId: string, targetSchoolId: string) => {
+    const response = await api.post(`/api/deputy/rooms/${roomId}/share`, { targetSchoolId });
+    return response.data;
+};
+
+export const unshareRoom = async (roomId: string, targetSchoolId: string) => {
+    const response = await api.delete(`/api/deputy/rooms/${roomId}/share/${targetSchoolId}`);
+    return response.data;
+};
+
+export const getSharedRooms = async () => {
+    const response = await api.get('/api/deputy/shared-rooms');
+    return response.data;
+};
+
+// ─── SCHOOL EVENTS ──────────────────────────────────────────────
+
+export const getSchoolEvents = async () => {
+    const response = await api.get('/api/deputy/events');
+    return response.data;
+};
+
+export const getUpcomingEvents = async (limit = 10) => {
+    const response = await api.get('/api/deputy/events/upcoming', { params: { limit } });
+    return response.data;
+};
+
+export const createSchoolEvent = async (data: {
+    title: string; description?: string; date: string;
+    endDate?: string; type?: string; allDay?: boolean;
+}) => {
+    const response = await api.post('/api/deputy/events', data);
+    return response.data;
+};
+
+export const updateSchoolEvent = async (id: string, data: {
+    title?: string; description?: string; date?: string;
+    endDate?: string; type?: string; allDay?: boolean;
+}) => {
+    const response = await api.put(`/api/deputy/events/${id}`, data);
+    return response.data;
+};
+
+export const deleteSchoolEvent = async (id: string) => {
+    const response = await api.delete(`/api/deputy/events/${id}`);
     return response.data;
 };
 

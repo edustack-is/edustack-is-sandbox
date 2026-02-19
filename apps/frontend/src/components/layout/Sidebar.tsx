@@ -113,6 +113,7 @@ export const Sidebar: React.FC = () => {
 
     const schoolAdminItems = [
         { path: '/school/rooms', label: t('sidebar.rooms', 'Učebny'), icon: DoorOpen },
+        { path: '/school/events', label: t('sidebar.events', 'Události'), icon: CalendarDays },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
         { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
         { path: '/schedule/substitutions', label: t('sidebar.substitutions', 'Suplování'), icon: CalendarDays },

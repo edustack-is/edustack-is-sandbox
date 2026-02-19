@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { useSchool } from '@/context/SchoolContext';
 import { api } from '@/api';
-import { Building2, Users, UserCheck, Clock } from 'lucide-react';
+import { Building2, Users, UserCheck, Clock, CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+    HOLIDAY: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    EXAM_PERIOD: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    PARENT_MEETING: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    SCHOOL_TRIP: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+    SPORTS_DAY: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    OTHER: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+};
 
 interface DashboardStats {
     schoolCount: number;
@@ -212,8 +221,8 @@ function SchoolDashboard() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${member.status === 'ACTIVE'
-                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
                                                 }`}>
                                                 {member.status === 'ACTIVE' ? t('common.active') : t('common.pending')}
                                             </span>
@@ -229,10 +238,32 @@ function SchoolDashboard() {
                 </Card>
                 <Card className="col-span-3">
                     <CardHeader>
-                        <CardTitle>{t('dashboard.upcoming_events')}</CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                            <CalendarDays className="h-5 w-5" />
+                            {t('dashboard.upcoming_events')}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">{t('dashboard.no_events_today')}</p>
+                        {stats?.upcomingEvents && stats.upcomingEvents.length > 0 ? (
+                            <div className="space-y-3">
+                                {stats.upcomingEvents.map((evt: any) => (
+                                    <div key={evt.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium">{evt.title}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {new Date(evt.date).toLocaleDateString(i18n.language)}
+                                                {evt.endDate && ` – ${new Date(evt.endDate).toLocaleDateString(i18n.language)}`}
+                                            </span>
+                                        </div>
+                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${EVENT_TYPE_COLORS[evt.type] || EVENT_TYPE_COLORS.OTHER}`}>
+                                            {evt.type}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">{t('dashboard.no_events_today')}</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
