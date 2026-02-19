@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards, Req, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiProduces } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiProduces , ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -27,6 +27,7 @@ export class ExportController {
 
     @Get('students')
     @ApiOperation({ summary: 'Export studentů', description: 'Stáhne seznam studentů ve zvoleném formátu.' })
+    @ApiResponse({ status: 200, description: 'Export studentů ve zvoleném formátu.' })
     @ApiQuery({ name: 'format', enum: ['csv', 'xml', 'json'], required: false, description: 'Výstupní formát (výchozí: csv)' })
     @ApiProduces('text/csv', 'application/xml', 'application/json')
     async exportStudents(
@@ -41,6 +42,7 @@ export class ExportController {
 
     @Get('grades')
     @ApiOperation({ summary: 'Export známek', description: 'Stáhne známky, volitelně filtrované dle třídy.' })
+    @ApiResponse({ status: 200, description: 'Export známek.' })
     @ApiQuery({ name: 'format', enum: ['csv', 'xml', 'json'], required: false, description: 'Výstupní formát (výchozí: csv)' })
     @ApiQuery({ name: 'classroomId', required: false, description: 'Filtr dle ID třídy' })
     @ApiProduces('text/csv', 'application/xml', 'application/json')
@@ -57,6 +59,7 @@ export class ExportController {
 
     @Get('attendance')
     @ApiOperation({ summary: 'Export docházky', description: 'Stáhne záznamy docházky s filtry.' })
+    @ApiResponse({ status: 200, description: 'Export docházky.' })
     @ApiQuery({ name: 'format', enum: ['csv', 'xml', 'json'], required: false, description: 'Výstupní formát (výchozí: csv)' })
     @ApiQuery({ name: 'classroomId', required: false, description: 'Filtr dle ID třídy' })
     @ApiQuery({ name: 'dateFrom', required: false, description: 'Od data (YYYY-MM-DD)' })

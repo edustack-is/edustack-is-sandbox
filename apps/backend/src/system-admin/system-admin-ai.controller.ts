@@ -52,8 +52,8 @@ export class SystemAdminAiController {
      */
     @Get('ai-usage')
     @ApiOperation({ summary: 'Spotřeba AI' })
+    @ApiResponse({ status: 200, description: 'Statistiky spotřeby AI.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
     async getAiUsage() {

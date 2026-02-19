@@ -1,10 +1,11 @@
 import { Controller, Get, Post, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole, AttendanceStatus } from '@prisma/client';
 import { TeacherService } from './teacher.service';
+import { GradeResponseDto } from '../common/dto/api.dto';
 
 @ApiTags('teacher')
 @ApiBearerAuth('JWT-auth')
@@ -20,7 +21,7 @@ export class TeacherController {
      */
     @Get('my-schedule')
     @ApiOperation({ summary: 'Rozvrh učitele (všechny školy)' })
-
+    @ApiResponse({ status: 200, description: 'Rozvrh učitele napříč školami – matice.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
@@ -34,8 +35,8 @@ export class TeacherController {
      */
     @Get('classes')
     @ApiOperation({ summary: 'Třídy a studenti učitele' })
+    @ApiResponse({ status: 200, description: 'Třídy a studenti učitele – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
     async getClasses(@Req() req: any) {
@@ -49,8 +50,8 @@ export class TeacherController {
      */
     @Post('grades')
     @ApiOperation({ summary: 'Zadání známky studentovi' })
+    @ApiResponse({ status: 201, description: 'Vytvořená známka.', type: GradeResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
@@ -68,8 +69,8 @@ export class TeacherController {
      */
     @Post('attendance')
     @ApiOperation({ summary: 'Záznam docházky studenta' })
+    @ApiResponse({ status: 201, description: 'Docházka zaznamenána.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 

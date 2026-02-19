@@ -105,6 +105,7 @@ export class InitController {
     @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Get('seed-files')
     @ApiOperation({ summary: 'Dostupné seed soubory', description: 'Seznam JSON seed souborů pro inicializaci.' })
+    @ApiResponse({ status: 200, description: 'Dostupné seed soubory – pole.' })
     async getSeedFiles() {
         return this.seedService.getAvailableSeedFiles();
     }

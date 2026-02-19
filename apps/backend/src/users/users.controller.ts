@@ -15,8 +15,8 @@ export class UsersController {
     @Post('import')
     @UseInterceptors(FileInterceptor('file'))
     @ApiOperation({ summary: 'Import uživatelů z CSV' })
+    @ApiResponse({ status: 201, description: 'Výsledek importu – počet vytvořených.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
@@ -26,8 +26,8 @@ export class UsersController {
 
     @Get()
     @ApiOperation({ summary: 'Seznam všech uživatelů' })
+    @ApiResponse({ status: 200, description: 'Seznam uživatelů s paginací.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
     async findAll(@Query() query: {
@@ -48,8 +48,8 @@ export class UsersController {
     @UseInterceptors(LogSensitiveReadInterceptor)
     @LogSensitiveRead()
     @ApiOperation({ summary: 'Detail uživatele' })
+    @ApiResponse({ status: 200, description: 'Detail uživatele.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
 

@@ -8,6 +8,7 @@ import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service'
 import { SystemAdminSsoService } from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
 
+import { SuccessResponseDto } from '../common/dto/api.dto';
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system')

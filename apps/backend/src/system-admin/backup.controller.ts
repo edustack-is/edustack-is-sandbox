@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { BackupService } from './backup.service';
 
+import { SuccessResponseDto } from '../common/dto/api.dto';
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system/backups')
@@ -14,11 +15,10 @@ export class BackupController {
 
     @Post()
     @ApiOperation({ summary: 'Vytvoření zálohy' })
+    @ApiResponse({ status: 201, description: 'Záloha vytvořena.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
 
     async createBackup() {
@@ -42,8 +42,8 @@ export class BackupController {
 
     @Post(':filename/restore')
     @ApiOperation({ summary: 'Obnovení ze zálohy' })
+    @ApiResponse({ status: 200, description: 'Záloha obnovena.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
 

@@ -5,6 +5,7 @@ import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { TestDataService } from './test-data.service';
 import type { GenerateConfig } from './test-data.service';
 
+import { SuccessResponseDto } from '../common/dto/api.dto';
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system/test-data')
@@ -14,8 +15,8 @@ export class TestDataController {
 
     @Post('generate')
     @ApiOperation({ summary: 'Generování kompletních testovacích dat' })
+    @ApiResponse({ status: 201, description: 'Kompletní testovací sada vytvořena.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 

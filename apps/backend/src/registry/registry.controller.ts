@@ -10,8 +10,8 @@ export class RegistryController {
 
     @Post('classrooms')
     @ApiOperation({ summary: 'Vytvoření třídy v matrice' })
+    @ApiResponse({ status: 201, description: 'Třída vytvořena v matrice.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 

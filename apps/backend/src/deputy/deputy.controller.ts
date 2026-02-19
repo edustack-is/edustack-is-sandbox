@@ -29,8 +29,8 @@ export class DeputyController {
     @Get('dashboard')
     @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Dashboard školy' })
+    @ApiResponse({ status: 200, description: 'Dashboard školy – statistiky.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getSchoolDashboard(@Req() req: any) {
@@ -42,8 +42,8 @@ export class DeputyController {
 
     @Get('classrooms')
     @ApiOperation({ summary: 'Seznam tříd' })
+    @ApiResponse({ status: 200, description: 'Třídy školy – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -55,10 +55,8 @@ export class DeputyController {
     @Post('classrooms')
     @ApiOperation({ summary: 'Vytvoření třídy' })
     @ApiBody({ type: CreateClassroomDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -69,11 +67,10 @@ export class DeputyController {
 
     @Put('classrooms/:id')
     @ApiOperation({ summary: 'Úprava třídy' })
+    @ApiResponse({ status: 200, description: 'Aktualizovaná třída.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateClassroom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; grade?: number }) {
@@ -84,10 +81,8 @@ export class DeputyController {
     @Delete('classrooms/:id')
     @ApiOperation({ summary: 'Smazání třídy' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteClassroom(@Req() req: any, @Param('id') id: string) {
@@ -99,8 +94,8 @@ export class DeputyController {
 
     @Get('subjects')
     @ApiOperation({ summary: 'Šablony předmětů' })
+    @ApiResponse({ status: 200, description: 'Šablony předmětů – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -112,10 +107,8 @@ export class DeputyController {
     @Post('subjects')
     @ApiOperation({ summary: 'Vytvoření šablony předmětu' })
     @ApiBody({ type: CreateSubjectDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -126,11 +119,10 @@ export class DeputyController {
 
     @Put('subjects/:id')
     @ApiOperation({ summary: 'Úprava šablony předmětu' })
+    @ApiResponse({ status: 200, description: 'Aktualizovaný předmět.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateSubject(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; code?: string; svpDescription?: string }) {
@@ -141,10 +133,8 @@ export class DeputyController {
     @Delete('subjects/:id')
     @ApiOperation({ summary: 'Smazání šablony předmětu' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteSubject(@Req() req: any, @Param('id') id: string) {
@@ -156,8 +146,8 @@ export class DeputyController {
 
     @Get('rooms')
     @ApiOperation({ summary: 'Seznam místností' })
+    @ApiResponse({ status: 200, description: 'Místnosti – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getRooms(@Req() req: any) {
@@ -168,10 +158,8 @@ export class DeputyController {
     @Post('rooms')
     @ApiOperation({ summary: 'Vytvoření místnosti' })
     @ApiBody({ type: CreateRoomDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -182,11 +170,10 @@ export class DeputyController {
 
     @Put('rooms/:id')
     @ApiOperation({ summary: 'Úprava místnosti' })
+    @ApiResponse({ status: 200, description: 'Aktualizovaná místnost.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateRoom(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; capacity?: number; isComputerLab?: boolean; specialEquipment?: string[]; buildingId?: string | null; floor?: number | null }) {
@@ -197,10 +184,8 @@ export class DeputyController {
     @Delete('rooms/:id')
     @ApiOperation({ summary: 'Smazání místnosti' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteRoom(@Req() req: any, @Param('id') id: string) {
@@ -212,8 +197,8 @@ export class DeputyController {
 
     @Get('buildings')
     @ApiOperation({ summary: 'Seznam budov' })
+    @ApiResponse({ status: 200, description: 'Budovy – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -224,11 +209,10 @@ export class DeputyController {
 
     @Post('buildings')
     @ApiOperation({ summary: 'Vytvoření budovy' })
+    @ApiResponse({ status: 201, description: 'Vytvořená budova.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async createBuilding(@Req() req: any, @Body() body: { name: string; address?: string; floors?: number }) {
@@ -238,11 +222,10 @@ export class DeputyController {
 
     @Put('buildings/:id')
     @ApiOperation({ summary: 'Úprava budovy' })
+    @ApiResponse({ status: 200, description: 'Aktualizovaná budova.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateBuilding(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; address?: string; floors?: number }) {
@@ -253,10 +236,8 @@ export class DeputyController {
     @Delete('buildings/:id')
     @ApiOperation({ summary: 'Smazání budovy' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteBuilding(@Req() req: any, @Param('id') id: string) {
@@ -268,11 +249,10 @@ export class DeputyController {
 
     @Post('rooms/:id/share')
     @ApiOperation({ summary: 'Sdílení místnosti s jinou školou' })
+    @ApiResponse({ status: 200, description: 'Místnost sdílena.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async shareRoom(@Req() req: any, @Param('id') roomId: string, @Body() body: { targetSchoolId: string }) {
@@ -282,11 +262,10 @@ export class DeputyController {
 
     @Delete('rooms/:id/share/:schoolId')
     @ApiOperation({ summary: 'Zrušení sdílení místnosti' })
+    @ApiResponse({ status: 200, description: 'Sdílení zrušeno.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async unshareRoom(@Req() req: any, @Param('id') roomId: string, @Param('schoolId') targetSchoolId: string) {
@@ -296,8 +275,8 @@ export class DeputyController {
 
     @Get('shared-rooms')
     @ApiOperation({ summary: 'Sdílené místnosti' })
+    @ApiResponse({ status: 200, description: 'Sdílené místnosti – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
@@ -311,8 +290,8 @@ export class DeputyController {
     @Get('events')
     @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Události školního roku' })
+    @ApiResponse({ status: 200, description: 'Události – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getEvents(@Req() req: any) {
@@ -323,8 +302,8 @@ export class DeputyController {
     @Get('events/upcoming')
     @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Nadcházející události' })
+    @ApiResponse({ status: 200, description: 'Nadcházející události – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getUpcomingEvents(@Req() req: any, @Query('limit') limit?: string) {
@@ -335,10 +314,8 @@ export class DeputyController {
     @Post('events')
     @ApiOperation({ summary: 'Vytvoření události' })
     @ApiBody({ type: CreateSchoolEventDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -349,11 +326,10 @@ export class DeputyController {
 
     @Put('events/:id')
     @ApiOperation({ summary: 'Úprava události' })
+    @ApiResponse({ status: 200, description: 'Aktualizovaná událost.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateEvent(@Req() req: any, @Param('id') id: string, @Body() body: { title?: string; description?: string; date?: string; endDate?: string; type?: string; allDay?: boolean }) {
@@ -364,10 +340,8 @@ export class DeputyController {
     @Delete('events/:id')
     @ApiOperation({ summary: 'Smazání události' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteEvent(@Req() req: any, @Param('id') id: string) {
@@ -379,11 +353,10 @@ export class DeputyController {
 
     @Post('users/invite')
     @ApiOperation({ summary: 'Pozvání uživatele do školy' })
+    @ApiResponse({ status: 201, description: 'Uživatel pozván.', type: SuccessResponseDto })
     @ApiBody({ type: InviteSchoolUserDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async inviteUser(
@@ -463,10 +436,8 @@ export class DeputyController {
     @Delete('users/:id')
     @ApiOperation({ summary: 'Odebrání uživatele ze školy' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async removeUser(@Req() req: any, @Param('id') id: string) {
@@ -478,8 +449,8 @@ export class DeputyController {
 
     @Patch('users/:id/alumni')
     @ApiOperation({ summary: 'Nastavení absolventa' })
+    @ApiResponse({ status: 200, description: 'Status absolventa nastaven.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -517,8 +488,8 @@ export class DeputyController {
 
     @Patch('users/:id/suspend')
     @ApiOperation({ summary: 'Suspendování uživatele' })
+    @ApiResponse({ status: 200, description: 'Uživatel suspendován.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -529,8 +500,8 @@ export class DeputyController {
 
     @Patch('users/:id/reactivate')
     @ApiOperation({ summary: 'Reaktivace uživatele' })
+    @ApiResponse({ status: 200, description: 'Uživatel reaktivován.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 

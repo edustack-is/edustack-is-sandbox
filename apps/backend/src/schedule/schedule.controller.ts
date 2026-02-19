@@ -23,6 +23,7 @@ export class ScheduleController {
     @Get('slots')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Časové sloty (zvonění)' })
+    @ApiResponse({ status: 200, description: 'Časové sloty (zvonění) – pole.' })
 
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
@@ -35,11 +36,10 @@ export class ScheduleController {
     @Put('slots')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Nastavení časových slotů' })
+    @ApiResponse({ status: 200, description: 'Uložené časové sloty.' })
     @ApiBody({ type: UpsertTimeSlotsDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async upsertTimeSlots(
@@ -55,8 +55,8 @@ export class ScheduleController {
     @Get('events')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Rozvrhové události' })
+    @ApiResponse({ status: 200, description: 'Rozvrhové události – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getEvents(
@@ -76,11 +76,10 @@ export class ScheduleController {
     @Post('events')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Vytvoření rozvrhové události' })
+    @ApiResponse({ status: 201, description: 'Vytvořená rozvrhová událost.' })
     @ApiBody({ type: CreateScheduleEventDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createEvent(
@@ -103,10 +102,8 @@ export class ScheduleController {
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Úprava rozvrhové události' })
     @ApiBody({ type: UpdateScheduleEventDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -130,10 +127,8 @@ export class ScheduleController {
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Smazání rozvrhové události' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteEvent(@Req() req: any, @Param('id') id: string) {
@@ -144,8 +139,8 @@ export class ScheduleController {
     @Post('events/bulk')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Hromadné vytvoření událostí' })
+    @ApiResponse({ status: 201, description: 'Hromadně vytvořené události – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
@@ -170,8 +165,8 @@ export class ScheduleController {
     @Post('validate')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Kontrola kolizí rozvrhu' })
+    @ApiResponse({ status: 200, description: 'Výsledek kontroly kolizí.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async validateCollision(
@@ -204,8 +199,8 @@ export class ScheduleController {
     @Get('view/classroom/:id')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Rozvrh třídy' })
+    @ApiResponse({ status: 200, description: 'Rozvrh třídy – matice.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -221,8 +216,8 @@ export class ScheduleController {
     @Get('view/teacher/:id')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Rozvrh učitele' })
+    @ApiResponse({ status: 200, description: 'Rozvrh učitele – matice.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -238,8 +233,8 @@ export class ScheduleController {
     @Get('view/student/:id')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Rozvrh studenta' })
+    @ApiResponse({ status: 200, description: 'Rozvrh studenta – matice.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
@@ -257,8 +252,8 @@ export class ScheduleController {
     @Get('substitutions')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
     @ApiOperation({ summary: 'Suplování' })
+    @ApiResponse({ status: 200, description: 'Suplování – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getSubstitutions(
@@ -278,11 +273,10 @@ export class ScheduleController {
     @Post('substitutions')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Vytvoření suplování' })
+    @ApiResponse({ status: 201, description: 'Vytvořené suplování.' })
     @ApiBody({ type: CreateSubstitutionDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createSubstitution(
@@ -308,11 +302,10 @@ export class ScheduleController {
     @Put('substitutions/:id')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Úprava suplování' })
+    @ApiResponse({ status: 200, description: 'Aktualizované suplování.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateSubstitution(
@@ -334,10 +327,8 @@ export class ScheduleController {
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Smazání suplování' })
     @ApiResponse({ status: 200, type: SuccessResponseDto })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteSubstitution(@Req() req: any, @Param('id') id: string) {
@@ -350,8 +341,8 @@ export class ScheduleController {
     @Post('generate')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Automatické generování rozvrhu' })
+    @ApiResponse({ status: 200, description: 'Výsledek generování rozvrhu.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
@@ -368,7 +359,7 @@ export class ScheduleController {
     @Get('export-html')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER)
     @ApiOperation({ summary: 'Export rozvrhu (HTML tisk)' })
-
+    @ApiResponse({ status: 200, description: 'HTML rozvrhu pro tisk.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
@@ -387,8 +378,8 @@ export class ScheduleController {
     @Get('snapshots')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Snapshoty rozvrhu' })
+    @ApiResponse({ status: 200, description: 'Snapshoty rozvrhu – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getSnapshots(@Req() req: any, @Query('academicYearId') academicYearId?: string) {
@@ -399,11 +390,10 @@ export class ScheduleController {
     @Post('snapshots')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Vytvoření snapshotu' })
+    @ApiResponse({ status: 201, description: 'Vytvořený snapshot.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async createSnapshot(@Req() req: any, @Body() body: { academicYearId: string; name: string }) {
@@ -430,7 +420,7 @@ export class ScheduleController {
     @Get('recurring-events')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER)
     @ApiOperation({ summary: 'Opakující se události (kroužky)' })
-
+    @ApiResponse({ status: 200, description: 'Kroužky – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
@@ -442,11 +432,10 @@ export class ScheduleController {
     @Post('recurring-events')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Vytvoření kroužku' })
+    @ApiResponse({ status: 201, description: 'Vytvořený kroužek.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async createRecurringEvent(
@@ -460,11 +449,10 @@ export class ScheduleController {
     @Put('recurring-events/:id')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Úprava kroužku' })
+    @ApiResponse({ status: 200, description: 'Aktualizovaný kroužek.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateRecurringEvent(
@@ -479,8 +467,8 @@ export class ScheduleController {
     @Delete('recurring-events/:id')
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     @ApiOperation({ summary: 'Smazání kroužku' })
+    @ApiResponse({ status: 200, description: 'Kroužek smazán.', type: SuccessResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 

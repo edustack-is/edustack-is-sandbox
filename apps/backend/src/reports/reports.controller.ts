@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards, Req, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiProduces } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiProduces , ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,6 +17,7 @@ export class ReportsController {
 
     @Get('grades/classroom')
     @ApiOperation({ summary: 'Statistiky prospěchu třídy', description: 'Průměr, medián, distribuce známek a úspěšnost per předmět a student.' })
+    @ApiResponse({ status: 200, description: 'Statistiky prospěchu třídy.' })
     @ApiQuery({ name: 'classroomId', required: true, description: 'ID třídy' })
     @ApiQuery({ name: 'semesterId', required: false, description: 'ID semestru (volitelné)' })
     async gradeStatsByClassroom(
@@ -41,6 +42,7 @@ export class ReportsController {
 
     @Get('attendance')
     @ApiOperation({ summary: 'Statistiky docházky', description: 'Celkový přehled + per-student breakdown s mírou účasti.' })
+    @ApiResponse({ status: 200, description: 'Statistiky docházky.' })
     @ApiQuery({ name: 'classroomId', required: false, description: 'Filtr dle ID třídy' })
     @ApiQuery({ name: 'dateFrom', required: false, description: 'Od data (YYYY-MM-DD)' })
     @ApiQuery({ name: 'dateTo', required: false, description: 'Do data (YYYY-MM-DD)' })

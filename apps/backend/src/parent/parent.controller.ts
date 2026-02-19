@@ -21,8 +21,8 @@ export class ParentController {
      */
     @Get('children')
     @ApiOperation({ summary: 'Seznam dětí rodiče' })
+    @ApiResponse({ status: 200, description: 'Děti rodiče – pole.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
 
@@ -37,8 +37,8 @@ export class ParentController {
      */
     @Get('child/:studentId/dashboard')
     @ApiOperation({ summary: 'Dashboard dítěte' })
+    @ApiResponse({ status: 200, description: 'Dashboard dítěte – profil, známky, rozvrh.' })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
 
