@@ -524,6 +524,53 @@ export const lockClassification = async (semesterId: string, lock: boolean) => {
     return response.data;
 };
 
+// ─── ATTENDANCE ─────────────────────────────────────────────
+
+export const recordAttendance = async (data: {
+    date: string; lessonNumber: number; classroomId: string;
+    records: Array<{ studentId: string; status: string; note?: string }>;
+}) => {
+    const response = await api.post('/api/attendance/record', data);
+    return response.data;
+};
+
+export const getClassroomAttendance = async (classroomId: string, date: string) => {
+    const response = await api.get(`/api/attendance/classroom/${classroomId}`, { params: { date } });
+    return response.data;
+};
+
+export const createAbsenceExcuse = async (data: { studentId: string; reason: string; dateFrom: string; dateTo: string }) => {
+    const response = await api.post('/api/attendance/excuses', data);
+    return response.data;
+};
+
+export const getAbsenceExcuses = async (filters?: { classroomId?: string; status?: string }) => {
+    const response = await api.get('/api/attendance/excuses', { params: filters });
+    return response.data;
+};
+
+export const reviewAbsenceExcuse = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    const response = await api.put(`/api/attendance/excuses/${id}/review`, { status });
+    return response.data;
+};
+
+export const getAttendanceStats = async (classroomId: string, dateFrom?: string, dateTo?: string) => {
+    const response = await api.get(`/api/attendance/stats/${classroomId}`, { params: { dateFrom, dateTo } });
+    return response.data;
+};
+
+export const exportAttendanceCsv = async (classroomId: string, dateFrom?: string, dateTo?: string) => {
+    const response = await api.get(`/api/attendance/export/${classroomId}`, {
+        params: { dateFrom, dateTo },
+        responseType: 'blob',
+    });
+    return response.data;
+};
+
+export const getUnexcusedAlerts = async (threshold?: number) => {
+    const response = await api.get('/api/attendance/unexcused-alerts', { params: { threshold } });
+    return response.data;
+};
 
 export const getConversations = async () => {
     const response = await api.get('/api/messaging/conversations');

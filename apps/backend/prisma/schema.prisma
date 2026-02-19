@@ -75,6 +75,7 @@ model School {
   educationalMeasures EducationalMeasure[]
   commissionExams    CommissionExam[]
   classificationDeadlines ClassificationDeadline[]
+  absenceExcuses     AbsenceExcuse[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -142,6 +143,10 @@ model User {
 
   // Grading – measures
   issuedMeasures             EducationalMeasure[] @relation("IssuedMeasures")
+
+  // Attendance – excuses
+  parentExcuses              AbsenceExcuse[] @relation("ParentExcuses")
+  reviewedExcuses            AbsenceExcuse[] @relation("ReviewedExcuses")
 }
 
 model SchoolMembership {
@@ -234,6 +239,7 @@ model StudentProfile {
   competencyGrades  CompetencyGrade[]
   educationalMeasures EducationalMeasure[]
   commissionExams   CommissionExam[]
+  absenceExcuses    AbsenceExcuse[]
 }
 
 model TeacherProfile {
@@ -465,6 +471,7 @@ model Attendance {
   date            DateTime         @default(now())
   status          AttendanceStatus
   note            String?
+  lessonNumber    Int?             // link to specific lesson slot (1-10)
 
   schoolId        String
   school          School           @relation(fields: [schoolId], references: [id])
@@ -477,7 +484,30 @@ model Attendance {
 
   createdAt       DateTime         @default(now())
 
-  @@unique([studentId, date, schoolId])
+  @@unique([studentId, date, lessonNumber, schoolId])
+}
+
+enum ExcuseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AbsenceExcuse {
+  id           String         @id @default(uuid())
+  reason       String
+  dateFrom     DateTime
+  dateTo       DateTime
+  status       ExcuseStatus   @default(PENDING)
+  parentId     String
+  parent       User           @relation("ParentExcuses", fields: [parentId], references: [id])
+  studentId    String
+  student      StudentProfile @relation(fields: [studentId], references: [id])
+  schoolId     String
+  school       School         @relation(fields: [schoolId], references: [id])
+  reviewedById String?
+  reviewedBy   User?          @relation("ReviewedExcuses", fields: [reviewedById], references: [id])
+  createdAt    DateTime       @default(now())
 }
 
 model Room {

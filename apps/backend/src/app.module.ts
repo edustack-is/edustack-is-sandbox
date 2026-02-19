@@ -24,6 +24,7 @@ import { UserContextInterceptor } from './auth/user-context.interceptor';
 import { MailModule } from './mail/mail.module';
 import { CryptoModule } from './shared/crypto/crypto.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { MessagingModule } from './messaging/messaging.module';
     UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
     SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule,
     MessagingModule,
+    AttendanceModule,
   ],
   controllers: [AppController],
   providers: [

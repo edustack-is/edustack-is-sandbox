@@ -192,12 +192,12 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 |--------|:----:|----------|
 | Záznam docházky (přítomen, nepřítomen, pozdní, omluven) | ✅ | |
 | Sumář docházky za období | ✅ | Přes MCP analytiku |
-| Docházka per hodina | 🔶 | Záznam existuje, chybí napojení na rozvrh ve frontend |
-| Omlouvání absence rodičem | ❌ | |
-| Automatické upozornění při absenci | ❌ | Notifikace rodičům |
-| Statistiky docházky třídy | ❌ | Přehledy pro třídního učitele |
-| Export docházky | ❌ | |
-| Neomluvené hodiny – eskalace | ❌ | |
+| Docházka per hodina | ✅ | lessonNumber per záznam, napojeno na UI stránku |
+| Omlouvání absence rodičem | ✅ | AbsenceExcuse model, review workflow |
+| Automatické upozornění při absenci | ✅ | Notifikace rodičům přes ParentStudent |
+| Statistiky docházky třídy | ✅ | Agregáty per student, tabulka |
+| Export docházky | ✅ | CSV export s BOM |
+| Neomluvené hodiny – eskalace | ✅ | Alert pro studenty nad prahem |
 
 ---
 
@@ -311,13 +311,13 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Kurikulum | 13 | 9 | 0 | 4 |
 | Rozvrh | 15 | 15 | 0 | 0 |
 | Klasifikace | 17 | 17 | 0 | 0 |
-| Docházka | 8 | 2 | 1 | 5 |
+| Docházka | 8 | 8 | 0 | 0 |
 | Komunikace | 12 | 7 | 0 | 5 |
 | Třídní kniha | 7 | 1 | 1 | 5 |
 | AI funkce | 8 | 4 | 0 | 4 |
 | MCP | 10 | 7 | 0 | 3 |
 | Reporty a výstupy | 10 | 5 | 1 | 4 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **166** | **116** | **8** | **42** |
+| **Celkem** | **166** | **122** | **7** | **37** |
 
-**Pokrytí:** přibližně **75 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **78 %** požadovaných funkcí je plně nebo částečně implementováno.
