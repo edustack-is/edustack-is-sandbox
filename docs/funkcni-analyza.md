@@ -52,10 +52,10 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Nahrání avataru | ✅ | |
 | Úprava vlastního profilu | ✅ | |
 | Self-registrace studentů | ✅ | Volitelná, konfigurovatelná per škola |
+| Reset hesla (zapomenuté heslo) | ✅ | E-mail s odkazem, platnost 1 hodina |
+| Politika síly hesel | ✅ | Min 8 znaků, velké/malé písmeno, číslice; ukazatel síly |
+| Omezení počtu neúspěšných pokusů | ✅ | Zamčení účtu po 5 pokusech na 15 minut |
 | Dvoufaktorové ověřování (2FA) | ❌ | |
-| Reset hesla (zapomenuté heslo) | ❌ | |
-| Politika síly hesel | ❌ | |
-| Omezení počtu neúspěšných pokusů | ❌ | |
 | SSO – SAML / LDAP integrace | ❌ | Pro školy navázané na AD |
 
 ---
@@ -72,9 +72,9 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Statistiky spotřeby AI | ✅ | |
 | Generování testovacích dat | ✅ | Kompletní škola s uživateli a daty |
 | Soft delete škol | ✅ | Data zůstávají v databázi |
-| Globální nastavení systému | 🔶 | SSO a AI, chybí širší konfigurace |
-| Monitoring a log systému | ❌ | Systémové logy, health checks |
-| Záloha a obnova dat | ❌ | |
+| Globální nastavení systému | ✅ | Key-value configuř (bezpečnost, obecné), UI záložka |
+| Monitoring a log systému | ✅ | Health endpoint, ELK stack, Grafana, systémový audit log |
+| Záloha a obnova dat | ✅ | pg_dump/restore přes API, UI správa záloh |
 | Multi-tenancy konfigurace | ✅ | Vícero škol v jedné instanci |
 
 ---
@@ -111,12 +111,12 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Stránkování seznamu uživatelů | ✅ | |
 | Vazby rodič–student | ✅ | Zobrazení v tabulce |
 | Hromadné vytvoření uživatelů (batch) | ✅ | Přes MCP |
-| Hromadný import z XML (Bakaláři formát) | ❌ | |
 | Editace údajů uživatele | 🔶 | Přes MCP, chybí UI |
 | Správa oprávnění uživatele | 🔶 | Role fixní per škola, chybí granulární oprávnění |
 | Deaktivace/suspendování uživatele | 🔶 | Status SUSPENDED v DB, chybí UI akce |
 | Export uživatelů (CSV/Excel) | ❌ | |
 | Fotogalerie třídy | ❌ | |
+| Hromadný import z XML (Bakaláři formát) | ❌ | |
 
 ---
 
@@ -293,10 +293,10 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Lokalizace (CZ/EN) | ✅ | Přepínání jazyku |
 | Dark mode | ❌ | |
 | PWA (Progressive Web App) | ❌ | Offline přístup, push notifikace |
-| Mobilní aplikace | ❌ | iOS / Android |
 | Automatické zálohy | ❌ | |
-| Rate limiting | ❌ | Ochrana proti DDoS |
+| Rate limiting | 🔶 | Zamykání účtů po neúspěšných pokusech; chybí globální throttling |
 | GDPR nástroje | ❌ | Export, smazání osobních dat |
+| Mobilní aplikace | ❌ | iOS / Android |
 
 ---
 
@@ -304,8 +304,8 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 
 | Oblast | Celkem funkcí | ✅ Implementováno | 🔶 Částečně | ❌ Chybí |
 |--------|:---:|:---:|:---:|:---:|
-| Autentizace a identity | 17 | 12 | 0 | 5 |
-| Správa systému | 12 | 9 | 1 | 2 |
+| Autentizace a identity | 17 | 15 | 0 | 2 |
+| Správa systému | 12 | 12 | 0 | 0 |
 | Správa školy | 10 | 7 | 1 | 2 |
 | Správa uživatelů | 17 | 11 | 3 | 3 |
 | Kurikulum | 13 | 9 | 0 | 4 |
@@ -317,7 +317,7 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | AI funkce | 8 | 4 | 0 | 4 |
 | MCP | 10 | 7 | 0 | 3 |
 | Reporty a výstupy | 10 | 3 | 1 | 6 |
-| Infrastruktura | 10 | 4 | 0 | 6 |
-| **Celkem** | **166** | **96** | **9** | **61** |
+| Infrastruktura | 10 | 4 | 1 | 5 |
+| **Celkem** | **166** | **102** | **9** | **55** |
 
-**Pokrytí:** přibližně **63 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **67 %** požadovaných funkcí je plně nebo částečně implementováno.
