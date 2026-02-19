@@ -5,6 +5,7 @@ import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 import { SystemAdminSsoService } from './system-admin-sso.service';
+import { SystemSettingsService } from './system-settings.service';
 
 @Controller('api/system')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
@@ -13,6 +14,7 @@ export class SystemAdminController {
         private readonly systemAdminService: SystemAdminService,
         private readonly ssoStrategyFactory: SsoStrategyFactoryService,
         private readonly ssoService: SystemAdminSsoService,
+        private readonly settingsService: SystemSettingsService,
     ) { }
 
     @Get('sso')
@@ -107,5 +109,17 @@ export class SystemAdminController {
     @Delete('admins/:id')
     removeSystemAdmin(@Req() req: any, @Param('id') id: string) {
         return this.systemAdminService.removeSystemAdmin(req.user.userId, id);
+    }
+
+    // ─── SYSTEM SETTINGS ─────────────────────────────────────────────
+
+    @Get('settings')
+    getSystemSettings() {
+        return this.settingsService.getAll();
+    }
+
+    @Put('settings')
+    updateSystemSettings(@Body() body: Record<string, string>) {
+        return this.settingsService.setMany(body);
     }
 }

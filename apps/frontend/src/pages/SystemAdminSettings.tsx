@@ -18,7 +18,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Key, Save, Check, Loader2, AlertCircle, Zap, TrendingUp, BarChart3, Shield, Settings,
-    Globe, Github, Apple, Mail, Database
+    Globe, Github, Apple, Mail, Database, Activity, HardDrive, Download, Trash2, RotateCcw,
+    Plus, ExternalLink, Clock, Server, MemoryStick
 } from 'lucide-react';
 import { TestDataGenerator } from './TestDataGenerator';
 import {
@@ -26,6 +27,12 @@ import {
 } from 'recharts';
 import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
 import { getSsoSettings, updateSsoProvider } from '@/api/system-sso';
+import {
+    getSystemSettings, updateSystemSettings,
+    getHealth, getSystemAuditLog,
+    createBackup, listBackups, downloadBackup, restoreBackup, deleteBackup,
+    type HealthStatus,
+} from '@/api/system-admin';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
@@ -138,7 +145,7 @@ export function SystemAdminSettings() {
             </div>
 
             <Tabs defaultValue="ai" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 lg:w-[900px]">
                     <TabsTrigger value="ai" className="flex items-center gap-2">
                         <Zap className="h-4 w-4" />
                         {t('system_settings.ai_management')}
@@ -146,6 +153,18 @@ export function SystemAdminSettings() {
                     <TabsTrigger value="sso" className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
                         {t('system_settings.sso_integrations')}
+                    </TabsTrigger>
+                    <TabsTrigger value="system" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        {t('system_settings.system_tab', 'Systém')}
+                    </TabsTrigger>
+                    <TabsTrigger value="monitoring" className="flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        {t('system_settings.monitoring_tab', 'Monitoring')}
+                    </TabsTrigger>
+                    <TabsTrigger value="backups" className="flex items-center gap-2">
+                        <HardDrive className="h-4 w-4" />
+                        {t('system_settings.backups_tab', 'Zálohy')}
                     </TabsTrigger>
                     <TabsTrigger value="testdata" className="flex items-center gap-2">
                         <Database className="h-4 w-4" />
@@ -210,6 +229,18 @@ export function SystemAdminSettings() {
 
                 <TabsContent value="sso" className="space-y-6 animate-in fade-in-50 duration-300">
                     <SsoIntegrations settings={ssoSettings} onSaved={fetchData} />
+                </TabsContent>
+
+                <TabsContent value="system" className="space-y-6 animate-in fade-in-50 duration-300">
+                    <SystemConfigTab />
+                </TabsContent>
+
+                <TabsContent value="monitoring" className="space-y-6 animate-in fade-in-50 duration-300">
+                    <MonitoringTab />
+                </TabsContent>
+
+                <TabsContent value="backups" className="space-y-6 animate-in fade-in-50 duration-300">
+                    <BackupsTab />
                 </TabsContent>
 
                 <TabsContent value="testdata" className="space-y-6 animate-in fade-in-50 duration-300">
@@ -726,4 +757,335 @@ function formatNumber(n: number): string {
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
     if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
     return n.toString();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// System Config Tab
+// ═══════════════════════════════════════════════════════════════
+
+const SETTING_FIELDS = [
+    { key: 'security.maxLoginAttempts', label: 'Max neúspěšných pokusů', type: 'number', section: 'Bezpečnost' },
+    { key: 'security.lockoutMinutes', label: 'Doba zamčení účtu (min)', type: 'number', section: 'Bezpečnost' },
+    { key: 'security.passwordResetExpiry', label: 'Platnost reset tokenu (min)', type: 'number', section: 'Bezpečnost' },
+    { key: 'general.systemName', label: 'Název systému', type: 'text', section: 'Obecné' },
+] as const;
+
+function SystemConfigTab() {
+    const { t } = useTranslation();
+    const [settings, setSettings] = useState<Record<string, string>>({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        getSystemSettings()
+            .then(setSettings)
+            .catch(() => toast.error(t('system_settings.load_error', 'Nepodařilo se načíst nastavení')))
+            .finally(() => setLoading(false));
+    }, [t]);
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            await updateSystemSettings(settings);
+            toast.success(t('system_settings.settings_saved', 'Nastavení uloženo'));
+        } catch {
+            toast.error(t('system_settings.save_error', 'Chyba při ukládání'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
+    const sections = [...new Set(SETTING_FIELDS.map(f => f.section))];
+
+    return (
+        <div className="space-y-6">
+            {sections.map(section => (
+                <Card key={section}>
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            {section === 'Bezpečnost' ? <Shield className="h-5 w-5" /> : <Settings className="h-5 w-5" />}
+                            {section}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {SETTING_FIELDS.filter(f => f.section === section).map(field => (
+                            <div key={field.key} className="grid grid-cols-3 items-center gap-4">
+                                <Label className="text-sm">{field.label}</Label>
+                                <Input
+                                    type={field.type}
+                                    value={settings[field.key] ?? ''}
+                                    onChange={e => setSettings(s => ({ ...s, [field.key]: e.target.value }))}
+                                    className="col-span-2"
+                                />
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            ))}
+
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+                {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...</> : <><Save className="h-4 w-4 mr-2" /> Uložit nastavení</>}
+            </Button>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Monitoring Tab
+// ═══════════════════════════════════════════════════════════════
+
+function MonitoringTab() {
+    const { t } = useTranslation();
+    const [health, setHealth] = useState<HealthStatus | null>(null);
+    const [auditLog, setAuditLog] = useState<any>(null);
+    const [page, setPage] = useState(1);
+
+    const fetchHealth = useCallback(() => {
+        getHealth().then(setHealth).catch(() => setHealth(null));
+    }, []);
+
+    const fetchAuditLog = useCallback(() => {
+        getSystemAuditLog({ page, limit: 25 }).then(setAuditLog).catch(() => { });
+    }, [page]);
+
+    useEffect(() => {
+        fetchHealth();
+        fetchAuditLog();
+        const healthInterval = setInterval(fetchHealth, 30000);
+        return () => clearInterval(healthInterval);
+    }, [fetchHealth, fetchAuditLog]);
+
+    return (
+        <div className="space-y-6">
+            {/* Health Status */}
+            <div className="grid gap-4 md:grid-cols-4">
+                <KpiCard
+                    title={t('system_settings.health_status', 'Stav')}
+                    value={health?.status === 'healthy' ? '✅ Healthy' : '⚠️ Degraded'}
+                    subtitle={health ? `v${health.version}` : '—'}
+                    icon={<Server className="h-5 w-5" />}
+                    color={health?.status === 'healthy' ? 'text-emerald-500' : 'text-amber-500'}
+                    bg={health?.status === 'healthy' ? 'bg-emerald-500/10' : 'bg-amber-500/10'}
+                />
+                <KpiCard
+                    title={t('system_settings.uptime', 'Uptime')}
+                    value={health ? formatUptime(health.uptime) : '—'}
+                    subtitle={t('system_settings.since_last_restart', 'od posledního restartu')}
+                    icon={<Clock className="h-5 w-5" />}
+                    color="text-blue-500"
+                    bg="bg-blue-500/10"
+                />
+                <KpiCard
+                    title={t('system_settings.database', 'Databáze')}
+                    value={health?.database === 'ok' ? '✅ OK' : '❌ Error'}
+                    subtitle="PostgreSQL"
+                    icon={<Database className="h-5 w-5" />}
+                    color={health?.database === 'ok' ? 'text-emerald-500' : 'text-red-500'}
+                    bg={health?.database === 'ok' ? 'bg-emerald-500/10' : 'bg-red-500/10'}
+                />
+                <KpiCard
+                    title={t('system_settings.memory', 'Paměť')}
+                    value={health ? `${health.memory.heapUsed} MB` : '—'}
+                    subtitle={health ? `heap: ${health.memory.heapUsed}/${health.memory.heapTotal} MB` : ''}
+                    icon={<MemoryStick className="h-5 w-5" />}
+                    color="text-purple-500"
+                    bg="bg-purple-500/10"
+                />
+            </div>
+
+            {/* External links */}
+            <div className="flex gap-3">
+                <a href="http://localhost:5601" target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-2" />Kibana</Button>
+                </a>
+                <a href="http://localhost:3100" target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-2" />Grafana</Button>
+                </a>
+            </div>
+
+            {/* Audit Log */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">{t('system_settings.system_audit_log', 'Systémový log')}</CardTitle>
+                    <CardDescription>{t('system_settings.system_events', 'Systémové události (bez školy)')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {auditLog?.data?.length > 0 ? (
+                        <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{t('system_settings.audit_date', 'Datum')}</TableHead>
+                                        <TableHead>{t('system_settings.audit_action', 'Akce')}</TableHead>
+                                        <TableHead>{t('system_settings.audit_actor', 'Uživatel')}</TableHead>
+                                        <TableHead>{t('system_settings.audit_entity', 'Entita')}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {auditLog.data.map((log: any) => (
+                                        <TableRow key={log.id}>
+                                            <TableCell className="text-xs">{new Date(log.createdAt).toLocaleString('cs')}</TableCell>
+                                            <TableCell><Badge variant="outline">{log.action}</Badge></TableCell>
+                                            <TableCell className="text-sm">{log.actor?.firstName} {log.actor?.lastName}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{log.entity}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <div className="flex justify-between items-center mt-4">
+                                <span className="text-sm text-muted-foreground">
+                                    {t('system_settings.page', 'Strana')} {page} / {Math.ceil((auditLog.total || 1) / 25)}
+                                </span>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>←</Button>
+                                    <Button variant="outline" size="sm" disabled={page * 25 >= (auditLog.total || 0)} onClick={() => setPage(p => p + 1)}>→</Button>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">{t('system_settings.no_audit_entries', 'Žádné systémové záznamy')}</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function formatUptime(seconds: number): string {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Backups Tab
+// ═══════════════════════════════════════════════════════════════
+
+function BackupsTab() {
+    const { t } = useTranslation();
+    const [backups, setBackups] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [creating, setCreating] = useState(false);
+    const [restoring, setRestoring] = useState<string | null>(null);
+
+    const fetch = useCallback(() => {
+        listBackups()
+            .then(setBackups)
+            .catch(() => toast.error(t('system_settings.backup_load_error', 'Nepodařilo se načíst zálohy')))
+            .finally(() => setLoading(false));
+    }, [t]);
+
+    useEffect(() => { fetch(); }, [fetch]);
+
+    const handleCreate = async () => {
+        try {
+            setCreating(true);
+            await createBackup();
+            toast.success(t('system_settings.backup_created', 'Záloha vytvořena'));
+            fetch();
+        } catch {
+            toast.error(t('system_settings.backup_create_error', 'Vytvoření zálohy selhalo'));
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleRestore = async (filename: string) => {
+        if (!confirm(t('system_settings.restore_confirm', 'Opravdu chcete obnovit databázi z této zálohy? Všechna aktuální data budou přepsána!'))) return;
+        try {
+            setRestoring(filename);
+            await restoreBackup(filename);
+            toast.success(t('system_settings.restore_success', 'Databáze obnovena'));
+        } catch {
+            toast.error(t('system_settings.restore_error', 'Obnova selhala'));
+        } finally {
+            setRestoring(null);
+        }
+    };
+
+    const handleDelete = async (filename: string) => {
+        if (!confirm(t('system_settings.delete_backup_confirm', 'Smazat tuto zálohu?'))) return;
+        try {
+            await deleteBackup(filename);
+            toast.success(t('system_settings.backup_deleted', 'Záloha smazána'));
+            fetch();
+        } catch {
+            toast.error(t('system_settings.backup_delete_error', 'Smazání selhalo'));
+        }
+    };
+
+    const formatSize = (bytes: number) => {
+        if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return bytes + ' B';
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="text-lg font-semibold">{t('system_settings.backups_title', 'Zálohy databáze')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('system_settings.backups_desc', 'Vytvářejte a spravujte zálohy PostgreSQL databáze')}</p>
+                </div>
+                <Button onClick={handleCreate} disabled={creating}>
+                    {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                    {t('system_settings.create_backup', 'Vytvořit zálohu')}
+                </Button>
+            </div>
+
+            <Card>
+                <CardContent className="pt-6">
+                    {loading ? (
+                        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : backups.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <HardDrive className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">{t('system_settings.no_backups', 'Žádné zálohy')}</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>{t('system_settings.backup_filename', 'Soubor')}</TableHead>
+                                    <TableHead>{t('system_settings.backup_size', 'Velikost')}</TableHead>
+                                    <TableHead>{t('system_settings.backup_date', 'Datum')}</TableHead>
+                                    <TableHead className="text-right">{t('system_settings.backup_actions', 'Akce')}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {backups.map((b: any) => (
+                                    <TableRow key={b.filename}>
+                                        <TableCell className="font-mono text-sm">{b.filename}</TableCell>
+                                        <TableCell>{formatSize(b.size)}</TableCell>
+                                        <TableCell className="text-sm">{new Date(b.createdAt).toLocaleString('cs')}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-1">
+                                                <Button variant="ghost" size="sm" onClick={() => downloadBackup(b.filename)}>
+                                                    <Download className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleRestore(b.filename)} disabled={restoring === b.filename}>
+                                                    {restoring === b.filename ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(b.filename)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
 }
