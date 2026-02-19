@@ -278,11 +278,11 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | AI spotřeba | ✅ | |
 | Export vysvědčení do PDF | ✅ | HTML export vysvědčení třídy |
 | Tisk rozvrhu | ✅ | HTML export rozvrhu třídy |
-| Statistiky prospěchu (třídy, ročníky) | ❌ | |
-| Statistiky docházky | 🔶 | Přes MCP, chybí UI |
-| Výkazy pro ČŠI | ❌ | Česká školní inspekce |
-| Výkazy pro MŠMT | ❌ | Ministerstvo školství |
-| Export dat do tabulkového formátu | ❌ | |
+| Statistiky prospěchu (třídy, ročníky) | ✅ | Průměr, medián, distribuce, úspěšnost |
+| Statistiky docházky | ✅ | API + per-student breakdown |
+| Výkazy pro ČŠI | ✅ | JSON + tisknutelné HTML |
+| Výkazy pro MŠMT | ✅ | JSON + tisknutelné HTML |
+| Export dat do tabulkového formátu | ✅ | CSV/XML/JSON (ExportModule) |
 
 ---
 
@@ -319,8 +319,8 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Třídní kniha | 7 | 7 | 0 | 0 |
 | AI funkce | 11 | 11 | 0 | 0 |
 | MCP | 10 | 9 | 0 | 1 |
-| Reporty a výstupy | 10 | 5 | 1 | 4 |
+| Reporty a výstupy | 10 | 10 | 0 | 0 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **169** | **141** | **6** | **22** |
+| **Celkem** | **169** | **146** | **5** | **18** |
 
-**Pokrytí:** přibližně **88 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **92 %** požadovaných funkcí je plně nebo částečně implementováno.

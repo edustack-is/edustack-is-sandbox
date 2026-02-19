@@ -90,6 +90,7 @@ async function bootstrap() {
       .addTag('ai', 'AI funkce – generování, analýza, moderace')
       .addTag('registry', 'Matrika – MŠMT registry')
       .addTag('export', 'Export dat – CSV/XML/JSON')
+      .addTag('reports', 'Reporty – statistiky, výkazy ČŠI/MŠMT')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

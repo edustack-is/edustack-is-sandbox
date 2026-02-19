@@ -28,6 +28,7 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { CommunityModule } from './community/community.module';
 import { ClassBookModule } from './classbook/classbook.module';
 import { ExportModule } from './export/export.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ExportModule } from './export/export.module';
     CommunityModule,
     ClassBookModule,
     ExportModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
