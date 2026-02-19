@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'edustack-backend'
+    metrics_path: '/api/metrics'
+    scheme: http
+    static_configs:
+      - targets: ['backend:3000']
+    # Authorization header for admin-only endpoint
+    # In production, use service account token
+    # bearer_token: '<SYSTEM_ADMIN_TOKEN>'
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
