@@ -55,6 +55,7 @@ model School {
   reportCards ReportCard[]
   attendances Attendance[]
   rooms       Room[]
+  buildings   Building[]
   academicYears AcademicYear[]
   gradeLevels   GradeLevel[]
   scheduleEvents ScheduleEvent[]
@@ -63,6 +64,23 @@ model School {
   aiTokenUsages   AiTokenUsage[]
   curriculumVersions CurriculumVersion[]
   conversations      Conversation[]
+  schoolEvents       SchoolEvent[]
+  thematicPlans      ThematicPlan[]
+  lessonPreparations LessonPreparation[]
+  teachingMaterials  TeachingMaterial[]
+  rvpCompetencies    RvpCompetency[]
+  scheduleSnapshots  ScheduleSnapshot[]
+  recurringEvents    RecurringEvent[]
+  behaviorGrades     BehaviorGrade[]
+  competencyGrades   CompetencyGrade[]
+  educationalMeasures EducationalMeasure[]
+  commissionExams    CommissionExam[]
+  classificationDeadlines ClassificationDeadline[]
+  absenceExcuses     AbsenceExcuse[]
+  bulletinPosts      BulletinPost[]
+  polls              Poll[]
+  calendarEvents     CalendarEvent[]
+  classBookEntries   ClassBookEntry[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -82,6 +100,13 @@ model User {
   
   invitationToken   String?
   invitationExpires DateTime?
+  
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  
+  failedLoginAttempts  Int        @default(0)
+  lockedUntil          DateTime?
+  
   lastLogin         DateTime?
   createdAt         DateTime    @default(now())
   deletedAt         DateTime?
@@ -112,6 +137,32 @@ model User {
   sentMessages              Message[]
   conversationParticipations ConversationParticipant[]
   notifications              Notification[]
+
+  // Teaching plans
+  teacherPlans               ThematicPlan[] @relation("TeacherPlans")
+  teacherLessons             LessonPreparation[] @relation("TeacherLessons")
+  uploadedMaterials          TeachingMaterial[] @relation("UploadedMaterials")
+
+  // Schedule
+  eventTeacher               RecurringEvent[] @relation("EventTeacher")
+
+  // Grading – measures
+  issuedMeasures             EducationalMeasure[] @relation("IssuedMeasures")
+
+  // Attendance – excuses
+  parentExcuses              AbsenceExcuse[] @relation("ParentExcuses")
+  reviewedExcuses            AbsenceExcuse[] @relation("ReviewedExcuses")
+
+  // Community
+  bulletinPosts              BulletinPost[] @relation("BulletinAuthor")
+  createdPolls               Poll[] @relation("PollAuthor")
+  pollVotes                  PollVote[]
+  createdCalendarEvents      CalendarEvent[] @relation("EventAuthor")
+  eventRsvps                 EventRsvp[]
+
+  // Class book
+  classBookEntries           ClassBookEntry[]
+  teacherSignatures          TeacherSignature[]
 }
 
 model SchoolMembership {
@@ -163,12 +214,15 @@ model AuditLog {
   actorId     String
   action      String   // e.g., 'LOGIN', 'UPDATE', 'READ_SENSITIVE'
   entity      String   // the table name
-  entityId    String   // the record ID
+  entityId    String?  // the record ID (null for system-level events)
+  schoolId    String?  // null = system-level event
   oldValues   Json?
   newValues   Json?
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
+
+  @@index([schoolId])
 }
 
 model Classroom {
@@ -197,6 +251,11 @@ model StudentProfile {
   grades      Grade[]
   reportCards ReportCard[]
   attendances Attendance[]
+  behaviorGrades    BehaviorGrade[]
+  competencyGrades  CompetencyGrade[]
+  educationalMeasures EducationalMeasure[]
+  commissionExams   CommissionExam[]
+  absenceExcuses    AbsenceExcuse[]
 }
 
 model TeacherProfile {
@@ -211,6 +270,7 @@ model TeacherProfile {
   attendances   Attendance[]
   scheduleEvents ScheduleEvent[]
   substituteScheduleEvents ScheduleSubstitution[]
+  competencyGrades CompetencyGrade[]
 }
 
 model SubjectTemplate {
@@ -229,6 +289,10 @@ model SubjectTemplate {
   instances                SubjectInstance[]
   curriculumEntries        CurriculumEntry[]
   staffSubjectAssignments  StaffSubjectAssignment[]
+  thematicPlans            ThematicPlan[]
+  lessonPreparations       LessonPreparation[]
+  teachingMaterials        TeachingMaterial[]
+  competencyMappings       CompetencyMapping[]
 
   @@unique([code, schoolId])
 }
@@ -257,6 +321,8 @@ model SubjectInstance {
   reportCards      ReportCard[]
   scheduleEvents  ScheduleEvent[]
   substituteSubjectInstances ScheduleSubstitution[]
+  competencyGrades CompetencyGrade[]
+  commissionExams  CommissionExam[]
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -346,6 +412,8 @@ model ScheduleEvent {
 
   substitutions   ScheduleSubstitution[]
 
+  classBookEntries ClassBookEntry[]
+
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -355,10 +423,12 @@ model ScheduleEvent {
 // ─── LESSON TIME SLOTS (zvonění) ─────────────────────────────
 
 model LessonTimeSlot {
-  id           String @id @default(uuid())
-  lessonNumber Int    // 1-10
-  startTime    String // "08:00"
-  endTime      String // "08:45"
+  id           String  @id @default(uuid())
+  lessonNumber Int     // 1-10
+  startTime    String  // "08:00"
+  endTime      String  // "08:45"
+  label        String? // "1. hodina"
+  breakAfter   Int     @default(10) // přestávka v minutách
   
   schoolId     String
   school       School @relation(fields: [schoolId], references: [id])
@@ -419,6 +489,7 @@ model Attendance {
   date            DateTime         @default(now())
   status          AttendanceStatus
   note            String?
+  lessonNumber    Int?             // link to specific lesson slot (1-10)
 
   schoolId        String
   school          School           @relation(fields: [schoolId], references: [id])
@@ -431,26 +502,100 @@ model Attendance {
 
   createdAt       DateTime         @default(now())
 
-  @@unique([studentId, date, schoolId])
+  @@unique([studentId, date, lessonNumber, schoolId])
+}
+
+enum ExcuseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AbsenceExcuse {
+  id           String         @id @default(uuid())
+  reason       String
+  dateFrom     DateTime
+  dateTo       DateTime
+  status       ExcuseStatus   @default(PENDING)
+  parentId     String
+  parent       User           @relation("ParentExcuses", fields: [parentId], references: [id])
+  studentId    String
+  student      StudentProfile @relation(fields: [studentId], references: [id])
+  schoolId     String
+  school       School         @relation(fields: [schoolId], references: [id])
+  reviewedById String?
+  reviewedBy   User?          @relation("ReviewedExcuses", fields: [reviewedById], references: [id])
+  createdAt    DateTime       @default(now())
 }
 
 model Room {
   id               String   @id @default(uuid())
   name             String
   capacity         Int      @default(30)
+  floor            Int?     // floor number within building
   isComputerLab    Boolean  @default(false)
   specialEquipment Json?    // e.g. ["projector", "whiteboard", "3D printer"]
 
   schoolId    String
   school      School   @relation(fields: [schoolId], references: [id])
 
+  buildingId  String?
+  building    Building? @relation(fields: [buildingId], references: [id])
+
   scheduleEvents       ScheduleEvent[]
   substituteScheduleEvents ScheduleSubstitution[]
+  roomSharings         RoomSharing[]
+  recurringEvents      RecurringEvent[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([name, schoolId])
+}
+
+model Building {
+  id      String  @id @default(uuid())
+  name    String          // e.g. "Budova A"
+  address String?
+  floors  Int     @default(1)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+  rooms    Room[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, schoolId])
+}
+
+model RoomSharing {
+  id                 String @id @default(uuid())
+  roomId             String
+  room               Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sharedWithSchoolId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([roomId, sharedWithSchoolId])
+}
+
+model SchoolEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  type        String    @default("OTHER") // HOLIDAY, EXAM_PERIOD, PARENT_MEETING, SCHOOL_TRIP, SPORTS_DAY, OTHER
+  allDay      Boolean   @default(true)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, date])
 }
 
 model AcademicYear {
@@ -474,6 +619,8 @@ model AcademicYear {
   staffWorkloads      StaffWorkload[]
   subjectInstances    SubjectInstance[]
   scheduleEvents      ScheduleEvent[]
+  thematicPlans       ThematicPlan[]
+  scheduleSnapshots   ScheduleSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -492,6 +639,9 @@ model GradeLevel {
   studentEnrollments       StudentEnrollment[]
   subjectInstances         SubjectInstance[]
   curriculumEntries        CurriculumEntry[]
+  thematicPlans            ThematicPlan[]
+  teachingMaterials        TeachingMaterial[]
+  competencyMappings       CompetencyMapping[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -597,6 +747,11 @@ model Semester {
 
   grades        Grade[]
   reportCards   ReportCard[]
+  behaviorGrades       BehaviorGrade[]
+  competencyGrades     CompetencyGrade[]
+  educationalMeasures  EducationalMeasure[]
+  commissionExams      CommissionExam[]
+  classificationDeadlines ClassificationDeadline[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -749,8 +904,25 @@ model Message {
   senderId       String
 
   content        String
+  flagged        Boolean      @default(false)
+  flagReason     String?
+
+  attachments    MessageAttachment[]
 
   createdAt      DateTime     @default(now())
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName  String
+  mimeType  String
+  fileSize  Int
+  filePath  String
+  flagged   Boolean  @default(false)
+  flagReason String?
+  createdAt DateTime @default(now())
 }
 
 model Notification {
@@ -768,4 +940,366 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+model GlobalConfig {
+  key       String   @id
+  value     String   // JSON-encoded value
+  updatedAt DateTime @updatedAt
+}
+
+// ─── TEACHING ─ THEMATIC PLANS ──────────────────────────────────
+
+model ThematicPlan {
+  id                String            @id @default(uuid())
+  title             String
+  subjectTemplateId String
+  subjectTemplate   SubjectTemplate   @relation(fields: [subjectTemplateId], references: [id])
+  academicYearId    String
+  academicYear      AcademicYear      @relation(fields: [academicYearId], references: [id])
+  gradeLevelId      String
+  gradeLevel        GradeLevel        @relation(fields: [gradeLevelId], references: [id])
+  teacherId         String
+  teacher           User              @relation("TeacherPlans", fields: [teacherId], references: [id])
+  schoolId          String
+  school            School            @relation(fields: [schoolId], references: [id])
+
+  weeks             ThematicPlanWeek[]
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([subjectTemplateId, academicYearId, gradeLevelId])
+}
+
+model ThematicPlanWeek {
+  id              String       @id @default(uuid())
+  weekNumber      Int
+  topic           String
+  objectives      String?      // Výstupy / cíle
+  methods         String?      // Metody a formy
+  resources       String?      // Pomůcky
+  crossCurricular String?      // Průřezová témata
+  notes           String?
+
+  planId          String
+  plan            ThematicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, weekNumber])
+}
+
+// ─── TEACHING ─ LESSON PREPARATIONS ─────────────────────────────
+
+model LessonPreparation {
+  id                String          @id @default(uuid())
+  title             String
+  date              DateTime
+  duration          Int             @default(45) // minutes
+  topic             String
+  objectives        String?
+  activities        String?         // Průběh hodiny
+  materials         String?         // Potřebné pomůcky
+  homework          String?         // Zadání DÚ
+  evaluation        String?         // Reflexe/hodnocení
+  subjectTemplateId String
+  subjectTemplate   SubjectTemplate @relation(fields: [subjectTemplateId], references: [id])
+  teacherId         String
+  teacher           User            @relation("TeacherLessons", fields: [teacherId], references: [id])
+  schoolId          String
+  school            School          @relation(fields: [schoolId], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// ─── TEACHING ─ ELECTRONIC MATERIALS ────────────────────────────
+
+model TeachingMaterial {
+  id                String           @id @default(uuid())
+  title             String
+  description       String?
+  url               String
+  type              String           @default("OTHER") // TEXTBOOK, WORKSHEET, PRESENTATION, VIDEO, OTHER
+  subjectTemplateId String?
+  subjectTemplate   SubjectTemplate? @relation(fields: [subjectTemplateId], references: [id])
+  gradeLevelId      String?
+  gradeLevel        GradeLevel?      @relation(fields: [gradeLevelId], references: [id])
+  uploadedById      String
+  uploadedBy        User             @relation("UploadedMaterials", fields: [uploadedById], references: [id])
+  schoolId          String
+  school            School           @relation(fields: [schoolId], references: [id])
+
+  createdAt         DateTime         @default(now())
+}
+
+// ─── RVP COMPETENCY MAPPING ─────────────────────────────────────
+
+model RvpCompetency {
+  id          String             @id @default(uuid())
+  code        String
+  name        String
+  area        String
+  description String?
+  schoolId    String
+  school      School             @relation(fields: [schoolId], references: [id])
+  mappings          CompetencyMapping[]
+  competencyGrades  CompetencyGrade[]
+
+  @@unique([code, schoolId])
+}
+
+model CompetencyMapping {
+  id                String          @id @default(uuid())
+  competencyId      String
+  competency        RvpCompetency   @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  subjectTemplateId String
+  subjectTemplate   SubjectTemplate @relation(fields: [subjectTemplateId], references: [id])
+  gradeLevelId      String
+  gradeLevel        GradeLevel      @relation(fields: [gradeLevelId], references: [id])
+  fulfilled         Boolean         @default(false)
+  note              String?
+
+  @@unique([competencyId, subjectTemplateId, gradeLevelId])
+}
+
+// ─── SCHEDULE SNAPSHOTS ────────────────────────────────────────
+
+model ScheduleSnapshot {
+  id             String       @id @default(uuid())
+  name           String
+  data           Json         // serialized events array
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+// ─── RECURRING EVENTS (kroužky) ───────────────────────────────
+
+model RecurringEvent {
+  id          String   @id @default(uuid())
+  title       String
+  dayOfWeek   Int      // 1-5
+  startTime   String   // "15:00"
+  endTime     String   // "16:30"
+  roomId      String?
+  room        Room?    @relation(fields: [roomId], references: [id])
+  teacherId   String?
+  teacher     User?    @relation("EventTeacher", fields: [teacherId], references: [id])
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── KLASIFIKACE – rozšíření ─────────────────────────────────
+
+model BehaviorGrade {
+  id          String         @id @default(uuid())
+  grade       Int            // 1 = velmi dobré, 2 = uspokojivé, 3 = neuspokojivé
+  note        String?
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  semesterId  String
+  semester    Semester       @relation(fields: [semesterId], references: [id])
+  schoolId    String
+  school      School         @relation(fields: [schoolId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  @@unique([studentId, semesterId])
+}
+
+model CompetencyGrade {
+  id                String          @id @default(uuid())
+  level             Int             // 1-4 (1=začíná, 4=ovládá)
+  note              String?
+  studentId         String
+  student           StudentProfile  @relation(fields: [studentId], references: [id])
+  competencyId      String
+  competency        RvpCompetency   @relation(fields: [competencyId], references: [id])
+  subjectInstanceId String
+  subjectInstance   SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  semesterId        String
+  semester          Semester        @relation(fields: [semesterId], references: [id])
+  schoolId          String
+  school            School          @relation(fields: [schoolId], references: [id])
+  teacherId         String
+  teacher           TeacherProfile  @relation(fields: [teacherId], references: [id])
+  createdAt         DateTime        @default(now())
+  @@unique([studentId, competencyId, subjectInstanceId, semesterId])
+}
+
+enum MeasureType {
+  PRAISE
+  REPRIMAND
+  CLASS_REPRIMAND
+  PRINCIPAL_REPRIMAND
+}
+
+model EducationalMeasure {
+  id          String         @id @default(uuid())
+  type        MeasureType
+  reason      String
+  date        DateTime       @default(now())
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  issuedById  String
+  issuedBy    User           @relation("IssuedMeasures", fields: [issuedById], references: [id])
+  schoolId    String
+  school      School         @relation(fields: [schoolId], references: [id])
+  semesterId  String?
+  semester    Semester?      @relation(fields: [semesterId], references: [id])
+  createdAt   DateTime       @default(now())
+}
+
+model CommissionExam {
+  id                String         @id @default(uuid())
+  date              DateTime
+  originalGrade     String
+  newGrade          String?
+  note              String?
+  studentId         String
+  student           StudentProfile @relation(fields: [studentId], references: [id])
+  subjectInstanceId String
+  subjectInstance   SubjectInstance @relation(fields: [subjectInstanceId], references: [id])
+  semesterId        String
+  semester          Semester       @relation(fields: [semesterId], references: [id])
+  schoolId          String
+  school            School         @relation(fields: [schoolId], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model ClassificationDeadline {
+  id          String   @id @default(uuid())
+  deadline    DateTime
+  isLocked    Boolean  @default(false)
+  semesterId  String
+  semester    Semester @relation(fields: [semesterId], references: [id])
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([semesterId, schoolId])
+}
+
+// ─── COMMUNITY ──────────────────────────────────────────────
+
+model BulletinPost {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  pinned    Boolean  @default(false)
+  authorId  String
+  author    User     @relation("BulletinAuthor", fields: [authorId], references: [id])
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Poll {
+  id          String       @id @default(uuid())
+  question    String
+  multiSelect Boolean      @default(false)
+  endsAt      DateTime?
+  authorId    String
+  author      User         @relation("PollAuthor", fields: [authorId], references: [id])
+  schoolId    String
+  school      School       @relation(fields: [schoolId], references: [id])
+  options     PollOption[]
+  createdAt   DateTime     @default(now())
+}
+
+model PollOption {
+  id       String     @id @default(uuid())
+  text     String
+  pollId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes    PollVote[]
+}
+
+model PollVote {
+  id       String     @id @default(uuid())
+  userId   String
+  user     User       @relation(fields: [userId], references: [id])
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  @@unique([userId, optionId])
+}
+
+enum RsvpStatus {
+  YES
+  NO
+  MAYBE
+}
+
+model CalendarEvent {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  location    String?
+  authorId    String
+  author      User        @relation("EventAuthor", fields: [authorId], references: [id])
+  schoolId    String
+  school      School      @relation(fields: [schoolId], references: [id])
+  rsvps       EventRsvp[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model EventRsvp {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  eventId   String
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  status    RsvpStatus
+  createdAt DateTime     @default(now())
+  @@unique([userId, eventId])
+}
+
+// ─── CLASS BOOK ─────────────────────────────────────────────
+
+model ClassBookEntry {
+  id               String          @id @default(uuid())
+  date             DateTime
+  lessonNumber     Int             // 1-10
+  topic            String?         // probírané učivo
+  notes            String?         // poznámky k hodině
+  absentCount      Int?            // počet nepřítomných
+
+  schoolId         String
+  school           School          @relation(fields: [schoolId], references: [id])
+
+  classroomId      String
+
+  teacherId        String
+  teacher          User            @relation(fields: [teacherId], references: [id])
+
+  scheduleEventId  String?
+  scheduleEvent    ScheduleEvent?  @relation(fields: [scheduleEventId], references: [id])
+
+  subjectName      String?         // cached subject name for quick display
+
+  signature        TeacherSignature?
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([schoolId, classroomId, date, lessonNumber])
+}
+
+model TeacherSignature {
+  id               String         @id @default(uuid())
+  classBookEntryId String         @unique
+  classBookEntry   ClassBookEntry @relation(fields: [classBookEntryId], references: [id], onDelete: Cascade)
+  teacherId        String
+  teacher          User           @relation(fields: [teacherId], references: [id])
+  signedAt         DateTime       @default(now())
+  ipAddress        String?
 }
