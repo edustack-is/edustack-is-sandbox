@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Delete, UseGuards, Req, ForbiddenException, Res } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Delete, UseGuards, Req, Res } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiProduces } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,11 +11,9 @@ import { PrismaService } from '../prisma/prisma.service';
 export class GdprController {
     constructor(private readonly prisma: PrismaService) { }
 
-    /**
-     * GET /api/gdpr/my-data
-     * GDPR Article 15 — Right of access. Returns all personal data of the authenticated user.
-     */
     @Get('my-data')
+    @ApiOperation({ summary: 'Export osobních dat (čl. 15 GDPR)', description: 'Vrátí veškerá osobní data přihlášeného uživatele: profil, známky, docházku, zprávy, audit log.' })
+    @ApiResponse({ status: 200, description: 'JSON objekt se všemi osobními daty uživatele.' })
     async getMyData(@Req() req: any) {
         const userId = req.user.userId;
 
@@ -82,11 +80,10 @@ export class GdprController {
         };
     }
 
-    /**
-     * GET /api/gdpr/my-data/download
-     * Downloads personal data as JSON file.
-     */
     @Get('my-data/download')
+    @ApiOperation({ summary: 'Stáhnout osobní data jako JSON', description: 'Stáhne JSON soubor se všemi osobními daty (Content-Disposition: attachment).' })
+    @ApiProduces('application/json')
+    @ApiResponse({ status: 200, description: 'JSON soubor ke stažení.' })
     async downloadMyData(@Req() req: any, @Res() res: Response) {
         const data = await this.getMyData(req);
         const json = JSON.stringify(data, null, 2);
@@ -96,17 +93,12 @@ export class GdprController {
         res.send(json);
     }
 
-    /**
-     * DELETE /api/gdpr/my-data
-     * GDPR Article 17 — Right to erasure ("right to be forgotten").
-     * Anonymizes the user's personal data. Does NOT delete grades/attendance records
-     * (school needs them), but removes PII.
-     */
     @Delete('my-data')
+    @ApiOperation({ summary: 'Smazání osobních dat (čl. 17 GDPR)', description: 'Anonymizuje PII uživatele. Školní záznamy (známky, docházka) zůstanou, ale bez identifikace.' })
+    @ApiResponse({ status: 200, description: 'Potvrzení anonymizace.' })
     async deleteMyData(@Req() req: any) {
         const userId = req.user.userId;
 
-        // Anonymize user record
         await this.prisma.user.update({
             where: { id: userId },
             data: {
@@ -118,26 +110,17 @@ export class GdprController {
             },
         });
 
-        // Anonymize student profile if exists
         const studentProfile = await this.prisma.studentProfile.findUnique({ where: { userId } });
         if (studentProfile) {
             await this.prisma.studentProfile.update({
                 where: { id: studentProfile.id },
-                data: {
-                    firstName: 'Smazaný',
-                    lastName: 'Žák',
-                    rc: null,
-                },
+                data: { firstName: 'Smazaný', lastName: 'Žák', rc: null },
             });
         }
 
-        // Delete messages sent by user
         await this.prisma.message.deleteMany({ where: { senderId: userId } });
-
-        // Delete SSO identities
         await this.prisma.identity.deleteMany({ where: { userId } });
 
-        // Log the GDPR deletion
         await this.prisma.auditLog.create({
             data: {
                 actorId: userId,
@@ -148,9 +131,6 @@ export class GdprController {
             },
         });
 
-        return {
-            success: true,
-            message: 'Osobní údaje byly anonymizovány v souladu s čl. 17 GDPR.',
-        };
+        return { success: true, message: 'Osobní údaje byly anonymizovány v souladu s čl. 17 GDPR.' };
     }
 }

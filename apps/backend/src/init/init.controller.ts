@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/public.decorator';
 import { InitService, SetupDto } from './init.service';
@@ -22,6 +22,8 @@ export class InitController {
     @Public()
     @Throttle({ default: { limit: 10, ttl: 60000 } })
     @Get('status')
+    @ApiOperation({ summary: 'Stav inicializace', description: 'Vrátí zda je systém inicializovaný (existuje alespoň jeden uživatel).' })
+    @ApiResponse({ status: 200, description: '{ initialized: boolean }' })
     async getStatus() {
         return this.initService.getStatus();
     }
@@ -39,6 +41,10 @@ export class InitController {
     @UseGuards(SetupTokenGuard)
     @Throttle({ default: { limit: 3, ttl: 60000 } })
     @Post('setup')
+    @ApiOperation({ summary: 'Prvotní nastavení systému', description: 'Vytvoří prvního systémového administrátora. Funguje pouze pokud systém ještě není inicializovaný.' })
+    @ApiBody({ type: SetupDto })
+    @ApiResponse({ status: 201, description: 'Vytvořený administrátor.' })
+    @ApiResponse({ status: 403, description: 'Systém je již inicializovaný.' })
     async setup(@Body() body: SetupDto) {
         return this.initService.setup(body);
     }
@@ -56,6 +62,8 @@ export class InitController {
     @UseGuards(SetupTokenGuard)
     @Throttle({ default: { limit: 3, ttl: 60000 } })
     @Post('setup-with-seed')
+    @ApiOperation({ summary: 'Setup + seed dat', description: 'Vytvoří admina a naseeduje demo data v jednom kroku.' })
+    @ApiResponse({ status: 201, description: 'Admin + seed výsledek.' })
     async setupWithSeed(
         @Body() body: SetupDto & {
             seedFilename?: string;
@@ -96,6 +104,7 @@ export class InitController {
     @UseGuards(SetupTokenGuard)
     @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Get('seed-files')
+    @ApiOperation({ summary: 'Dostupné seed soubory', description: 'Seznam JSON seed souborů pro inicializaci.' })
     async getSeedFiles() {
         return this.seedService.getAvailableSeedFiles();
     }
