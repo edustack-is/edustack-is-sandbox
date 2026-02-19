@@ -1063,6 +1063,289 @@ export class DeputyService {
         return [header, ...rows].join('\n');
     }
 
+    // ─── THEMATIC PLANS ──────────────────────────────────────────────
+
+    async getThematicPlans(schoolId: string) {
+        return this.prisma.thematicPlan.findMany({
+            where: { schoolId },
+            include: {
+                subjectTemplate: { select: { id: true, name: true, code: true } },
+                academicYear: { select: { id: true, name: true } },
+                gradeLevel: { select: { id: true, name: true } },
+                teacher: { select: { id: true, firstName: true, lastName: true } },
+                _count: { select: { weeks: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async getThematicPlan(schoolId: string, id: string) {
+        const plan = await this.prisma.thematicPlan.findFirst({
+            where: { id, schoolId },
+            include: {
+                subjectTemplate: { select: { id: true, name: true, code: true } },
+                academicYear: { select: { id: true, name: true } },
+                gradeLevel: { select: { id: true, name: true } },
+                teacher: { select: { id: true, firstName: true, lastName: true } },
+                weeks: { orderBy: { weekNumber: 'asc' } },
+            },
+        });
+        if (!plan) throw new NotFoundException('Thematic plan not found');
+        return plan;
+    }
+
+    async createThematicPlan(actorId: string, schoolId: string, data: {
+        title: string; subjectTemplateId: string; academicYearId: string; gradeLevelId: string;
+    }) {
+        const plan = await this.prisma.thematicPlan.create({
+            data: { ...data, teacherId: actorId, schoolId },
+        });
+        await this.audit(actorId, 'CREATE_THEMATIC_PLAN', 'ThematicPlan', plan.id, data);
+        return plan;
+    }
+
+    async updateThematicPlan(actorId: string, schoolId: string, id: string, data: { title?: string }) {
+        const existing = await this.prisma.thematicPlan.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Thematic plan not found');
+        const updated = await this.prisma.thematicPlan.update({ where: { id }, data });
+        await this.audit(actorId, 'UPDATE_THEMATIC_PLAN', 'ThematicPlan', id, data, existing);
+        return updated;
+    }
+
+    async deleteThematicPlan(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.thematicPlan.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Thematic plan not found');
+        await this.prisma.thematicPlan.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_THEMATIC_PLAN', 'ThematicPlan', id, null, existing);
+        return { success: true };
+    }
+
+    async saveThematicPlanWeeks(actorId: string, schoolId: string, planId: string, weeks: Array<{
+        weekNumber: number; topic: string; objectives?: string; methods?: string;
+        resources?: string; crossCurricular?: string; notes?: string;
+    }>) {
+        const plan = await this.prisma.thematicPlan.findFirst({ where: { id: planId, schoolId } });
+        if (!plan) throw new NotFoundException('Thematic plan not found');
+
+        // Delete existing weeks and recreate
+        await this.prisma.thematicPlanWeek.deleteMany({ where: { planId } });
+        const created = await this.prisma.thematicPlanWeek.createMany({
+            data: weeks.map(w => ({ ...w, planId })),
+        });
+        await this.audit(actorId, 'SAVE_PLAN_WEEKS', 'ThematicPlan', planId, { weekCount: weeks.length });
+        return { saved: created.count };
+    }
+
+    // ─── LESSON PREPARATIONS ─────────────────────────────────────────
+
+    async getLessonPreparations(schoolId: string, filters?: { subjectTemplateId?: string; teacherId?: string }) {
+        return this.prisma.lessonPreparation.findMany({
+            where: {
+                schoolId,
+                ...(filters?.subjectTemplateId ? { subjectTemplateId: filters.subjectTemplateId } : {}),
+                ...(filters?.teacherId ? { teacherId: filters.teacherId } : {}),
+            },
+            include: {
+                subjectTemplate: { select: { id: true, name: true, code: true } },
+                teacher: { select: { id: true, firstName: true, lastName: true } },
+            },
+            orderBy: { date: 'desc' },
+        });
+    }
+
+    async createLessonPreparation(actorId: string, schoolId: string, data: {
+        title: string; date: string; duration?: number; topic: string; objectives?: string;
+        activities?: string; materials?: string; homework?: string; evaluation?: string;
+        subjectTemplateId: string;
+    }) {
+        const prep = await this.prisma.lessonPreparation.create({
+            data: {
+                title: data.title,
+                date: new Date(data.date),
+                duration: data.duration ?? 45,
+                topic: data.topic,
+                objectives: data.objectives,
+                activities: data.activities,
+                materials: data.materials,
+                homework: data.homework,
+                evaluation: data.evaluation,
+                subjectTemplateId: data.subjectTemplateId,
+                teacherId: actorId,
+                schoolId,
+            },
+        });
+        await this.audit(actorId, 'CREATE_LESSON_PREPARATION', 'LessonPreparation', prep.id, data);
+        return prep;
+    }
+
+    async updateLessonPreparation(actorId: string, schoolId: string, id: string, data: {
+        title?: string; date?: string; duration?: number; topic?: string; objectives?: string;
+        activities?: string; materials?: string; homework?: string; evaluation?: string;
+    }) {
+        const existing = await this.prisma.lessonPreparation.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Lesson preparation not found');
+        const updateData: any = { ...data };
+        if (data.date) updateData.date = new Date(data.date);
+        const updated = await this.prisma.lessonPreparation.update({ where: { id }, data: updateData });
+        await this.audit(actorId, 'UPDATE_LESSON_PREPARATION', 'LessonPreparation', id, data, existing);
+        return updated;
+    }
+
+    async deleteLessonPreparation(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.lessonPreparation.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Lesson preparation not found');
+        await this.prisma.lessonPreparation.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_LESSON_PREPARATION', 'LessonPreparation', id, null, existing);
+        return { success: true };
+    }
+
+    // ─── TEACHING MATERIALS ──────────────────────────────────────────
+
+    async getTeachingMaterials(schoolId: string, filters?: { subjectTemplateId?: string; type?: string }) {
+        return this.prisma.teachingMaterial.findMany({
+            where: {
+                schoolId,
+                ...(filters?.subjectTemplateId ? { subjectTemplateId: filters.subjectTemplateId } : {}),
+                ...(filters?.type ? { type: filters.type } : {}),
+            },
+            include: {
+                subjectTemplate: { select: { id: true, name: true, code: true } },
+                gradeLevel: { select: { id: true, name: true } },
+                uploadedBy: { select: { id: true, firstName: true, lastName: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async createTeachingMaterial(actorId: string, schoolId: string, data: {
+        title: string; description?: string; url: string; type?: string;
+        subjectTemplateId?: string; gradeLevelId?: string;
+    }) {
+        const material = await this.prisma.teachingMaterial.create({
+            data: {
+                title: data.title,
+                description: data.description,
+                url: data.url,
+                type: data.type ?? 'OTHER',
+                subjectTemplateId: data.subjectTemplateId || null,
+                gradeLevelId: data.gradeLevelId || null,
+                uploadedById: actorId,
+                schoolId,
+            },
+        });
+        await this.audit(actorId, 'CREATE_TEACHING_MATERIAL', 'TeachingMaterial', material.id, data);
+        return material;
+    }
+
+    async updateTeachingMaterial(actorId: string, schoolId: string, id: string, data: {
+        title?: string; description?: string; url?: string; type?: string;
+        subjectTemplateId?: string | null; gradeLevelId?: string | null;
+    }) {
+        const existing = await this.prisma.teachingMaterial.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Teaching material not found');
+        const updated = await this.prisma.teachingMaterial.update({ where: { id }, data });
+        await this.audit(actorId, 'UPDATE_TEACHING_MATERIAL', 'TeachingMaterial', id, data, existing);
+        return updated;
+    }
+
+    async deleteTeachingMaterial(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.teachingMaterial.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Teaching material not found');
+        await this.prisma.teachingMaterial.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_TEACHING_MATERIAL', 'TeachingMaterial', id, null, existing);
+        return { success: true };
+    }
+
+    // ─── RVP COMPETENCIES ────────────────────────────────────────────
+
+    async getRvpCompetencies(schoolId: string) {
+        return this.prisma.rvpCompetency.findMany({
+            where: { schoolId },
+            include: { _count: { select: { mappings: true } } },
+            orderBy: [{ area: 'asc' }, { code: 'asc' }],
+        });
+    }
+
+    async createRvpCompetency(actorId: string, schoolId: string, data: {
+        code: string; name: string; area: string; description?: string;
+    }) {
+        const comp = await this.prisma.rvpCompetency.create({
+            data: { ...data, schoolId },
+        });
+        await this.audit(actorId, 'CREATE_RVP_COMPETENCY', 'RvpCompetency', comp.id, data);
+        return comp;
+    }
+
+    async updateRvpCompetency(actorId: string, schoolId: string, id: string, data: {
+        code?: string; name?: string; area?: string; description?: string;
+    }) {
+        const existing = await this.prisma.rvpCompetency.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Competency not found');
+        const updated = await this.prisma.rvpCompetency.update({ where: { id }, data });
+        await this.audit(actorId, 'UPDATE_RVP_COMPETENCY', 'RvpCompetency', id, data, existing);
+        return updated;
+    }
+
+    async deleteRvpCompetency(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.rvpCompetency.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Competency not found');
+        await this.prisma.rvpCompetency.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_RVP_COMPETENCY', 'RvpCompetency', id, null, existing);
+        return { success: true };
+    }
+
+    // ─── COMPETENCY MAPPINGS ─────────────────────────────────────────
+
+    async getCompetencyMappings(schoolId: string, filters?: { subjectTemplateId?: string; gradeLevelId?: string }) {
+        // We fetch via competency → school to scope
+        return this.prisma.competencyMapping.findMany({
+            where: {
+                competency: { schoolId },
+                ...(filters?.subjectTemplateId ? { subjectTemplateId: filters.subjectTemplateId } : {}),
+                ...(filters?.gradeLevelId ? { gradeLevelId: filters.gradeLevelId } : {}),
+            },
+            include: {
+                competency: { select: { id: true, code: true, name: true, area: true } },
+                subjectTemplate: { select: { id: true, name: true, code: true } },
+                gradeLevel: { select: { id: true, name: true } },
+            },
+            orderBy: { competency: { code: 'asc' } },
+        });
+    }
+
+    async upsertCompetencyMapping(actorId: string, schoolId: string, data: {
+        competencyId: string; subjectTemplateId: string; gradeLevelId: string;
+        fulfilled: boolean; note?: string;
+    }) {
+        // Verify competency belongs to school
+        const comp = await this.prisma.rvpCompetency.findFirst({ where: { id: data.competencyId, schoolId } });
+        if (!comp) throw new NotFoundException('Competency not found in this school');
+
+        const mapping = await this.prisma.competencyMapping.upsert({
+            where: {
+                competencyId_subjectTemplateId_gradeLevelId: {
+                    competencyId: data.competencyId,
+                    subjectTemplateId: data.subjectTemplateId,
+                    gradeLevelId: data.gradeLevelId,
+                },
+            },
+            create: data,
+            update: { fulfilled: data.fulfilled, note: data.note },
+        });
+        await this.audit(actorId, 'UPSERT_COMPETENCY_MAPPING', 'CompetencyMapping', mapping.id, data);
+        return mapping;
+    }
+
+    async deleteCompetencyMapping(actorId: string, schoolId: string, id: string) {
+        const existing = await this.prisma.competencyMapping.findFirst({
+            where: { id, competency: { schoolId } },
+        });
+        if (!existing) throw new NotFoundException('Mapping not found');
+        await this.prisma.competencyMapping.delete({ where: { id } });
+        await this.audit(actorId, 'DELETE_COMPETENCY_MAPPING', 'CompetencyMapping', id, null, existing);
+        return { success: true };
+    }
+
     // ─── AUDIT HELPER ────────────────────────────────────────────────
 
     private async audit(actorId: string, action: string, entity: string, entityId: string, newValues?: any, oldValues?: any) {

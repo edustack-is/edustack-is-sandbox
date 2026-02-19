@@ -64,6 +64,10 @@ model School {
   curriculumVersions CurriculumVersion[]
   conversations      Conversation[]
   schoolEvents       SchoolEvent[]
+  thematicPlans      ThematicPlan[]
+  lessonPreparations LessonPreparation[]
+  teachingMaterials  TeachingMaterial[]
+  rvpCompetencies    RvpCompetency[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -120,6 +124,11 @@ model User {
   sentMessages              Message[]
   conversationParticipations ConversationParticipant[]
   notifications              Notification[]
+
+  // Teaching plans
+  teacherPlans               ThematicPlan[] @relation("TeacherPlans")
+  teacherLessons             LessonPreparation[] @relation("TeacherLessons")
+  uploadedMaterials          TeachingMaterial[] @relation("UploadedMaterials")
 }
 
 model SchoolMembership {
@@ -240,6 +249,10 @@ model SubjectTemplate {
   instances                SubjectInstance[]
   curriculumEntries        CurriculumEntry[]
   staffSubjectAssignments  StaffSubjectAssignment[]
+  thematicPlans            ThematicPlan[]
+  lessonPreparations       LessonPreparation[]
+  teachingMaterials        TeachingMaterial[]
+  competencyMappings       CompetencyMapping[]
 
   @@unique([code, schoolId])
 }
@@ -535,6 +548,7 @@ model AcademicYear {
   staffWorkloads      StaffWorkload[]
   subjectInstances    SubjectInstance[]
   scheduleEvents      ScheduleEvent[]
+  thematicPlans       ThematicPlan[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -553,6 +567,9 @@ model GradeLevel {
   studentEnrollments       StudentEnrollment[]
   subjectInstances         SubjectInstance[]
   curriculumEntries        CurriculumEntry[]
+  thematicPlans            ThematicPlan[]
+  teachingMaterials        TeachingMaterial[]
+  competencyMappings       CompetencyMapping[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -835,4 +852,117 @@ model GlobalConfig {
   key       String   @id
   value     String   // JSON-encoded value
   updatedAt DateTime @updatedAt
+}
+
+// ─── TEACHING ─ THEMATIC PLANS ──────────────────────────────────
+
+model ThematicPlan {
+  id                String            @id @default(uuid())
+  title             String
+  subjectTemplateId String
+  subjectTemplate   SubjectTemplate   @relation(fields: [subjectTemplateId], references: [id])
+  academicYearId    String
+  academicYear      AcademicYear      @relation(fields: [academicYearId], references: [id])
+  gradeLevelId      String
+  gradeLevel        GradeLevel        @relation(fields: [gradeLevelId], references: [id])
+  teacherId         String
+  teacher           User              @relation("TeacherPlans", fields: [teacherId], references: [id])
+  schoolId          String
+  school            School            @relation(fields: [schoolId], references: [id])
+
+  weeks             ThematicPlanWeek[]
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([subjectTemplateId, academicYearId, gradeLevelId])
+}
+
+model ThematicPlanWeek {
+  id              String       @id @default(uuid())
+  weekNumber      Int
+  topic           String
+  objectives      String?      // Výstupy / cíle
+  methods         String?      // Metody a formy
+  resources       String?      // Pomůcky
+  crossCurricular String?      // Průřezová témata
+  notes           String?
+
+  planId          String
+  plan            ThematicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, weekNumber])
+}
+
+// ─── TEACHING ─ LESSON PREPARATIONS ─────────────────────────────
+
+model LessonPreparation {
+  id                String          @id @default(uuid())
+  title             String
+  date              DateTime
+  duration          Int             @default(45) // minutes
+  topic             String
+  objectives        String?
+  activities        String?         // Průběh hodiny
+  materials         String?         // Potřebné pomůcky
+  homework          String?         // Zadání DÚ
+  evaluation        String?         // Reflexe/hodnocení
+  subjectTemplateId String
+  subjectTemplate   SubjectTemplate @relation(fields: [subjectTemplateId], references: [id])
+  teacherId         String
+  teacher           User            @relation("TeacherLessons", fields: [teacherId], references: [id])
+  schoolId          String
+  school            School          @relation(fields: [schoolId], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// ─── TEACHING ─ ELECTRONIC MATERIALS ────────────────────────────
+
+model TeachingMaterial {
+  id                String           @id @default(uuid())
+  title             String
+  description       String?
+  url               String
+  type              String           @default("OTHER") // TEXTBOOK, WORKSHEET, PRESENTATION, VIDEO, OTHER
+  subjectTemplateId String?
+  subjectTemplate   SubjectTemplate? @relation(fields: [subjectTemplateId], references: [id])
+  gradeLevelId      String?
+  gradeLevel        GradeLevel?      @relation(fields: [gradeLevelId], references: [id])
+  uploadedById      String
+  uploadedBy        User             @relation("UploadedMaterials", fields: [uploadedById], references: [id])
+  schoolId          String
+  school            School           @relation(fields: [schoolId], references: [id])
+
+  createdAt         DateTime         @default(now())
+}
+
+// ─── RVP COMPETENCY MAPPING ─────────────────────────────────────
+
+model RvpCompetency {
+  id          String             @id @default(uuid())
+  code        String
+  name        String
+  area        String
+  description String?
+  schoolId    String
+  school      School             @relation(fields: [schoolId], references: [id])
+  mappings    CompetencyMapping[]
+
+  @@unique([code, schoolId])
+}
+
+model CompetencyMapping {
+  id                String          @id @default(uuid())
+  competencyId      String
+  competency        RvpCompetency   @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  subjectTemplateId String
+  subjectTemplate   SubjectTemplate @relation(fields: [subjectTemplateId], references: [id])
+  gradeLevelId      String
+  gradeLevel        GradeLevel      @relation(fields: [gradeLevelId], references: [id])
+  fulfilled         Boolean         @default(false)
+  note              String?
+
+  @@unique([competencyId, subjectTemplateId, gradeLevelId])
 }

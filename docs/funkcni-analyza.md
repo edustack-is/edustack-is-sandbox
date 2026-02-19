@@ -133,10 +133,10 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Definice záznamů ŠVP (entries) | ✅ | Přiřazení předmětů k ročníkům v rámci verze |
 | Import RVP | ✅ | Upload a potvrzení |
 | Zápis studentů do ročníků | ✅ | Hromadný enrollement |
-| Tematické plány | ❌ | Rozpis učiva po hodinách/týdnech |
-| Přípravy na hodiny | ❌ | |
-| Elektronické učebnice / materiály | ❌ | |
-| Výstupy dle RVP – mapování kompetencí | ❌ | |
+| Tematické plány | ✅ | Rozpis učiva po hodinách/týdnech |
+| Přípravy na hodiny | ✅ | CRUD s průběhem, cíli, reflexí |
+| Elektronické učebnice / materiály | ✅ | URL-based, typ badge, filtrování |
+| Výstupy dle RVP – mapování kompetencí | ✅ | Matice předmět × ročník, click-to-toggle |
 
 ---
 

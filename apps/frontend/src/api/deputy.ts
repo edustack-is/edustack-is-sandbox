@@ -464,6 +464,132 @@ export const exportUsersCSV = async () => {
     return response.data;
 };
 
+// ─── THEMATIC PLANS ─────────────────────────────────────────────
+
+export const getThematicPlans = async () => {
+    const response = await api.get('/api/deputy/thematic-plans');
+    return response.data;
+};
+
+export const getThematicPlan = async (id: string) => {
+    const response = await api.get(`/api/deputy/thematic-plans/${id}`);
+    return response.data;
+};
+
+export const createThematicPlan = async (data: { title: string; subjectTemplateId: string; academicYearId: string; gradeLevelId: string }) => {
+    const response = await api.post('/api/deputy/thematic-plans', data);
+    return response.data;
+};
+
+export const updateThematicPlan = async (id: string, data: { title?: string }) => {
+    const response = await api.put(`/api/deputy/thematic-plans/${id}`, data);
+    return response.data;
+};
+
+export const deleteThematicPlan = async (id: string) => {
+    const response = await api.delete(`/api/deputy/thematic-plans/${id}`);
+    return response.data;
+};
+
+export const saveThematicPlanWeeks = async (planId: string, weeks: Array<{
+    weekNumber: number; topic: string; objectives?: string; methods?: string;
+    resources?: string; crossCurricular?: string; notes?: string;
+}>) => {
+    const response = await api.put(`/api/deputy/thematic-plans/${planId}/weeks`, { weeks });
+    return response.data;
+};
+
+// ─── LESSON PREPARATIONS ────────────────────────────────────────
+
+export const getLessonPreparations = async (subjectTemplateId?: string) => {
+    const response = await api.get('/api/deputy/lesson-preparations', { params: { subjectTemplateId } });
+    return response.data;
+};
+
+export const createLessonPreparation = async (data: {
+    title: string; date: string; duration?: number; topic: string; objectives?: string;
+    activities?: string; materials?: string; homework?: string; evaluation?: string;
+    subjectTemplateId: string;
+}) => {
+    const response = await api.post('/api/deputy/lesson-preparations', data);
+    return response.data;
+};
+
+export const updateLessonPreparation = async (id: string, data: any) => {
+    const response = await api.put(`/api/deputy/lesson-preparations/${id}`, data);
+    return response.data;
+};
+
+export const deleteLessonPreparation = async (id: string) => {
+    const response = await api.delete(`/api/deputy/lesson-preparations/${id}`);
+    return response.data;
+};
+
+// ─── TEACHING MATERIALS ─────────────────────────────────────────
+
+export const getTeachingMaterials = async (subjectTemplateId?: string, type?: string) => {
+    const response = await api.get('/api/deputy/teaching-materials', { params: { subjectTemplateId, type } });
+    return response.data;
+};
+
+export const createTeachingMaterial = async (data: {
+    title: string; description?: string; url: string; type?: string;
+    subjectTemplateId?: string; gradeLevelId?: string;
+}) => {
+    const response = await api.post('/api/deputy/teaching-materials', data);
+    return response.data;
+};
+
+export const updateTeachingMaterial = async (id: string, data: any) => {
+    const response = await api.put(`/api/deputy/teaching-materials/${id}`, data);
+    return response.data;
+};
+
+export const deleteTeachingMaterial = async (id: string) => {
+    const response = await api.delete(`/api/deputy/teaching-materials/${id}`);
+    return response.data;
+};
+
+// ─── RVP COMPETENCIES ───────────────────────────────────────────
+
+export const getRvpCompetencies = async () => {
+    const response = await api.get('/api/deputy/competencies');
+    return response.data;
+};
+
+export const createRvpCompetency = async (data: { code: string; name: string; area: string; description?: string }) => {
+    const response = await api.post('/api/deputy/competencies', data);
+    return response.data;
+};
+
+export const updateRvpCompetency = async (id: string, data: any) => {
+    const response = await api.put(`/api/deputy/competencies/${id}`, data);
+    return response.data;
+};
+
+export const deleteRvpCompetency = async (id: string) => {
+    const response = await api.delete(`/api/deputy/competencies/${id}`);
+    return response.data;
+};
+
+export const getCompetencyMappings = async (subjectTemplateId?: string, gradeLevelId?: string) => {
+    const response = await api.get('/api/deputy/competency-mappings', { params: { subjectTemplateId, gradeLevelId } });
+    return response.data;
+};
+
+export const upsertCompetencyMapping = async (data: {
+    competencyId: string; subjectTemplateId: string; gradeLevelId: string;
+    fulfilled: boolean; note?: string;
+}) => {
+    const response = await api.post('/api/deputy/competency-mappings', data);
+    return response.data;
+};
+
+export const deleteCompetencyMapping = async (id: string) => {
+    const response = await api.delete(`/api/deputy/competency-mappings/${id}`);
+    return response.data;
+};
+
 // ─── RVP AI IMPORT ──────────────────────────────────────────────
 
 export const analyzeRvpFromUrl = async (url: string) => {

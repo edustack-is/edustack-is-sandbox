@@ -324,7 +324,167 @@ export class DeputyController {
         return this.deputyService.changeUserRole(req.user.userId, req.user.schoolId, id, body.role);
     }
 
+    // ─── THEMATIC PLANS ──────────────────────────────────────────────
 
+    @Get('thematic-plans')
+    async getThematicPlans(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getThematicPlans(req.user.schoolId);
+    }
+
+    @Get('thematic-plans/:id')
+    async getThematicPlan(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.getThematicPlan(req.user.schoolId, id);
+    }
+
+    @Post('thematic-plans')
+    async createThematicPlan(@Req() req: any, @Body() body: {
+        title: string; subjectTemplateId: string; academicYearId: string; gradeLevelId: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.createThematicPlan(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Put('thematic-plans/:id')
+    async updateThematicPlan(@Req() req: any, @Param('id') id: string, @Body() body: { title?: string }) {
+        this.ensureTenant(req);
+        return this.deputyService.updateThematicPlan(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    @Delete('thematic-plans/:id')
+    async deleteThematicPlan(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteThematicPlan(req.user.userId, req.user.schoolId, id);
+    }
+
+    @Put('thematic-plans/:id/weeks')
+    async saveThematicPlanWeeks(@Req() req: any, @Param('id') id: string, @Body() body: {
+        weeks: Array<{ weekNumber: number; topic: string; objectives?: string; methods?: string; resources?: string; crossCurricular?: string; notes?: string }>;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.saveThematicPlanWeeks(req.user.userId, req.user.schoolId, id, body.weeks);
+    }
+
+    // ─── LESSON PREPARATIONS ─────────────────────────────────────────
+
+    @Get('lesson-preparations')
+    async getLessonPreparations(@Req() req: any, @Query('subjectTemplateId') subjectTemplateId?: string) {
+        this.ensureTenant(req);
+        return this.deputyService.getLessonPreparations(req.user.schoolId, {
+            subjectTemplateId, teacherId: req.user.userId,
+        });
+    }
+
+    @Post('lesson-preparations')
+    async createLessonPreparation(@Req() req: any, @Body() body: {
+        title: string; date: string; duration?: number; topic: string; objectives?: string;
+        activities?: string; materials?: string; homework?: string; evaluation?: string;
+        subjectTemplateId: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.createLessonPreparation(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Put('lesson-preparations/:id')
+    async updateLessonPreparation(@Req() req: any, @Param('id') id: string, @Body() body: {
+        title?: string; date?: string; duration?: number; topic?: string; objectives?: string;
+        activities?: string; materials?: string; homework?: string; evaluation?: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.updateLessonPreparation(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    @Delete('lesson-preparations/:id')
+    async deleteLessonPreparation(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteLessonPreparation(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── TEACHING MATERIALS ──────────────────────────────────────────
+
+    @Get('teaching-materials')
+    async getTeachingMaterials(@Req() req: any, @Query('subjectTemplateId') sub?: string, @Query('type') type?: string) {
+        this.ensureTenant(req);
+        return this.deputyService.getTeachingMaterials(req.user.schoolId, { subjectTemplateId: sub, type });
+    }
+
+    @Post('teaching-materials')
+    async createTeachingMaterial(@Req() req: any, @Body() body: {
+        title: string; description?: string; url: string; type?: string;
+        subjectTemplateId?: string; gradeLevelId?: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.createTeachingMaterial(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Put('teaching-materials/:id')
+    async updateTeachingMaterial(@Req() req: any, @Param('id') id: string, @Body() body: {
+        title?: string; description?: string; url?: string; type?: string;
+        subjectTemplateId?: string | null; gradeLevelId?: string | null;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.updateTeachingMaterial(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    @Delete('teaching-materials/:id')
+    async deleteTeachingMaterial(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteTeachingMaterial(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── RVP COMPETENCIES & MAPPINGS ─────────────────────────────────
+
+    @Get('competencies')
+    async getRvpCompetencies(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.deputyService.getRvpCompetencies(req.user.schoolId);
+    }
+
+    @Post('competencies')
+    async createRvpCompetency(@Req() req: any, @Body() body: {
+        code: string; name: string; area: string; description?: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.createRvpCompetency(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Put('competencies/:id')
+    async updateRvpCompetency(@Req() req: any, @Param('id') id: string, @Body() body: {
+        code?: string; name?: string; area?: string; description?: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.updateRvpCompetency(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    @Delete('competencies/:id')
+    async deleteRvpCompetency(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteRvpCompetency(req.user.userId, req.user.schoolId, id);
+    }
+
+    @Get('competency-mappings')
+    async getCompetencyMappings(@Req() req: any, @Query('subjectTemplateId') sub?: string, @Query('gradeLevelId') gl?: string) {
+        this.ensureTenant(req);
+        return this.deputyService.getCompetencyMappings(req.user.schoolId, { subjectTemplateId: sub, gradeLevelId: gl });
+    }
+
+    @Post('competency-mappings')
+    async upsertCompetencyMapping(@Req() req: any, @Body() body: {
+        competencyId: string; subjectTemplateId: string; gradeLevelId: string;
+        fulfilled: boolean; note?: string;
+    }) {
+        this.ensureTenant(req);
+        return this.deputyService.upsertCompetencyMapping(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Delete('competency-mappings/:id')
+    async deleteCompetencyMapping(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.deleteCompetencyMapping(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── HELPER ──────────────────────────────────────────────────────
 
     private ensureTenant(req: any) {
         if (req.user.type !== 'TENANT' || !req.user.schoolId) {

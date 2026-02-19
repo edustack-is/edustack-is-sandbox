@@ -13,6 +13,10 @@ import RoomsManagement from './pages/RoomsManagement';
 import SchoolEvents from './pages/SchoolEvents';
 import CurriculumManagement from './pages/CurriculumManagement';
 import WhiteBook from './pages/WhiteBook';
+import ThematicPlans from './pages/ThematicPlans';
+import LessonPreparations from './pages/LessonPreparations';
+import TeachingMaterials from './pages/TeachingMaterials';
+import CompetencyMapping from './pages/CompetencyMapping';
 import { Setup } from './pages/Setup';
 import { DeputyYearSetup } from './pages/DeputyYearSetup';
 import { AuditLog } from './pages/AuditLog';
@@ -117,6 +121,10 @@ function App() {
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
                 <Route path="school/events" element={<SchoolEvents />} />
+                <Route path="school/thematic-plans" element={<ThematicPlans />} />
+                <Route path="school/lesson-preparations" element={<LessonPreparations />} />
+                <Route path="school/teaching-materials" element={<TeachingMaterials />} />
+                <Route path="school/competency-mapping" element={<CompetencyMapping />} />
                 <Route path="school/curriculum" element={<CurriculumManagement />} />
                 <Route path="school/white-book" element={<WhiteBook />} />
                 <Route path="year-setup" element={<DeputyYearSetup />} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare, Target, Presentation } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -115,6 +115,10 @@ export const Sidebar: React.FC = () => {
         { path: '/school/rooms', label: t('sidebar.rooms', 'Učebny'), icon: DoorOpen },
         { path: '/school/events', label: t('sidebar.events', 'Události'), icon: CalendarDays },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
+        { path: '/school/thematic-plans', label: t('sidebar.thematic_plans', 'Tematické plány'), icon: ClipboardList },
+        { path: '/school/lesson-preparations', label: t('sidebar.lesson_preparations', 'Přípravy na hodiny'), icon: FileText },
+        { path: '/school/teaching-materials', label: t('sidebar.teaching_materials', 'Materiály'), icon: Presentation },
+        { path: '/school/competency-mapping', label: t('sidebar.competency_mapping', 'Výstupy RVP'), icon: Target },
         { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
         { path: '/schedule/substitutions', label: t('sidebar.substitutions', 'Suplování'), icon: CalendarDays },
         { path: '/grading/report-cards', label: t('sidebar.report_cards', 'Vysvědčení'), icon: FileText },
