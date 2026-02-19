@@ -1,10 +1,12 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/public.decorator';
 import { InitService, SetupDto } from './init.service';
 import { SeedService, SeedData } from './seed.service';
 import { SetupTokenGuard } from './setup-token.guard';
 
+@ApiTags('init')
 @Controller('api/init')
 export class InitController {
     constructor(

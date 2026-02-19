@@ -2,12 +2,15 @@ import {
     Controller, Get, Post, Put, Delete, Body, Param,
     UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { CommunityService } from './community.service';
 
+@ApiTags('community')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/community')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CommunityController {

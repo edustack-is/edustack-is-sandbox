@@ -1,10 +1,13 @@
 import { Controller, Post, UseInterceptors, UploadedFile, Get, Query, Param } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UserRole, UserStatus } from '@prisma/client';
 import { LogSensitiveRead } from '../auth/log-sensitive-read.decorator';
 import { LogSensitiveReadInterceptor } from '../auth/log-sensitive-read.interceptor';
 
+@ApiTags('users')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) { }

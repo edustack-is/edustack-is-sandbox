@@ -1,8 +1,11 @@
 import { Controller, Get, Put, Body, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminAiService } from './system-admin-ai.service';
 
+@ApiTags('system')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/system')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class SystemAdminAiController {

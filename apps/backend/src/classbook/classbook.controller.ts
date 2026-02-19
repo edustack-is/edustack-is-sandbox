@@ -2,6 +2,7 @@ import {
     Controller, Get, Post, Put, Body, Param, Query, Res,
     UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -9,6 +10,8 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { ClassBookService } from './classbook.service';
 
+@ApiTags('classbook')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/classbook')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClassBookController {

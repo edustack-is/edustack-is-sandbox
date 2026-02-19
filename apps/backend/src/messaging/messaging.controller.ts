@@ -2,6 +2,7 @@ import {
     Controller, Get, Post, Put, Body, Param, Query,
     Req, UseGuards, ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -10,6 +11,8 @@ import { MessagingService } from './messaging.service';
 import { NotificationService } from './notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+@ApiTags('messaging')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/messaging')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MessagingController {

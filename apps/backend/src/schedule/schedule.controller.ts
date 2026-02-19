@@ -2,12 +2,15 @@ import {
     Controller, Get, Post, Put, Delete,
     Body, Param, Query, Req, UseGuards, ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole, SubstitutionType } from '@prisma/client';
 import { ScheduleService } from './schedule.service';
 
+@ApiTags('schedule')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/schedule')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ScheduleController {

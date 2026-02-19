@@ -1,9 +1,12 @@
 import { Controller, Post, Delete, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { TestDataService } from './test-data.service';
 import type { GenerateConfig } from './test-data.service';
 
+@ApiTags('system')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/system/test-data')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class TestDataController {

@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Param, Get, Query, BadRequestException, ForbiddenException, Req, Res, UseGuards, Patch, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
@@ -6,6 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import passport from 'passport';
 
+@ApiTags('auth')
 @Controller('api/auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) { }

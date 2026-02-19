@@ -1,8 +1,11 @@
 import { Controller, Post, Get, Param, Body, UseGuards, Req, Res, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+@ApiTags('ai')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/ai')
 @UseGuards(JwtAuthGuard)
 export class AiController {

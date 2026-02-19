@@ -1,9 +1,12 @@
 import { Controller, Post, Get, Delete, Param, Res, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { BackupService } from './backup.service';
 
+@ApiTags('system')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/system/backups')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class BackupController {

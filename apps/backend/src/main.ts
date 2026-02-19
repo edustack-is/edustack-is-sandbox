@@ -73,12 +73,22 @@ async function bootstrap() {
         'JWT-auth',
       )
       .addTag('auth', 'Autentizace a pozvánky')
+      .addTag('init', 'Inicializace systému')
       .addTag('student', 'Studentský modul')
       .addTag('parent', 'Rodičovský modul')
       .addTag('teacher', 'Učitelský modul')
-      .addTag('deputy', 'Zástupce školy – administrativa')
+      .addTag('deputy', 'Zástupce školy – administrativa a kurikulum')
       .addTag('principal', 'Ředitel – audit a vedení')
       .addTag('system', 'Systémová administrace')
+      .addTag('users', 'Správa uživatelů a pozvánek')
+      .addTag('grading', 'Klasifikace a hodnocení')
+      .addTag('schedule', 'Rozvrh a suplování')
+      .addTag('messaging', 'Komunikace a notifikace')
+      .addTag('attendance', 'Docházka')
+      .addTag('community', 'Komunita – nástěnka, ankety, události')
+      .addTag('classbook', 'Třídní kniha')
+      .addTag('ai', 'AI funkce – generování, analýza, moderace')
+      .addTag('registry', 'Matrika – MŠMT registry')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

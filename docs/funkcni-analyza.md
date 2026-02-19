@@ -263,7 +263,7 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Správa (školy, místnosti) | ✅ | 4 nástroje |
 | Seeding (generování dat) | ✅ | 4 nástroje |
 | Uživatelé a školy | ✅ | 15 nástrojů |
-| REST API pro externí integrace | ❌ | Dokumentované veřejné API |
+| REST API pro externí integrace | ✅ | OpenAPI/Swagger na /api/docs, 17 tagů |
 | Webhooky | ❌ | Notifikace o změnách pro ext. systémy |
 | CSV/XML export dat | ❌ | |
 
@@ -318,9 +318,9 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Komunikace | 12 | 12 | 0 | 0 |
 | Třídní kniha | 7 | 7 | 0 | 0 |
 | AI funkce | 11 | 11 | 0 | 0 |
-| MCP | 10 | 7 | 0 | 3 |
+| MCP | 10 | 8 | 0 | 2 |
 | Reporty a výstupy | 10 | 5 | 1 | 4 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **169** | **139** | **6** | **24** |
+| **Celkem** | **169** | **140** | **6** | **23** |
 
-**Pokrytí:** přibližně **86 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **87 %** požadovaných funkcí je plně nebo částečně implementováno.

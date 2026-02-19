@@ -1,10 +1,13 @@
 import { Controller, Get, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { PrincipalService } from './principal.service';
 
+@ApiTags('principal')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/principal')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.PRINCIPAL, UserRole.ADMIN)

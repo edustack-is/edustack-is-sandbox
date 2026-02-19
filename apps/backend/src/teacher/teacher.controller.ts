@@ -1,10 +1,13 @@
 import { Controller, Get, Post, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole, AttendanceStatus } from '@prisma/client';
 import { TeacherService } from './teacher.service';
 
+@ApiTags('teacher')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/teacher')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.TEACHER)

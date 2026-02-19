@@ -2,6 +2,7 @@ import {
     Controller, Get, Post, Put, Patch, Delete,
     Body, Param, Query, Res, UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -10,6 +11,8 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { DeputyService } from './deputy.service';
 
+@ApiTags('deputy')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/deputy')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.DEPUTY, UserRole.PRINCIPAL)

@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Patch, Put, Delete, Body, Param, UseGuards, BadRequestException, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
@@ -7,6 +8,8 @@ import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service'
 import { SystemAdminSsoService } from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
 
+@ApiTags('system')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/system')
 @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class SystemAdminController {

@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -8,6 +9,8 @@ import { DeputyCurriculumService } from './deputy-curriculum.service';
 import { RvpImportService } from './rvp-import.service';
 import type { RvpConfirmData } from './rvp-import.service';
 
+@ApiTags('deputy')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/deputy')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.DEPUTY, UserRole.PRINCIPAL)
