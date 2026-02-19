@@ -677,3 +677,65 @@ export const wipeAllData = async () => {
     const response = await api.delete('/api/system/test-data/wipe-all');
     return response.data;
 };
+
+// ─── COMMUNITY ──────────────────────────────────────────────
+
+export const getBulletinPosts = async () => {
+    const response = await api.get('/api/community/bulletin');
+    return response.data;
+};
+
+export const createBulletinPost = async (data: { title: string; content: string; pinned?: boolean }) => {
+    const response = await api.post('/api/community/bulletin', data);
+    return response.data;
+};
+
+export const updateBulletinPost = async (id: string, data: { title?: string; content?: string; pinned?: boolean }) => {
+    const response = await api.put(`/api/community/bulletin/${id}`, data);
+    return response.data;
+};
+
+export const deleteBulletinPost = async (id: string) => {
+    const response = await api.delete(`/api/community/bulletin/${id}`);
+    return response.data;
+};
+
+export const getPolls = async () => {
+    const response = await api.get('/api/community/polls');
+    return response.data;
+};
+
+export const createPoll = async (data: { question: string; options: string[]; multiSelect?: boolean; endsAt?: string }) => {
+    const response = await api.post('/api/community/polls', data);
+    return response.data;
+};
+
+export const votePoll = async (optionId: string) => {
+    const response = await api.post(`/api/community/polls/${optionId}/vote`);
+    return response.data;
+};
+
+export const deletePoll = async (id: string) => {
+    const response = await api.delete(`/api/community/polls/${id}`);
+    return response.data;
+};
+
+export const getCalendarEvents = async () => {
+    const response = await api.get('/api/community/events');
+    return response.data;
+};
+
+export const createCalendarEvent = async (data: { title: string; description?: string; startDate: string; endDate?: string; location?: string }) => {
+    const response = await api.post('/api/community/events', data);
+    return response.data;
+};
+
+export const rsvpEvent = async (eventId: string, status: 'YES' | 'NO' | 'MAYBE') => {
+    const response = await api.post(`/api/community/events/${eventId}/rsvp`, { status });
+    return response.data;
+};
+
+export const deleteCalendarEvent = async (id: string) => {
+    const response = await api.delete(`/api/community/events/${id}`);
+    return response.data;
+};

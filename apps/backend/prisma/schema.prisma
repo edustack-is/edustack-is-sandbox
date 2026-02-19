@@ -76,6 +76,9 @@ model School {
   commissionExams    CommissionExam[]
   classificationDeadlines ClassificationDeadline[]
   absenceExcuses     AbsenceExcuse[]
+  bulletinPosts      BulletinPost[]
+  polls              Poll[]
+  calendarEvents     CalendarEvent[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -147,6 +150,13 @@ model User {
   // Attendance – excuses
   parentExcuses              AbsenceExcuse[] @relation("ParentExcuses")
   reviewedExcuses            AbsenceExcuse[] @relation("ReviewedExcuses")
+
+  // Community
+  bulletinPosts              BulletinPost[] @relation("BulletinAuthor")
+  createdPolls               Poll[] @relation("PollAuthor")
+  pollVotes                  PollVote[]
+  createdCalendarEvents      CalendarEvent[] @relation("EventAuthor")
+  eventRsvps                 EventRsvp[]
 }
 
 model SchoolMembership {
@@ -886,8 +896,25 @@ model Message {
   senderId       String
 
   content        String
+  flagged        Boolean      @default(false)
+  flagReason     String?
+
+  attachments    MessageAttachment[]
 
   createdAt      DateTime     @default(now())
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName  String
+  mimeType  String
+  fileSize  Int
+  filePath  String
+  flagged   Boolean  @default(false)
+  flagReason String?
+  createdAt DateTime @default(now())
 }
 
 model Notification {
@@ -1147,4 +1174,83 @@ model ClassificationDeadline {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@unique([semesterId, schoolId])
+}
+
+// ─── COMMUNITY ──────────────────────────────────────────────
+
+model BulletinPost {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  pinned    Boolean  @default(false)
+  authorId  String
+  author    User     @relation("BulletinAuthor", fields: [authorId], references: [id])
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Poll {
+  id          String       @id @default(uuid())
+  question    String
+  multiSelect Boolean      @default(false)
+  endsAt      DateTime?
+  authorId    String
+  author      User         @relation("PollAuthor", fields: [authorId], references: [id])
+  schoolId    String
+  school      School       @relation(fields: [schoolId], references: [id])
+  options     PollOption[]
+  createdAt   DateTime     @default(now())
+}
+
+model PollOption {
+  id       String     @id @default(uuid())
+  text     String
+  pollId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes    PollVote[]
+}
+
+model PollVote {
+  id       String     @id @default(uuid())
+  userId   String
+  user     User       @relation(fields: [userId], references: [id])
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  @@unique([userId, optionId])
+}
+
+enum RsvpStatus {
+  YES
+  NO
+  MAYBE
+}
+
+model CalendarEvent {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  location    String?
+  authorId    String
+  author      User        @relation("EventAuthor", fields: [authorId], references: [id])
+  schoolId    String
+  school      School      @relation(fields: [schoolId], references: [id])
+  rsvps       EventRsvp[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model EventRsvp {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  eventId   String
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  status    RsvpStatus
+  createdAt DateTime     @default(now())
+  @@unique([userId, eventId])
 }

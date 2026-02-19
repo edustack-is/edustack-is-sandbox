@@ -212,11 +212,11 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Označení notifikací jako přečtených | ✅ | Jednotlivě i hromadně |
 | E-mailové notifikace | ✅ | Zapnutí/vypnutí per uživatel |
 | Vyhledávání příjemců | ✅ | |
-| Skupinové konverzace | ❌ | Více účastníků v jedné konverzaci |
-| Přílohy ve zprávách | ❌ | Soubory, obrázky |
-| Nástěnka / oznámení školy | ❌ | Veřejná nástěnka |
-| Ankety a dotazníky | ❌ | |
-| Kalendář událostí s RSVP | ❌ | |
+| Skupinové konverzace | ✅ | Více účastníků, typ GROUP |
+| Přílohy ve zprávách | ✅ | MessageAttachment + AI moderace (Gemini text + MIME whitelist) |
+| Nástěnka / oznámení školy | ✅ | BulletinPost, připínání |
+| Ankety a dotazníky | ✅ | Poll + PollOption + PollVote, multi-select |
+| Kalendář událostí s RSVP | ✅ | CalendarEvent + EventRsvp (YES/NO/MAYBE) |
 
 ---
 
@@ -312,12 +312,12 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Rozvrh | 15 | 15 | 0 | 0 |
 | Klasifikace | 17 | 17 | 0 | 0 |
 | Docházka | 8 | 8 | 0 | 0 |
-| Komunikace | 12 | 7 | 0 | 5 |
+| Komunikace | 12 | 12 | 0 | 0 |
 | Třídní kniha | 7 | 1 | 1 | 5 |
 | AI funkce | 8 | 4 | 0 | 4 |
 | MCP | 10 | 7 | 0 | 3 |
 | Reporty a výstupy | 10 | 5 | 1 | 4 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **166** | **122** | **7** | **37** |
+| **Celkem** | **166** | **127** | **7** | **32** |
 
-**Pokrytí:** přibližně **78 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **81 %** požadovaných funkcí je plně nebo částečně implementováno.

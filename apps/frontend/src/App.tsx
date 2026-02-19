@@ -20,6 +20,7 @@ import RecurringEvents from './pages/RecurringEvents';
 import ScheduleDiff from './pages/ScheduleDiff';
 import EducationalMeasures from './pages/EducationalMeasures';
 import AttendancePage from './pages/Attendance';
+import Community from './pages/Community';
 import TeachingMaterials from './pages/TeachingMaterials';
 import CompetencyMapping from './pages/CompetencyMapping';
 import { Setup } from './pages/Setup';
@@ -128,6 +129,7 @@ function App() {
                 <Route path="schedule/recurring-events" element={<RecurringEvents />} />
                 <Route path="grading/measures" element={<EducationalMeasures />} />
                 <Route path="attendance" element={<AttendancePage />} />
+                <Route path="community" element={<Community />} />
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
                 <Route path="school/events" element={<SchoolEvents />} />

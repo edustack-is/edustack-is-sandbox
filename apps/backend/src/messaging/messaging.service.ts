@@ -1,12 +1,14 @@
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from './notification.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MessagingService {
     constructor(
         private prisma: PrismaService,
         private notificationService: NotificationService,
+        private configService: ConfigService,
     ) { }
 
     // ─── CONVERSATIONS ──────────────────────────────────────
@@ -83,6 +85,7 @@ export class MessagingService {
                 skip: offset,
                 include: {
                     sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+                    attachments: true,
                 },
             }),
             this.prisma.message.count({ where: { conversationId } }),
@@ -113,9 +116,13 @@ export class MessagingService {
             data: { conversationId, senderId, content: content.trim() },
             include: {
                 sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
-                conversation: { select: { subject: true } },
+                conversation: { select: { subject: true, schoolId: true } },
+                attachments: true,
             },
         });
+
+        // AI content moderation (async, don’t block message delivery)
+        this.moderateContent(message.id, content, message.conversation.schoolId).catch(() => { });
 
         // Update conversation timestamp
         await this.prisma.conversation.update({
@@ -545,5 +552,85 @@ export class MessagingService {
         return this.createConversation(
             senderId, schoolId, memberships.map(m => m.userId), subject, 'SCHOOL_BROADCAST', undefined, message,
         );
+    }
+
+    // ─── AI CONTENT MODERATION ──────────────────────────────
+
+    private async moderateContent(messageId: string, content: string, schoolId: string) {
+        try {
+            const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+            if (!apiKey) return;
+
+            const prompt = `You are a content moderation system for a school information system. Analyze the following message and determine if it contains:
+1. Threats or violence
+2. Harassment or bullying
+3. Sexually explicit content
+4. Hate speech
+5. Profanity or vulgar language inappropriate for a school environment
+
+Respond with JSON: {"flagged": boolean, "reason": string | null}
+If the content is appropriate, return {"flagged": false, "reason": null}.
+If flagged, provide a brief reason in Czech.
+
+Message: "${content.replace(/"/g, '\\"').substring(0, 500)}";
+`;
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                },
+            );
+
+            const data = await response.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const jsonMatch = text.match(/\{[\s\S]*?\}/);
+            if (!jsonMatch) return;
+
+            const result = JSON.parse(jsonMatch[0]);
+            if (result.flagged) {
+                await this.prisma.message.update({
+                    where: { id: messageId },
+                    data: { flagged: true, flagReason: result.reason },
+                });
+
+                // Notify school admins
+                const admins = await this.prisma.schoolMembership.findMany({
+                    where: { schoolId, role: { in: ['PRINCIPAL', 'DEPUTY'] }, status: 'ACTIVE' },
+                    select: { userId: true },
+                });
+                await this.notificationService.notifyMany(
+                    admins.map(a => a.userId),
+                    'SYSTEM',
+                    'Zpráva označena',
+                    `Zpráva byla automaticky označena: ${result.reason}`,
+                    '/messages',
+                );
+            }
+        } catch {
+            // Moderation failure should not block messaging
+        }
+    }
+
+    async moderateAttachment(attachmentId: string, mimeType: string, schoolId: string) {
+        // MIME type whitelist
+        const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf',
+            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+
+        if (!ALLOWED.includes(mimeType)) {
+            await this.prisma.messageAttachment.update({
+                where: { id: attachmentId },
+                data: { flagged: true, flagReason: `Nepovolený typ souboru: ${mimeType}` },
+            });
+            return;
+        }
+
+        // For images, we could do Gemini Vision check (placeholder for future)
+        if (mimeType.startsWith('image/')) {
+            // TODO: Gemini Vision API for NSFW detection
+        }
     }
 }
