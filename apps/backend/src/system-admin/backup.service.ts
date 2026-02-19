@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const execFileAsync = promisify(execFile);
-const BACKUP_DIR = process.env.BACKUP_DIR || '/app/data/backups';
+const BACKUP_DIR = process.env.BACKUP_DIR || path.resolve(process.cwd(), 'data', 'backups');
 
 @Injectable()
 export class BackupService {
