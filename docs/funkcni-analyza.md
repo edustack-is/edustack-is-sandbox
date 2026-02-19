@@ -153,11 +153,11 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | CRUD suplování | ✅ | |
 | Vizuální plánovač rozvrhu | ✅ | Drag & drop rozhraní |
 | Filtr dle školního roku a semestru | ✅ | |
-| Automatické generování rozvrhu | ❌ | Algoritmus pro optimalizaci |
-| Tisk rozvrhu | ❌ | Export do PDF |
-| Zobrazení změn (diff) rozvrhu | ❌ | |
-| Zvonění / časový harmonogram | 🔶 | Definice slotů existuje, chybí zvukové upozornění |
-| Opakující se události (kroužky) | ❌ | |
+| Automatické generování rozvrhu | ✅ | Greedy constraint-based algoritmus (třída→ročník→předmět) |
+| Tisk rozvrhu | ✅ | HTML export s CSS print styles |
+| Zobrazení změn (diff) rozvrhu | ✅ | Snapshoty + barevné porovnání (přidáno/odebráno/změněno) |
+| Zvonění / časový harmonogram | ✅ | Label, přestávky, vizuální timeline, samostatná stránka |
+| Opakující se události (kroužky) | ✅ | CRUD s přiřazením místnosti a vedoucího, pohled dle dne |
 | Sdílení místností mezi třídami | ✅ | Přes kolizní validaci |
 
 ---
@@ -274,7 +274,7 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Audit log | ✅ | |
 | AI spotřeba | ✅ | |
 | Export vysvědčení do PDF | ❌ | |
-| Tisk rozvrhu | ❌ | |
+| Tisk rozvrhu | ✅ | HTML export rozvrhu třídy |
 | Statistiky prospěchu (třídy, ročníky) | ❌ | |
 | Statistiky docházky | 🔶 | Přes MCP, chybí UI |
 | Výkazy pro ČŠI | ❌ | Česká školní inspekce |
@@ -309,15 +309,15 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Správa školy | 10 | 7 | 1 | 2 |
 | Správa uživatelů | 17 | 11 | 3 | 3 |
 | Kurikulum | 13 | 9 | 0 | 4 |
-| Rozvrh | 15 | 10 | 1 | 4 |
+| Rozvrh | 15 | 15 | 0 | 0 |
 | Klasifikace | 17 | 10 | 0 | 7 |
 | Docházka | 8 | 2 | 1 | 5 |
 | Komunikace | 12 | 7 | 0 | 5 |
 | Třídní kniha | 7 | 1 | 1 | 5 |
 | AI funkce | 8 | 4 | 0 | 4 |
 | MCP | 10 | 7 | 0 | 3 |
-| Reporty a výstupy | 10 | 3 | 1 | 6 |
+| Reporty a výstupy | 10 | 4 | 1 | 5 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **166** | **102** | **9** | **55** |
+| **Celkem** | **166** | **108** | **8** | **50** |
 
-**Pokrytí:** přibližně **67 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **70 %** požadovaných funkcí je plně nebo částečně implementováno.

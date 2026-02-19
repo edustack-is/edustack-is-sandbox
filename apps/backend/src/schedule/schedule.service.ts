@@ -15,7 +15,7 @@ export class ScheduleService {
         });
     }
 
-    async upsertTimeSlots(schoolId: string, slots: { lessonNumber: number; startTime: string; endTime: string }[]) {
+    async upsertTimeSlots(schoolId: string, slots: { lessonNumber: number; startTime: string; endTime: string; label?: string; breakAfter?: number }[]) {
         const results = [];
         for (const slot of slots) {
             const result = await this.prisma.lessonTimeSlot.upsert({
@@ -30,10 +30,14 @@ export class ScheduleService {
                     lessonNumber: slot.lessonNumber,
                     startTime: slot.startTime,
                     endTime: slot.endTime,
+                    label: slot.label,
+                    breakAfter: slot.breakAfter ?? 10,
                 },
                 update: {
                     startTime: slot.startTime,
                     endTime: slot.endTime,
+                    label: slot.label,
+                    breakAfter: slot.breakAfter,
                 },
             });
             results.push(result);
@@ -541,5 +545,285 @@ export class ScheduleService {
         }
 
         return { valid: true };
+    }
+
+    // ─── AUTO-GENERATE SCHEDULE ─────────────────────────────────
+
+    async generateSchedule(schoolId: string, academicYearId: string, clearExisting: boolean) {
+        // 1. Get subject instances with grade level info + teacher workloads
+        const instances = await this.prisma.subjectInstance.findMany({
+            where: { schoolId, academicYearId },
+            include: {
+                template: true,
+                gradeLevel: true,
+            },
+        });
+
+        // 2. Get teacher workloads to map instances → teacher profiles
+        const workloads = await this.prisma.teacherWorkload.findMany({
+            where: { academicYearId },
+            include: { teacher: { include: { teacherProfile: true } } },
+        });
+
+        // 3. Get classrooms, time slots, rooms
+        const classrooms = await this.prisma.classroom.findMany({ where: { schoolId }, select: { id: true, grade: true } });
+        const timeSlots = await this.prisma.lessonTimeSlot.findMany({ where: { schoolId }, orderBy: { lessonNumber: 'asc' } });
+        const rooms = await this.prisma.room.findMany({ where: { schoolId } });
+
+        if (instances.length === 0) throw new BadRequestException('No subject instances found for this academic year');
+        if (timeSlots.length === 0) throw new BadRequestException('No time slots defined');
+
+        // 4. Optionally clear existing
+        if (clearExisting) {
+            await this.prisma.scheduleSubstitution.deleteMany({ where: { schoolId, originalEvent: { academicYearId } } });
+            await this.prisma.scheduleEvent.deleteMany({ where: { schoolId, academicYearId } });
+        }
+
+        // 5. Build teacher profile IDs
+        const teacherProfileIds = workloads
+            .map(w => w.teacher?.teacherProfile?.id)
+            .filter((id): id is string => !!id);
+
+        const maxLesson = Math.max(...timeSlots.map(s => s.lessonNumber));
+        const days = [1, 2, 3, 4, 5];
+
+        // Track occupancy
+        const teacherOccupied = new Map<string, Set<string>>();
+        const classroomOccupied = new Map<string, Set<string>>();
+        const roomOccupied = new Map<string, Set<string>>();
+
+        const getOrCreate = (map: Map<string, Set<string>>, key: string) => {
+            if (!map.has(key)) map.set(key, new Set());
+            return map.get(key)!;
+        };
+
+        const events: Array<{
+            dayOfWeek: number; lessonNumber: number; subjectInstanceId: string;
+            classroomId: string; teacherId: string; roomId?: string;
+            academicYearId: string;
+        }> = [];
+
+        // 6. For each classroom, find matching grade-level instances and place them
+        for (const classroom of classrooms) {
+            const gradeInstances = instances.filter(i => i.gradeLevel.levelNumber === classroom.grade);
+            if (gradeInstances.length === 0) continue;
+
+            let teacherIdx = 0;
+            for (const inst of gradeInstances) {
+                const hoursNeeded = inst.hoursPerWeek ?? 1;
+                let placed = 0;
+
+                for (const day of days) {
+                    if (placed >= hoursNeeded) break;
+                    for (let lesson = 1; lesson <= maxLesson; lesson++) {
+                        if (placed >= hoursNeeded) break;
+                        const key = `${day}-${lesson}`;
+
+                        if (getOrCreate(classroomOccupied, classroom.id).has(key)) continue;
+
+                        // Find available teacher
+                        let teacherId: string | null = null;
+                        for (let t = 0; t < teacherProfileIds.length; t++) {
+                            const tid = teacherProfileIds[(teacherIdx + t) % teacherProfileIds.length];
+                            if (!getOrCreate(teacherOccupied, tid).has(key)) {
+                                teacherId = tid;
+                                teacherIdx = (teacherIdx + t + 1) % teacherProfileIds.length;
+                                break;
+                            }
+                        }
+                        if (!teacherId) continue;
+
+                        // Find a free room
+                        let assignedRoom: string | undefined;
+                        for (const room of rooms) {
+                            if (!getOrCreate(roomOccupied, room.id).has(key)) {
+                                assignedRoom = room.id;
+                                break;
+                            }
+                        }
+
+                        // Mark occupied
+                        getOrCreate(teacherOccupied, teacherId).add(key);
+                        getOrCreate(classroomOccupied, classroom.id).add(key);
+                        if (assignedRoom) getOrCreate(roomOccupied, assignedRoom).add(key);
+
+                        events.push({
+                            dayOfWeek: day, lessonNumber: lesson,
+                            subjectInstanceId: inst.id, classroomId: classroom.id,
+                            teacherId, roomId: assignedRoom, academicYearId,
+                        });
+                        placed++;
+                    }
+                }
+            }
+        }
+
+        // 7. Bulk insert
+        const result = await this.bulkCreateEvents(schoolId, events);
+        return { generated: events.length, ...result };
+    }
+
+    // ─── SCHEDULE EXPORT (HTML for print) ────────────────────────
+
+    async getScheduleHtml(schoolId: string, classroomId: string, academicYearId: string) {
+        const events = await this.getClassroomSchedule(schoolId, classroomId, academicYearId);
+        const slots = await this.getTimeSlots(schoolId);
+        const classroom = await this.prisma.classroom.findFirst({ where: { id: classroomId, schoolId } });
+
+        const dayLabels = ['', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek'];
+        const maxLesson = slots.length > 0 ? Math.max(...slots.map(s => s.lessonNumber)) : 8;
+
+        let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rozvrh – ${classroom?.name || ''}</title>
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 11px; }
+          h2 { text-align: center; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #333; padding: 4px 6px; text-align: center; }
+          th { background: #f0f0f0; }
+          @media print { body { margin: 0; } }
+        </style></head><body>`;
+        html += `<h2>Rozvrh: ${classroom?.name || classroomId}</h2>`;
+        html += '<table><thead><tr><th>Hodina</th>';
+        for (let d = 1; d <= 5; d++) html += `<th>${dayLabels[d]}</th>`;
+        html += '</tr></thead><tbody>';
+
+        for (let lesson = 1; lesson <= maxLesson; lesson++) {
+            const slot = slots.find(s => s.lessonNumber === lesson);
+            html += `<tr><td><strong>${lesson}.</strong><br/>${slot?.startTime || ''}-${slot?.endTime || ''}</td>`;
+            for (let day = 1; day <= 5; day++) {
+                const ev = events.find((e: any) => e.dayOfWeek === day && e.lessonNumber === lesson);
+                if (ev) {
+                    const subName = (ev as any).subject?.template?.name || '';
+                    const teacher = (ev as any).teacherProfile?.user;
+                    const teacherName = teacher ? `${teacher.lastName}` : '';
+                    const roomName = (ev as any).room?.name || '';
+                    html += `<td>${subName}<br/><small>${teacherName}</small><br/><small>${roomName}</small></td>`;
+                } else {
+                    html += '<td></td>';
+                }
+            }
+            html += '</tr>';
+        }
+
+        html += '</tbody></table></body></html>';
+        return html;
+    }
+
+    // ─── SCHEDULE SNAPSHOTS & DIFF ───────────────────────────────
+
+    async getSnapshots(schoolId: string, academicYearId?: string) {
+        return this.prisma.scheduleSnapshot.findMany({
+            where: {
+                schoolId,
+                ...(academicYearId ? { academicYearId } : {}),
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async createSnapshot(schoolId: string, academicYearId: string, name: string) {
+        const events = await this.prisma.scheduleEvent.findMany({
+            where: { schoolId, academicYearId },
+            include: {
+                subject: { include: { template: true } },
+                classroom: true,
+                teacherProfile: { include: { user: { select: { firstName: true, lastName: true } } } },
+                room: true,
+            },
+        });
+
+        return this.prisma.scheduleSnapshot.create({
+            data: {
+                name,
+                data: events as any,
+                schoolId,
+                academicYearId,
+            },
+        });
+    }
+
+    async diffSnapshot(schoolId: string, snapshotId: string) {
+        const snapshot = await this.prisma.scheduleSnapshot.findFirst({ where: { id: snapshotId, schoolId } });
+        if (!snapshot) throw new NotFoundException('Snapshot not found');
+
+        const currentEvents = await this.prisma.scheduleEvent.findMany({
+            where: { schoolId, academicYearId: snapshot.academicYearId },
+            include: {
+                subject: { include: { template: true } },
+                classroom: true,
+                teacherProfile: { include: { user: { select: { firstName: true, lastName: true } } } },
+                room: true,
+            },
+        });
+
+        const oldEvents = snapshot.data as any[];
+
+        // Build lookup by day+lesson+classroom
+        const key = (e: any) => `${e.dayOfWeek}-${e.lessonNumber}-${e.classroomId}`;
+        const oldMap = new Map(oldEvents.map(e => [key(e), e]));
+        const newMap = new Map(currentEvents.map(e => [key(e), e]));
+
+        const added: any[] = [];
+        const removed: any[] = [];
+        const changed: any[] = [];
+
+        for (const [k, ev] of newMap) {
+            if (!oldMap.has(k)) {
+                added.push(ev);
+            } else {
+                const old = oldMap.get(k)!;
+                if (old.subjectInstanceId !== ev.subjectInstanceId || old.teacherId !== ev.teacherId || old.roomId !== ev.roomId) {
+                    changed.push({ old, current: ev });
+                }
+            }
+        }
+        for (const [k, ev] of oldMap) {
+            if (!newMap.has(k)) removed.push(ev);
+        }
+
+        return { snapshotName: snapshot.name, snapshotDate: snapshot.createdAt, added, removed, changed };
+    }
+
+    async deleteSnapshot(schoolId: string, snapshotId: string) {
+        const snapshot = await this.prisma.scheduleSnapshot.findFirst({ where: { id: snapshotId, schoolId } });
+        if (!snapshot) throw new NotFoundException('Snapshot not found');
+        return this.prisma.scheduleSnapshot.delete({ where: { id: snapshotId } });
+    }
+
+    // ─── RECURRING EVENTS (kroužky) ──────────────────────────────
+
+    async getRecurringEvents(schoolId: string) {
+        return this.prisma.recurringEvent.findMany({
+            where: { schoolId },
+            include: {
+                room: { select: { id: true, name: true } },
+                teacher: { select: { id: true, firstName: true, lastName: true } },
+            },
+            orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        });
+    }
+
+    async createRecurringEvent(schoolId: string, data: {
+        title: string; dayOfWeek: number; startTime: string; endTime: string;
+        roomId?: string; teacherId?: string;
+    }) {
+        return this.prisma.recurringEvent.create({
+            data: { ...data, roomId: data.roomId || null, teacherId: data.teacherId || null, schoolId },
+        });
+    }
+
+    async updateRecurringEvent(schoolId: string, id: string, data: {
+        title?: string; dayOfWeek?: number; startTime?: string; endTime?: string;
+        roomId?: string | null; teacherId?: string | null;
+    }) {
+        const existing = await this.prisma.recurringEvent.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Recurring event not found');
+        return this.prisma.recurringEvent.update({ where: { id }, data });
+    }
+
+    async deleteRecurringEvent(schoolId: string, id: string) {
+        const existing = await this.prisma.recurringEvent.findFirst({ where: { id, schoolId } });
+        if (!existing) throw new NotFoundException('Recurring event not found');
+        return this.prisma.recurringEvent.delete({ where: { id } });
     }
 }

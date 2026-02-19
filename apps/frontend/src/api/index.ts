@@ -148,6 +148,62 @@ export const deleteSubstitution = async (id: string) => {
     return response.data;
 };
 
+// ─── SCHEDULE GENERATION & EXPORT ───────────────────────────
+
+export const generateSchedule = async (academicYearId: string, clearExisting: boolean = false) => {
+    const response = await api.post('/api/schedule/generate', { academicYearId, clearExisting });
+    return response.data;
+};
+
+export const getScheduleExportHtml = async (classroomId: string, academicYearId: string) => {
+    const response = await api.get('/api/schedule/export-html', { params: { classroomId, academicYearId } });
+    return response.data;
+};
+
+// ─── SCHEDULE SNAPSHOTS & DIFF ──────────────────────────────
+
+export const getScheduleSnapshots = async (academicYearId?: string) => {
+    const response = await api.get('/api/schedule/snapshots', { params: { academicYearId } });
+    return response.data;
+};
+
+export const createScheduleSnapshot = async (academicYearId: string, name: string) => {
+    const response = await api.post('/api/schedule/snapshots', { academicYearId, name });
+    return response.data;
+};
+
+export const diffScheduleSnapshot = async (snapshotId: string) => {
+    const response = await api.get(`/api/schedule/snapshots/${snapshotId}/diff`);
+    return response.data;
+};
+
+export const deleteScheduleSnapshot = async (snapshotId: string) => {
+    const response = await api.delete(`/api/schedule/snapshots/${snapshotId}`);
+    return response.data;
+};
+
+// ─── RECURRING EVENTS ───────────────────────────────────────
+
+export const getRecurringEvents = async () => {
+    const response = await api.get('/api/schedule/recurring-events');
+    return response.data;
+};
+
+export const createRecurringEvent = async (data: { title: string; dayOfWeek: number; startTime: string; endTime: string; roomId?: string; teacherId?: string }) => {
+    const response = await api.post('/api/schedule/recurring-events', data);
+    return response.data;
+};
+
+export const updateRecurringEvent = async (id: string, data: any) => {
+    const response = await api.put(`/api/schedule/recurring-events/${id}`, data);
+    return response.data;
+};
+
+export const deleteRecurringEvent = async (id: string) => {
+    const response = await api.delete(`/api/schedule/recurring-events/${id}`);
+    return response.data;
+};
+
 /**
  * Exchange the httpOnly __edu_sso_token cookie for a JWT.
  * Must be called with credentials (withCredentials is already set on the api instance).

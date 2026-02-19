@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare, Target, Presentation } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare, Target, Presentation, Clock, GitCompare } from 'lucide-react';
 import clsx from 'clsx';
 import { getMe } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
@@ -121,6 +121,9 @@ export const Sidebar: React.FC = () => {
         { path: '/school/competency-mapping', label: t('sidebar.competency_mapping', 'Výstupy RVP'), icon: Target },
         { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
         { path: '/schedule/substitutions', label: t('sidebar.substitutions', 'Suplování'), icon: CalendarDays },
+        { path: '/schedule/bell', label: t('sidebar.bell_schedule', 'Zvonění'), icon: Clock },
+        { path: '/schedule/diff', label: t('sidebar.schedule_diff', 'Porovnání rozvrhů'), icon: GitCompare },
+        { path: '/schedule/recurring-events', label: t('sidebar.recurring_events', 'Kroužky'), icon: Calendar },
         { path: '/grading/report-cards', label: t('sidebar.report_cards', 'Vysvědčení'), icon: FileText },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
     ];

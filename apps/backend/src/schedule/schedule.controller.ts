@@ -26,7 +26,7 @@ export class ScheduleController {
     @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
     async upsertTimeSlots(
         @Req() req: any,
-        @Body() body: { slots: { lessonNumber: number; startTime: string; endTime: string }[] },
+        @Body() body: { slots: { lessonNumber: number; startTime: string; endTime: string; label?: string; breakAfter?: number }[] },
     ) {
         this.ensureTenant(req);
         return this.scheduleService.upsertTimeSlots(req.user.schoolId, body.slots);
@@ -237,6 +237,99 @@ export class ScheduleController {
     async deleteSubstitution(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
         return this.scheduleService.deleteSubstitution(req.user.schoolId, id);
+    }
+
+    // ─── AUTO-GENERATE ──────────────────────────────────────────
+
+    @Post('generate')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async generateSchedule(
+        @Req() req: any,
+        @Body() body: { academicYearId: string; clearExisting?: boolean },
+    ) {
+        this.ensureTenant(req);
+        return this.scheduleService.generateSchedule(req.user.schoolId, body.academicYearId, body.clearExisting ?? false);
+    }
+
+    // ─── EXPORT HTML ────────────────────────────────────────────
+
+    @Get('export-html')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER)
+    async exportHtml(
+        @Req() req: any,
+        @Query('classroomId') classroomId: string,
+        @Query('academicYearId') academicYearId: string,
+    ) {
+        this.ensureTenant(req);
+        const html = await this.scheduleService.getScheduleHtml(req.user.schoolId, classroomId, academicYearId);
+        return { html };
+    }
+
+    // ─── SNAPSHOTS & DIFF ───────────────────────────────────────
+
+    @Get('snapshots')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async getSnapshots(@Req() req: any, @Query('academicYearId') academicYearId?: string) {
+        this.ensureTenant(req);
+        return this.scheduleService.getSnapshots(req.user.schoolId, academicYearId);
+    }
+
+    @Post('snapshots')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async createSnapshot(@Req() req: any, @Body() body: { academicYearId: string; name: string }) {
+        this.ensureTenant(req);
+        return this.scheduleService.createSnapshot(req.user.schoolId, body.academicYearId, body.name);
+    }
+
+    @Get('snapshots/:id/diff')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async diffSnapshot(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.scheduleService.diffSnapshot(req.user.schoolId, id);
+    }
+
+    @Delete('snapshots/:id')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async deleteSnapshot(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.scheduleService.deleteSnapshot(req.user.schoolId, id);
+    }
+
+    // ─── RECURRING EVENTS ───────────────────────────────────────
+
+    @Get('recurring-events')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER)
+    async getRecurringEvents(@Req() req: any) {
+        this.ensureTenant(req);
+        return this.scheduleService.getRecurringEvents(req.user.schoolId);
+    }
+
+    @Post('recurring-events')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async createRecurringEvent(
+        @Req() req: any,
+        @Body() body: { title: string; dayOfWeek: number; startTime: string; endTime: string; roomId?: string; teacherId?: string },
+    ) {
+        this.ensureTenant(req);
+        return this.scheduleService.createRecurringEvent(req.user.schoolId, body);
+    }
+
+    @Put('recurring-events/:id')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async updateRecurringEvent(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: { title?: string; dayOfWeek?: number; startTime?: string; endTime?: string; roomId?: string | null; teacherId?: string | null },
+    ) {
+        this.ensureTenant(req);
+        return this.scheduleService.updateRecurringEvent(req.user.schoolId, id, body);
+    }
+
+    @Delete('recurring-events/:id')
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY)
+    async deleteRecurringEvent(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.scheduleService.deleteRecurringEvent(req.user.schoolId, id);
     }
 
     // ─── HELPERS ────────────────────────────────────────────────
