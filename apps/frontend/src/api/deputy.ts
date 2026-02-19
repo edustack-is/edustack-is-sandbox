@@ -435,6 +435,35 @@ export const impersonateSchoolUser = async (userId: string) => {
     return response.data;
 };
 
+// ─── USER EDIT, SUSPEND, ROLE, EXPORT ───────────────────────────
+
+export const updateSchoolUser = async (userId: string, data: {
+    firstName?: string; lastName?: string; email?: string; workloadPercentage?: number;
+}) => {
+    const response = await api.put(`/api/deputy/users/${userId}`, data);
+    return response.data;
+};
+
+export const suspendUser = async (userId: string) => {
+    const response = await api.patch(`/api/deputy/users/${userId}/suspend`);
+    return response.data;
+};
+
+export const reactivateUser = async (userId: string) => {
+    const response = await api.patch(`/api/deputy/users/${userId}/reactivate`);
+    return response.data;
+};
+
+export const changeUserRole = async (userId: string, role: string) => {
+    const response = await api.patch(`/api/deputy/users/${userId}/role`, { role });
+    return response.data;
+};
+
+export const exportUsersCSV = async () => {
+    const response = await api.get('/api/deputy/users/export', { responseType: 'blob' });
+    return response.data;
+};
+
 // ─── RVP AI IMPORT ──────────────────────────────────────────────
 
 export const analyzeRvpFromUrl = async (url: string) => {

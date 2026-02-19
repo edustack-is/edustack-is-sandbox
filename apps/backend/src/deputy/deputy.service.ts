@@ -888,6 +888,180 @@ export class DeputyService {
             access_token: jwtService.sign(payload),
         };
     }
+    // ─── UPDATE SCHOOL USER ────────────────────────────────────────────
+
+    async updateSchoolUser(
+        actorId: string,
+        schoolId: string,
+        userId: string,
+        data: { firstName?: string; lastName?: string; email?: string; workloadPercentage?: number },
+    ) {
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+
+        const oldValues = {
+            firstName: membership.user.firstName,
+            lastName: membership.user.lastName,
+            email: membership.user.email,
+            workloadPercentage: membership.workloadPercentage,
+        };
+
+        // Update user fields
+        const userUpdate: any = {};
+        if (data.firstName !== undefined) userUpdate.firstName = data.firstName;
+        if (data.lastName !== undefined) userUpdate.lastName = data.lastName;
+        if (data.email !== undefined) userUpdate.email = data.email;
+
+        if (Object.keys(userUpdate).length > 0) {
+            await this.prisma.user.update({ where: { id: userId }, data: userUpdate });
+        }
+
+        // Update membership fields
+        if (data.workloadPercentage !== undefined) {
+            await this.prisma.schoolMembership.update({
+                where: { id: membership.id },
+                data: { workloadPercentage: data.workloadPercentage },
+            });
+        }
+
+        // Update student profile name if student
+        if (membership.role === 'STUDENT' && (data.firstName || data.lastName)) {
+            await this.prisma.studentProfile.updateMany({
+                where: { userId },
+                data: {
+                    ...(data.firstName ? { firstName: data.firstName } : {}),
+                    ...(data.lastName ? { lastName: data.lastName } : {}),
+                },
+            });
+        }
+
+        await this.audit(actorId, 'UPDATE_SCHOOL_USER', 'User', userId, data, oldValues);
+        return { success: true };
+    }
+
+    // ─── SUSPEND / REACTIVATE USER ───────────────────────────────────
+
+    async suspendUser(actorId: string, schoolId: string, userId: string) {
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+        if (membership.role === 'PRINCIPAL') throw new BadRequestException('Cannot suspend the principal.');
+        if (actorId === userId) throw new BadRequestException('Cannot suspend yourself.');
+        if (membership.status === 'SUSPENDED') throw new BadRequestException('User is already suspended.');
+
+        await this.prisma.schoolMembership.update({
+            where: { id: membership.id },
+            data: { status: 'SUSPENDED' },
+        });
+
+        await this.audit(actorId, 'SUSPEND_USER', 'SchoolMembership', membership.id, {
+            userId, newStatus: 'SUSPENDED',
+        }, { oldStatus: membership.status });
+
+        return { message: `User ${membership.user.firstName} ${membership.user.lastName} has been suspended.` };
+    }
+
+    async reactivateUser(actorId: string, schoolId: string, userId: string) {
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+        if (membership.status !== 'SUSPENDED') throw new BadRequestException('User is not suspended.');
+
+        await this.prisma.schoolMembership.update({
+            where: { id: membership.id },
+            data: { status: 'ACTIVE' },
+        });
+
+        await this.audit(actorId, 'REACTIVATE_USER', 'SchoolMembership', membership.id, {
+            userId, newStatus: 'ACTIVE',
+        }, { oldStatus: 'SUSPENDED' });
+
+        return { message: `User ${membership.user.firstName} ${membership.user.lastName} has been reactivated.` };
+    }
+
+    // ─── CHANGE USER ROLE ────────────────────────────────────────────
+
+    async changeUserRole(actorId: string, schoolId: string, userId: string, newRole: string) {
+        const validRoles = ['TEACHER', 'STUDENT', 'DEPUTY', 'PARENT'];
+        if (!validRoles.includes(newRole)) {
+            throw new BadRequestException(`Invalid role. Allowed: ${validRoles.join(', ')}`);
+        }
+
+        const membership = await this.prisma.schoolMembership.findFirst({
+            where: { userId, schoolId },
+            include: { user: true },
+        });
+        if (!membership) throw new NotFoundException('User is not a member of this school.');
+        if (membership.role === 'PRINCIPAL') throw new BadRequestException('Cannot change the principal role.');
+        if (actorId === userId) throw new BadRequestException('Cannot change your own role.');
+
+        const oldRole = membership.role;
+
+        await this.prisma.schoolMembership.update({
+            where: { id: membership.id },
+            data: { role: newRole as any },
+        });
+
+        // Create profiles if needed
+        if (newRole === 'TEACHER') {
+            await this.prisma.teacherProfile.upsert({
+                where: { userId },
+                create: { userId },
+                update: {},
+            });
+        } else if (newRole === 'STUDENT') {
+            const user = membership.user;
+            await this.prisma.studentProfile.upsert({
+                where: { userId },
+                create: { userId, firstName: user.firstName, lastName: user.lastName },
+                update: {},
+            });
+        }
+
+        await this.audit(actorId, 'CHANGE_USER_ROLE', 'SchoolMembership', membership.id, {
+            userId, newRole,
+        }, { oldRole });
+
+        return { success: true, newRole };
+    }
+
+    // ─── EXPORT USERS CSV ────────────────────────────────────────────
+
+    async exportUsersCSV(schoolId: string): Promise<string> {
+        const memberships = await this.prisma.schoolMembership.findMany({
+            where: { schoolId },
+            include: {
+                user: {
+                    select: { firstName: true, lastName: true, email: true, lastLogin: true, createdAt: true },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        const header = 'Příjmení;Jméno;Email;Role;Status;Úvazek;Poslední přihlášení;Datum vytvoření';
+        const rows = memberships.map(m => {
+            const u = m.user;
+            return [
+                u.lastName,
+                u.firstName,
+                u.email,
+                m.role,
+                m.status,
+                m.workloadPercentage ?? '',
+                u.lastLogin ? new Date(u.lastLogin).toISOString() : '',
+                new Date(u.createdAt).toISOString(),
+            ].join(';');
+        });
+
+        return [header, ...rows].join('\n');
+    }
 
     // ─── AUDIT HELPER ────────────────────────────────────────────────
 

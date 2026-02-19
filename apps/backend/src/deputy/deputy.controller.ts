@@ -1,7 +1,8 @@
 import {
     Controller, Get, Post, Put, Patch, Delete,
-    Body, Param, Query, UseGuards, Req, ForbiddenException,
+    Body, Param, Query, Res, UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -202,6 +203,19 @@ export class DeputyController {
         return this.deputyService.inviteUser(req.user.userId, req.user.schoolId, body);
     }
 
+    // ─── CSV EXPORT (must be before :id routes) ────────────────────
+
+    @Get('users/export')
+    async exportUsersCSV(@Req() req: any, @Res() res: Response) {
+        this.ensureTenant(req);
+        const csv = await this.deputyService.exportUsersCSV(req.user.schoolId);
+        res.set({
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': 'attachment; filename=uzivatele.csv',
+        });
+        res.send('\uFEFF' + csv); // BOM for Excel
+    }
+
     // ─── SCHOOL-SCOPED USERS ────────────────────────────────────────
 
     @Get('users')
@@ -276,7 +290,41 @@ export class DeputyController {
         );
     }
 
-    // ─── HELPER ──────────────────────────────────────────────────────
+    // ─── EDIT USER ──────────────────────────────────────────────────
+
+    @Put('users/:id')
+    async updateSchoolUser(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: { firstName?: string; lastName?: string; email?: string; workloadPercentage?: number },
+    ) {
+        this.ensureTenant(req);
+        return this.deputyService.updateSchoolUser(req.user.userId, req.user.schoolId, id, body);
+    }
+
+    // ─── SUSPEND / REACTIVATE ───────────────────────────────────────
+
+    @Patch('users/:id/suspend')
+    async suspendUser(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.suspendUser(req.user.userId, req.user.schoolId, id);
+    }
+
+    @Patch('users/:id/reactivate')
+    async reactivateUser(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.deputyService.reactivateUser(req.user.userId, req.user.schoolId, id);
+    }
+
+    // ─── CHANGE ROLE ────────────────────────────────────────────────
+
+    @Patch('users/:id/role')
+    async changeUserRole(@Req() req: any, @Param('id') id: string, @Body() body: { role: string }) {
+        this.ensureTenant(req);
+        return this.deputyService.changeUserRole(req.user.userId, req.user.schoolId, id, body.role);
+    }
+
+
 
     private ensureTenant(req: any) {
         if (req.user.type !== 'TENANT' || !req.user.schoolId) {

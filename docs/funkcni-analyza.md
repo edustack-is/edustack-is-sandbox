@@ -111,10 +111,10 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Stránkování seznamu uživatelů | ✅ | |
 | Vazby rodič–student | ✅ | Zobrazení v tabulce |
 | Hromadné vytvoření uživatelů (batch) | ✅ | Přes MCP |
-| Editace údajů uživatele | 🔶 | Přes MCP, chybí UI |
-| Správa oprávnění uživatele | 🔶 | Role fixní per škola, chybí granulární oprávnění |
-| Deaktivace/suspendování uživatele | 🔶 | Status SUSPENDED v DB, chybí UI akce |
-| Export uživatelů (CSV/Excel) | ❌ | |
+| Editace údajů uživatele | ✅ | Dialog pro úpravu jména, emailu, úvazku |
+| Správa oprávnění uživatele | ✅ | Změna role v editačním dialogu |
+| Deaktivace/suspendování uživatele | ✅ | Suspend/reactivate tlačítka v tabulce |
+| Export uživatelů (CSV/Excel) | ✅ | CSV export s BOM pro Excel |
 | Fotogalerie třídy | ❌ | |
 | Hromadný import z XML (Bakaláři formát) | ❌ | |
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
-import { UserCog, Send, Plus, Trash2, GraduationCap, UserMinus, Filter, Users2, Link2 } from 'lucide-react';
+import { UserCog, Send, Plus, Trash2, GraduationCap, UserMinus, Filter, Users2, Link2, Pencil, Ban, ShieldCheck, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
@@ -9,6 +9,7 @@ import { getUsers, api } from '../api';
 import {
     getDeputyUsers, createStudentFamily, createStaff, resendInvitation,
     removeSchoolUser, setUserAlumni, impersonateSchoolUser,
+    updateSchoolUser, suspendUser, reactivateUser, changeUserRole, exportUsersCSV,
 } from '../api/deputy';
 
 import { DataTable } from '@/components/ui/data-table';
@@ -82,6 +83,7 @@ function statusBadgeVariant(status: string) {
     switch (status) {
         case 'ACTIVE': return 'default';
         case 'PENDING': return 'secondary';
+        case 'SUSPENDED': return 'secondary';
         case 'ARCHIVED': return 'destructive';
         default: return 'outline';
     }
@@ -107,6 +109,11 @@ export default function Users() {
     const [alumniTarget, setAlumniTarget] = useState<SchoolUser | null>(null);
     const [removing, setRemoving] = useState(false);
     const [settingAlumni, setSettingAlumni] = useState(false);
+
+    // Edit dialog
+    const [editTarget, setEditTarget] = useState<SchoolUser | null>(null);
+    const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', workloadPercentage: '', role: '' });
+    const [editSaving, setEditSaving] = useState(false);
 
     // Classrooms for filter
     const [classrooms, setClassrooms] = useState<{ id: string; name: string }[]>([]);
@@ -247,6 +254,88 @@ export default function Users() {
             toast.error(error.response?.data?.message || error.message);
         } finally {
             setSettingAlumni(false);
+        }
+    };
+
+    // ── Edit user ───────────────────────────────────────
+    const openEditDialog = (user: SchoolUser) => {
+        setEditTarget(user);
+        setEditForm({
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email.endsWith('@noemail.local') ? '' : user.email,
+            workloadPercentage: user.workloadPercentage != null ? String(user.workloadPercentage) : '',
+            role: user.role,
+        });
+    };
+
+    const handleEditSave = async () => {
+        if (!editTarget) return;
+        setEditSaving(true);
+        try {
+            const data: any = {};
+            if (editForm.firstName !== editTarget.firstName) data.firstName = editForm.firstName;
+            if (editForm.lastName !== editTarget.lastName) data.lastName = editForm.lastName;
+            const origEmail = editTarget.email.endsWith('@noemail.local') ? '' : editTarget.email;
+            if (editForm.email && editForm.email !== origEmail) data.email = editForm.email;
+            if (editForm.workloadPercentage) {
+                const wp = parseFloat(editForm.workloadPercentage);
+                if (!isNaN(wp) && wp !== editTarget.workloadPercentage) data.workloadPercentage = wp;
+            }
+
+            if (Object.keys(data).length > 0) {
+                await updateSchoolUser(editTarget.id, data);
+            }
+
+            // Change role if different
+            if (editForm.role !== editTarget.role && editForm.role !== 'PRINCIPAL') {
+                await changeUserRole(editTarget.id, editForm.role);
+            }
+
+            toast.success(t('users_page.user_updated', 'Uživatel aktualizován'));
+            setEditTarget(null);
+            loadUsers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message);
+        } finally {
+            setEditSaving(false);
+        }
+    };
+
+    // ── Suspend / Reactivate ─────────────────────────────
+    const handleSuspend = async (userId: string) => {
+        try {
+            await suspendUser(userId);
+            toast.success(t('users_page.user_suspended', 'Uživatel pozastaven'));
+            loadUsers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message);
+        }
+    };
+
+    const handleReactivate = async (userId: string) => {
+        try {
+            await reactivateUser(userId);
+            toast.success(t('users_page.user_reactivated', 'Uživatel reaktivován'));
+            loadUsers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message);
+        }
+    };
+
+    // ── CSV Export ───────────────────────────────────────
+    const handleExport = async () => {
+        try {
+            const blob = await exportUsersCSV();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'uzivatele.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success(t('users_page.export_done', 'Export stažen'));
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Export selhal');
         }
     };
 
@@ -428,6 +517,18 @@ export default function Users() {
             header: t('common.actions'),
             cell: ({ row }) => (
                 <div className="flex gap-1">
+                    {/* Edit */}
+                    {row.original.role !== 'PRINCIPAL' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.edit_user', 'Upravit')}
+                            onClick={() => openEditDialog(row.original)}
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                    )}
+
                     {/* Resend invitation */}
                     {row.original.status === 'PENDING' && (
                         <Button
@@ -437,6 +538,29 @@ export default function Users() {
                             onClick={() => handleResendInvitation(row.original.id)}
                         >
                             <Send className="h-4 w-4" />
+                        </Button>
+                    )}
+
+                    {/* Suspend / Reactivate */}
+                    {row.original.status === 'ACTIVE' &&
+                        row.original.role !== 'PRINCIPAL' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.suspend', 'Pozastavit')}
+                                onClick={() => handleSuspend(row.original.id)}
+                            >
+                                <Ban className="h-4 w-4 text-amber-600" />
+                            </Button>
+                        )}
+                    {row.original.status === 'SUSPENDED' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.reactivate', 'Reaktivovat')}
+                            onClick={() => handleReactivate(row.original.id)}
+                        >
+                            <ShieldCheck className="h-4 w-4 text-green-600" />
                         </Button>
                     )}
 
@@ -494,6 +618,10 @@ export default function Users() {
                 <Button onClick={() => { setDialogOpen(true); setActiveTab('student'); }}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t('users_page.add_user')}
+                </Button>
+                <Button variant="outline" onClick={handleExport}>
+                    <Download className="h-4 w-4 mr-2" />
+                    {t('users_page.export', 'Export CSV')}
                 </Button>
             </div>
 
@@ -766,6 +894,62 @@ export default function Users() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* ─── Edit User Dialog ───────────────────────────── */}
+            <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('users_page.edit_title', 'Upravit uživatele')}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <Label>{t('users_page.first_name_required')}</Label>
+                                <Input value={editForm.firstName}
+                                    onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))} />
+                            </div>
+                            <div className="space-y-1">
+                                <Label>{t('users_page.last_name_required')}</Label>
+                                <Input value={editForm.lastName}
+                                    onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>{t('common.email')}</Label>
+                            <Input type="email" value={editForm.email}
+                                onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <Label>{t('common.role')}</Label>
+                                <Select value={editForm.role}
+                                    onValueChange={v => setEditForm(f => ({ ...f, role: v }))}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {['TEACHER', 'STUDENT', 'DEPUTY', 'PARENT'].map(r => (
+                                            <SelectItem key={r} value={r}>{t(`roles.${r}`, r)}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {['TEACHER', 'DEPUTY'].includes(editForm.role) && (
+                                <div className="space-y-1">
+                                    <Label>{t('users_page.workload')}</Label>
+                                    <Input type="number" step="0.1" min="0.1" max="1.0"
+                                        value={editForm.workloadPercentage}
+                                        onChange={e => setEditForm(f => ({ ...f, workloadPercentage: e.target.value }))} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditTarget(null)}>{t('common.cancel')}</Button>
+                        <Button onClick={handleEditSave} disabled={editSaving || !editForm.firstName || !editForm.lastName}>
+                            {editSaving ? t('common.saving') : t('common.save', 'Uložit')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
