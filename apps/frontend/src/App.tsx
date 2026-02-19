@@ -18,6 +18,7 @@ import LessonPreparations from './pages/LessonPreparations';
 import BellSchedule from './pages/BellSchedule';
 import RecurringEvents from './pages/RecurringEvents';
 import ScheduleDiff from './pages/ScheduleDiff';
+import EducationalMeasures from './pages/EducationalMeasures';
 import TeachingMaterials from './pages/TeachingMaterials';
 import CompetencyMapping from './pages/CompetencyMapping';
 import { Setup } from './pages/Setup';
@@ -124,6 +125,7 @@ function App() {
                 <Route path="schedule/bell" element={<BellSchedule />} />
                 <Route path="schedule/diff" element={<ScheduleDiff />} />
                 <Route path="schedule/recurring-events" element={<RecurringEvents />} />
+                <Route path="grading/measures" element={<EducationalMeasures />} />
                 <Route path="school/users" element={<Users />} />
                 <Route path="school/rooms" element={<RoomsManagement />} />
                 <Route path="school/events" element={<SchoolEvents />} />

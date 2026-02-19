@@ -176,13 +176,13 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Slovní hodnocení | ✅ | Součást vysvědčení |
 | Zobrazení známek pro studenta (self) | ✅ | Student vidí vlastní známky |
 | Zobrazení známek pro rodiče | ✅ | Rodič vidí známky dětí |
-| Chování (hodnocení chování) | ❌ | |
-| Hodnocení dle kompetencí (formativní) | ❌ | |
-| Výchovná opatření (pochvaly, důtky) | ❌ | |
-| Grafické zobrazení vývoje známek | ❌ | Grafy trendu |
-| Export vysvědčení do PDF | ❌ | Tiskový výstup |
-| Komisionální přezkoušení | ❌ | |
-| Uzavření klasifikace (deadline) | ❌ | |
+| Chování (hodnocení chování) | ✅ | BehaviorGrade model, upsert per student/semestr |
+| Hodnocení dle kompetencí (formativní) | ✅ | CompetencyGrade matice student × kompetence |
+| Výchovná opatření (pochvaly, důtky) | ✅ | CRUD, typy: pochvala/důtka/důtka TU/důtka ŘŠ, stránka |
+| Grafické zobrazení vývoje známek | ✅ | API pro historii známek, graf po čase |
+| Export vysvědčení do PDF | ✅ | HTML tabulka s CSS print styles |
+| Komisionální přezkoušení | ✅ | CRUD, sledování původní a nové známky |
+| Uzavření klasifikace (deadline) | ✅ | Deadline + zámek, upsert per semestr |
 
 ---
 
@@ -273,7 +273,7 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Dashboard se statistikami | ✅ | Systémový i školní |
 | Audit log | ✅ | |
 | AI spotřeba | ✅ | |
-| Export vysvědčení do PDF | ❌ | |
+| Export vysvědčení do PDF | ✅ | HTML export vysvědčení třídy |
 | Tisk rozvrhu | ✅ | HTML export rozvrhu třídy |
 | Statistiky prospěchu (třídy, ročníky) | ❌ | |
 | Statistiky docházky | 🔶 | Přes MCP, chybí UI |
@@ -310,14 +310,14 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Správa uživatelů | 17 | 11 | 3 | 3 |
 | Kurikulum | 13 | 9 | 0 | 4 |
 | Rozvrh | 15 | 15 | 0 | 0 |
-| Klasifikace | 17 | 10 | 0 | 7 |
+| Klasifikace | 17 | 17 | 0 | 0 |
 | Docházka | 8 | 2 | 1 | 5 |
 | Komunikace | 12 | 7 | 0 | 5 |
 | Třídní kniha | 7 | 1 | 1 | 5 |
 | AI funkce | 8 | 4 | 0 | 4 |
 | MCP | 10 | 7 | 0 | 3 |
-| Reporty a výstupy | 10 | 4 | 1 | 5 |
+| Reporty a výstupy | 10 | 5 | 1 | 4 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **166** | **108** | **8** | **50** |
+| **Celkem** | **166** | **116** | **8** | **42** |
 
-**Pokrytí:** přibližně **70 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **75 %** požadovaných funkcí je plně nebo částečně implementováno.

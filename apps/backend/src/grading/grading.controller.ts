@@ -201,4 +201,184 @@ export class GradingController {
         this.ensureTenant(req);
         return this.gradingService.getGradingTypesForClassroom(req.user.schoolId, classroomId);
     }
+
+    // ─── BEHAVIOR GRADES ────────────────────────────────────────
+
+    @Put('behavior')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
+    async upsertBehaviorGrade(
+        @Req() req: any,
+        @Body() body: { studentId: string; semesterId: string; grade: number; note?: string },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.upsertBehaviorGrade(req.user.schoolId, body);
+    }
+
+    @Get('behavior/:classroomId/:semesterId')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
+    async getBehaviorGrades(
+        @Req() req: any,
+        @Param('classroomId') classroomId: string,
+        @Param('semesterId') semesterId: string,
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.getBehaviorGrades(req.user.schoolId, classroomId, semesterId);
+    }
+
+    // ─── COMPETENCY GRADES ──────────────────────────────────────
+
+    @Put('competency')
+    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async upsertCompetencyGrade(
+        @Req() req: any,
+        @Body() body: {
+            studentId: string; competencyId: string; subjectInstanceId: string;
+            semesterId: string; level: number; note?: string;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.upsertCompetencyGrade(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Get('competency/:studentId')
+    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT)
+    async getCompetencyGrades(
+        @Req() req: any,
+        @Param('studentId') studentId: string,
+        @Query('semesterId') semesterId?: string,
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.getCompetencyGrades(req.user.schoolId, studentId, semesterId);
+    }
+
+    // ─── EDUCATIONAL MEASURES ───────────────────────────────────
+
+    @Post('measures')
+    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async createMeasure(
+        @Req() req: any,
+        @Body() body: { studentId: string; type: string; reason: string; semesterId?: string },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.createMeasure(req.user.userId, req.user.schoolId, body);
+    }
+
+    @Get('measures')
+    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async getMeasures(
+        @Req() req: any,
+        @Query('classroomId') classroomId?: string,
+        @Query('studentId') studentId?: string,
+        @Query('semesterId') semesterId?: string,
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.getMeasures(req.user.schoolId, { classroomId, studentId, semesterId });
+    }
+
+    @Delete('measures/:id')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async deleteMeasure(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.gradingService.deleteMeasure(req.user.schoolId, id);
+    }
+
+    // ─── GRADE HISTORY ──────────────────────────────────────────
+
+    @Get('history/:studentId/:subjectInstanceId')
+    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT)
+    async getGradeHistory(
+        @Req() req: any,
+        @Param('studentId') studentId: string,
+        @Param('subjectInstanceId') subjectInstanceId: string,
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.getGradeHistory(req.user.schoolId, studentId, subjectInstanceId);
+    }
+
+    // ─── REPORT CARD HTML EXPORT ────────────────────────────────
+
+    @Get('report-cards-html/:classroomId/:semesterId')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async getReportCardHtml(
+        @Req() req: any,
+        @Param('classroomId') classroomId: string,
+        @Param('semesterId') semesterId: string,
+    ) {
+        this.ensureTenant(req);
+        const html = await this.gradingService.getReportCardHtml(req.user.schoolId, classroomId, semesterId);
+        return { html };
+    }
+
+    // ─── COMMISSION EXAMS ───────────────────────────────────────
+
+    @Post('commission-exams')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async createCommissionExam(
+        @Req() req: any,
+        @Body() body: {
+            date: string; originalGrade: string; studentId: string;
+            subjectInstanceId: string; semesterId: string; note?: string;
+        },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.createCommissionExam(req.user.schoolId, body);
+    }
+
+    @Get('commission-exams')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async getCommissionExams(
+        @Req() req: any,
+        @Query('classroomId') classroomId?: string,
+        @Query('semesterId') semesterId?: string,
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.getCommissionExams(req.user.schoolId, { classroomId, semesterId });
+    }
+
+    @Put('commission-exams/:id')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async updateCommissionExam(
+        @Req() req: any,
+        @Param('id') id: string,
+        @Body() body: { newGrade?: string; note?: string; date?: string },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.updateCommissionExam(req.user.schoolId, id, body);
+    }
+
+    @Delete('commission-exams/:id')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async deleteCommissionExam(@Req() req: any, @Param('id') id: string) {
+        this.ensureTenant(req);
+        return this.gradingService.deleteCommissionExam(req.user.schoolId, id);
+    }
+
+    // ─── CLASSIFICATION DEADLINE ────────────────────────────────
+
+    @Get('deadline/:semesterId')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
+    async getDeadline(@Req() req: any, @Param('semesterId') semesterId: string) {
+        this.ensureTenant(req);
+        return this.gradingService.getDeadline(req.user.schoolId, semesterId);
+    }
+
+    @Put('deadline')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async upsertDeadline(
+        @Req() req: any,
+        @Body() body: { semesterId: string; deadline: string; isLocked?: boolean },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.upsertDeadline(req.user.schoolId, body);
+    }
+
+    @Post('deadline/lock')
+    @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+    async lockClassification(
+        @Req() req: any,
+        @Body() body: { semesterId: string; lock: boolean },
+    ) {
+        this.ensureTenant(req);
+        return this.gradingService.lockClassification(req.user.schoolId, body.semesterId, body.lock);
+    }
 }

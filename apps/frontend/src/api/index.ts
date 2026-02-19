@@ -424,7 +424,106 @@ export const getGradingTypes = async (classroomId: string) => {
     return response.data;
 };
 
-// ─── MESSAGING ──────────────────────────────────────────────
+// ─── BEHAVIOR GRADES ────────────────────────────────────────
+
+export const upsertBehaviorGrade = async (data: { studentId: string; semesterId: string; grade: number; note?: string }) => {
+    const response = await api.put('/api/grading/behavior', data);
+    return response.data;
+};
+
+export const getBehaviorGrades = async (classroomId: string, semesterId: string) => {
+    const response = await api.get(`/api/grading/behavior/${classroomId}/${semesterId}`);
+    return response.data;
+};
+
+// ─── COMPETENCY GRADES ──────────────────────────────────────
+
+export const upsertCompetencyGrade = async (data: {
+    studentId: string; competencyId: string; subjectInstanceId: string;
+    semesterId: string; level: number; note?: string;
+}) => {
+    const response = await api.put('/api/grading/competency', data);
+    return response.data;
+};
+
+export const getCompetencyGrades = async (studentId: string, semesterId?: string) => {
+    const response = await api.get(`/api/grading/competency/${studentId}`, { params: { semesterId } });
+    return response.data;
+};
+
+// ─── EDUCATIONAL MEASURES ───────────────────────────────────
+
+export const createMeasure = async (data: { studentId: string; type: string; reason: string; semesterId?: string }) => {
+    const response = await api.post('/api/grading/measures', data);
+    return response.data;
+};
+
+export const getMeasures = async (filters?: { classroomId?: string; studentId?: string; semesterId?: string }) => {
+    const response = await api.get('/api/grading/measures', { params: filters });
+    return response.data;
+};
+
+export const deleteMeasure = async (id: string) => {
+    const response = await api.delete(`/api/grading/measures/${id}`);
+    return response.data;
+};
+
+// ─── GRADE HISTORY ──────────────────────────────────────────
+
+export const getGradeHistory = async (studentId: string, subjectInstanceId: string) => {
+    const response = await api.get(`/api/grading/history/${studentId}/${subjectInstanceId}`);
+    return response.data;
+};
+
+// ─── REPORT CARD HTML EXPORT ────────────────────────────────
+
+export const getReportCardHtml = async (classroomId: string, semesterId: string) => {
+    const response = await api.get(`/api/grading/report-cards-html/${classroomId}/${semesterId}`);
+    return response.data;
+};
+
+// ─── COMMISSION EXAMS ───────────────────────────────────────
+
+export const createCommissionExam = async (data: {
+    date: string; originalGrade: string; studentId: string;
+    subjectInstanceId: string; semesterId: string; note?: string;
+}) => {
+    const response = await api.post('/api/grading/commission-exams', data);
+    return response.data;
+};
+
+export const getCommissionExams = async (filters?: { classroomId?: string; semesterId?: string }) => {
+    const response = await api.get('/api/grading/commission-exams', { params: filters });
+    return response.data;
+};
+
+export const updateCommissionExam = async (id: string, data: { newGrade?: string; note?: string; date?: string }) => {
+    const response = await api.put(`/api/grading/commission-exams/${id}`, data);
+    return response.data;
+};
+
+export const deleteCommissionExam = async (id: string) => {
+    const response = await api.delete(`/api/grading/commission-exams/${id}`);
+    return response.data;
+};
+
+// ─── CLASSIFICATION DEADLINE ────────────────────────────────
+
+export const getClassificationDeadline = async (semesterId: string) => {
+    const response = await api.get(`/api/grading/deadline/${semesterId}`);
+    return response.data;
+};
+
+export const upsertClassificationDeadline = async (data: { semesterId: string; deadline: string; isLocked?: boolean }) => {
+    const response = await api.put('/api/grading/deadline', data);
+    return response.data;
+};
+
+export const lockClassification = async (semesterId: string, lock: boolean) => {
+    const response = await api.post('/api/grading/deadline/lock', { semesterId, lock });
+    return response.data;
+};
+
 
 export const getConversations = async () => {
     const response = await api.get('/api/messaging/conversations');

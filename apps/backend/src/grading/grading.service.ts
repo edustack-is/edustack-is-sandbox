@@ -519,6 +519,247 @@ Vrať pouze upravený text hodnocení, bez dalšího komentáře.`;
         }));
     }
 
+    // ─── BEHAVIOR GRADES ─────────────────────────────────────────
+
+    async upsertBehaviorGrade(schoolId: string, data: { studentId: string; semesterId: string; grade: number; note?: string }) {
+        if (data.grade < 1 || data.grade > 3) throw new BadRequestException('Behavior grade must be 1-3.');
+        return this.prisma.behaviorGrade.upsert({
+            where: { studentId_semesterId: { studentId: data.studentId, semesterId: data.semesterId } },
+            update: { grade: data.grade, note: data.note },
+            create: { studentId: data.studentId, semesterId: data.semesterId, grade: data.grade, note: data.note, schoolId },
+            include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
+        });
+    }
+
+    async getBehaviorGrades(schoolId: string, classroomId: string, semesterId: string) {
+        const classroom = await this.prisma.classroom.findUnique({
+            where: { id: classroomId },
+            include: { students: { select: { id: true, firstName: true, lastName: true } } },
+        });
+        if (!classroom || classroom.schoolId !== schoolId) throw new NotFoundException('Classroom not found');
+
+        const grades = await this.prisma.behaviorGrade.findMany({
+            where: { schoolId, semesterId, studentId: { in: classroom.students.map(s => s.id) } },
+        });
+
+        return { classroom: { id: classroom.id, name: classroom.name }, students: classroom.students, grades };
+    }
+
+    // ─── COMPETENCY GRADES ──────────────────────────────────────
+
+    async upsertCompetencyGrade(userId: string, schoolId: string, data: {
+        studentId: string; competencyId: string; subjectInstanceId: string;
+        semesterId: string; level: number; note?: string;
+    }) {
+        if (data.level < 1 || data.level > 4) throw new BadRequestException('Competency level must be 1-4.');
+        const teacher = await this.getTeacherProfile(userId);
+        return this.prisma.competencyGrade.upsert({
+            where: {
+                studentId_competencyId_subjectInstanceId_semesterId: {
+                    studentId: data.studentId, competencyId: data.competencyId,
+                    subjectInstanceId: data.subjectInstanceId, semesterId: data.semesterId,
+                },
+            },
+            update: { level: data.level, note: data.note },
+            create: { ...data, schoolId, teacherId: teacher.id },
+            include: { competency: true, student: true, subjectInstance: { include: { template: true } } },
+        });
+    }
+
+    async getCompetencyGrades(schoolId: string, studentId: string, semesterId?: string) {
+        const where: any = { schoolId, studentId };
+        if (semesterId) where.semesterId = semesterId;
+        return this.prisma.competencyGrade.findMany({
+            where,
+            include: {
+                competency: true,
+                subjectInstance: { include: { template: true } },
+                teacher: { include: { user: { select: { firstName: true, lastName: true } } } },
+            },
+        });
+    }
+
+    // ─── EDUCATIONAL MEASURES ───────────────────────────────────
+
+    async createMeasure(userId: string, schoolId: string, data: {
+        studentId: string; type: any; reason: string; semesterId?: string;
+    }) {
+        return this.prisma.educationalMeasure.create({
+            data: { ...data, issuedById: userId, schoolId },
+            include: {
+                student: { include: { user: { select: { firstName: true, lastName: true } } } },
+                issuedBy: { select: { firstName: true, lastName: true } },
+            },
+        });
+    }
+
+    async getMeasures(schoolId: string, filters?: { classroomId?: string; studentId?: string; semesterId?: string }) {
+        const where: any = { schoolId };
+        if (filters?.studentId) where.studentId = filters.studentId;
+        if (filters?.semesterId) where.semesterId = filters.semesterId;
+        if (filters?.classroomId) {
+            const classroom = await this.prisma.classroom.findUnique({
+                where: { id: filters.classroomId },
+                select: { students: { select: { id: true } } },
+            });
+            if (classroom) where.studentId = { in: classroom.students.map(s => s.id) };
+        }
+        return this.prisma.educationalMeasure.findMany({
+            where,
+            include: {
+                student: { include: { user: { select: { firstName: true, lastName: true } } } },
+                issuedBy: { select: { firstName: true, lastName: true } },
+            },
+            orderBy: { date: 'desc' },
+        });
+    }
+
+    async deleteMeasure(schoolId: string, id: string) {
+        const measure = await this.prisma.educationalMeasure.findFirst({ where: { id, schoolId } });
+        if (!measure) throw new NotFoundException('Measure not found');
+        await this.prisma.educationalMeasure.delete({ where: { id } });
+        return { success: true };
+    }
+
+    // ─── GRADE HISTORY (for charts) ─────────────────────────────
+
+    async getGradeHistory(schoolId: string, studentId: string, subjectInstanceId: string) {
+        return this.prisma.grade.findMany({
+            where: { schoolId, studentId, subjectInstanceId, type: 'NUMERIC' },
+            select: { id: true, value: true, date: true, weight: true, description: true, category: true },
+            orderBy: { date: 'asc' },
+        });
+    }
+
+    // ─── REPORT CARD HTML EXPORT ────────────────────────────────
+
+    async getReportCardHtml(schoolId: string, classroomId: string, semesterId: string) {
+        const data = await this.getReportCardsForClass(schoolId, classroomId, semesterId);
+        const semester = await this.prisma.semester.findUnique({
+            where: { id: semesterId },
+            include: { academicYear: true },
+        });
+
+        let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Vysvědčení – ${data.classroom.name}</title>
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 11px; }
+          h2 { text-align: center; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #333; padding: 4px 6px; text-align: center; }
+          th { background: #f0f0f0; }
+          .student-name { text-align: left; font-weight: bold; }
+          @media print { .page-break { page-break-before: always; } body { margin: 0; } }
+        </style></head><body>`;
+        html += `<h2>Vysvědčení: ${data.classroom.name} – ${semester?.academicYear?.name || ''} (${semester?.name || ''})</h2>`;
+        html += '<table><thead><tr><th>Student</th>';
+        for (const subj of data.subjects) html += `<th>${subj.name}</th>`;
+        html += '</tr></thead><tbody>';
+
+        for (const student of data.students) {
+            html += `<tr><td class="student-name">${student.lastName} ${student.firstName}</td>`;
+            for (const subj of data.subjects) {
+                const subjData = student.subjects.find((s: any) => s.subjectInstanceId === subj.id);
+                const grade = subjData?.reportCard?.finalGrade || '-';
+                html += `<td>${grade}</td>`;
+            }
+            html += '</tr>';
+        }
+
+        html += '</tbody></table></body></html>';
+        return html;
+    }
+
+    // ─── COMMISSION EXAMS ───────────────────────────────────────
+
+    async createCommissionExam(schoolId: string, data: {
+        date: string; originalGrade: string; studentId: string;
+        subjectInstanceId: string; semesterId: string; note?: string;
+    }) {
+        return this.prisma.commissionExam.create({
+            data: {
+                date: new Date(data.date),
+                originalGrade: data.originalGrade,
+                note: data.note,
+                studentId: data.studentId,
+                subjectInstanceId: data.subjectInstanceId,
+                semesterId: data.semesterId,
+                schoolId,
+            },
+            include: {
+                student: { include: { user: { select: { firstName: true, lastName: true } } } },
+                subjectInstance: { include: { template: true } },
+            },
+        });
+    }
+
+    async getCommissionExams(schoolId: string, filters?: { classroomId?: string; semesterId?: string }) {
+        const where: any = { schoolId };
+        if (filters?.semesterId) where.semesterId = filters.semesterId;
+        if (filters?.classroomId) {
+            const classroom = await this.prisma.classroom.findUnique({
+                where: { id: filters.classroomId },
+                select: { students: { select: { id: true } } },
+            });
+            if (classroom) where.studentId = { in: classroom.students.map(s => s.id) };
+        }
+        return this.prisma.commissionExam.findMany({
+            where,
+            include: {
+                student: { include: { user: { select: { firstName: true, lastName: true } } } },
+                subjectInstance: { include: { template: true } },
+            },
+            orderBy: { date: 'desc' },
+        });
+    }
+
+    async updateCommissionExam(schoolId: string, id: string, data: { newGrade?: string; note?: string; date?: string }) {
+        const exam = await this.prisma.commissionExam.findFirst({ where: { id, schoolId } });
+        if (!exam) throw new NotFoundException('Commission exam not found');
+        return this.prisma.commissionExam.update({
+            where: { id },
+            data: {
+                ...(data.newGrade !== undefined && { newGrade: data.newGrade }),
+                ...(data.note !== undefined && { note: data.note }),
+                ...(data.date && { date: new Date(data.date) }),
+            },
+            include: {
+                student: { include: { user: { select: { firstName: true, lastName: true } } } },
+                subjectInstance: { include: { template: true } },
+            },
+        });
+    }
+
+    async deleteCommissionExam(schoolId: string, id: string) {
+        const exam = await this.prisma.commissionExam.findFirst({ where: { id, schoolId } });
+        if (!exam) throw new NotFoundException('Commission exam not found');
+        await this.prisma.commissionExam.delete({ where: { id } });
+        return { success: true };
+    }
+
+    // ─── CLASSIFICATION DEADLINE ────────────────────────────────
+
+    async getDeadline(schoolId: string, semesterId: string) {
+        return this.prisma.classificationDeadline.findUnique({
+            where: { semesterId_schoolId: { semesterId, schoolId } },
+        });
+    }
+
+    async upsertDeadline(schoolId: string, data: { semesterId: string; deadline: string; isLocked?: boolean }) {
+        return this.prisma.classificationDeadline.upsert({
+            where: { semesterId_schoolId: { semesterId: data.semesterId, schoolId } },
+            update: { deadline: new Date(data.deadline), ...(data.isLocked !== undefined && { isLocked: data.isLocked }) },
+            create: { semesterId: data.semesterId, schoolId, deadline: new Date(data.deadline), isLocked: data.isLocked ?? false },
+        });
+    }
+
+    async lockClassification(schoolId: string, semesterId: string, lock: boolean) {
+        return this.prisma.classificationDeadline.upsert({
+            where: { semesterId_schoolId: { semesterId, schoolId } },
+            update: { isLocked: lock },
+            create: { semesterId, schoolId, deadline: new Date(), isLocked: lock },
+        });
+    }
+
     // ─── HELPERS ────────────────────────────────────────────────
 
     private async getTeacherProfile(userId: string) {

@@ -125,6 +125,7 @@ export const Sidebar: React.FC = () => {
         { path: '/schedule/diff', label: t('sidebar.schedule_diff', 'Porovnání rozvrhů'), icon: GitCompare },
         { path: '/schedule/recurring-events', label: t('sidebar.recurring_events', 'Kroužky'), icon: Calendar },
         { path: '/grading/report-cards', label: t('sidebar.report_cards', 'Vysvědčení'), icon: FileText },
+        { path: '/grading/measures', label: t('sidebar.measures', 'Výchovná opatření'), icon: FileText },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
     ];
 
