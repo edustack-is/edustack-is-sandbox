@@ -242,10 +242,13 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | AI polish slovního hodnocení | ✅ | Automatické vylepšení textu |
 | Seedování dat pomocí AI | ✅ | Generování testovacích dat |
 | Výběr AI poskytovatele | ✅ | OpenAI, Anthropic apod. |
-| AI generování tematických plánů | ❌ | |
-| AI doporučení pro studenty | ❌ | Na základě výsledků |
-| AI analýza prospěchu třídy | ❌ | |
-| AI generování testů | ❌ | |
+| AI generování tematických plánů | ✅ | Gemini generuje markdown tabulku |
+| AI doporučení pro studenty | ✅ | Na základě známek, docházky, chování |
+| AI generování slovního hodnocení | ✅ | Funkce refineText u formulářového pole |
+| AI analýza prospěchu třídy | ✅ | Statistiky + doporučení pro učitele |
+| AI generování testů | ✅ | Otázky s odpověďmi a body |
+| AI generování písemek | ✅ | Varianty s klasifikační tabulkou |
+| AI detekce škodlivého obsahu | ✅ | Gemini moderace ve zprávách |
 
 ---
 
@@ -314,10 +317,10 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | Docházka | 8 | 8 | 0 | 0 |
 | Komunikace | 12 | 12 | 0 | 0 |
 | Třídní kniha | 7 | 7 | 0 | 0 |
-| AI funkce | 8 | 4 | 0 | 4 |
+| AI funkce | 11 | 11 | 0 | 0 |
 | MCP | 10 | 7 | 0 | 3 |
 | Reporty a výstupy | 10 | 5 | 1 | 4 |
 | Infrastruktura | 10 | 4 | 1 | 5 |
-| **Celkem** | **166** | **133** | **6** | **27** |
+| **Celkem** | **169** | **139** | **6** | **24** |
 
-**Pokrytí:** přibližně **84 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **86 %** požadovaných funkcí je plně nebo částečně implementováno.

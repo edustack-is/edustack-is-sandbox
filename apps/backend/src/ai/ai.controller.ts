@@ -110,4 +110,55 @@ export class AiController {
         sendEvent('done', {});
         res.end();
     }
+
+    // ─── NEW AI FEATURES ────────────────────────────────────
+
+    @Post('refine-text')
+    async refineText(@Body() body: { existingText?: string; context: string; instruction: string }) {
+        return this.aiService.refineText(body);
+    }
+
+    @Post('thematic-plan')
+    async generateThematicPlan(@Body() body: {
+        subjectName: string; grade: string; hoursPerWeek: number;
+        semesterWeeks?: number; topics?: string;
+    }) {
+        return this.aiService.generateThematicPlan(body);
+    }
+
+    @Post('student-recommendations')
+    async generateStudentRecommendations(@Body() body: {
+        studentName: string;
+        grades: Array<{ subject: string; grade: number }>;
+        attendance?: { total: number; absent: number };
+        behavior?: string;
+    }) {
+        return this.aiService.generateStudentRecommendations(body);
+    }
+
+    @Post('class-analysis')
+    async analyzeClassPerformance(@Body() body: {
+        className: string;
+        grades: Array<{ student: string; subject: string; grade: number }>;
+        subjectName?: string;
+    }) {
+        return this.aiService.analyzeClassPerformance(body);
+    }
+
+    @Post('generate-test')
+    async generateTest(@Body() body: {
+        subjectName: string; topic: string; grade: string;
+        questionCount?: number; difficulty?: 'easy' | 'medium' | 'hard';
+        questionTypes?: string;
+    }) {
+        return this.aiService.generateTest(body);
+    }
+
+    @Post('generate-written-test')
+    async generateWrittenTest(@Body() body: {
+        subjectName: string; topics: string[]; grade: string;
+        duration?: number; variantCount?: number;
+    }) {
+        return this.aiService.generateWrittenTest(body);
+    }
 }

@@ -774,3 +774,35 @@ export const getClassBookAttendance = async (classroomId: string, date: string, 
     const response = await api.get(`/api/classbook/attendance/${classroomId}`, { params: { date, lessonNumber } });
     return response.data;
 };
+
+// ─── AI FEATURES ────────────────────────────────────────────
+
+export const aiRefineText = async (data: { existingText?: string; context: string; instruction: string }) => {
+    const response = await api.post('/api/ai/refine-text', data);
+    return response.data;
+};
+
+export const aiGenerateThematicPlan = async (data: { subjectName: string; grade: string; hoursPerWeek: number; semesterWeeks?: number; topics?: string }) => {
+    const response = await api.post('/api/ai/thematic-plan', data);
+    return response.data;
+};
+
+export const aiStudentRecommendations = async (data: { studentName: string; grades: Array<{ subject: string; grade: number }>; attendance?: { total: number; absent: number }; behavior?: string }) => {
+    const response = await api.post('/api/ai/student-recommendations', data);
+    return response.data;
+};
+
+export const aiClassAnalysis = async (data: { className: string; grades: Array<{ student: string; subject: string; grade: number }>; subjectName?: string }) => {
+    const response = await api.post('/api/ai/class-analysis', data);
+    return response.data;
+};
+
+export const aiGenerateTest = async (data: { subjectName: string; topic: string; grade: string; questionCount?: number; difficulty?: 'easy' | 'medium' | 'hard'; questionTypes?: string }) => {
+    const response = await api.post('/api/ai/generate-test', data);
+    return response.data;
+};
+
+export const aiGenerateWrittenTest = async (data: { subjectName: string; topics: string[]; grade: string; duration?: number; variantCount?: number }) => {
+    const response = await api.post('/api/ai/generate-written-test', data);
+    return response.data;
+};
