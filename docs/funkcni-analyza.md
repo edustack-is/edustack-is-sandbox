@@ -309,9 +309,9 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 |--------|:---:|:---:|:---:|:---:|
 | Autentizace a identity | 17 | 15 | 0 | 2 |
 | Správa systému | 12 | 12 | 0 | 0 |
-| Správa školy | 10 | 7 | 1 | 2 |
-| Správa uživatelů | 17 | 11 | 3 | 3 |
-| Kurikulum | 13 | 9 | 0 | 4 |
+| Správa školy | 10 | 10 | 0 | 0 |
+| Správa uživatelů | 17 | 15 | 0 | 2 |
+| Kurikulum | 13 | 13 | 0 | 0 |
 | Rozvrh | 15 | 15 | 0 | 0 |
 | Klasifikace | 17 | 17 | 0 | 0 |
 | Docházka | 8 | 8 | 0 | 0 |
@@ -321,6 +321,6 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | MCP | 10 | 9 | 0 | 1 |
 | Reporty a výstupy | 10 | 10 | 0 | 0 |
 | Infrastruktura | 10 | 9 | 0 | 1 |
-| **Celkem** | **169** | **151** | **4** | **14** |
+| **Celkem** | **169** | **163** | **0** | **6** |
 
-**Pokrytí:** přibližně **94 %** požadovaných funkcí je plně nebo částečně implementováno.
+**Pokrytí:** přibližně **96 %** požadovaných funkcí je plně implementováno.
