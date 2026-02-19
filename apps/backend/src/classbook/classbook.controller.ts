@@ -12,6 +12,7 @@ import { ClassBookService } from './classbook.service';
 import { SuccessResponseDto, UpsertClassbookEntryDto } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
+import { AttendanceRecordResponseDto, ClassbookEntryResponseDto } from '../common/dto/response.dto';
 @ApiTags('classbook')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/classbook')
@@ -26,7 +27,7 @@ export class ClassBookController {
     @Get('entries/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Záznamy třídní knihy za den' })
-    @ApiResponse({ status: 200, description: 'Záznamy třídní knihy za den – pole.' })
+    @ApiResponse({ status: 200, description: 'Záznamy třídní knihy za den – pole.', type: ClassbookEntryResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
@@ -43,7 +44,7 @@ export class ClassBookController {
     @Post('entries')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Uložení záznamu do třídní knihy' })
-    @ApiResponse({ status: 200, description: 'Uložený záznam třídní knihy.' })
+    @ApiResponse({ status: 200, description: 'Uložený záznam třídní knihy.', type: ClassbookEntryResponseDto })
     @ApiBody({ type: UpsertClassbookEntryDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
@@ -78,7 +79,7 @@ export class ClassBookController {
     @Get('range/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Záznamy třídní knihy za období' })
-    @ApiResponse({ status: 200, description: 'Záznamy za období – pole.' })
+    @ApiResponse({ status: 200, description: 'Záznamy za období – pole.', type: ClassbookEntryResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
@@ -117,7 +118,7 @@ export class ClassBookController {
     @Get('attendance/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Docházka pro hodinu v třídní knize' })
-    @ApiResponse({ status: 200, description: 'Docházka pro hodinu – pole.' })
+    @ApiResponse({ status: 200, description: 'Docházka pro hodinu – pole.', type: AttendanceRecordResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })

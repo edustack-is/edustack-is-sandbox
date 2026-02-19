@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Public } from '../auth/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 
+import { HealthCheckResponseDto, MetricsResponseDto } from '../common/dto/response.dto';
 // ─── In-memory Prometheus-style metrics ─────────────────────────
 const metrics = {
     httpRequestsTotal: 0,

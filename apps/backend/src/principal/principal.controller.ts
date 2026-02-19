@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { PrincipalService } from './principal.service';
 
+import { AuditLogEntryDto } from '../common/dto/response.dto';
 @ApiTags('principal')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/principal')

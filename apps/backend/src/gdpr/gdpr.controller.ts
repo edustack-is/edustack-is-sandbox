@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SuccessResponseDto } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
+import { GdprDataResponseDto } from '../common/dto/response.dto';
 @ApiTags('gdpr')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/gdpr')
@@ -15,7 +16,7 @@ export class GdprController {
 
     @Get('my-data')
     @ApiOperation({ summary: 'Export osobních dat (čl. 15 GDPR)', description: 'Vrátí veškerá osobní data přihlášeného uživatele: profil, známky, docházku, zprávy, audit log.' })
-    @ApiResponse({ status: 200, description: 'JSON objekt se všemi osobními daty uživatele.' })
+    @ApiResponse({ status: 200, description: 'JSON objekt se všemi osobními daty uživatele.', type: GdprDataResponseDto })
     async getMyData(@Req() req: any) {
         const userId = req.user.userId;
 

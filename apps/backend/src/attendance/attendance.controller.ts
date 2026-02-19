@@ -12,6 +12,7 @@ import { AttendanceService } from './attendance.service';
 import { CreateExcuseDto, RecordAttendanceDto, ReviewExcuseDto, SuccessResponseDto } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
+import { AttendanceRecordResponseDto, AttendanceStatsResponseDto, ExcuseResponseDto, UnexcusedAlertDto } from '../common/dto/response.dto';
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/attendance')
@@ -54,7 +55,7 @@ export class AttendanceController {
     @Get('classroom/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Docházka třídy za den' })
-    @ApiResponse({ status: 200, description: 'Docházka třídy – pole záznamů.' })
+    @ApiResponse({ status: 200, description: 'Docházka třídy – pole záznamů.', type: AttendanceRecordResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
@@ -73,7 +74,7 @@ export class AttendanceController {
     @Post('excuses')
     @Roles(UserRole.PARENT)
     @ApiOperation({ summary: 'Omluvenka absence (rodič)' })
-    @ApiResponse({ status: 201, description: 'Omluvenka vytvořena.' })
+    @ApiResponse({ status: 201, description: 'Omluvenka vytvořena.', type: ExcuseResponseDto })
     @ApiBody({ type: CreateExcuseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
@@ -90,7 +91,7 @@ export class AttendanceController {
     @Get('excuses')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Seznam omluvenek' })
-    @ApiResponse({ status: 200, description: 'Seznam omluvenek – pole.' })
+    @ApiResponse({ status: 200, description: 'Seznam omluvenek – pole.', type: ExcuseResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
@@ -127,7 +128,7 @@ export class AttendanceController {
     @Get('stats/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Statistiky docházky třídy' })
-    @ApiResponse({ status: 200, description: 'Statistiky docházky třídy.' })
+    @ApiResponse({ status: 200, description: 'Statistiky docházky třídy.', type: AttendanceStatsResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
@@ -171,7 +172,7 @@ export class AttendanceController {
     @Get('unexcused-alerts')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Upozornění na neomluvené hodiny' })
-    @ApiResponse({ status: 200, description: 'Upozornění na neomluvené hodiny – pole.' })
+    @ApiResponse({ status: 200, description: 'Upozornění na neomluvené hodiny – pole.', type: UnexcusedAlertDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 

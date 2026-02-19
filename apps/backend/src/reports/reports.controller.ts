@@ -7,6 +7,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { ReportsService } from './reports.service';
 
+import { ReportStatsResponseDto } from '../common/dto/response.dto';
 @ApiTags('reports')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/reports')
@@ -17,7 +18,7 @@ export class ReportsController {
 
     @Get('grades/classroom')
     @ApiOperation({ summary: 'Statistiky prospěchu třídy', description: 'Průměr, medián, distribuce známek a úspěšnost per předmět a student.' })
-    @ApiResponse({ status: 200, description: 'Statistiky prospěchu třídy.' })
+    @ApiResponse({ status: 200, description: 'Statistiky prospěchu třídy.', type: ReportStatsResponseDto })
     @ApiQuery({ name: 'classroomId', required: true, description: 'ID třídy' })
     @ApiQuery({ name: 'semesterId', required: false, description: 'ID semestru (volitelné)' })
     async gradeStatsByClassroom(
@@ -42,7 +43,7 @@ export class ReportsController {
 
     @Get('attendance')
     @ApiOperation({ summary: 'Statistiky docházky', description: 'Celkový přehled + per-student breakdown s mírou účasti.' })
-    @ApiResponse({ status: 200, description: 'Statistiky docházky.' })
+    @ApiResponse({ status: 200, description: 'Statistiky docházky.', type: ReportStatsResponseDto })
     @ApiQuery({ name: 'classroomId', required: false, description: 'Filtr dle ID třídy' })
     @ApiQuery({ name: 'dateFrom', required: false, description: 'Od data (YYYY-MM-DD)' })
     @ApiQuery({ name: 'dateTo', required: false, description: 'Do data (YYYY-MM-DD)' })

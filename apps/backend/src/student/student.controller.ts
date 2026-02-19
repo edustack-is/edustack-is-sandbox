@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { StudentService } from './student.service';
 
+import { ScheduleMatrixResponseDto, StudentDataResponseDto } from '../common/dto/response.dto';
 @ApiTags('student')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/student')
@@ -16,7 +17,7 @@ export class StudentController {
 
     @Get('my-data')
     @ApiOperation({ summary: 'Data přihlášeného studenta' })
-    @ApiResponse({ status: 200, description: 'Data studenta – profil, známky, rozvrh, docházka.' })
+    @ApiResponse({ status: 200, description: 'Data studenta – profil, známky, rozvrh, docházka.', type: StudentDataResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
@@ -27,7 +28,7 @@ export class StudentController {
 
     @Get('schedule')
     @ApiOperation({ summary: 'Rozvrh studenta' })
-    @ApiResponse({ status: 200, description: 'Rozvrh studenta – matice.' })
+    @ApiResponse({ status: 200, description: 'Rozvrh studenta – matice.', type: ScheduleMatrixResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 

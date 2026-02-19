@@ -6,6 +6,7 @@ import { UserRole, UserStatus } from '@prisma/client';
 import { LogSensitiveRead } from '../auth/log-sensitive-read.decorator';
 import { LogSensitiveReadInterceptor } from '../auth/log-sensitive-read.interceptor';
 
+import { ImportResultDto, PaginatedUsersResponseDto, SchoolUserResponseDto } from '../common/dto/response.dto';
 @ApiTags('users')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/users')
@@ -15,7 +16,7 @@ export class UsersController {
     @Post('import')
     @UseInterceptors(FileInterceptor('file'))
     @ApiOperation({ summary: 'Import uživatelů z CSV' })
-    @ApiResponse({ status: 201, description: 'Výsledek importu – počet vytvořených.' })
+    @ApiResponse({ status: 201, description: 'Výsledek importu – počet vytvořených.', type: ImportResultDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
@@ -26,7 +27,7 @@ export class UsersController {
 
     @Get()
     @ApiOperation({ summary: 'Seznam všech uživatelů' })
-    @ApiResponse({ status: 200, description: 'Seznam uživatelů s paginací.' })
+    @ApiResponse({ status: 200, description: 'Seznam uživatelů s paginací.', type: PaginatedUsersResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
@@ -48,7 +49,7 @@ export class UsersController {
     @UseInterceptors(LogSensitiveReadInterceptor)
     @LogSensitiveRead()
     @ApiOperation({ summary: 'Detail uživatele' })
-    @ApiResponse({ status: 200, description: 'Detail uživatele.' })
+    @ApiResponse({ status: 200, description: 'Detail uživatele.', type: SchoolUserResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })

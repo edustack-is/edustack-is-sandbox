@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminAiService } from './system-admin-ai.service';
 
+import { AiConfigResponseDto, AiUsageResponseDto } from '../common/dto/response.dto';
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system')
@@ -52,7 +53,7 @@ export class SystemAdminAiController {
      */
     @Get('ai-usage')
     @ApiOperation({ summary: 'Spotřeba AI' })
-    @ApiResponse({ status: 200, description: 'Statistiky spotřeby AI.' })
+    @ApiResponse({ status: 200, description: 'Statistiky spotřeby AI.', type: AiUsageResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 

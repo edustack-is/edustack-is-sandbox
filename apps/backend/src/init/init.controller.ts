@@ -6,6 +6,9 @@ import { InitService, SetupDto } from './init.service';
 import { SeedService, SeedData } from './seed.service';
 import { SetupTokenGuard } from './setup-token.guard';
 
+import { InitStatusResponseDto, SeedFileResponseDto } from '../common/dto/response.dto';
+import { LoginResponseDto } from '../common/dto/api.dto';
+
 @ApiTags('init')
 @Controller('api/init')
 export class InitController {
@@ -23,7 +26,7 @@ export class InitController {
     @Throttle({ default: { limit: 10, ttl: 60000 } })
     @Get('status')
     @ApiOperation({ summary: 'Stav inicializace', description: 'Vrátí zda je systém inicializovaný (existuje alespoň jeden uživatel).' })
-    @ApiResponse({ status: 200, description: '{ initialized: boolean }' })
+    @ApiResponse({ status: 200, description: '{ initialized: boolean }', type: InitStatusResponseDto })
     async getStatus() {
         return this.initService.getStatus();
     }
@@ -43,7 +46,7 @@ export class InitController {
     @Post('setup')
     @ApiOperation({ summary: 'Prvotní nastavení systému', description: 'Vytvoří prvního systémového administrátora. Funguje pouze pokud systém ještě není inicializovaný.' })
     @ApiBody({ type: SetupDto })
-    @ApiResponse({ status: 201, description: 'Vytvořený administrátor.' })
+    @ApiResponse({ status: 201, description: 'Vytvořený administrátor.', type: LoginResponseDto })
     @ApiResponse({ status: 403, description: 'Systém je již inicializovaný.' })
     async setup(@Body() body: SetupDto) {
         return this.initService.setup(body);
@@ -63,7 +66,7 @@ export class InitController {
     @Throttle({ default: { limit: 3, ttl: 60000 } })
     @Post('setup-with-seed')
     @ApiOperation({ summary: 'Setup + seed dat', description: 'Vytvoří admina a naseeduje demo data v jednom kroku.' })
-    @ApiResponse({ status: 201, description: 'Admin + seed výsledek.' })
+    @ApiResponse({ status: 201, description: 'Admin + seed výsledek.', type: LoginResponseDto })
     async setupWithSeed(
         @Body() body: SetupDto & {
             seedFilename?: string;
@@ -105,7 +108,7 @@ export class InitController {
     @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Get('seed-files')
     @ApiOperation({ summary: 'Dostupné seed soubory', description: 'Seznam JSON seed souborů pro inicializaci.' })
-    @ApiResponse({ status: 200, description: 'Dostupné seed soubory – pole.' })
+    @ApiResponse({ status: 200, description: 'Dostupné seed soubory – pole.', type: SeedFileResponseDto, isArray: true })
     async getSeedFiles() {
         return this.seedService.getAvailableSeedFiles();
     }

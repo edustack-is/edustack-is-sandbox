@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Patch, Put, Delete, Body, Param, UseGuards, BadRequestException, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
@@ -9,6 +9,8 @@ import { SystemAdminSsoService } from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
 
 import { SuccessResponseDto } from '../common/dto/api.dto';
+import { AuditLogEntryDto, SchoolResponseDto, SchoolUserResponseDto, SsoConfigResponseDto, SystemDashboardResponseDto, SystemSettingsResponseDto } from '../common/dto/response.dto';
+
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system')

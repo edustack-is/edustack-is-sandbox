@@ -4,6 +4,7 @@ import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+import { AiTextResponseDto, SchoolUserResponseDto } from '../common/dto/response.dto';
 @ApiTags('ai')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/ai')
@@ -124,7 +125,7 @@ export class AiController {
 
     @Post('refine-text')
     @ApiOperation({ summary: 'AI vylepšení textu' })
-    @ApiResponse({ status: 200, description: 'Vylepšený text.' })
+    @ApiResponse({ status: 200, description: 'Vylepšený text.', type: AiTextResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
@@ -134,7 +135,7 @@ export class AiController {
 
     @Post('thematic-plan')
     @ApiOperation({ summary: 'AI generování tematického plánu' })
-    @ApiResponse({ status: 200, description: 'Vygenerovaný tematický plán.' })
+    @ApiResponse({ status: 200, description: 'Vygenerovaný tematický plán.', type: AiTextResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
@@ -158,7 +159,7 @@ export class AiController {
 
     @Post('class-analysis')
     @ApiOperation({ summary: 'AI analýza prospěchu třídy' })
-    @ApiResponse({ status: 200, description: 'Analýza prospěchu třídy.' })
+    @ApiResponse({ status: 200, description: 'Analýza prospěchu třídy.', type: AiTextResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
@@ -172,7 +173,7 @@ export class AiController {
 
     @Post('generate-test')
     @ApiOperation({ summary: 'AI generování testu' })
-    @ApiResponse({ status: 200, description: 'Vygenerovaný test.' })
+    @ApiResponse({ status: 200, description: 'Vygenerovaný test.', type: AiTextResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })

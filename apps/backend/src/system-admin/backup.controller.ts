@@ -1,11 +1,13 @@
 import { Controller, Post, Get, Delete, Param, Res, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { BackupService } from './backup.service';
 
 import { SuccessResponseDto } from '../common/dto/api.dto';
+import { BackupResponseDto } from '../common/dto/response.dto';
+
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system/backups')
@@ -15,7 +17,7 @@ export class BackupController {
 
     @Post()
     @ApiOperation({ summary: 'Vytvoření zálohy' })
-    @ApiResponse({ status: 201, description: 'Záloha vytvořena.' })
+    @ApiResponse({ status: 201, description: 'Záloha vytvořena.', type: BackupResponseDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })

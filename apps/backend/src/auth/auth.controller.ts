@@ -9,6 +9,7 @@ import passport from 'passport';
 import { AcceptInviteDto, ForgotPasswordDto, InviteUserBodyDto, LoginDto, LoginResponseDto, ResetPasswordDto, SchoolListItemDto, SelectSchoolResponseDto, SsoOptionDto, UpdateProfileDto, UserProfileDto, SuccessResponseDto } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
+import { SsoIdentityResponseDto, UploadResultDto } from '../common/dto/response.dto';
 @ApiTags('auth')
 @Controller('api/auth')
 export class AuthController {
@@ -223,7 +224,7 @@ export class AuthController {
     @UseGuards(JwtAuthGuard)
     @Get('identities')
     @ApiOperation({ summary: 'Propojené SSO identity uživatele' })
-    @ApiResponse({ status: 200, description: 'Seznam propojených SSO identit.' })
+    @ApiResponse({ status: 200, description: 'Seznam propojených SSO identit.', type: SsoIdentityResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
@@ -353,7 +354,7 @@ export class AuthController {
     @Post('avatar')
     @UseInterceptors(FileInterceptor('file'))
     @ApiOperation({ summary: 'Nahrání avataru' })
-    @ApiResponse({ status: 200, description: 'URL nahraného avataru.' })
+    @ApiResponse({ status: 200, description: 'URL nahraného avataru.', type: UploadResultDto })
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
