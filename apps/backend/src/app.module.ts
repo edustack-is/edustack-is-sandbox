@@ -27,6 +27,7 @@ import { MessagingModule } from './messaging/messaging.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { CommunityModule } from './community/community.module';
 import { ClassBookModule } from './classbook/classbook.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ClassBookModule } from './classbook/classbook.module';
     AttendanceModule,
     CommunityModule,
     ClassBookModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [

@@ -89,6 +89,7 @@ async function bootstrap() {
       .addTag('classbook', 'Třídní kniha')
       .addTag('ai', 'AI funkce – generování, analýza, moderace')
       .addTag('registry', 'Matrika – MŠMT registry')
+      .addTag('export', 'Export dat – CSV/XML/JSON')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
