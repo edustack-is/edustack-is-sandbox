@@ -22,7 +22,6 @@ export class TeacherController {
     @ApiOperation({ summary: 'Rozvrh učitele (všechny školy)' })
 
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
     async getMySchedule(@Req() req: any) {
@@ -35,7 +34,6 @@ export class TeacherController {
      */
     @Get('classes')
     @ApiOperation({ summary: 'Třídy a studenti učitele' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
@@ -51,11 +49,9 @@ export class TeacherController {
      */
     @Post('grades')
     @ApiOperation({ summary: 'Zadání známky studentovi' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
     async createGrade(
@@ -72,11 +68,9 @@ export class TeacherController {
      */
     @Post('attendance')
     @ApiOperation({ summary: 'Záznam docházky studenta' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
     async createAttendance(

@@ -2,13 +2,15 @@ import {
     Controller, Get, Post, Put, Body, Param, Query, Res,
     UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse , ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { ClassBookService } from './classbook.service';
+import { SuccessResponseDto, UpsertClassbookEntryDto } from '../common/dto/api.dto';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @ApiTags('classbook')
 @ApiBearerAuth('JWT-auth')
@@ -24,12 +26,10 @@ export class ClassBookController {
     @Get('entries/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Záznamy třídní knihy za den' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getEntries(
         @Req() req: any,
@@ -43,12 +43,12 @@ export class ClassBookController {
     @Post('entries')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Uložení záznamu do třídní knihy' })
+    @ApiBody({ type: UpsertClassbookEntryDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async upsertEntry(
         @Req() req: any,
@@ -65,14 +65,13 @@ export class ClassBookController {
     @Post('sign/:entryId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Elektronický podpis záznamu' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async signEntry(@Req() req: any, @Param('entryId') entryId: string) {
         const ip = req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
@@ -82,12 +81,10 @@ export class ClassBookController {
     @Get('range/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Záznamy třídní knihy za období' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getEntriesRange(
         @Req() req: any,
@@ -103,11 +100,10 @@ export class ClassBookController {
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Tisk třídní knihy (HTML)' })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async printClassBook(
         @Req() req: any,
@@ -125,12 +121,10 @@ export class ClassBookController {
     @Get('attendance/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Docházka pro hodinu v třídní knize' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getAttendance(
         @Req() req: any,

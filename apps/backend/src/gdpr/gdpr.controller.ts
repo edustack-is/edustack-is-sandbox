@@ -1,8 +1,10 @@
 import { Controller, Get, Delete, UseGuards, Req, Res } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiProduces } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiProduces, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { SuccessResponseDto } from '../common/dto/api.dto';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @ApiTags('gdpr')
 @ApiBearerAuth('JWT-auth')
@@ -95,7 +97,7 @@ export class GdprController {
 
     @Delete('my-data')
     @ApiOperation({ summary: 'Smazání osobních dat (čl. 17 GDPR)', description: 'Anonymizuje PII uživatele. Školní záznamy (známky, docházka) zůstanou, ale bez identifikace.' })
-    @ApiResponse({ status: 200, description: 'Potvrzení anonymizace.' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto, description: 'Potvrzení anonymizace.' })
     async deleteMyData(@Req() req: any) {
         const userId = req.user.userId;
 

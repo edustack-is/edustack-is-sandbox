@@ -16,7 +16,6 @@ export class StudentController {
 
     @Get('my-data')
     @ApiOperation({ summary: 'Data přihlášeného studenta' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
@@ -28,7 +27,6 @@ export class StudentController {
 
     @Get('schedule')
     @ApiOperation({ summary: 'Rozvrh studenta' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })

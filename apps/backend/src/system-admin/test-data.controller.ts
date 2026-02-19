@@ -14,11 +14,9 @@ export class TestDataController {
 
     @Post('generate')
     @ApiOperation({ summary: 'Generování kompletních testovacích dat' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
     async generateAll(@Body() body: GenerateConfig) {

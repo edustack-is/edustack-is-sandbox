@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ErrorResponseDto } from './common/dto/error-response.dto';
+import { LoginDto, LoginResponseDto, AcceptInviteDto, ForgotPasswordDto, ResetPasswordDto, SelectSchoolResponseDto, UserProfileDto, SchoolListItemDto, SsoOptionDto, CreateGradeDto, UpdateGradeDto, GradeResponseDto, RecordAttendanceDto, AttendanceRecordItemDto, CreateScheduleEventDto, CreateSubstitutionDto, CreateConversationDto, SendMessageDto, CreateBulletinPostDto, CreatePollDto, CreateCalendarEventDto, UpsertClassbookEntryDto, CreateClassroomDto, CreateSubjectDto, CreateRoomDto, InviteSchoolUserDto, SuccessResponseDto, CountResponseDto, ToggleResponseDto } from './common/dto/api.dto';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { InitService } from './init/init.service';
@@ -96,7 +97,7 @@ async function bootstrap() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config, {
-      extraModels: [ErrorResponseDto],
+      extraModels: [ErrorResponseDto, LoginDto, LoginResponseDto, AcceptInviteDto, ForgotPasswordDto, ResetPasswordDto, SelectSchoolResponseDto, UserProfileDto, SchoolListItemDto, SsoOptionDto, CreateGradeDto, UpdateGradeDto, GradeResponseDto, RecordAttendanceDto, AttendanceRecordItemDto, CreateScheduleEventDto, CreateSubstitutionDto, CreateConversationDto, SendMessageDto, CreateBulletinPostDto, CreatePollDto, CreateCalendarEventDto, UpsertClassbookEntryDto, CreateClassroomDto, CreateSubjectDto, CreateRoomDto, InviteSchoolUserDto, SuccessResponseDto, CountResponseDto, ToggleResponseDto],
     });
     SwaggerModule.setup('/api/docs', app, document);
   }

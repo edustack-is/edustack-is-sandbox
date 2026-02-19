@@ -2,12 +2,14 @@ import {
     Controller, Get, Post, Put, Delete, Body, Param,
     UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse , ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { CommunityService } from './community.service';
+import { CreateBulletinPostDto, CreateCalendarEventDto, CreatePollDto, RsvpDto, SuccessResponseDto } from '../common/dto/api.dto';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @ApiTags('community')
 @ApiBearerAuth('JWT-auth')
@@ -25,12 +27,12 @@ export class CommunityController {
     @Post('bulletin')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Vytvoření příspěvku na nástěnku' })
+    @ApiBody({ type: CreateBulletinPostDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createBulletinPost(@Req() req: any, @Body() body: { title: string; content: string; pinned?: boolean }) {
         this.ensureTenant(req);
@@ -40,12 +42,10 @@ export class CommunityController {
     @Get('bulletin')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Seznam příspěvků na nástěnce' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getBulletinPosts(@Req() req: any) {
         this.ensureTenant(req);
@@ -55,14 +55,12 @@ export class CommunityController {
     @Put('bulletin/:id')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Úprava příspěvku na nástěnce' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async updateBulletinPost(@Req() req: any, @Param('id') id: string, @Body() body: { title?: string; content?: string; pinned?: boolean }) {
         this.ensureTenant(req);
@@ -72,12 +70,12 @@ export class CommunityController {
     @Delete('bulletin/:id')
     @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Smazání příspěvku z nástěnky' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteBulletinPost(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
@@ -89,12 +87,12 @@ export class CommunityController {
     @Post('polls')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Vytvoření ankety' })
+    @ApiBody({ type: CreatePollDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createPoll(@Req() req: any, @Body() body: { question: string; options: string[]; multiSelect?: boolean; endsAt?: string }) {
         this.ensureTenant(req);
@@ -104,12 +102,10 @@ export class CommunityController {
     @Get('polls')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Seznam anket' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getPolls(@Req() req: any) {
         this.ensureTenant(req);
@@ -119,14 +115,12 @@ export class CommunityController {
     @Post('polls/:optionId/vote')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Hlasování v anketě' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async vote(@Req() req: any, @Param('optionId') optionId: string) {
         return this.communityService.vote(req.user.userId, optionId);
@@ -135,12 +129,12 @@ export class CommunityController {
     @Delete('polls/:id')
     @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Smazání ankety' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deletePoll(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);
@@ -152,12 +146,12 @@ export class CommunityController {
     @Post('events')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Vytvoření události v kalendáři' })
+    @ApiBody({ type: CreateCalendarEventDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createCalendarEvent(@Req() req: any, @Body() body: { title: string; description?: string; startDate: string; endDate?: string; location?: string }) {
         this.ensureTenant(req);
@@ -167,12 +161,10 @@ export class CommunityController {
     @Get('events')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Události v kalendáři' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getCalendarEvents(@Req() req: any) {
         this.ensureTenant(req);
@@ -182,14 +174,13 @@ export class CommunityController {
     @Post('events/:id/rsvp')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'RSVP na událost' })
+    @ApiBody({ type: RsvpDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async rsvpEvent(@Req() req: any, @Param('id') id: string, @Body() body: { status: 'YES' | 'NO' | 'MAYBE' }) {
         return this.communityService.rsvpEvent(req.user.userId, id, body.status);
@@ -198,12 +189,12 @@ export class CommunityController {
     @Delete('events/:id')
     @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Smazání události' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async deleteCalendarEvent(@Req() req: any, @Param('id') id: string) {
         this.ensureTenant(req);

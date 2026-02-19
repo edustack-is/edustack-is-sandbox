@@ -2,7 +2,7 @@ import {
     Controller, Get, Post, Put, Body, Param, Query,
     Req, UseGuards, ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse , ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -10,6 +10,8 @@ import { UserRole } from '@prisma/client';
 import { MessagingService } from './messaging.service';
 import { NotificationService } from './notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ClassBroadcastDto, CountResponseDto, CreateConversationDto, SchoolBroadcastDto, SendMessageDto, SuccessResponseDto, ToggleResponseDto } from '../common/dto/api.dto';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @ApiTags('messaging')
 @ApiBearerAuth('JWT-auth')
@@ -31,12 +33,10 @@ export class MessagingController {
     @Get('conversations')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Seznam konverzací' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getConversations(@Req() req: any) {
         this.ensureTenant(req);
@@ -46,12 +46,10 @@ export class MessagingController {
     @Get('conversations/:id/messages')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Zprávy v konverzaci' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getMessages(
         @Req() req: any,
@@ -70,14 +68,13 @@ export class MessagingController {
     @Post('conversations/:id/messages')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Odeslání zprávy' })
+    @ApiBody({ type: SendMessageDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async sendMessage(
         @Req() req: any,
@@ -90,12 +87,12 @@ export class MessagingController {
     @Post('conversations')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Vytvoření konverzace' })
+    @ApiBody({ type: CreateConversationDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createConversation(
         @Req() req: any,
@@ -124,10 +121,9 @@ export class MessagingController {
     @Get('recipients')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Dostupní příjemci' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getAvailableRecipients(@Req() req: any) {
         this.ensureTenant(req);
@@ -137,10 +133,9 @@ export class MessagingController {
     @Get('classrooms')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Dostupné třídy pro broadcast' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getAvailableClassrooms(@Req() req: any) {
         this.ensureTenant(req);
@@ -152,12 +147,12 @@ export class MessagingController {
     @Post('broadcast/class')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Hromadná zpráva třídě' })
+    @ApiBody({ type: ClassBroadcastDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createClassBroadcast(
         @Req() req: any,
@@ -173,12 +168,12 @@ export class MessagingController {
     @Post('broadcast/school')
     @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Hromadná zpráva škole' })
+    @ApiBody({ type: SchoolBroadcastDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createSchoolBroadcast(
         @Req() req: any,
@@ -196,10 +191,9 @@ export class MessagingController {
     @Get('notifications')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Seznam notifikací' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getNotifications(
         @Req() req: any,
@@ -216,12 +210,12 @@ export class MessagingController {
     @Get('notifications/unread-count')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Počet nepřečtených notifikací' })
+    @ApiResponse({ status: 200, type: CountResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getUnreadCount(@Req() req: any) {
         const count = await this.notificationService.getUnreadCount(req.user.userId);
@@ -231,12 +225,12 @@ export class MessagingController {
     @Put('notifications/:id/read')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Označení notifikace jako přečtené' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async markAsRead(@Req() req: any, @Param('id') id: string) {
         return this.notificationService.markAsRead(id, req.user.userId);
@@ -245,10 +239,10 @@ export class MessagingController {
     @Put('notifications/read-all')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Označení všech notifikací jako přečtených' })
+    @ApiResponse({ status: 200, type: SuccessResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async markAllRead(@Req() req: any) {
         return this.notificationService.markAllRead(req.user.userId);
@@ -259,12 +253,12 @@ export class MessagingController {
     @Put('email-notifications')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT, UserRole.DIRECTOR)
     @ApiOperation({ summary: 'Zapnutí/vypnutí e-mailových notifikací' })
+    @ApiResponse({ status: 200, type: ToggleResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async toggleEmailNotifications(
         @Req() req: any,

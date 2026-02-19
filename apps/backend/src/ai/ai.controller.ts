@@ -35,7 +35,6 @@ export class AiController {
     @ApiOperation({ summary: 'AI chat (streaming)' })
 
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
 
     async chat(
@@ -124,7 +123,6 @@ export class AiController {
 
     @Post('refine-text')
     @ApiOperation({ summary: 'AI vylepšení textu' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
@@ -135,11 +133,9 @@ export class AiController {
 
     @Post('thematic-plan')
     @ApiOperation({ summary: 'AI generování tematického plánu' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
     async generateThematicPlan(@Body() body: {
@@ -161,7 +157,6 @@ export class AiController {
 
     @Post('class-analysis')
     @ApiOperation({ summary: 'AI analýza prospěchu třídy' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
@@ -176,11 +171,9 @@ export class AiController {
 
     @Post('generate-test')
     @ApiOperation({ summary: 'AI generování testu' })
-
     @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
 
     @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
     @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
 
     async generateTest(@Body() body: {

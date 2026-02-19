@@ -2,13 +2,15 @@ import {
     Controller, Get, Post, Put, Body, Param, Query, Res,
     UseGuards, Req, ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth , ApiOperation , ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { AttendanceService } from './attendance.service';
+import { CreateExcuseDto, RecordAttendanceDto, ReviewExcuseDto } from '../common/dto/api.dto';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
@@ -28,12 +30,12 @@ export class AttendanceController {
     @Post('record')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Záznam docházky třídy' })
+    @ApiBody({ type: RecordAttendanceDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async recordAttendance(
         @Req() req: any,
@@ -53,12 +55,10 @@ export class AttendanceController {
     @Get('classroom/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Docházka třídy za den' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getClassroomAttendance(
         @Req() req: any,
@@ -74,12 +74,11 @@ export class AttendanceController {
     @Post('excuses')
     @Roles(UserRole.PARENT)
     @ApiOperation({ summary: 'Omluvenka absence (rodič)' })
+    @ApiBody({ type: CreateExcuseDto })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
 
     async createExcuse(
         @Req() req: any,
@@ -92,12 +91,10 @@ export class AttendanceController {
     @Get('excuses')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Seznam omluvenek' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getExcuses(
         @Req() req: any,
@@ -111,14 +108,13 @@ export class AttendanceController {
     @Put('excuses/:id/review')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Schválení/zamítnutí omluvenky' })
+    @ApiBody({ type: ReviewExcuseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async reviewExcuse(
         @Req() req: any,
@@ -134,12 +130,10 @@ export class AttendanceController {
     @Get('stats/:classroomId')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Statistiky docházky třídy' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async getClassStatistics(
         @Req() req: any,
@@ -157,11 +151,10 @@ export class AttendanceController {
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Export docházky (CSV)' })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
+    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
 
     async exportCsv(
         @Req() req: any,
@@ -182,10 +175,9 @@ export class AttendanceController {
     @Get('unexcused-alerts')
     @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
     @ApiOperation({ summary: 'Upozornění na neomluvené hodiny' })
+    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
 
     async getUnexcusedAlerts(
         @Req() req: any,
