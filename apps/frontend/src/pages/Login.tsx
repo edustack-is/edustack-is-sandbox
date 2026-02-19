@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { login, getSsoOptions, exchangeSsoToken } from '../api';
 import { Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,13 @@ const ERROR_MAP: Record<string, string> = {
     'Account is locked': 'login.account_locked',
 };
 
-function translateBackendError(message: string, t: (key: string) => string): string {
+function translateBackendError(message: string, t: (key: string, opts?: any) => string): string {
     if (!message) return t('login.invalid_credentials');
+    // Handle parametric lockout message: 'account_locked_until:N'
+    if (message.startsWith('account_locked_until:')) {
+        const minutes = message.split(':')[1];
+        return t('login.account_locked_until', { minutes });
+    }
     const key = ERROR_MAP[message];
     if (key) return t(key);
     // Fallback: try partial match
@@ -205,6 +210,15 @@ export const Login = () => {
                                 </p>
                             )}
                         </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                        <Link
+                            to="/forgot-password"
+                            className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+                        >
+                            {t('login.forgot_password')}
+                        </Link>
                     </div>
 
                     <Button type="submit" className="w-full h-11 text-md font-semibold" disabled={submitting}>

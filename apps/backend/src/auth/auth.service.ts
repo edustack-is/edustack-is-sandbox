@@ -1,16 +1,21 @@
 import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UserRole, SecretType } from '@prisma/client';
 import { validatePasswordStrength } from '../utils/password-policy';
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
+        private mailService: MailService,
     ) { }
 
     async getSsoOptions() {
@@ -29,12 +34,51 @@ export class AuthService {
 
     async validateUser(email: string, pass: string): Promise<any> {
         const user = await this.prisma.user.findUnique({ where: { email } });
-        // Check if user exists AND has a password (SSO users might not have one)
-        if (user && user.passwordHash && (await bcrypt.compare(pass, user.passwordHash))) {
-            const { passwordHash, ...result } = user;
-            return result;
+        if (!user || !user.passwordHash) {
+            return null;
         }
-        return null;
+
+        // Check if account is locked
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+            const remainingMs = user.lockedUntil.getTime() - Date.now();
+            const remainingMin = Math.ceil(remainingMs / 60000);
+            throw new BadRequestException(`account_locked_until:${remainingMin}`);
+        }
+
+        const isPasswordValid = await bcrypt.compare(pass, user.passwordHash);
+
+        if (!isPasswordValid) {
+            const newAttempts = user.failedLoginAttempts + 1;
+            const updateData: any = { failedLoginAttempts: newAttempts };
+
+            if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+                const lockedUntil = new Date();
+                lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCKOUT_MINUTES);
+                updateData.lockedUntil = lockedUntil;
+            }
+
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: updateData,
+            });
+
+            if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+                throw new BadRequestException(`account_locked_until:${LOCKOUT_MINUTES}`);
+            }
+
+            return null;
+        }
+
+        // Success — reset failed attempts
+        if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: { failedLoginAttempts: 0, lockedUntil: null },
+            });
+        }
+
+        const { passwordHash, ...result } = user;
+        return result;
     }
 
     async createInvitation(userId: string, studentId?: string) {
@@ -536,5 +580,80 @@ export class AuthService {
             select: { schoolId: true },
         });
         return memberships.map(m => m.schoolId);
+    }
+
+    // ─── Password Reset ──────────────────────────────────────────
+
+    async requestPasswordReset(email: string) {
+        const user = await this.prisma.user.findUnique({ where: { email } });
+
+        // Always return success to prevent email enumeration
+        if (!user) return { message: 'ok' };
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const hashedToken = await bcrypt.hash(token, 10);
+        const expires = new Date();
+        expires.setHours(expires.getHours() + 1); // 1 hour expiry
+
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordResetToken: hashedToken,
+                passwordResetExpires: expires,
+            },
+        });
+
+        const fullToken = `${user.id}.${token}`;
+        const displayName = `${user.firstName} ${user.lastName}`;
+
+        try {
+            await this.mailService.sendPasswordReset(user.email, displayName, fullToken);
+        } catch (e) {
+            console.error('Failed to send password reset email', e);
+        }
+
+        return { message: 'ok' };
+    }
+
+    async resetPassword(token: string, newPassword: string) {
+        const parts = token.split('.');
+        const userId = parts[0];
+        const rawToken = parts[1];
+
+        if (!userId || !rawToken) {
+            throw new BadRequestException('Invalid token format');
+        }
+
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.passwordResetToken || !user.passwordResetExpires) {
+            throw new BadRequestException('Invalid or expired reset link');
+        }
+
+        if (new Date() > user.passwordResetExpires) {
+            throw new BadRequestException('Reset link has expired');
+        }
+
+        const isMatch = await bcrypt.compare(rawToken, user.passwordResetToken);
+        if (!isMatch) {
+            throw new BadRequestException('Invalid reset link');
+        }
+
+        // Enforce password policy
+        validatePasswordStrength(newPassword);
+
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordHash,
+                passwordResetToken: null,
+                passwordResetExpires: null,
+                failedLoginAttempts: 0,
+                lockedUntil: null,
+            },
+        });
+
+        return { message: 'Password has been reset successfully' };
     }
 }

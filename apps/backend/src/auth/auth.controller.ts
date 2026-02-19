@@ -175,6 +175,18 @@ export class AuthController {
         return this.authService.acceptInvitation(body.token, body.password);
     }
 
+    @Public()
+    @Post('forgot-password')
+    async forgotPassword(@Body() body: { email: string }) {
+        return this.authService.requestPasswordReset(body.email);
+    }
+
+    @Public()
+    @Post('reset-password')
+    async resetPassword(@Body() body: { token: string; password: string }) {
+        return this.authService.resetPassword(body.token, body.password);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Get('identities')
     async getIdentities(@Req() req: any) {

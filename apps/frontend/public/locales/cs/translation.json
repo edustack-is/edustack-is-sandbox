@@ -69,7 +69,31 @@
         "account_locked": "Účet je uzamčen. Kontaktujte prosím administrátora.",
         "validation_email_required": "Emailová adresa je povinná",
         "validation_email_invalid": "Neplatný formát emailové adresy",
-        "validation_password_required": "Heslo je povinné"
+        "validation_password_required": "Heslo je povinné",
+        "forgot_password": "Zapomenuté heslo?",
+        "account_locked_until": "Účet je dočasně uzamčen. Zkuste to znovu za {{minutes}} min."
+    },
+    "forgot_password": {
+        "title": "Zapomenuté heslo",
+        "subtitle": "Zadejte svůj email a my vám pošleme odkaz pro obnovení hesla.",
+        "email_label": "Emailová adresa",
+        "submit": "Odeslat odkaz",
+        "submitting": "Odesílám...",
+        "success_title": "Odkaz odeslán",
+        "success_message": "Pokud existuje účet s tímto emailem, odeslali jsme odkaz pro obnovení hesla. Zkontrolujte svou e-mailovou schránku.",
+        "back_to_login": "Zpět na přihlášení"
+    },
+    "reset_password": {
+        "title": "Nastavení nového hesla",
+        "subtitle": "Zadejte nové heslo pro váš účet.",
+        "new_password": "Nové heslo",
+        "confirm_password": "Potvrzení hesla",
+        "submit": "Nastavit heslo",
+        "submitting": "Ukládám...",
+        "success": "Heslo bylo úspěšně změněno. Nyní se můžete přihlásit.",
+        "invalid_token": "Neplatný nebo expirovaný odkaz pro obnovení hesla.",
+        "passwords_mismatch": "Hesla se neshodují.",
+        "back_to_login": "Zpět na přihlášení"
     },
     "dashboard": {
         "system_admin_title": "System Admin Dashboard",

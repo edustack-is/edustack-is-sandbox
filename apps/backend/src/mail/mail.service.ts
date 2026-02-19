@@ -59,4 +59,28 @@ export class MailService {
 
         return this.sendMail(to, subject, text, html);
     }
+
+    async sendPasswordReset(to: string, name: string, token: string) {
+        const subject = 'Obnovení hesla – EduStack IS';
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+        const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+        const text = `Dobrý den, ${name},\n\nobdrželi jsme žádost o obnovení hesla k vašemu účtu v EduStack IS.\n\nPro nastavení nového hesla klikněte na následující odkaz:\n\n${resetUrl}\n\nTento odkaz vyprší za 1 hodinu.\n\nPokud jste o obnovení hesla nežádali, tento email ignorujte.`;
+
+        const html = `
+      <h1>Obnovení hesla – EduStack IS</h1>
+      <p>Dobrý den, ${name},</p>
+      <p>obdrželi jsme žádost o obnovení hesla k vašemu účtu v <strong>EduStack IS</strong>.</p>
+      <p>Pro nastavení nového hesla klikněte na tlačítko níže:</p>
+      <p>
+        <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Nastavit nové heslo</a>
+      </p>
+      <p>Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:</p>
+      <p>${resetUrl}</p>
+      <p>Tento odkaz vyprší za 1 hodinu.</p>
+      <p style="color: #666; font-size: 12px;">Pokud jste o obnovení hesla nežádali, tento email ignorujte.</p>
+    `;
+
+        return this.sendMail(to, subject, text, html);
+    }
 }

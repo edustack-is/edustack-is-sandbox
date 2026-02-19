@@ -81,6 +81,13 @@ model User {
   
   invitationToken   String?
   invitationExpires DateTime?
+  
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  
+  failedLoginAttempts  Int        @default(0)
+  lockedUntil          DateTime?
+  
   lastLogin         DateTime?
   createdAt         DateTime    @default(now())
   deletedAt         DateTime?
@@ -162,12 +169,15 @@ model AuditLog {
   actorId     String
   action      String   // e.g., 'LOGIN', 'UPDATE', 'READ_SENSITIVE'
   entity      String   // the table name
-  entityId    String   // the record ID
+  entityId    String?  // the record ID (null for system-level events)
+  schoolId    String?  // null = system-level event
   oldValues   Json?
   newValues   Json?
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
+
+  @@index([schoolId])
 }
 
 model Classroom {
@@ -767,4 +777,10 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+model GlobalConfig {
+  key       String   @id
+  value     String   // JSON-encoded value
+  updatedAt DateTime @updatedAt
 }

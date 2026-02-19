@@ -19,6 +19,8 @@ import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { SystemAdminSettings } from './pages/SystemAdminSettings';
 import { ActivateAccount } from './pages/ActivateAccount';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { SelectSchool } from './pages/SelectSchool';
 import { UserProfile } from './pages/UserProfile';
 import { Login } from './pages/Login';
@@ -96,6 +98,8 @@ function App() {
           <Routes>
             <Route path="/setup" element={!initialized ? <Setup /> : <Navigate to="/login" />} />
             <Route path="/activate" element={<ActivateAccount />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/login" element={!initialized ? <Navigate to="/setup" /> : <Login />} />
 
             <Route element={!initialized ? <Navigate to="/setup" replace /> : <ProtectedRoute />}>

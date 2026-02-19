@@ -69,7 +69,31 @@
         "account_locked": "Account is locked. Please contact the administrator.",
         "validation_email_required": "Email address is required",
         "validation_email_invalid": "Invalid email format",
-        "validation_password_required": "Password is required"
+        "validation_password_required": "Password is required",
+        "forgot_password": "Forgot password?",
+        "account_locked_until": "Account is temporarily locked. Try again in {{minutes}} min."
+    },
+    "forgot_password": {
+        "title": "Forgot Password",
+        "subtitle": "Enter your email and we'll send you a link to reset your password.",
+        "email_label": "Email address",
+        "submit": "Send Reset Link",
+        "submitting": "Sending...",
+        "success_title": "Link Sent",
+        "success_message": "If an account with this email exists, we've sent a password reset link. Check your inbox.",
+        "back_to_login": "Back to Login"
+    },
+    "reset_password": {
+        "title": "Set New Password",
+        "subtitle": "Enter a new password for your account.",
+        "new_password": "New Password",
+        "confirm_password": "Confirm Password",
+        "submit": "Set Password",
+        "submitting": "Saving...",
+        "success": "Password changed successfully. You can now sign in.",
+        "invalid_token": "Invalid or expired password reset link.",
+        "passwords_mismatch": "Passwords do not match.",
+        "back_to_login": "Back to Login"
     },
     "dashboard": {
         "system_admin_title": "System Admin Dashboard",
