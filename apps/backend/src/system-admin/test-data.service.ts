@@ -155,6 +155,9 @@ export interface GenerateConfig {
     generateSchedule: boolean;
     generateGrades: boolean;
     generateCommunication: boolean;
+    generateAttendance?: boolean;
+    generateReportCards?: boolean;
+    generateCommunity?: boolean;
 }
 
 export interface GenerateResult {
@@ -174,6 +177,13 @@ export interface GenerateResult {
         conversations: number;
         messages: number;
         notifications: number;
+        attendanceRecords: number;
+        excuses: number;
+        reportCards: number;
+        behaviorGrades: number;
+        bulletinPosts: number;
+        polls: number;
+        calendarEvents: number;
     };
 }
 
@@ -196,6 +206,8 @@ export class TestDataService {
             academicYear: '', gradeLevels: 0, classrooms: 0, subjects: 0,
             teachers: 0, students: 0, parents: 0, subjectInstances: 0,
             scheduleEvents: 0, grades: 0, conversations: 0, messages: 0, notifications: 0,
+            attendanceRecords: 0, excuses: 0, reportCards: 0, behaviorGrades: 0,
+            bulletinPosts: 0, polls: 0, calendarEvents: 0,
         };
 
         // 1. Create school
@@ -236,6 +248,21 @@ export class TestDataService {
         // 7. Communication
         if (config.generateCommunication && (teacherUserIds.length > 0 || studentUserIds.length > 0)) {
             await this.createCommunication(schoolId, teacherUserIds, studentUserIds, parentUserIds, stats);
+        }
+
+        // 8. Attendance & Excuses
+        if (config.generateAttendance !== false && studentProfileIds.length > 0 && teacherProfileIds.length > 0 && subjectInstanceIds.length > 0) {
+            await this.createAttendance(schoolId, academicYear, classroomIds, studentProfileIds, teacherProfileIds, parentUserIds, stats);
+        }
+
+        // 9. Report Cards & Behavior
+        if (config.generateReportCards !== false && studentProfileIds.length > 0 && subjectInstanceIds.length > 0) {
+            await this.createReportCards(schoolId, academicYear, subjectInstanceIds, studentProfileIds, stats);
+        }
+
+        // 10. Community (Bulletin, Polls, Calendar)
+        if (config.generateCommunity !== false && teacherUserIds.length > 0) {
+            await this.createCommunity(schoolId, teacherUserIds, studentUserIds, parentUserIds, stats);
         }
 
         return { schoolId, schoolName: config.schoolName, stats };
@@ -713,6 +740,192 @@ export class TestDataService {
                 },
             });
             stats.notifications++;
+        }
+    }
+
+    // ─── ATTENDANCE & EXCUSES ────────────────────────────────────
+
+    private async createAttendance(
+        schoolId: string, academicYear: any, classroomIds: string[],
+        studentProfileIds: string[], teacherProfileIds: string[],
+        parentUserIds: string[], stats: GenerateResult['stats'],
+    ) {
+        const students = await this.prisma.studentProfile.findMany({
+            where: { id: { in: studentProfileIds } },
+            select: { id: true, userId: true, classroomId: true, user: { select: { childOf: { select: { parentId: true } } } } },
+        });
+
+        for (const student of students) {
+            for (let i = 0; i < 10; i++) {
+                const isAbsent = Math.random() > 0.85;
+                const isLate = !isAbsent && Math.random() > 0.9;
+                const status = isAbsent ? 'ABSENT' : isLate ? 'LATE' : 'PRESENT';
+
+                const dayOffset = randInt(0, 100);
+                const date = new Date('2025-09-01');
+                date.setDate(date.getDate() + dayOffset);
+
+                try {
+                    await this.prisma.attendance.create({
+                        data: {
+                            status,
+                            date,
+                            lessonNumber: randInt(1, 6),
+                            schoolId,
+                            studentId: student.id,
+                            teacherId: pick(teacherProfileIds),
+                        },
+                    });
+                    stats.attendanceRecords++;
+
+                    if (status === 'ABSENT' && student.user.childOf.length > 0 && Math.random() > 0.5) {
+                        const excuseStatus = Math.random() > 0.5 ? 'APPROVED' : 'PENDING';
+                        await this.prisma.absenceExcuse.create({
+                            data: {
+                                reason: pick(['Nemoc', 'Rodinné důvody', 'Návštěva lékaře']),
+                                dateFrom: date,
+                                dateTo: date,
+                                status: excuseStatus,
+                                parentId: student.user.childOf[0].parentId,
+                                studentId: student.id,
+                                schoolId,
+                            },
+                        });
+                        stats.excuses++;
+                    }
+                } catch {
+                    // Skip duplicates
+                }
+            }
+        }
+    }
+
+    // ─── REPORT CARDS & BEHAVIOR ─────────────────────────────────
+
+    private async createReportCards(
+        schoolId: string, academicYear: any, subjectInstanceIds: string[],
+        studentProfileIds: string[], stats: GenerateResult['stats'],
+    ) {
+        if (!academicYear) return;
+        const semesters = await this.prisma.semester.findMany({
+            where: { academicYearId: academicYear.id },
+            orderBy: { number: 'asc' }
+        });
+        if (semesters.length === 0) return;
+        const firstSemester = semesters[0];
+
+        const students = await this.prisma.studentProfile.findMany({
+            where: { id: { in: studentProfileIds } },
+            include: { classroom: true }
+        });
+
+        const instances = await this.prisma.subjectInstance.findMany({
+            where: { id: { in: subjectInstanceIds } },
+            include: { gradeLevel: true }
+        });
+
+        for (const student of students) {
+            if (!student.classroom) continue;
+
+            try {
+                await this.prisma.behaviorGrade.create({
+                    data: {
+                        grade: 1,
+                        studentId: student.id,
+                        semesterId: firstSemester.id,
+                        schoolId,
+                    }
+                });
+                stats.behaviorGrades++;
+            } catch { /* skip */ }
+
+            const relevantInstances = instances.filter(i => i.gradeLevel.levelNumber === student.classroom!.grade);
+            for (const instance of relevantInstances) {
+                try {
+                    await this.prisma.reportCard.create({
+                        data: {
+                            finalGrade: String(randInt(1, 4)),
+                            studentId: student.id,
+                            subjectInstanceId: instance.id,
+                            semesterId: firstSemester.id,
+                            schoolId,
+                        }
+                    });
+                    stats.reportCards++;
+                } catch { /* skip */ }
+            }
+        }
+    }
+
+    // ─── COMMUNITY ───────────────────────────────────────────────
+
+    private async createCommunity(
+        schoolId: string, teacherUserIds: string[],
+        studentUserIds: string[], parentUserIds: string[],
+        stats: GenerateResult['stats'],
+    ) {
+        if (teacherUserIds.length === 0) return;
+
+        for (let i = 0; i < 6; i++) {
+            await this.prisma.bulletinPost.create({
+                data: {
+                    title: pick(['Ředitelské volno', 'Školní akademie', 'Oznámení pro rodiče', 'Výsledky soutěže', 'Sběr papíru', 'Jídelníček']),
+                    content: 'Toto je vygenerované testovací oznámení pro školní nástěnku s důležitými informacemi.',
+                    pinned: i === 0,
+                    authorId: pick(teacherUserIds),
+                    schoolId,
+                }
+            });
+            stats.bulletinPosts++;
+        }
+
+        for (let i = 0; i < 2; i++) {
+            const poll = await this.prisma.poll.create({
+                data: {
+                    question: pick(['Kam pojedeme na školní výlet?', 'Jaké jídlo byste chtěli přidat do jídelníčku?', 'Kdy uspořádat třídní schůzky?']),
+                    multiSelect: false,
+                    authorId: pick(teacherUserIds),
+                    schoolId,
+                    options: {
+                        create: [
+                            { text: 'Možnost A' },
+                            { text: 'Možnost B' },
+                            { text: 'Možnost C' }
+                        ]
+                    }
+                },
+                include: { options: true }
+            });
+            stats.polls++;
+
+            const voters = [...studentUserIds, ...parentUserIds].slice(0, 15);
+            for (const voterId of voters) {
+                try {
+                    await this.prisma.pollVote.create({
+                        data: {
+                            userId: voterId,
+                            optionId: pick(poll.options).id,
+                        }
+                    });
+                } catch { /* skip */ }
+            }
+        }
+
+        for (let i = 0; i < 4; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() + randInt(-5, 20));
+
+            await this.prisma.calendarEvent.create({
+                data: {
+                    title: pick(['Třídní schůzky', 'Den otevřených dveří', 'Vánoční besídka', 'Divadelní představení', 'Sportovní den']),
+                    description: 'Setkání se bude konat v odpoledních hodinách v budově školy.',
+                    startDate: date,
+                    location: 'Tělocvična / Aula',
+                    authorId: pick(teacherUserIds),
+                    schoolId,
+                }
+            });
+            stats.calendarEvents++;
         }
     }
 

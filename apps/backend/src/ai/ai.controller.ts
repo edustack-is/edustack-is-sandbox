@@ -133,6 +133,13 @@ export class AiController {
         return this.aiService.refineText(body);
     }
 
+    @Post('generate-school-name')
+    @ApiOperation({ summary: 'AI vygenerování náhodného názvu školy pro testovací data' })
+    @ApiResponse({ status: 200, description: 'Náhodný název školy', type: AiTextResponseDto })
+    async generateSchoolName(@Body() body: { schoolType?: string }) {
+        return this.aiService.generateSchoolName(body.schoolType);
+    }
+
     @Post('thematic-plan')
     @ApiOperation({ summary: 'AI generování tematického plánu' })
     @ApiResponse({ status: 200, description: 'Vygenerovaný tematický plán.', type: AiTextResponseDto })

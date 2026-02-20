@@ -22,10 +22,10 @@ import {
 } from '@/components/ui/dialog';
 import {
     Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, School, Users, BookOpen,
-    Calendar, GraduationCap, MessageSquare, ClipboardList,
+    Calendar, GraduationCap, MessageSquare, ClipboardList, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateTestData, wipeSchoolData, wipeAllData, getSystemSchools } from '@/api/index';
+import { generateTestData, wipeSchoolData, wipeAllData, getSystemSchools, aiGenerateSchoolName } from '@/api/index';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -59,7 +59,11 @@ export function TestDataGenerator() {
     const [generateSchedule, setGenerateSchedule] = useState(true);
     const [generateGrades, setGenerateGrades] = useState(true);
     const [generateCommunication, setGenerateCommunication] = useState(true);
+    const [generateAttendance, setGenerateAttendance] = useState(true);
+    const [generateReportCards, setGenerateReportCards] = useState(true);
+    const [generateCommunity, setGenerateCommunity] = useState(true);
     const [generating, setGenerating] = useState(false);
+    const [generatingName, setGeneratingName] = useState(false);
     const [lastResult, setLastResult] = useState<any>(null);
 
     // ─── Wipe state ──────────────────────────────────────
@@ -83,6 +87,21 @@ export function TestDataGenerator() {
 
     // ─── Generate handler ────────────────────────────────
 
+    const handleGenerateName = async () => {
+        try {
+            setGeneratingName(true);
+            const res = await aiGenerateSchoolName(schoolType);
+            if (res.name) {
+                setSchoolName(res.name);
+                toast.success('Název úspěšně vygenerován');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Chyba při generování názvu');
+        } finally {
+            setGeneratingName(false);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!schoolName.trim()) {
             toast.error('Zadejte název školy');
@@ -105,6 +124,9 @@ export function TestDataGenerator() {
                 generateSchedule,
                 generateGrades,
                 generateCommunication,
+                generateAttendance,
+                generateReportCards,
+                generateCommunity,
             });
             setLastResult(result);
             toast.success(`Škola '${result.schoolName}' byla úspěšně vytvořena s testovacími daty!`);
@@ -172,11 +194,24 @@ export function TestDataGenerator() {
                                 <School className="h-4 w-4 text-muted-foreground" />
                                 Název školy
                             </Label>
-                            <Input
-                                value={schoolName}
-                                onChange={(e) => setSchoolName(e.target.value)}
-                                placeholder="Testovací škola"
-                            />
+                            <div className="relative">
+                                <Input
+                                    value={schoolName}
+                                    onChange={(e) => setSchoolName(e.target.value)}
+                                    placeholder="Testovací škola"
+                                    className="pr-10"
+                                />
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-1 top-1 bottom-1 h-auto w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+                                    onClick={handleGenerateName}
+                                    disabled={generatingName}
+                                    title="AI generovat název"
+                                >
+                                    {generatingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                </Button>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Typ školy</Label>
@@ -268,8 +303,14 @@ export function TestDataGenerator() {
                                 checked={generateSchedule} onCheckedChange={setGenerateSchedule} />
                             <FeatureToggle icon={<GraduationCap className="h-4 w-4" />} label="Klasifikace"
                                 checked={generateGrades} onCheckedChange={setGenerateGrades} />
-                            <FeatureToggle icon={<MessageSquare className="h-4 w-4" />} label="Komunikace"
+                            <FeatureToggle icon={<MessageSquare className="h-4 w-4" />} label="Zprávy (komunikace)"
                                 checked={generateCommunication} onCheckedChange={setGenerateCommunication} />
+                            <FeatureToggle icon={<ClipboardList className="h-4 w-4" />} label="Docházka a omluvenky"
+                                checked={generateAttendance} onCheckedChange={setGenerateAttendance} />
+                            <FeatureToggle icon={<GraduationCap className="h-4 w-4" />} label="Vysvědčení a chování"
+                                checked={generateReportCards} onCheckedChange={setGenerateReportCards} />
+                            <FeatureToggle icon={<MessageSquare className="h-4 w-4" />} label="Komunita (ankety, nástěnka)"
+                                checked={generateCommunity} onCheckedChange={setGenerateCommunity} />
                         </div>
                     </div>
 
@@ -305,6 +346,13 @@ export function TestDataGenerator() {
                                             <StatBadge label="Známky" value={lastResult.stats.grades} />
                                             <StatBadge label="Konverzace" value={lastResult.stats.conversations} />
                                             <StatBadge label="Zprávy" value={lastResult.stats.messages} />
+                                            <StatBadge label="Docházka" value={lastResult.stats.attendanceRecords} />
+                                            <StatBadge label="Omluvenky" value={lastResult.stats.excuses} />
+                                            <StatBadge label="Vysvědčení" value={lastResult.stats.reportCards} />
+                                            <StatBadge label="Chování" value={lastResult.stats.behaviorGrades} />
+                                            <StatBadge label="Nástěnka" value={lastResult.stats.bulletinPosts} />
+                                            <StatBadge label="Ankety" value={lastResult.stats.polls} />
+                                            <StatBadge label="Události" value={lastResult.stats.calendarEvents} />
                                         </div>
                                         <p className="text-[10px] text-muted-foreground mt-2">
                                             🔑 Heslo pro všechny demo účty: <code className="font-mono bg-muted px-1 rounded">Demo1234!</code>

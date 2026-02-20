@@ -663,6 +663,9 @@ export const generateTestData = async (config: {
     generateSchedule?: boolean;
     generateGrades?: boolean;
     generateCommunication?: boolean;
+    generateAttendance?: boolean;
+    generateReportCards?: boolean;
+    generateCommunity?: boolean;
 }) => {
     const response = await api.post('/api/system/test-data/generate', config);
     return response.data;
@@ -804,5 +807,10 @@ export const aiGenerateTest = async (data: { subjectName: string; topic: string;
 
 export const aiGenerateWrittenTest = async (data: { subjectName: string; topics: string[]; grade: string; duration?: number; variantCount?: number }) => {
     const response = await api.post('/api/ai/generate-written-test', data);
+    return response.data;
+};
+
+export const aiGenerateSchoolName = async (schoolType?: string) => {
+    const response = await api.post('/api/ai/generate-school-name', { schoolType });
     return response.data;
 };

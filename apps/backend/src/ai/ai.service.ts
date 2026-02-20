@@ -1,23 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as crypto from 'crypto';
 import { UserRole, UserStatus } from '@prisma/client';
+import { SystemAdminAiService } from '../system-admin/system-admin-ai.service';
 
 @Injectable()
 export class AiService {
-    private genAI: GoogleGenerativeAI;
-    private model: any;
 
-    constructor(private prisma: PrismaService) {
-        this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+    constructor(
+        private prisma: PrismaService,
+        private systemAdminAiService: SystemAdminAiService,
+    ) { }
+
+    private async getModel() {
+        const apiKey = await this.systemAdminAiService.getDecryptedApiKey('google');
+        if (!apiKey) {
+            throw new BadRequestException('Google AI API klíč není nastaven. Nastavte ho v administraci.');
+        }
+        const genAI = new GoogleGenerativeAI(apiKey);
+        return genAI.getGenerativeModel({ model: 'gemini-pro' });
     }
 
     async seedClassroom(classroomId: string, count: number = 5) {
         const prompt = `Generate ${count} Czech student names (firstName, lastName) in JSON format. Example: [{"firstName": "Jan", "lastName": "Novak"}, ...]`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
 
@@ -98,9 +107,38 @@ export class AiService {
             ? `Jsi asistent pro školní informační systém. Vylepši následující text na základě pokynů.\n\nKontext: ${data.context}\nPokyn: ${data.instruction}\n\nPůvodní text:\n${data.existingText}\n\nVylepšený text:`
             : `Jsi asistent pro školní informační systém. Vygeneruj text na základě pokynů.\n\nKontext: ${data.context}\nPokyn: ${data.instruction}\n\nVygenerovaný text:`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         return { text: response.text().trim() };
+    }
+
+    async generateSchoolName(schoolType?: string): Promise<{ name: string }> {
+        let typeContext = 'základní škola';
+        if (schoolType?.includes('gymnasium')) {
+            typeContext = 'gymnázium';
+        } else if (schoolType === 'elementary_1') {
+            typeContext = 'základní škola (pouze 1. stupeň)';
+        }
+
+        const prompt = `
+Vygeneruj jeden náhodný, ale vysoce realistický a uvěřitelný název pro českou školu typu: ${typeContext}.
+Název by měl znít jako skutečná existující instituce v ČR (např. může obsahovat jméno ulice, čtvrti, města, osobnosti, zaměření atd.).
+Může to být například:
+- Základní škola a Mateřská škola, Praha 3, Náměstí Jiřího z Poděbrad 7
+- Gymnázium J. K. Tyla, Hradec Králové
+- Základní škola T. G. Masaryka, Poděbrady
+- Sportovní základní škola, Liberec
+- První české gymnázium v Karlových Varech
+
+Vrať POUZE název školy, nic jiného. Nepřidávej žádné uvozovky ani vysvětlující text.
+        `;
+
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const name = response.text().trim().replace(/^["']|["']$/g, '');
+        return { name };
     }
 
     // ─── THEMATIC PLAN GENERATION ───────────────────────────
@@ -121,7 +159,8 @@ ${data.topics ? `Zohledni témata: ${data.topics}` : ''}
 Formát: tabulka s číslem týdne, tématem, počtem hodin, a poznámkami k aktivitám.
 Odpověz v markdown tabulce.`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         return { plan: response.text().trim() };
     }
@@ -154,7 +193,8 @@ Vytvoř:
 
 Piš česky, stručně a konstruktivně.`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         return { recommendations: response.text().trim() };
     }
@@ -182,7 +222,8 @@ Poskytni:
 
 Použij českou terminologii. Formátuj přehledně v markdown.`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         return { analysis: response.text().trim() };
     }
@@ -216,7 +257,8 @@ Pro každou otázku uveď:
 Na konci uveď celkový počet bodů a klíč odpovědí.
 Formátuj v markdown.`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         return { test: response.text().trim() };
     }
@@ -249,7 +291,8 @@ Pro každou variantu vytvoř:
 
 Formátuj přehledně v markdown, varianty odděl.`;
 
-        const result = await this.model.generateContent(prompt);
+        const model = await this.getModel();
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         return { writtenTest: response.text().trim() };
     }
