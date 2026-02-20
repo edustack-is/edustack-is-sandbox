@@ -40,7 +40,8 @@ export class MailService {
 
     async sendInvitation(to: string, name: string, token: string) {
         const subject = 'Pozvánka do EduStack IS';
-        const setupUrl = `http://localhost:5173/activate?token=${token}`; // TODO: use real base URL
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+        const setupUrl = `${frontendUrl}/activate?token=${token}`;
 
         const text = `Dobrý den, ${name},\n\nbyli jste pozváni do školního systému EduStack IS. Svůj účet si můžete aktivovat na následujícím odkazu:\n\n${setupUrl}\n\nTento odkaz vyprší za 7 dní.`;
 

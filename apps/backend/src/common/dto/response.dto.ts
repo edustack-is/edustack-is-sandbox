@@ -1,240 +1,298 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ════════════════════════════════════════════════════════
-// RESPONSE DTOs for entity returns (Prisma objects)
+// RESPONSE DTOs matching actual Prisma model returns
+// Examples use realistic UUID and ISO date formats
 // ════════════════════════════════════════════════════════
 
 // ─── CLASSROOM ──────────────────────────────────────────
 export class ClassroomResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: '5.A' }) name: string;
     @ApiProperty({ example: 5 }) grade: number;
-    @ApiProperty({ example: '2024-01-01T00:00:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) homeroomTeacherId?: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) updatedAt: string;
+    @ApiPropertyOptional({ description: 'Studenti (include)', example: [{ id: 'sp-uuid', userId: 'u-uuid', classroomId: 'cr-uuid', user: { firstName: 'Jan', lastName: 'Novák' } }] })
+    students?: any[];
+    @ApiPropertyOptional({ description: 'Třídní učitel (include)', example: { id: 'tp-uuid', userId: 'u-uuid', user: { firstName: 'Marie', lastName: 'Svobodová' } } })
+    homeroomTeacher?: any;
 }
 
 // ─── SUBJECT TEMPLATE ───────────────────────────────────
 export class SubjectResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Matematika' }) name: string;
     @ApiProperty({ example: 'MAT' }) code: string;
-    @ApiPropertyOptional() svpDescription?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiPropertyOptional({ example: 'Rozvoj matematických kompetencí' }) svpDescription?: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── ROOM ───────────────────────────────────────────────
 export class RoomResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Učebna 101' }) name: string;
     @ApiPropertyOptional({ example: 30 }) capacity?: number;
-    @ApiPropertyOptional({ example: true }) isComputerLab?: boolean;
+    @ApiPropertyOptional({ example: false }) isComputerLab?: boolean;
+    @ApiPropertyOptional({ example: ['projektor', 'interaktivní tabule'] }) specialEquipment?: string[];
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) buildingId?: string;
+    @ApiPropertyOptional({ example: 1 }) floor?: number;
 }
 
 // ─── BUILDING ───────────────────────────────────────────
 export class BuildingResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Hlavní budova' }) name: string;
     @ApiPropertyOptional({ example: 'Školní 123, Praha' }) address?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── EVENT ──────────────────────────────────────────────
 export class SchoolEventResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Pedagogická rada' }) title: string;
-    @ApiPropertyOptional() description?: string;
-    @ApiProperty({ example: '2024-03-20' }) date: string;
-    @ApiPropertyOptional() type?: string;
+    @ApiPropertyOptional({ example: 'Čtvrtletní hodnocení' }) description?: string;
+    @ApiProperty({ example: '2024-03-20T14:00:00.000Z' }) date: string;
+    @ApiPropertyOptional({ example: '2024-03-20T16:00:00.000Z' }) endDate?: string;
+    @ApiPropertyOptional({ example: 'MEETING' }) type?: string;
+    @ApiPropertyOptional({ example: false }) allDay?: boolean;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── SCHOOL USER ────────────────────────────────────────
 export class SchoolUserResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'jan@example.com' }) email: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'jan.novak@example.com' }) email: string;
     @ApiProperty({ example: 'Jan' }) firstName: string;
     @ApiProperty({ example: 'Novák' }) lastName: string;
-    @ApiProperty({ example: 'TEACHER' }) role: string;
-    @ApiProperty({ example: 'ACTIVE' }) status: string;
+    @ApiProperty({ example: false }) isSystemAdmin: boolean;
+    @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' }) avatarUrl?: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── STUDENT WITH FAMILY ────────────────────────────────
 export class StudentFamilyResponseDto {
-    @ApiProperty() student: SchoolUserResponseDto;
-    @ApiPropertyOptional() parent?: SchoolUserResponseDto;
+    @ApiProperty({ description: 'Vytvořený student', example: { id: 'u-uuid', email: 'student@example.com', firstName: 'Jan', lastName: 'Novák' } })
+    student: any;
+    @ApiPropertyOptional({ description: 'Vytvořený rodič', example: { id: 'u-uuid', email: 'rodic@example.com', firstName: 'Jana', lastName: 'Nováková' } })
+    parent?: any;
 }
 
 // ─── AUDIT LOG ENTRY ────────────────────────────────────
 export class AuditLogEntryDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'UPDATE' }) action: string;
-    @ApiProperty({ example: 'User' }) entityType: string;
-    @ApiPropertyOptional() entityId?: string;
-    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) timestamp: string;
-    @ApiPropertyOptional() userId?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'UPDATE_USER' }) action: string;
+    @ApiPropertyOptional({ example: 'User' }) entityType?: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) entityId?: string;
+    @ApiPropertyOptional({ example: '{ "role": "TEACHER" }' }) details?: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) actorId?: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── SCHOOL SETTINGS ────────────────────────────────────
 export class SchoolSettingsResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiPropertyOptional({ example: 'ZŠ Příkladná' }) name?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'ZŠ Příkladná' }) name: string;
+    @ApiPropertyOptional({ example: 'Školní 123, Praha' }) address?: string;
     @ApiPropertyOptional({ example: 'NUMERIC' }) gradingSystem?: string;
-    @ApiPropertyOptional({ example: true }) requireSsoEmailMatch?: boolean;
+    @ApiPropertyOptional({ example: false }) requireSsoEmailMatch?: boolean;
+    @ApiProperty({ example: true }) isActive: boolean;
 }
 
 // ─── ACADEMIC YEAR ──────────────────────────────────────
 export class AcademicYearResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: '2024/2025' }) name: string;
-    @ApiProperty({ example: '2024-09-01' }) startDate: string;
-    @ApiProperty({ example: '2025-06-30' }) endDate: string;
+    @ApiProperty({ example: '2024-09-01T00:00:00.000Z' }) startDate: string;
+    @ApiProperty({ example: '2025-06-30T00:00:00.000Z' }) endDate: string;
     @ApiProperty({ example: true }) isCurrent: boolean;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
 }
 
 // ─── GRADE LEVEL ────────────────────────────────────────
 export class GradeLevelResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: '5. ročník' }) name: string;
     @ApiProperty({ example: 5 }) levelNumber: number;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
 }
 
 // ─── SUBJECT INSTANCE ───────────────────────────────────
 export class SubjectInstanceResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 2 }) hoursPerWeek: number;
-    @ApiPropertyOptional() template?: SubjectResponseDto;
-    @ApiPropertyOptional() gradeLevel?: GradeLevelResponseDto;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) templateId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) gradeLevelId: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) academicYearId: string;
+    @ApiPropertyOptional({ example: 'NUMERIC' }) gradingType?: string;
 }
 
 // ─── TEACHER WORKLOAD ───────────────────────────────────
 export class TeacherWorkloadResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 100 }) workloadPercentage: number;
-    @ApiPropertyOptional() teacher?: SchoolUserResponseDto;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) teacherProfileId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) academicYearId: string;
 }
 
 // ─── CURRICULUM VERSION ─────────────────────────────────
 export class CurriculumVersionResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'ŠVP 2024 v1' }) name: string;
-    @ApiProperty({ example: '2024-09-01' }) validFrom: string;
-    @ApiPropertyOptional({ example: '2025-06-30' }) validTo?: string;
+    @ApiProperty({ example: '2024-09-01T00:00:00.000Z' }) validFrom: string;
+    @ApiPropertyOptional({ example: '2025-06-30T00:00:00.000Z' }) validTo?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── CURRICULUM ENTRY ───────────────────────────────────
 export class CurriculumEntryResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 2 }) hoursPerWeek: number;
-    @ApiPropertyOptional() gradingType?: string;
-    @ApiPropertyOptional() rvpDescription?: string;
-    @ApiPropertyOptional() svpApproach?: string;
+    @ApiPropertyOptional({ example: 'NUMERIC' }) gradingType?: string;
+    @ApiPropertyOptional({ example: 'Žák řeší matematické problémy...' }) rvpDescription?: string;
+    @ApiPropertyOptional({ example: 'Důraz na praktické úlohy' }) svpApproach?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) versionId: string;
 }
 
 // ─── COMPETENCY ─────────────────────────────────────────
 export class CompetencyResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Kompetence k učení' }) name: string;
-    @ApiPropertyOptional() description?: string;
+    @ApiPropertyOptional({ example: 'Žák se učí efektivním strategiím...' }) description?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
 }
 
 // ─── SEMESTER ───────────────────────────────────────────
 export class SemesterResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 1 }) number: number;
     @ApiProperty({ example: '1. pololetí' }) name: string;
-    @ApiProperty({ example: '2024-09-01' }) startDate: string;
-    @ApiProperty({ example: '2025-01-31' }) endDate: string;
+    @ApiProperty({ example: '2024-09-01T00:00:00.000Z' }) startDate: string;
+    @ApiProperty({ example: '2025-01-31T00:00:00.000Z' }) endDate: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) academicYearId: string;
 }
 
 // ─── THEMATIC PLAN ──────────────────────────────────────
 export class ThematicPlanResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiPropertyOptional() weekNumber?: number;
-    @ApiPropertyOptional() topic?: string;
-    @ApiPropertyOptional() objectives?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiPropertyOptional({ example: 3 }) weekNumber?: number;
+    @ApiPropertyOptional({ example: 'Lineární rovnice' }) topic?: string;
+    @ApiPropertyOptional({ example: 'Žák řeší jednoduché rovnice' }) objectives?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) subjectInstanceId: string;
 }
 
 // ─── TEACHING MATERIAL ──────────────────────────────────
 export class TeachingMaterialResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Pracovní list – rovnice' }) title: string;
-    @ApiPropertyOptional() type?: string;
-    @ApiPropertyOptional() url?: string;
+    @ApiPropertyOptional({ example: 'WORKSHEET' }) type?: string;
+    @ApiPropertyOptional({ example: 'https://example.com/worksheet.pdf' }) url?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) subjectInstanceId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── LESSON PLAN ────────────────────────────────────────
 export class LessonPlanResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiPropertyOptional() title?: string;
-    @ApiPropertyOptional() objectives?: string;
-    @ApiPropertyOptional() activities?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiPropertyOptional({ example: 'Úvod do zlomků' }) title?: string;
+    @ApiPropertyOptional({ example: 'Žák pochopí pojem zlomek' }) objectives?: string;
+    @ApiPropertyOptional({ example: 'Skupinová práce, kvíz' }) activities?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) subjectInstanceId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── ENROLLMENT ─────────────────────────────────────────
 export class EnrollmentResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
-    @ApiProperty() gradeLevelId: string;
-    @ApiProperty() classroomId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentProfileId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) gradeLevelId: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) classroomId: string;
+    @ApiProperty({ example: 'c3a1f2d4-3333-3333-3333-1a2b3c4d5e6f' }) academicYearId: string;
 }
 
 // ─── SCHEDULE EVENT ─────────────────────────────────────
 export class ScheduleEventResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 1 }) dayOfWeek: number;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 1, description: '1=Po, 5=Pá' }) dayOfWeek: number;
     @ApiProperty({ example: 3 }) lessonNumber: number;
-    @ApiPropertyOptional() teacher?: SchoolUserResponseDto;
-    @ApiPropertyOptional() room?: RoomResponseDto;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) subjectInstanceId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) classroomId: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) teacherId: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-3333-3333-3333-1a2b3c4d5e6f' }) roomId?: string;
+    @ApiProperty({ example: 'c3a1f2d4-4444-4444-4444-1a2b3c4d5e6f' }) academicYearId: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── SCHEDULE MATRIX ────────────────────────────────────
 export class ScheduleMatrixResponseDto {
-    @ApiProperty({ description: 'Matice rozvrhu [den][hodina] → událost' })
+    @ApiProperty({ description: 'Pole rozvrhových událostí', type: [ScheduleEventResponseDto] })
     events: ScheduleEventResponseDto[];
-
-    @ApiProperty({ description: 'Časové sloty (zvonění)' })
+    @ApiProperty({ description: 'Časové sloty (zvonění)', example: [{ lessonNumber: 1, startTime: '08:00', endTime: '08:45' }] })
     timeSlots: any[];
 }
 
 // ─── SUBSTITUTION ───────────────────────────────────────
 export class SubstitutionResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: '2024-03-15' }) date: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: '2024-03-15T00:00:00.000Z' }) date: string;
     @ApiProperty({ example: 'SUBSTITUTION' }) type: string;
-    @ApiPropertyOptional() note?: string;
+    @ApiPropertyOptional({ example: 'Učitel nemocen' }) note?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) originalEventId: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) substituteTeacherId?: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── COLLISION RESULT ──────────────────────────────────
 export class CollisionResultDto {
     @ApiProperty({ example: false }) hasCollision: boolean;
-    @ApiPropertyOptional({ type: [String] }) collisions?: string[];
+    @ApiPropertyOptional({ example: ['Učitel Novák má ve stejnou dobu jinou hodinu'], type: [String] }) collisions?: string[];
 }
 
 // ─── SNAPSHOT ───────────────────────────────────────────
 export class SnapshotResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Snapshot 15.3.2024' }) name: string;
-    @ApiProperty({ example: '2024-03-15T10:00:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'Snapshot před změnami 15.3.' }) name: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── RECURRING EVENT ────────────────────────────────────
 export class RecurringEventResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Kroužek robotiky' }) title: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── ATTENDANCE RECORD ──────────────────────────────────
 export class AttendanceRecordResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) classroomId: string;
     @ApiProperty({ example: 'PRESENT' }) status: string;
-    @ApiPropertyOptional() note?: string;
+    @ApiProperty({ example: '2024-03-15T00:00:00.000Z' }) date: string;
+    @ApiProperty({ example: 3 }) lessonNumber: number;
+    @ApiPropertyOptional({ example: 'Přišel pozdě 5 minut' }) note?: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── EXCUSE ─────────────────────────────────────────────
 export class ExcuseResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
     @ApiProperty({ example: 'Nemoc' }) reason: string;
     @ApiProperty({ example: 'PENDING' }) status: string;
-    @ApiProperty({ example: '2024-03-15' }) dateFrom: string;
-    @ApiProperty({ example: '2024-03-17' }) dateTo: string;
+    @ApiProperty({ example: '2024-03-15T00:00:00.000Z' }) dateFrom: string;
+    @ApiProperty({ example: '2024-03-17T00:00:00.000Z' }) dateTo: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) createdByUserId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── ATTENDANCE STATS ───────────────────────────────────
@@ -242,91 +300,114 @@ export class AttendanceStatsResponseDto {
     @ApiProperty({ example: 25 }) totalStudents: number;
     @ApiProperty({ example: 450 }) totalLessons: number;
     @ApiProperty({ example: 95.2 }) averageAttendancePercent: number;
-    @ApiProperty({ description: 'Per-student breakdown' }) students: any[];
+    @ApiProperty({ description: 'Statistiky per student', example: [{ studentId: 'sp-uuid', name: 'Jan Novák', present: 43, absent: 2, late: 1, excused: 1, unexcused: 1 }] }) students: any[];
 }
 
 // ─── UNEXCUSED ALERT ────────────────────────────────────
 export class UnexcusedAlertDto {
-    @ApiProperty() studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
     @ApiProperty({ example: 'Jan Novák' }) studentName: string;
     @ApiProperty({ example: 7 }) unexcusedCount: number;
 }
 
 // ─── CONVERSATION ───────────────────────────────────────
 export class ConversationResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiPropertyOptional({ example: 'Dotaz k DÚ' }) subject?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiPropertyOptional({ example: 'Dotaz k domácímu úkolu' }) subject?: string;
     @ApiProperty({ example: 'DIRECT' }) type: string;
-    @ApiProperty({ description: 'Účastníci', type: [SchoolUserResponseDto] }) participants: SchoolUserResponseDto[];
-    @ApiPropertyOptional() lastMessage?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
+    @ApiProperty({ description: 'Účastníci', example: [{ id: 'p-uuid', userId: 'u-uuid', conversationId: 'c-uuid' }] }) participants: any[];
+    @ApiPropertyOptional({ description: 'Zprávy (include)', example: [{ id: 'm-uuid', content: 'Dobrý den...', senderId: 'u-uuid', createdAt: '2024-03-15T10:30:00.000Z' }] }) messages?: any[];
 }
 
 // ─── MESSAGE ────────────────────────────────────────────
 export class MessageResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Text zprávy' }) content: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'Dobrý den, mám dotaz k domácímu úkolu.' }) content: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) senderId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) conversationId: string;
     @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
-    @ApiProperty() senderId: string;
 }
 
 // ─── NOTIFICATION ───────────────────────────────────────
 export class NotificationResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Nová zpráva' }) title: string;
     @ApiPropertyOptional({ example: 'Jan Novák vám poslal zprávu.' }) body?: string;
     @ApiProperty({ example: false }) read: boolean;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) userId: string;
     @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── RECIPIENT ──────────────────────────────────────────
 export class RecipientResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Jan Novák' }) name: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'jan.novak@example.com' }) email: string;
+    @ApiProperty({ example: 'Jan' }) firstName: string;
+    @ApiProperty({ example: 'Novák' }) lastName: string;
     @ApiProperty({ example: 'TEACHER' }) role: string;
 }
 
 // ─── BULLETIN POST ──────────────────────────────────────
 export class BulletinPostResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Nový kroužek' }) title: string;
-    @ApiProperty({ example: 'Od příštího týdne...' }) content: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'Nový kroužek robotiky' }) title: string;
+    @ApiProperty({ example: 'Od příštího týdne spouštíme kroužek...' }) content: string;
     @ApiProperty({ example: false }) pinned: boolean;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) authorId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) schoolId: string;
     @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) updatedAt: string;
 }
 
 // ─── POLL ───────────────────────────────────────────────
 export class PollResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Kam na výlet?' }) question: string;
-    @ApiProperty({ description: 'Pole možností s počtem hlasů' }) options: any[];
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'Kam na školní výlet?' }) question: string;
+    @ApiProperty({ example: [{ id: 'o-uuid', text: 'Praha', votes: 12 }, { id: 'o-uuid2', text: 'Brno', votes: 8 }] }) options: any[];
     @ApiProperty({ example: false }) multiSelect: boolean;
+    @ApiPropertyOptional({ example: '2024-04-01T00:00:00.000Z' }) endsAt?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── CALENDAR EVENT (COMMUNITY) ─────────────────────────
 export class CommunityEventResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'Školní ples' }) title: string;
-    @ApiPropertyOptional() description?: string;
+    @ApiPropertyOptional({ example: 'Tradiční školní ples pro rodiče a učitele' }) description?: string;
     @ApiProperty({ example: '2024-04-15T18:00:00.000Z' }) startDate: string;
+    @ApiPropertyOptional({ example: '2024-04-15T23:00:00.000Z' }) endDate?: string;
+    @ApiPropertyOptional({ example: 'Školní jídelna' }) location?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── CLASSBOOK ENTRY ────────────────────────────────────
 export class ClassbookEntryResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: '2024-03-15' }) date: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: '2024-03-15T00:00:00.000Z' }) date: string;
     @ApiProperty({ example: 3 }) lessonNumber: number;
-    @ApiPropertyOptional({ example: 'Lineární rovnice' }) topic?: string;
-    @ApiPropertyOptional() notes?: string;
-    @ApiPropertyOptional() signedBy?: string;
+    @ApiPropertyOptional({ example: 'Lineární rovnice – procvičování' }) topic?: string;
+    @ApiPropertyOptional({ example: 'Bylo zadáno DÚ' }) notes?: string;
+    @ApiPropertyOptional({ example: 2 }) absentCount?: number;
+    @ApiPropertyOptional({ example: 'Matematika' }) subjectName?: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) signedBy?: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) classroomId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── REPORT CARD ────────────────────────────────────────
 export class ReportCardResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
-    @ApiProperty() subjectInstanceId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) subjectInstanceId: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) semesterId: string;
     @ApiPropertyOptional({ example: '2' }) finalGrade?: string;
-    @ApiPropertyOptional() verbalEvaluation?: string;
+    @ApiPropertyOptional({ example: 'Žák pracuje svědomitě...' }) verbalEvaluation?: string;
+    @ApiPropertyOptional({ example: false }) aiPolished?: boolean;
+    @ApiProperty({ example: '2024-06-20T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── GRADING TYPES ──────────────────────────────────────
@@ -337,51 +418,61 @@ export class GradingTypeResponseDto {
 
 // ─── BEHAVIOR GRADE ─────────────────────────────────────
 export class BehaviorGradeResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
-    @ApiProperty({ example: 1 }) grade: number;
-    @ApiPropertyOptional() note?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) semesterId: string;
+    @ApiProperty({ example: 1, description: '1=velmi dobré, 2=uspokojivé, 3=neuspokojivé' }) grade: number;
+    @ApiPropertyOptional({ example: 'Výborné chování' }) note?: string;
 }
 
 // ─── COMPETENCY GRADE ───────────────────────────────────
 export class CompetencyGradeResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
-    @ApiProperty() competencyId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) competencyId: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) subjectInstanceId: string;
+    @ApiProperty({ example: 'c3a1f2d4-3333-3333-3333-1a2b3c4d5e6f' }) semesterId: string;
     @ApiProperty({ example: 3 }) level: number;
+    @ApiPropertyOptional({ example: 'Dobře zvládá základy' }) note?: string;
 }
 
 // ─── MEASURE ────────────────────────────────────────────
 export class MeasureResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
     @ApiProperty({ example: 'PRAISE' }) type: string;
-    @ApiProperty({ example: 'Výborné výsledky' }) reason: string;
-    @ApiProperty({ example: '2024-03-15T00:00:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: 'Výborné výsledky v matematické soutěži' }) reason: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── GRADE HISTORY ──────────────────────────────────────
 export class GradeHistoryEntryDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'UPDATE' }) action: string;
-    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) timestamp: string;
-    @ApiPropertyOptional() oldValue?: string;
-    @ApiPropertyOptional() newValue?: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) gradeId?: string;
+    @ApiPropertyOptional({ example: '{ "value": "3" }' }) oldValue?: string;
+    @ApiPropertyOptional({ example: '{ "value": "2" }' }) newValue?: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── COMMISSION EXAM ────────────────────────────────────
 export class CommissionExamResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty() studentId: string;
-    @ApiPropertyOptional() subjectInstanceId?: string;
-    @ApiPropertyOptional({ example: '2024-06-15' }) date?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) studentId: string;
+    @ApiPropertyOptional({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) subjectInstanceId?: string;
+    @ApiPropertyOptional({ example: '2024-06-15T09:00:00.000Z' }) date?: string;
     @ApiPropertyOptional({ example: '3' }) result?: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: '2024-05-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── GRADING DEADLINE ───────────────────────────────────
 export class GradingDeadlineResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiPropertyOptional({ example: '2024-06-20' }) deadline?: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiPropertyOptional({ example: '2024-06-20T23:59:00.000Z' }) deadline?: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) schoolId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) semesterId: string;
 }
 
 // ─── DASHBOARD ──────────────────────────────────────────
@@ -394,21 +485,23 @@ export class SchoolDashboardResponseDto {
 
 // ─── SHARED ROOM ────────────────────────────────────────
 export class SharedRoomResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Tělocvična' }) roomName: string;
-    @ApiProperty({ example: 'ZŠ Sousední' }) sharedWithSchool: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) roomId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) ownerSchoolId: string;
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' }) sharedWithSchoolId: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── SSO IDENTITY ───────────────────────────────────────
 export class SsoIdentityResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
     @ApiProperty({ example: 'google' }) provider: string;
-    @ApiProperty({ example: 'user@gmail.com' }) providerEmail: string;
+    @ApiProperty({ example: '109876543210987654321' }) providerId: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── UPLOAD RESULT ──────────────────────────────────────
 export class UploadResultDto {
-    @ApiProperty({ example: 'https://example.com/avatar.jpg' }) url: string;
+    @ApiProperty({ example: '/uploads/avatars/c3a1f2d4-5e6b-avatar.jpg' }) avatarUrl: string;
 }
 
 // ─── IMPORT RESULT ──────────────────────────────────────
@@ -416,64 +509,71 @@ export class ImportResultDto {
     @ApiProperty({ example: 15 }) created: number;
     @ApiProperty({ example: 2 }) skipped: number;
     @ApiProperty({ example: 0 }) errors: number;
+    @ApiPropertyOptional({ example: ['Row 3: invalid email format'] }) errorDetails?: string[];
 }
 
 // ─── STUDENT DATA ───────────────────────────────────────
 export class StudentDataResponseDto {
-    @ApiProperty() profile: SchoolUserResponseDto;
-    @ApiProperty({ description: 'Známky' }) grades: any[];
-    @ApiProperty({ description: 'Rozvrh' }) schedule: any[];
-    @ApiProperty({ description: 'Docházka' }) attendance: any[];
+    @ApiProperty({ description: 'Profil studenta', example: { id: 'u-uuid', email: 'student@example.com', firstName: 'Jan', lastName: 'Novák' } })
+    profile: any;
+    @ApiProperty({ description: 'Známky studenta' }) grades: any[];
+    @ApiProperty({ description: 'Rozvrh studenta' }) schedule: any[];
+    @ApiProperty({ description: 'Docházka studenta' }) attendance: any[];
 }
 
 // ─── CHILD DASHBOARD ────────────────────────────────────
 export class ChildDashboardResponseDto {
-    @ApiProperty() profile: SchoolUserResponseDto;
+    @ApiProperty({ description: 'Profil dítěte', example: { id: 'u-uuid', email: 'student@example.com', firstName: 'Jan', lastName: 'Novák' } })
+    profile: any;
     @ApiProperty({ description: 'Známky' }) grades: any[];
     @ApiProperty({ description: 'Rozvrh' }) schedule: any[];
 }
 
 // ─── PARENT CHILD ───────────────────────────────────────
 export class ParentChildResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
-    @ApiProperty({ example: 'Jan Novák' }) name: string;
-    @ApiProperty({ example: '5.A' }) classroom: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f', description: 'ID studenta (StudentProfile)' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' }) userId: string;
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' }) classroomId: string;
+    @ApiPropertyOptional({ description: 'User relation', example: { firstName: 'Jan', lastName: 'Novák', email: 'jan@example.com' } }) user?: any;
+    @ApiPropertyOptional({ description: 'Třída', example: { id: 'cr-uuid', name: '5.A', grade: 5 } }) classroom?: any;
 }
 
 // ─── TEACHER CLASSES ────────────────────────────────────
 export class TeacherClassResponseDto {
-    @ApiProperty({ example: 'uuid' }) classroomId: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f', description: 'ID třídy' }) classroomId: string;
     @ApiProperty({ example: '5.A' }) classroomName: string;
-    @ApiProperty({ description: 'Studenti', type: [SchoolUserResponseDto] }) students: SchoolUserResponseDto[];
+    @ApiProperty({ description: 'Studenti ve třídě' }) students: any[];
 }
 
 // ─── SYSTEM DASHBOARD ───────────────────────────────────
 export class SystemDashboardResponseDto {
     @ApiProperty({ example: 3 }) totalSchools: number;
     @ApiProperty({ example: 450 }) totalUsers: number;
-    @ApiProperty({ example: '2024-03-15T10:00:00.000Z' }) uptime: string;
+    @ApiPropertyOptional({ example: 12 }) totalClassrooms?: number;
 }
 
 // ─── SCHOOL ─────────────────────────────────────────────
 export class SchoolResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: 'ZŠ Příkladná' }) name: string;
-    @ApiPropertyOptional({ example: 'Školní 123, Praha' }) address?: string;
+    @ApiPropertyOptional({ example: 'Školní 123, Praha 1' }) address?: string;
     @ApiProperty({ example: true }) isActive: boolean;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' }) updatedAt: string;
 }
 
 // ─── SSO CONFIG ─────────────────────────────────────────
 export class SsoConfigResponseDto {
-    @ApiPropertyOptional({ example: 'client-id-xxx' }) googleClientId?: string;
+    @ApiPropertyOptional({ example: '123456789-abc.apps.googleusercontent.com' }) googleClientId?: string;
     @ApiPropertyOptional({ example: true }) googleEnabled?: boolean;
-    @ApiPropertyOptional({ example: 'client-id-xxx' }) microsoftClientId?: string;
+    @ApiPropertyOptional({ example: 'abc-12345-def-67890' }) microsoftClientId?: string;
     @ApiPropertyOptional({ example: false }) microsoftEnabled?: boolean;
 }
 
 // ─── AI CONFIG ──────────────────────────────────────────
 export class AiConfigResponseDto {
     @ApiPropertyOptional({ example: 'google' }) provider?: string;
-    @ApiPropertyOptional({ example: 'gemini-1.5-flash' }) model?: string;
+    @ApiPropertyOptional({ example: 'gemini-2.0-flash' }) model?: string;
     @ApiProperty({ example: true }) enabled: boolean;
 }
 
@@ -481,19 +581,19 @@ export class AiConfigResponseDto {
 export class AiUsageResponseDto {
     @ApiProperty({ example: 1250 }) totalRequests: number;
     @ApiProperty({ example: 45000 }) totalTokens: number;
-    @ApiProperty({ description: 'Denní breakdown' }) daily: any[];
+    @ApiProperty({ description: 'Denní breakdown', example: [{ date: '2024-03-15', requests: 45, tokens: 12000 }] }) daily: any[];
 }
 
 // ─── AI TEXT RESULT ─────────────────────────────────────
 export class AiTextResponseDto {
-    @ApiProperty({ example: 'Vylepšený text...' }) text: string;
+    @ApiProperty({ example: 'Žák prokazuje dobré znalosti základů lineární algebry...' }) text: string;
 }
 
 // ─── BACKUP ─────────────────────────────────────────────
 export class BackupResponseDto {
-    @ApiProperty({ example: 'backup-2024-03-15.sql.gz' }) filename: string;
+    @ApiProperty({ example: 'backup-2024-03-15-10-30.sql.gz' }) filename: string;
     @ApiProperty({ example: 1048576 }) size: number;
-    @ApiProperty({ example: '2024-03-15T10:00:00.000Z' }) createdAt: string;
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' }) createdAt: string;
 }
 
 // ─── HEALTH CHECK ───────────────────────────────────────
@@ -513,38 +613,38 @@ export class MetricsResponseDto {
 
 // ─── RVP ────────────────────────────────────────────────
 export class RvpUploadResponseDto {
-    @ApiProperty({ description: 'Náhled dat z RVP' }) preview: any;
-    @ApiProperty({ example: 'uuid' }) uploadId: string;
+    @ApiProperty({ description: 'Náhled dat z RVP souboru', example: { areas: [{ name: 'Jazyk a jazyková komunikace', subjects: ['Český jazyk', 'Cizí jazyk'] }] } }) preview: any;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) uploadId: string;
 }
 
 // ─── COMPETENCY MATRIX ──────────────────────────────────
 export class CompetencyMatrixResponseDto {
-    @ApiProperty({ description: 'Matice kompetencí → předměty' }) matrix: any;
+    @ApiProperty({ description: 'Matice kompetencí → předměty', example: { 'Kompetence k učení': { 'Matematika': true, 'Český jazyk': false } } }) matrix: any;
 }
 
 // ─── COMPARISONS / DIFFS ────────────────────────────────
 export class CurriculumDiffResponseDto {
-    @ApiProperty({ description: 'Rozdíly mezi verzemi' }) added: any[];
-    @ApiProperty() removed: any[];
-    @ApiProperty() changed: any[];
+    @ApiProperty({ description: 'Přidané záznamy' }) added: any[];
+    @ApiProperty({ description: 'Odebrané záznamy' }) removed: any[];
+    @ApiProperty({ description: 'Změněné záznamy' }) changed: any[];
 }
 
 export class ScheduleDiffResponseDto {
-    @ApiProperty({ description: 'Rozdíly mezi snapshoty' }) added: any[];
-    @ApiProperty() removed: any[];
-    @ApiProperty() changed: any[];
+    @ApiProperty({ description: 'Přidané události' }) added: any[];
+    @ApiProperty({ description: 'Odebrané události' }) removed: any[];
+    @ApiProperty({ description: 'Změněné události' }) changed: any[];
 }
 
 // ─── GENERATE SCHEDULE RESULT ───────────────────────────
 export class GenerateScheduleResultDto {
     @ApiProperty({ example: true }) success: boolean;
     @ApiProperty({ example: 45 }) eventsCreated: number;
-    @ApiProperty({ description: 'Varování' }) warnings: string[];
+    @ApiProperty({ example: ['Učitel Novák má kolizi v pondělí 3. hodinu'] }) warnings: string[];
 }
 
 // ─── GDPR DATA EXPORT ──────────────────────────────────
 export class GdprDataResponseDto {
-    @ApiProperty() profile: SchoolUserResponseDto;
+    @ApiProperty({ description: 'Profil uživatele' }) profile: any;
     @ApiProperty({ description: 'Známky' }) grades: any[];
     @ApiProperty({ description: 'Docházka' }) attendance: any[];
     @ApiProperty({ description: 'Zprávy' }) messages: any[];
@@ -558,34 +658,35 @@ export class InitStatusResponseDto {
 
 // ─── SEED FILE ──────────────────────────────────────────
 export class SeedFileResponseDto {
-    @ApiProperty({ example: 'demo-school.json' }) filename: string;
-    @ApiPropertyOptional({ example: 'Demo škola s 50 studenty' }) description?: string;
+    @ApiProperty({ example: 'demo-zs-prikladna.json' }) filename: string;
+    @ApiPropertyOptional({ example: 'Demo škola ZŠ Příkladná – 5 tříd, 150 studentů' }) description?: string;
 }
 
 // ─── REPORT STATS ───────────────────────────────────────
 export class ReportStatsResponseDto {
-    @ApiProperty({ description: 'Statistická data' }) data: any;
-    @ApiPropertyOptional({ description: 'Metadata' }) meta?: any;
+    @ApiProperty({ description: 'Statistická data', example: { average: 2.1, median: 2, stdDev: 0.8, distribution: { '1': 5, '2': 12, '3': 7, '4': 2, '5': 1 } } }) data: any;
+    @ApiPropertyOptional({ description: 'Metadata', example: { period: '2024/2025 1. pololetí', classroomName: '5.A' } }) meta?: any;
 }
 
 // ─── CLASSROOM FOR REGISTRY ─────────────────────────────
 export class RegistryClassroomResponseDto {
-    @ApiProperty({ example: 'uuid' }) id: string;
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
     @ApiProperty({ example: '5.A' }) name: string;
     @ApiProperty({ example: 5 }) grade: number;
-    @ApiProperty({ description: 'Studenti', type: [SchoolUserResponseDto] }) students: SchoolUserResponseDto[];
+    @ApiProperty({ description: 'Studenti s uživatelskými daty', example: [{ id: 'sp-uuid', userId: 'u-uuid', user: { firstName: 'Jan', lastName: 'Novák' } }] })
+    students: any[];
 }
 
 // ─── SETTINGS ───────────────────────────────────────────
 export class SystemSettingsResponseDto {
     @ApiPropertyOptional({ example: 'cs' }) defaultLanguage?: string;
-    @ApiPropertyOptional({ example: true }) maintenanceMode?: boolean;
+    @ApiPropertyOptional({ example: false }) maintenanceMode?: boolean;
     @ApiPropertyOptional({ example: true }) registrationEnabled?: boolean;
 }
 
 // ─── PAGINATED RESPONSE ─────────────────────────────────
 export class PaginatedUsersResponseDto {
-    @ApiProperty({ type: [SchoolUserResponseDto] }) data: SchoolUserResponseDto[];
+    @ApiProperty({ description: 'Pole uživatelů', type: [SchoolUserResponseDto] }) data: SchoolUserResponseDto[];
     @ApiProperty({ example: 150 }) total: number;
     @ApiProperty({ example: 0 }) skip: number;
     @ApiProperty({ example: 20 }) take: number;

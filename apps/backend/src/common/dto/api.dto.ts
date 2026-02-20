@@ -13,9 +13,6 @@ export class LoginDto {
 export class LoginResponseDto {
     @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
     access_token: string;
-
-    @ApiProperty({ example: 'GLOBAL' })
-    type: string;
 }
 
 export class AcceptInviteDto {
@@ -42,13 +39,10 @@ export class ResetPasswordDto {
 export class SelectSchoolResponseDto {
     @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
     access_token: string;
-
-    @ApiProperty({ example: 'TENANT' })
-    type: string;
 }
 
 export class UserProfileDto {
-    @ApiProperty({ example: 'uuid-user-id' })
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' })
     id: string;
 
     @ApiProperty({ example: 'admin@example.com' })
@@ -62,28 +56,44 @@ export class UserProfileDto {
 
     @ApiProperty({ example: false })
     isSystemAdmin: boolean;
+
+    @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
+    avatarUrl?: string;
+
+    @ApiProperty({ example: '2024-01-15T10:30:00.000Z' })
+    createdAt: string;
+
+    @ApiPropertyOptional({ description: 'Profil studenta (null pokud není student)', example: { id: 'sp-uuid', classroomId: 'cr-uuid', classroom: { id: 'cr-uuid', name: '5.A', homeroomTeacher: null } } })
+    studentProfile?: any;
+
+    @ApiPropertyOptional({ description: 'Profil učitele (null pokud není učitel)', example: { id: 'tp-uuid', homeroomClass: { id: 'cr-uuid', name: '5.A' } } })
+    teacherProfile?: any;
 }
 
 export class SchoolListItemDto {
-    @ApiProperty({ example: 'uuid-school-id' })
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f', description: 'ID členství (SchoolMembership)' })
     id: string;
 
-    @ApiProperty({ example: 'ZŠ Příkladná' })
-    name: string;
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' })
+    userId: string;
+
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' })
+    schoolId: string;
 
     @ApiProperty({ example: 'TEACHER', enum: ['STUDENT', 'TEACHER', 'PARENT', 'DEPUTY', 'PRINCIPAL', 'ADMIN', 'DIRECTOR'] })
     role: string;
+
+    @ApiProperty({ example: 'ACTIVE' })
+    status: string;
+
+    @ApiProperty({ description: 'Škola', example: { id: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f', name: 'ZŠ Příkladná', address: 'Školní 123, Praha', isActive: true } })
+    school: any;
 }
 
+/** @deprecated getSsoOptions vrací string[] (pole názvů providerů), ne objekt */
 export class SsoOptionDto {
-    @ApiProperty({ example: 'google', enum: ['google', 'microsoft'] })
+    @ApiProperty({ example: 'google', description: 'Endpoint vrací pole stringů, např. ["google","microsoft"]. Tato třída slouží jako reference.' })
     provider: string;
-
-    @ApiProperty({ example: true })
-    enabled: boolean;
-
-    @ApiProperty({ example: 'Google', description: 'Zobrazovaný název' })
-    displayName: string;
 }
 
 export class UpdateProfileDto {
@@ -145,7 +155,7 @@ export class UpdateGradeDto {
 }
 
 export class GradeResponseDto {
-    @ApiProperty({ example: 'uuid-grade-id' })
+    @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' })
     id: string;
 
     @ApiProperty({ example: '2' })
@@ -154,14 +164,35 @@ export class GradeResponseDto {
     @ApiProperty({ example: 1 })
     weight: number;
 
-    @ApiPropertyOptional({ example: 'Písemka' })
+    @ApiPropertyOptional({ example: 'Písemka z rovnic' })
     description?: string;
 
-    @ApiProperty({ example: '2024-03-15T00:00:00.000Z' })
-    date: string;
+    @ApiPropertyOptional({ example: 'EXAM' })
+    type?: string;
+
+    @ApiPropertyOptional({ example: 'algebra' })
+    category?: string;
+
+    @ApiPropertyOptional({ example: 'Dobře zvládnuté základy.' })
+    verbalText?: string;
+
+    @ApiProperty({ example: 'c3a1f2d4-0000-0000-0000-1a2b3c4d5e6f' })
+    studentId: string;
+
+    @ApiProperty({ example: 'c3a1f2d4-1111-1111-1111-1a2b3c4d5e6f' })
+    subjectInstanceId: string;
+
+    @ApiProperty({ example: 'c3a1f2d4-2222-2222-2222-1a2b3c4d5e6f' })
+    teacherProfileId: string;
+
+    @ApiPropertyOptional({ example: 'c3a1f2d4-3333-3333-3333-1a2b3c4d5e6f' })
+    semesterId?: string;
 
     @ApiProperty({ example: '2024-03-15T10:30:00.000Z' })
     createdAt: string;
+
+    @ApiProperty({ example: '2024-03-15T10:30:00.000Z' })
+    updatedAt: string;
 }
 
 export class UpsertReportCardDto {
