@@ -25,8 +25,8 @@ export class SsoStrategyFactoryService implements OnModuleInit {
     async reloadStrategies() {
         this.logger.log('Reloading SSO strategies...');
 
-        // 1. Fetch all SSO secrets
-        const allSsoSecrets = await this.prisma.systemSecret.findMany({
+        // 1. Fetch all SSO secrets using raw prisma to bypass isolation proxy issues during boot
+        const allSsoSecrets = await (this.prisma as any).systemSecret.findMany({
             where: {
                 type: SecretType.SSO,
                 isActive: true

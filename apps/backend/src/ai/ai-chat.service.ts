@@ -47,7 +47,9 @@ export class AiChatService {
         private readonly prisma: PrismaService,
         private readonly cryptoService: CryptoService,
     ) {
-        this.initializeMcp().catch(err => this.logger.error('Failed to initialize MCP Client:', err));
+        if (process.env.NODE_ENV !== 'test') {
+            this.initializeMcp().catch(err => this.logger.error('Failed to initialize MCP Client:', err));
+        }
     }
 
     private async initializeMcp() {

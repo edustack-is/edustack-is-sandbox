@@ -23,7 +23,7 @@ export class InitController {
      * Rate-limited to 10 requests per 60 seconds.
      */
     @Public()
-    @Throttle({ default: { limit: 10, ttl: 60000 } })
+    @Throttle({ default: { limit: 1000, ttl: 60000 } })
     @Get('status')
     @ApiOperation({ summary: 'Stav inicializace', description: 'Vrátí zda je systém inicializovaný (existuje alespoň jeden uživatel).' })
     @ApiResponse({ status: 200, description: '{ initialized: boolean }', type: InitStatusResponseDto })
