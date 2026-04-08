@@ -37,7 +37,7 @@ export default function EducationalMeasures() {
     const load = async () => {
         setLoading(true);
         try {
-            setMeasures(await getMeasures(selectedClassroom ? { classroomId: selectedClassroom } : undefined));
+            setMeasures(await getMeasures((selectedClassroom && selectedClassroom !== 'all') ? { classroomId: selectedClassroom } : undefined));
         } catch { toast.error('Nepodařilo se načíst opatření'); }
         finally { setLoading(false); }
     };
@@ -90,8 +90,8 @@ export default function EducationalMeasures() {
                     <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
                         <SelectTrigger className="w-44"><SelectValue placeholder="Všechny třídy" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Všechny třídy</SelectItem>
-                            {classrooms.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            <SelectItem value="all">Všechny třídy</SelectItem>
+                            {classrooms.filter((c: any) => c.id).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <Button onClick={() => setDialogOpen(true)}>
@@ -159,8 +159,9 @@ export default function EducationalMeasures() {
                             <Select onValueChange={v => { loadStudents(v); setForm(f => ({ ...f, studentId: '' })); }}>
                                 <SelectTrigger><SelectValue placeholder="Vyberte třídu" /></SelectTrigger>
                                 <SelectContent>
-                                    {classrooms.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    {classrooms.filter((c: any) => c.id).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                 </SelectContent>
+
                             </Select>
                         </div>
                         <div className="space-y-1">
@@ -168,8 +169,9 @@ export default function EducationalMeasures() {
                             <Select value={form.studentId} onValueChange={v => setForm(f => ({ ...f, studentId: v }))}>
                                 <SelectTrigger><SelectValue placeholder="Vyberte studenta" /></SelectTrigger>
                                 <SelectContent>
-                                    {students.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.lastName} {s.firstName}</SelectItem>)}
+                                    {students.filter((s: any) => s.id).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.lastName} {s.firstName}</SelectItem>)}
                                 </SelectContent>
+
                             </Select>
                         </div>
                         <div className="space-y-1">

@@ -25,7 +25,7 @@ export default function RecurringEvents() {
     const [rooms, setRooms] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
 
-    const emptyForm = { title: '', dayOfWeek: '1', startTime: '15:00', endTime: '16:30', roomId: '', teacherId: '' };
+    const emptyForm = { title: '', dayOfWeek: '1', startTime: '15:00', endTime: '16:30', roomId: 'none', teacherId: 'none' };
     const [form, setForm] = useState(emptyForm);
 
     const load = async () => {
@@ -55,8 +55,8 @@ export default function RecurringEvents() {
             dayOfWeek: String(ev.dayOfWeek),
             startTime: ev.startTime,
             endTime: ev.endTime,
-            roomId: ev.roomId || '',
-            teacherId: ev.teacherId || '',
+            roomId: ev.roomId || 'none',
+            teacherId: ev.teacherId || 'none',
         });
         setDialogOpen(true);
     };
@@ -70,8 +70,8 @@ export default function RecurringEvents() {
             dayOfWeek: parseInt(form.dayOfWeek),
             startTime: form.startTime,
             endTime: form.endTime,
-            roomId: form.roomId || undefined,
-            teacherId: form.teacherId || undefined,
+            roomId: (form.roomId && form.roomId !== 'none') ? form.roomId : undefined,
+            teacherId: (form.teacherId && form.teacherId !== 'none') ? form.teacherId : undefined,
         };
         try {
             if (editing) {
@@ -191,8 +191,8 @@ export default function RecurringEvents() {
                             <Select value={form.roomId} onValueChange={v => setForm(f => ({ ...f, roomId: v }))}>
                                 <SelectTrigger><SelectValue placeholder="Vyberte místnost" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">—</SelectItem>
-                                    {rooms.map((r: any) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                                    <SelectItem value="none">—</SelectItem>
+                                    {rooms.filter((r: any) => r.id).map((r: any) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -201,8 +201,8 @@ export default function RecurringEvents() {
                             <Select value={form.teacherId} onValueChange={v => setForm(f => ({ ...f, teacherId: v }))}>
                                 <SelectTrigger><SelectValue placeholder="Vyberte učitele" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">—</SelectItem>
-                                    {teachers.map((t: any) => <SelectItem key={t.userId || t.id} value={t.userId || t.id}>{t.user?.firstName || t.firstName} {t.user?.lastName || t.lastName}</SelectItem>)}
+                                    <SelectItem value="none">—</SelectItem>
+                                    {teachers.filter((t: any) => (t.userId || t.id)).map((t: any) => <SelectItem key={t.userId || t.id} value={t.userId || t.id}>{t.user?.firstName || t.firstName} {t.user?.lastName || t.lastName}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>

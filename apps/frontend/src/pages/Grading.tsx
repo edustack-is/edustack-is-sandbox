@@ -188,7 +188,7 @@ export const Grading: React.FC = () => {
         if (!schoolId || !selectedClassroomId) return;
         setLoading(true);
         try {
-            const data = await getGradesForClassroom(selectedClassroomId, selectedSemesterId || undefined);
+            const data = await getGradesForClassroom(selectedClassroomId, (selectedSemesterId && selectedSemesterId !== 'all') ? selectedSemesterId : undefined);
             setStudents(data.students || []);
             setSubjects(data.subjects || []);
             setGrades(data.grades || []);
@@ -210,7 +210,7 @@ export const Grading: React.FC = () => {
     const loadStudentDetail = async (student: StudentBrief) => {
         setSelectedStudent(student);
         try {
-            const data = await getStudentGrades(student.id, selectedSemesterId || undefined);
+            const data = await getStudentGrades(student.id, (selectedSemesterId && selectedSemesterId !== 'all') ? selectedSemesterId : undefined);
             setStudentGrades(data.grades || []);
         } catch {
             setStudentGrades([]);
@@ -271,7 +271,7 @@ export const Grading: React.FC = () => {
                 type: formType,
                 verbalText: formVerbalText || undefined,
                 category: formCategory || undefined,
-                semesterId: selectedSemesterId || undefined,
+                semesterId: (selectedSemesterId && selectedSemesterId !== 'all') ? selectedSemesterId : undefined,
             });
             toast.success('Známka uložena.');
             setAddDialog(null);
@@ -394,7 +394,7 @@ export const Grading: React.FC = () => {
                                 <SelectValue placeholder="Pololetí..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Vše</SelectItem>
+                                <SelectItem value="all">Vše</SelectItem>
                                 {semesters.map(s => (
                                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                 ))}
@@ -685,11 +685,12 @@ export const Grading: React.FC = () => {
                                     <SelectValue placeholder="Vyberte kategorii..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">— Bez kategorie —</SelectItem>
+                                    <SelectItem value="none">— Bez kategorie —</SelectItem>
                                     {CATEGORIES.map(c => (
                                         <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                                     ))}
                                 </SelectContent>
+
                             </Select>
                         </div>
 

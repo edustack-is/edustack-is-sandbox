@@ -614,8 +614,8 @@ function VersionManager({
                     </div>
                 ) : versions.map((v) => (
                     <div key={v.id}>
-                        <button onClick={() => onSelect(selectedVersionId === v.id ? null : v.id)}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-colors border ${selectedVersionId === v.id ? 'bg-primary/5 border-primary/40' : 'border-transparent hover:bg-muted/50'}`}>
+                        <div onClick={() => onSelect(selectedVersionId === v.id ? null : v.id)}
+                            className={`w-full text-left px-4 py-3 rounded-lg transition-colors border cursor-pointer ${selectedVersionId === v.id ? 'bg-primary/5 border-primary/40' : 'border-transparent hover:bg-muted/50'}`}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     {selectedVersionId === v.id
@@ -642,7 +642,7 @@ function VersionManager({
                                     </Button>
                                 </div>
                             </div>
-                        </button>
+                        </div>
 
                         {/* Duplicate form inline */}
                         {duplicatingId === v.id && (

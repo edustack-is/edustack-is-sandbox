@@ -6,18 +6,18 @@
 
 | Vrstva | Stack |
 |--------|-------|
-| Backend | NestJS, Prisma ORM, PostgreSQL |
+| Backend | NestJS, Prisma ORM, SQLite |
 | Frontend | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
 | MCP Server | Node.js, SSE transport, 36 AI nástrojů |
 | AI | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
-| Infra | Docker Compose, PWA, automatické zálohy |
+| Infra | PWA, monorepo, automatické zálohy |
 
 ## Rychlý start
 
 ### Prerekvizity
 
-- Docker & Docker Compose
-- Node.js 20+ (pro frontend dev server)
+- Node.js 20+
+- npm 10+
 
 ### 1. Konfigurace
 
@@ -32,41 +32,70 @@ Povinné proměnné v `.env`:
 | `JWT_SECRET` | Klíč pro podepisování JWT tokenů | `openssl rand -base64 64` |
 | `ENCRYPTION_KEY` | AES-256 klíč pro šifrování secrets | `openssl rand -base64 32` |
 
-Vše ostatní má rozumné výchozí hodnoty pro lokální vývoj (databáze, SMTP, CORS).
+**SMTP (E-maily):**
+Aplikace je přednastavena pro [MailDev](https://github.com/maildev/maildev). Pro lokální testování e-mailů (zapomenuté heslo, pozvánky) doporučujeme:
+- Spustit MailDev lokálně: `npx maildev`
+- Nebo v `.env` nastavit vlastní SMTP server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`).
 
-### 2. Spuštění backendu
+Vše ostatní má rozumné výchozí hodnoty pro lokální vývoj (databáze, CORS).
+
+### 2. Instalace a příprava DB
+
+V kořenovém adresáři monorepa:
 
 ```bash
-docker compose up -d
+npm install
+npm run db:generate
+npm run db:push
 ```
 
-Při prvním spuštění se automaticky:
-- nainstalují závislosti (`npm install`)
+Tím se:
+- nainstalují závislosti pro všechny balíčky (`backend`, `frontend`, `mcp-server`)
 - vygeneruje Prisma klient
-- vytvoří/aktualizuje schéma databáze
+- vytvoří SQLite databáze v `data/dev.db`
 
-| Služba | URL |
-|--------|-----|
-| Backend API | http://localhost:3000 |
-| Swagger docs | http://localhost:3000/api/docs |
-| MCP Server | http://localhost:3001/sse |
-| MailDev (dev e-maily) | http://localhost:1080 |
+### 3. Demo Data
 
-Pro Adminer (DB GUI): `docker compose --profile dev up -d`  → http://localhost:8080
-
-### 3. Spuštění frontendu
+Chcete-li databázi naplnit kompletním školním nastavením (akademické roky, školy, uživatelé, třídy, absolventi atd.), spusťte:
 
 ```bash
-cd apps/frontend
-npm install
+npm run seed:demo -w backend
+```
+
+Tím se vytvoří:
+- **Školy**: Základní škola T. G. Masaryka, Gymnázium Jana Nerudy
+- **Roky**: 2024/25 (Minulý), 2025/26 (Současný), 2026/27 (Budoucí)
+- **Uživatelé**: Admin, Ředitelé, Učitelé, Studenti, Rodiče, Absolventi
+
+**Přihlašovací údaje (Heslo: `password123`):**
+- Systémový administrátor: `admin@edustack.cz`
+- Ředitel: `headmaster@tgmasaryk.cz`
+- Učitel: `dana.bila@tgmasaryk.cz`
+- Absolvent: `alumnus1@tgmasaryk.cz`
+- Budoucí student: `future@tgmasaryk.cz`
+
+### 4. Spuštění celé aplikace
+
+V kořenovém adresáři monorepa:
+
+```bash
+# Spustí backend, frontend a MCP server najednou (využívá 'concurrently')
 npm run dev
 ```
 
-Aplikace: http://localhost:5173
+Tím se spustí paralelně:
+- **Backend API**: http://localhost:3000
+- **Frontend App**: http://localhost:5173
+- **MCP Server**: http://localhost:3001/sse
 
-### 4. Prvotní nastavení
+| Služba | URL |
+|--------|-----|
+| Aplikace | http://localhost:5173 |
+| Backend API | http://localhost:3000 |
+| Swagger docs | http://localhost:3000/api/docs |
+| MailDev (web UI) | http://localhost:1080 (pokud běží) |
 
-Po spuštění otevřete http://localhost:5173 — zobrazí se Setup průvodce pro vytvoření prvního systémového administrátora.
+Pro správu databáze (GUI) můžete použít: `npm run db:studio`
 
 ## Struktura projektu
 

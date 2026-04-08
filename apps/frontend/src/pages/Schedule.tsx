@@ -359,7 +359,7 @@ export const Schedule: React.FC = () => {
                                 <SelectValue placeholder="Rok..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {academicYears.map(y => (
+                                {academicYears.filter(y => y.id).map(y => (
                                     <SelectItem key={y.id} value={y.id}>
                                         {y.name} {y.isCurrent ? '(aktuální)' : ''}
                                     </SelectItem>
@@ -373,8 +373,8 @@ export const Schedule: React.FC = () => {
                                 <SelectValue placeholder="Pololetí..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Vše</SelectItem>
-                                {semesters.map(s => (
+                                <SelectItem value="all">Vše</SelectItem>
+                                {semesters.filter(s => s.id).map(s => (
                                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -430,7 +430,7 @@ export const Schedule: React.FC = () => {
                             <SelectValue placeholder="Vyberte třídu..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {classrooms.map(c => (
+                            {classrooms.filter(c => c.id).map(c => (
                                 <SelectItem key={c.id} value={c.id}>
                                     {c.name} {c.id === myClassroomId ? '(moje třída)' : ''}
                                 </SelectItem>
@@ -449,7 +449,7 @@ export const Schedule: React.FC = () => {
                             <SelectValue placeholder="Vyberte učitele..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {teachers.map(t => (
+                            {teachers.filter(t => t.id).map(t => (
                                 <SelectItem key={t.id} value={t.id}>
                                     {t.user.lastName} {t.user.firstName}
                                     {t.id === myHomeroomTeacherId ? ' (třídní učitel)' : ''}

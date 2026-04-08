@@ -219,7 +219,7 @@ export const SchedulePlanner: React.FC = () => {
                 subjectInstanceId: addSubjectId,
                 classroomId: selectedClassroomId,
                 teacherId: addTeacherId,
-                roomId: addRoomId || undefined,
+                roomId: (addRoomId && addRoomId !== 'none') ? addRoomId : undefined,
                 academicYearId: selectedAcademicYearId,
             });
             toast.success('Hodina přidána do rozvrhu.');
@@ -311,7 +311,7 @@ export const SchedulePlanner: React.FC = () => {
                             <SelectValue placeholder="Třída..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {classrooms.map(c => (
+                            {classrooms.filter(c => c.id).map(c => (
                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                             ))}
                         </SelectContent>
@@ -328,7 +328,7 @@ export const SchedulePlanner: React.FC = () => {
                             <SelectValue placeholder="Rok..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {academicYears.map(y => (
+                            {academicYears.filter(y => y.id).map(y => (
                                 <SelectItem key={y.id} value={y.id}>
                                     {y.name} {y.isCurrent ? '(aktuální)' : ''}
                                 </SelectItem>
@@ -345,8 +345,8 @@ export const SchedulePlanner: React.FC = () => {
                                 <SelectValue placeholder="Pololetí..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Vše</SelectItem>
-                                {semesters.map(s => (
+                                <SelectItem value="all">Vše</SelectItem>
+                                {semesters.filter(s => s.id).map(s => (
                                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -428,7 +428,7 @@ export const SchedulePlanner: React.FC = () => {
                                     <SelectValue placeholder="Vyberte předmět..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {subjects.map(s => (
+                                    {subjects.filter(s => s.id).map(s => (
                                         <SelectItem key={s.id} value={s.id}>
                                             {s.template.code} — {s.template.name} ({s.hoursPerWeek - getUsedHours(s.id)}h zbývá)
                                         </SelectItem>
@@ -444,7 +444,7 @@ export const SchedulePlanner: React.FC = () => {
                                     <SelectValue placeholder="Vyberte učitele..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {teachers.map(t => (
+                                    {teachers.filter(t => t.id).map(t => (
                                         <SelectItem key={t.id} value={t.id}>
                                             {t.user.lastName} {t.user.firstName}
                                         </SelectItem>
@@ -460,8 +460,8 @@ export const SchedulePlanner: React.FC = () => {
                                     <SelectValue placeholder="Vyberte učebnu..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">— Žádná —</SelectItem>
-                                    {rooms.map(r => (
+                                    <SelectItem value="none">— Žádná —</SelectItem>
+                                    {rooms.filter(r => r.id).map(r => (
                                         <SelectItem key={r.id} value={r.id}>
                                             {r.name} ({r.capacity} míst) {r.isComputerLab ? '💻' : ''}
                                         </SelectItem>
