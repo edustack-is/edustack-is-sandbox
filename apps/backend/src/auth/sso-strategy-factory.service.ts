@@ -40,7 +40,7 @@ export class SsoStrategyFactoryService implements OnModuleInit {
         // For now, we'll focus on registering current active ones.
 
         // Group by service
-        const grouped = allSsoSecrets.reduce((acc: Record<string, Record<string, string>>, secret) => {
+        const grouped = allSsoSecrets.reduce((acc: Record<string, Record<string, string>>, secret: any) => {
             if (!acc[secret.service]) acc[secret.service] = {};
             acc[secret.service][secret.key] = secret.value;
             return acc;
@@ -48,7 +48,7 @@ export class SsoStrategyFactoryService implements OnModuleInit {
 
         for (const [service, keys] of Object.entries(grouped)) {
             try {
-                this.registerStrategy(service, keys);
+                this.registerStrategy(service, keys as Record<string, string>);
             } catch (err: any) {
                 this.logger.error(`Failed to register ${service} strategy: ${err.message}`);
             }

@@ -1,18 +1,20 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { PrismaClient, Prisma } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
     private extendedClient: any;
 
     constructor(private readonly cls: ClsService) {
-        const connectionString = process.env.DATABASE_URL;
-        const pool = new Pool({ connectionString });
-        const adapter = new PrismaPg(pool);
-        super({ adapter });
+        const dbPath = process.env.DATABASE_URL?.replace('file:', '') || '../../data/dev.db';
+        const adapter = new PrismaBetterSqlite3({ url: dbPath });
+
+        super({
+            adapter,
+            log: ['warn', 'error'],
+        });
 
         return new Proxy(this, {
             get: (target, prop, receiver) => {

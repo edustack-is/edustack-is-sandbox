@@ -1,34 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: edu_stack_sandbox_postgres
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-student}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
-      POSTGRES_DB: ${POSTGRES_DB:-skola_db}
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-student} -d ${POSTGRES_DB:-skola_db}" ]
-      interval: 3s
-      timeout: 3s
-      retries: 10
-
-  adminer:
-    image: adminer
-    container_name: edu_stack_sandbox_adminer
-    restart: always
-    profiles: [ dev ] # Only starts with: docker compose --profile dev up
-    ports:
-      - "127.0.0.1:8080:8080"
-    depends_on:
-      - postgres
-
   backend:
     image: node:22-alpine
     container_name: edu_stack_sandbox_backend
@@ -40,26 +12,20 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"
-    command: sh -c "npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run start:dev"
+    command: sh -c "npm install && npm run prisma:generate && npm run prisma:db:push && npm run start:dev"
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: ${POSTGRES_USER:-student}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
-      POSTGRES_DB: ${POSTGRES_DB:-skola_db}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-student}:${POSTGRES_PASSWORD:-student}@postgres:5432/${POSTGRES_DB:-skola_db}
+      DATABASE_URL: "file:data/dev.db"
       SMTP_HOST: ${SMTP_HOST:-maildev}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       MAIL_FROM: ${MAIL_FROM:-noreply@edustack.local}
-      JWT_SECRET: ${JWT_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-for-testing-only-123456}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-12345678901234567890123456789012}
       SETUP_TOKEN: ${SETUP_TOKEN:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       MCP_SERVER_URL: http://mcp-server:3001/sse
-    depends_on:
-      postgres:
-        condition: service_healthy
+      AUTO_SEED: "true"
 
   mcp-server:
     image: node:22-alpine
@@ -69,16 +35,15 @@ services:
     volumes:
       - ./apps/mcp-server:/app
       - ./apps/backend/prisma:/app/prisma
+      - ./data:/app/data
       - /app/node_modules
     ports:
       - "3001:3001"
     command: sh /app/docker-entrypoint.sh
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-student}:${POSTGRES_PASSWORD:-student}@postgres:5432/${POSTGRES_DB:-skola_db}
+      DATABASE_URL: "file:data/dev.db"
+      PRISMA_SCHEMA: "prisma/schema.prisma"
       MCP_PORT: 3001
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   maildev:
     image: maildev/maildev
@@ -87,6 +52,3 @@ services:
     ports:
       - "1025:1025"
       - "1080:1080"
-
-volumes:
-  postgres_data:

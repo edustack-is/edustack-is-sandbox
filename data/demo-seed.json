@@ -7,15 +7,20 @@
     },
     "sso": {
         "google": {
-            "clientId": "",
-            "clientSecret": "",
+            "clientId": "placeholder-google-client-id",
+            "clientSecret": "placeholder-google-client-secret",
+            "isActive": true
+        },
+        "github": {
+            "clientId": "placeholder-github-client-id",
+            "clientSecret": "placeholder-github-client-secret",
             "isActive": false
         }
     },
     "ai": {
-        "geminiApiKey": "",
-        "openAiApiKey": "",
-        "anthropicApiKey": ""
+        "geminiApiKey": "placeholder-gemini-api-key",
+        "openAiApiKey": "placeholder-openai-api-key",
+        "anthropicApiKey": "placeholder-anthropic-api-key"
     },
     "school": {
         "name": "Základní škola T. G. Masaryka",

@@ -1,8 +1,6 @@
 import { server } from "../server.js";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../db.js";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
 
 server.tool(
     "get_attendance_summary",

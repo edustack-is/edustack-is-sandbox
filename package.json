@@ -2,8 +2,19 @@
   "name": "edu-stack-sandbox",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "dev": "concurrently -n \"BE,FE,MCP\" -c \"green,blue,yellow\" \"npm run start:dev -w backend\" \"npm run dev -w frontend\" \"npm run dev -w mcp-server\"",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "db:generate": "npm run prisma:generate -w backend && npm run prisma:generate -w mcp-server",
+    "db:push": "npm run prisma:db:push -w backend",
+    "db:studio": "npm run prisma studio -w backend"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

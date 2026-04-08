@@ -1,8 +1,6 @@
 import { server } from "../server.js";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../db.js";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
 
 // ═══════════════════════════════════════════════════════════════
 // GRADES (ZNÁMKY)
@@ -121,18 +119,20 @@ server.tool(
         teacherId: z.string().describe("ID TeacherProfile"),
         status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]).describe("Status docházky"),
         date: z.string().optional().describe("Datum (ISO 8601, výchozí: dnes)"),
+        lessonNumber: z.number().int().optional().describe("Číslo vyučovací hodiny (1-10)"),
         note: z.string().optional().describe("Poznámka"),
     },
-    async ({ schoolId, studentId, teacherId, status, date, note }) => {
+    async ({ schoolId, studentId, teacherId, status, date, lessonNumber, note }) => {
         try {
             const attendanceDate = date ? new Date(date) : new Date();
 
-            // Upsert – update if exists for same student+date+school
+            // Upsert – update if exists for same student+date+lesson+school
             const attendance = await prisma.attendance.upsert({
                 where: {
-                    studentId_date_schoolId: {
+                    studentId_date_lessonNumber_schoolId: {
                         studentId,
                         date: attendanceDate,
+                        lessonNumber: lessonNumber || 0, // Fallback to 0 if not provided
                         schoolId,
                     },
                 },
@@ -140,6 +140,7 @@ server.tool(
                 create: {
                     date: attendanceDate,
                     status,
+                    lessonNumber: lessonNumber || 0,
                     note,
                     schoolId,
                     studentId,

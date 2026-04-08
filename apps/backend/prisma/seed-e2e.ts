@@ -1,11 +1,9 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import * as bcrypt from 'bcrypt';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://student:student@localhost:5432/skola_db';
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+const dbPath = process.env.DATABASE_URL?.replace('file:', '') || '../../data/dev.db';
+const adapter = new PrismaBetterSqlite3({ url: dbPath });
 const prisma = new PrismaClient({ adapter, log: ['query', 'warn', 'error'] });
 
 async function main() {
