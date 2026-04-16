@@ -10,17 +10,24 @@ dotenv.config();
 let dbPath = process.env.DATABASE_URL?.replace("file:", "");
 
 if (!dbPath) {
-    // Look into backend's wrangler folder
-    const backendDir = path.resolve(process.cwd(), "../backend");
-    const wranglerDir = path.join(backendDir, ".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
-    
-    if (fs.existsSync(wranglerDir)) {
-        const files = fs.readdirSync(wranglerDir);
-        const dbFile = files.find((f: string) => f.endsWith(".sqlite") && f !== "metadata.sqlite");
-        if (dbFile) {
-            dbPath = path.join(wranglerDir, dbFile);
-            console.log(`[MCP] Auto-detected Backend DB: ${dbPath}`);
+    let currentPath = process.cwd();
+    // Scan up to 4 levels up to find the backend/wrangler state
+    for (let i = 0; i < 4; i++) {
+        const checkDir = path.join(currentPath, "apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject");
+        const checkDirDirect = path.join(currentPath, ".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
+        
+        for (const dir of [checkDir, checkDirDirect]) {
+            if (fs.existsSync(dir)) {
+                const files = fs.readdirSync(dir);
+                const dbFile = files.find((f: string) => f.endsWith(".sqlite") && f !== "metadata.sqlite");
+                if (dbFile) {
+                    dbPath = path.join(dir, dbFile);
+                    break;
+                }
+            }
         }
+        if (dbPath) break;
+        currentPath = path.join(currentPath, "..");
     }
 }
 

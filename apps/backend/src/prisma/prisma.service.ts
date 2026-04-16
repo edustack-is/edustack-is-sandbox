@@ -29,35 +29,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             let dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
             if (!dbPath) {
-                // Auto-detect Wrangler's hashed sqlite file
-                // We use process.cwd() to be safe regardless of how Nest is started
-                const wranglerDir = path.join(process.cwd(), '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
-                console.log(`[PrismaService] Searching for D1 database in: ${wranglerDir}`);
+                console.log(`[PrismaService] Current working directory: ${process.cwd()}`);
                 
-                if (fs.existsSync(wranglerDir)) {
+                // Try to find .wrangler folder in current dir or parent (handles different start contexts)
+                let currentPath = process.cwd();
+                let wranglerDir = null;
+
+                for (let i = 0; i < 3; i++) {
+                    const checkDir = path.join(currentPath, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+                    console.log(`[PrismaService] Checking for D1 state in: ${checkDir}`);
+                    if (fs.existsSync(checkDir)) {
+                        wranglerDir = checkDir;
+                        break;
+                    }
+                    currentPath = path.join(currentPath, '..');
+                }
+
+                if (wranglerDir) {
                     const files = fs.readdirSync(wranglerDir);
                     const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
                     if (dbFile) {
                         dbPath = path.join(wranglerDir, dbFile);
                         console.log(`[PrismaService] ✅ Auto-detected Wrangler DB: ${dbPath}`);
-                    } else {
-                        console.warn(`[PrismaService] ⚠️ No .sqlite files found in ${wranglerDir}`);
                     }
-                } else {
-                    console.warn(`[PrismaService] ⚠️ Wrangler state directory not found: ${wranglerDir}`);
                 }
             }
 
-            if (!dbPath) {
-                dbPath = path.join(process.cwd(), '.wrangler/state/v3/d1/miniflare-D1DatabaseObject/database.sqlite');
-                console.warn(`[PrismaService] ⚠️ Falling back to default path: ${dbPath}`);
+            // Final fallback or use detected
+            const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : null;
+            
+            if (!finalPath || !fs.existsSync(finalPath)) {
+                console.error(`[PrismaService] ❌ CRITICAL: Could not find database file! Path: ${finalPath}`);
+                // Fallback to something so it doesn't crash on init but it will fail on query
+                options.adapter = new PrismaBetterSqlite3({ url: finalPath || 'missing.db' });
+            } else {
+                console.log(`[PrismaService] 🚀 Opening database at: ${finalPath}`);
+                options.adapter = new PrismaBetterSqlite3({ url: finalPath });
             }
-
-            // Ensure the path is absolute for better-sqlite3
-            const finalPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
-            console.log(`[PrismaService] 🚀 Opening database at: ${finalPath}`);
-
-            options.adapter = new PrismaBetterSqlite3({ url: finalPath });
         }
 
         super(options);

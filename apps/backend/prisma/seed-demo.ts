@@ -20,21 +20,22 @@ if (process.env.DB_BINDING) {
     let dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
     if (!dbPath) {
-        const wranglerDir = path.join(process.cwd(), '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
-        if (fs.existsSync(wranglerDir)) {
-            const files = fs.readdirSync(wranglerDir);
-            const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
-            if (dbFile) {
-                dbPath = path.join(wranglerDir, dbFile);
+        let currentPath = process.cwd();
+        for (let i = 0; i < 3; i++) {
+            const checkDir = path.join(currentPath, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+            if (fs.existsSync(checkDir)) {
+                const files = fs.readdirSync(checkDir);
+                const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+                if (dbFile) {
+                    dbPath = path.join(checkDir, dbFile);
+                    break;
+                }
             }
+            currentPath = path.join(currentPath, '..');
         }
     }
 
-    if (!dbPath) {
-        dbPath = path.join(process.cwd(), '.wrangler/state/v3/d1/miniflare-D1DatabaseObject/database.sqlite');
-    }
-
-    const finalPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
+    const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : path.resolve(process.cwd(), 'missing.db');
     console.log(`Seed: Opening database at ${finalPath}`);
     options.adapter = new PrismaBetterSqlite3({ url: finalPath });
 }
