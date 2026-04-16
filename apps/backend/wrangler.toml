@@ -5,6 +5,7 @@ compatibility_date = "2024-04-03"
 [vars]
 # JWT_SECRET and ENCRYPTION_KEY should be set via 'wrangler secret put'
 CORS_ORIGIN = "https://edustack.pages.dev"
+MCP_SERVER_URL = "https://edustack-mcp.your-subdomain.workers.dev/sse"
 
 [[d1_databases]]
 binding = "DB"

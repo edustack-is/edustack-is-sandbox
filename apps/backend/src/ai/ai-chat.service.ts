@@ -52,8 +52,8 @@ export class AiChatService {
         }
     }
 
-    private async initializeMcp(retries = 5, delay = 2000) {
-        const mcpUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001/sse';
+    private async initializeMcp(retries = 10, delay = 3000) {
+        const mcpUrl = process.env.MCP_SERVER_URL || 'http://127.0.0.1:3001/sse';
         // @ts-ignore - EventSource polyfill for Node.js
         global.EventSource = EventSource;
 
