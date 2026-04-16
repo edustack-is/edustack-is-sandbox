@@ -30,11 +30,11 @@ export class BackupSchedulerService {
 
     private async cleanOldBackups(keepCount: number) {
         try {
-            const backups = this.backupService.listBackups();
+            const backups = await this.backupService.listBackups();
             if (backups.length > keepCount) {
                 const toDelete = backups.slice(keepCount); // listBackups returns sorted newest-first
                 for (const b of toDelete) {
-                    this.backupService.deleteBackup(b.filename);
+                    await this.backupService.deleteBackup(b.filename);
                     this.logger.log(`Cleaned old backup: ${b.filename}`);
                 }
             }

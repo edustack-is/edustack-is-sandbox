@@ -1,12 +1,9 @@
-import { Controller, Post, Get, Delete, Param, Res, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import type { Response } from 'express';
+import { Controller, Post, Get, Delete, Param, UseGuards, UseInterceptors, UploadedFile, ParseFilePipe, MaxFilePathSizeValidator, FileTypeValidator } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { BackupService } from './backup.service';
-
-import { SuccessResponseDto } from '../common/dto/api.dto';
-import { BackupResponseDto } from '../common/dto/response.dto';
 
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
@@ -17,46 +14,38 @@ export class BackupController {
 
     @Post()
     @ApiOperation({ summary: 'Vytvoření zálohy' })
-    @ApiResponse({ status: 201, description: 'Záloha vytvořena.', type: BackupResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
-
+    @ApiResponse({ status: 201, description: 'Záloha vytvořena.' })
     async createBackup() {
         return this.backupService.createBackup();
     }
 
     @Get()
-    listBackups() {
+    @ApiOperation({ summary: 'Seznam záloh' })
+    async listBackups() {
         return this.backupService.listBackups();
     }
 
-    @Get(':filename/download')
-    downloadBackup(@Param('filename') filename: string, @Res() res: Response) {
-        try {
-            const filepath = this.backupService.getBackupPath(filename);
-            res.download(filepath, filename);
-        } catch {
-            throw new BadRequestException('Backup file not found');
-        }
-    }
-
-    @Post(':filename/restore')
-    @ApiOperation({ summary: 'Obnovení ze zálohy' })
-    @ApiResponse({ status: 200, description: 'Záloha obnovena.', type: SuccessResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.' })
-
-    async restoreBackup(@Param('filename') filename: string) {
-        await this.backupService.restoreBackup(filename);
-        return { message: 'Database restored successfully' };
+    @Post('upload')
+    @UseInterceptors(FileInterceptor('file'))
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: { type: 'string', format: 'binary' },
+            },
+        },
+    })
+    @ApiOperation({ summary: 'Nahrání zálohy z disku' })
+    async uploadBackup(@UploadedFile() file: Express.Multer.File) {
+        return this.backupService.uploadBackup(file);
     }
 
     @Delete(':filename')
-    deleteBackup(@Param('filename') filename: string) {
-        this.backupService.deleteBackup(filename);
+    @ApiOperation({ summary: 'Smazání zálohy' })
+    async deleteBackup(@Param('filename') filename: string) {
+        await this.backupService.deleteBackup(filename);
         return { message: 'Backup deleted' };
     }
 }
+

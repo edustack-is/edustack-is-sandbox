@@ -11,3 +11,7 @@ MCP_SERVER_URL = "https://edustack-mcp.your-subdomain.workers.dev/sse"
 binding = "DB"
 database_name = "edustack_db"
 database_id = "your-database-id-here"
+
+[[r2_buckets]]
+binding = "BACKUP_BUCKET"
+bucket_name = "edustack-backups"
