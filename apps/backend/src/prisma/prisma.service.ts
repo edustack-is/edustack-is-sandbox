@@ -30,19 +30,34 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
             if (!dbPath) {
                 // Auto-detect Wrangler's hashed sqlite file
-                const wranglerDir = './.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
+                // We use process.cwd() to be safe regardless of how Nest is started
+                const wranglerDir = path.join(process.cwd(), '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+                console.log(`[PrismaService] Searching for D1 database in: ${wranglerDir}`);
+                
                 if (fs.existsSync(wranglerDir)) {
                     const files = fs.readdirSync(wranglerDir);
-                    const dbFile = files.find(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+                    const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
                     if (dbFile) {
                         dbPath = path.join(wranglerDir, dbFile);
-                        console.log(`Auto-detected Wrangler DB: ${dbPath}`);
+                        console.log(`[PrismaService] ✅ Auto-detected Wrangler DB: ${dbPath}`);
+                    } else {
+                        console.warn(`[PrismaService] ⚠️ No .sqlite files found in ${wranglerDir}`);
                     }
+                } else {
+                    console.warn(`[PrismaService] ⚠️ Wrangler state directory not found: ${wranglerDir}`);
                 }
             }
 
-            dbPath = dbPath || './.wrangler/state/v3/d1/miniflare-D1DatabaseObject/database.sqlite';
-            options.adapter = new PrismaBetterSqlite3({ url: dbPath });
+            if (!dbPath) {
+                dbPath = path.join(process.cwd(), '.wrangler/state/v3/d1/miniflare-D1DatabaseObject/database.sqlite');
+                console.warn(`[PrismaService] ⚠️ Falling back to default path: ${dbPath}`);
+            }
+
+            // Ensure the path is absolute for better-sqlite3
+            const finalPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
+            console.log(`[PrismaService] 🚀 Opening database at: ${finalPath}`);
+
+            options.adapter = new PrismaBetterSqlite3({ url: finalPath });
         }
 
         super(options);
