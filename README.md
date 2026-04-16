@@ -22,9 +22,10 @@
 
 ### 1. Konfigurace
 
-```bash
-cp .env.example .env
-```
+Zkopírujte vhodný vzor podle toho, jak plánujete aplikaci spouštět:
+
+- **Pro běh v Dockeru:** `cp .env.docker.example .env`
+- **Pro lokální běh bez Dockeru (SQLite):** `cp .env.local.example .env`
 
 Povinné proměnné v `.env`:
 
