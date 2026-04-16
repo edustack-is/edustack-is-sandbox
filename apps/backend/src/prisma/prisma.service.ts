@@ -26,22 +26,34 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             const fs = require('fs');
             const path = require('path');
 
+            console.log('\n' + '='.repeat(60));
+            console.log('🔍 PRISMA DATABASE DETECTION');
+            console.log('='.repeat(60));
+            console.log(`CWD: ${process.cwd()}`);
+            console.log(`ENV DATABASE_URL: ${process.env.DATABASE_URL || 'not set'}`);
+
             let dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
+            // If DATABASE_URL is set but points to an empty/missing file, ignore it and try auto-detect
+            if (dbPath && (!fs.existsSync(dbPath) || fs.statSync(dbPath).size === 0)) {
+                console.warn(`[PrismaService] ⚠️ DATABASE_URL points to an empty or missing file (${dbPath}). Switching to auto-detection...`);
+                dbPath = undefined;
+            }
+
             if (!dbPath) {
-                // Determine base path surgically
-                // If we are in monorepo, backend is usually apps/backend
                 const possiblePaths = [
                     process.cwd(),
                     path.join(process.cwd(), 'apps/backend'),
-                    path.resolve(process.cwd(), '..'), // if we started inside src
+                    path.resolve(process.cwd(), '..'),
                 ];
 
                 let wranglerDir = null;
                 for (const base of possiblePaths) {
                     const checkDir = path.join(base, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+                    console.log(`Checking: ${checkDir}`);
                     if (fs.existsSync(checkDir)) {
                         wranglerDir = checkDir;
+                        console.log(`✅ Found state dir at: ${checkDir}`);
                         break;
                     }
                 }
@@ -58,12 +70,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : null;
             
             if (!finalPath || !fs.existsSync(finalPath)) {
-                console.error(`[PrismaService] ❌ CRITICAL: Could not find database file! Path: ${finalPath}`);
-                options.adapter = new PrismaBetterSqlite3({ url: finalPath || 'missing.db' });
-            } else {
-                console.log(`[PrismaService] 🚀 Opening database at: ${finalPath}`);
-                options.adapter = new PrismaBetterSqlite3({ url: finalPath });
+                const msg = `❌ FATAL: Could not find database file at ${finalPath}. Did you run 'npm run db:init'?`;
+                console.error('\n' + '!'.repeat(60));
+                console.error(msg);
+                console.error('!'.repeat(60) + '\n');
+                throw new Error(msg);
             }
+
+            const stats = fs.statSync(finalPath);
+            if (stats.size === 0) {
+                const msg = `❌ FATAL: Database file at ${finalPath} is EMPTY (0 bytes). Did you run 'npm run db:init'?`;
+                console.error(msg);
+                throw new Error(msg);
+            }
+
+            console.log(`🚀 Opening database: ${finalPath} (${stats.size} bytes)`);
+            console.log('='.repeat(60) + '\n');
+
+            options.adapter = new PrismaBetterSqlite3({ url: finalPath });
         }
 
         super(options);

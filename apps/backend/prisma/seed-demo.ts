@@ -19,6 +19,10 @@ if (process.env.DB_BINDING) {
 
     let dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
+    if (dbPath && (!fs.existsSync(dbPath) || fs.statSync(dbPath).size === 0)) {
+        dbPath = undefined;
+    }
+
     if (!dbPath) {
         const possiblePaths = [
             process.cwd(),
