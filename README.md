@@ -6,7 +6,8 @@
 
 | Vrstva | Stack |
 |--------|-------|
-| Backend | NestJS, Prisma ORM, SQLite |
+| Backend | NestJS, Prisma ORM, Configurable DB |
+| Databáze | PostgreSQL (Docker), SQLite (Local), D1 (Cloudflare) |
 | Frontend | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
 | MCP Server | Node.js, SSE transport, 36 AI nástrojů |
 | AI | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
@@ -33,26 +34,54 @@ Povinné proměnné v `.env`:
 | `ENCRYPTION_KEY` | AES-256 klíč pro šifrování secrets | `openssl rand -base64 32` |
 
 **SMTP (E-maily):**
-Aplikace je přednastavena pro [MailDev](https://github.com/maildev/maildev). Pro lokální testování e-mailů (zapomenuté heslo, pozvánky) doporučujeme:
-- Spustit MailDev lokálně: `npx maildev`
-- Nebo v `.env` nastavit vlastní SMTP server (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`).
+Pro lokální testování e-mailů (zapomenuté heslo, pozvánky) máte dvě možnosti:
+- **S Dockerem:** `docker-compose up -d maildev` (web na http://localhost:1080)
+- **Bez Dockeru:** Spusťte `npx maildev` v samostatném terminálu.
 
-Vše ostatní má rozumné výchozí hodnoty pro lokální vývoj (databáze, CORS).
+### 2. Instalace a příprava databáze
 
-### 2. Instalace a příprava DB
+Aplikace podporuje tři režimy běhu databáze. Vyberte si jeden podle svého prostředí:
 
-V kořenovém adresáři monorepa:
-
+#### Možnost A: Lokální vývoj (SQLite / Cloudflare Local)
+Ideální pro rychlý start nebo přípravu na Cloudflare.
 ```bash
-npm install
+# 1. Nastavte v .env
+DB_ADAPTER=sqlite
+DATABASE_URL="file:./data/dev.db"
+
+# 2. Inicializace (používá SQLite schéma)
+npm run db:generate -- --schema=./apps/backend/prisma/schema_sqlite.prisma
+npm run db:push -- --schema=./apps/backend/prisma/schema_sqlite.prisma
+```
+
+#### Možnost B: Docker (PostgreSQL)
+Plnohodnotné prostředí s relační databází.
+```bash
+# 1. Spuštění Postgresu a MailDevu
+docker-compose up -d postgres maildev
+
+# 2. Nastavení v .env (výchozí)
+DB_ADAPTER=native
+DATABASE_URL="postgresql://student:student@localhost:5432/skola_db"
+
+# 3. Inicializace
 npm run db:generate
 npm run db:push
 ```
 
-Tím se:
-- nainstalují závislosti pro všechny balíčky (`backend`, `frontend`, `mcp-server`)
-- vygeneruje Prisma klient
-- vytvoří SQLite databáze v `data/dev.db`
+#### Možnost C: Cloudflare (D1)
+Pro nasazení na platformu Cloudflare Workers.
+```bash
+# 1. Vytvoření D1 databáze
+wrangler d1 create edustack_db
+
+# 2. Inicializace schématu (lokálně přes Wrangler)
+npx prisma generate --schema=./apps/backend/prisma/schema_sqlite.prisma
+wrangler d1 execute edustack_db --local --file=./apps/backend/prisma/schema.sql
+
+# 3. Nasazení do Cloudu
+wrangler d1 execute edustack_db --remote --file=./apps/backend/prisma/schema.sql
+```
 
 ### 3. Demo Data
 

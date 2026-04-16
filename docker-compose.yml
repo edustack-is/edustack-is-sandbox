@@ -1,9 +1,24 @@
 version: '3.8'
 
 services:
+  # ─── DATABÁZE (PostgreSQL) ─────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: edustack_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-student}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
+      POSTGRES_DB: ${POSTGRES_DB:-skola_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ─── BACKEND (NestJS API) ──────────────────────────────────
   backend:
     image: node:22-alpine
-    container_name: edu_stack_sandbox_backend
+    container_name: edustack_backend
     restart: always
     working_dir: /app
     volumes:
@@ -12,24 +27,33 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"
-    command: sh -c "npm install && npm run prisma:generate && npm run prisma:db:push && npm run start:dev"
+    depends_on:
+      - postgres
+    command: >
+      sh -c "npm install && 
+             npx prisma generate && 
+             ( [ \"$DB_ADAPTER\" = \"native\" ] && npx prisma db push || npx prisma db push --schema=./prisma/schema_sqlite.prisma ) && 
+             npm run start:dev"
     environment:
-      DATABASE_URL: "file:data/dev.db"
+      # Výběr adaptéru: native (Postgres) | sqlite (Soubor)
+      DB_ADAPTER: ${DB_ADAPTER:-native}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://student:student@postgres:5432/skola_db}
+      
+      JWT_SECRET: ${JWT_SECRET:-dummy-secret-key-12345}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-12345678901234567890123456789012}
+      
       SMTP_HOST: ${SMTP_HOST:-maildev}
       SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
       MAIL_FROM: ${MAIL_FROM:-noreply@edustack.local}
-      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-for-testing-only-123456}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-12345678901234567890123456789012}
-      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       MCP_SERVER_URL: http://mcp-server:3001/sse
       AUTO_SEED: "true"
 
+  # ─── MCP SERVER (AI Tools) ──────────────────────────────────
   mcp-server:
     image: node:22-alpine
-    container_name: edu_stack_sandbox_mcp
+    container_name: edustack_mcp
     restart: always
     working_dir: /app
     volumes:
@@ -39,16 +63,25 @@ services:
       - /app/node_modules
     ports:
       - "3001:3001"
-    command: sh /app/docker-entrypoint.sh
+    depends_on:
+      - postgres
+    command: >
+      sh -c "npm install && 
+             npx prisma generate --schema=./prisma/schema_sqlite.prisma && 
+             npm run dev"
     environment:
-      DATABASE_URL: "file:data/dev.db"
-      PRISMA_SCHEMA: "prisma/schema.prisma"
+      DB_ADAPTER: ${DB_ADAPTER:-native}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://student:student@postgres:5432/skola_db}
       MCP_PORT: 3001
 
+  # ─── MAILDEV (E-mail testing UI) ───────────────────────────
   maildev:
     image: maildev/maildev
-    container_name: edu_stack_sandbox_maildev
+    container_name: edustack_maildev
     restart: always
     ports:
       - "1025:1025"
       - "1080:1080"
+
+volumes:
+  postgres_data:
