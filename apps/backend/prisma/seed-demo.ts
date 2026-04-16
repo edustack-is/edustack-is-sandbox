@@ -20,18 +20,27 @@ if (process.env.DB_BINDING) {
     let dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
     if (!dbPath) {
-        let currentPath = process.cwd();
-        for (let i = 0; i < 3; i++) {
-            const checkDir = path.join(currentPath, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+        const possiblePaths = [
+            process.cwd(),
+            path.join(process.cwd(), 'apps/backend'),
+            path.resolve(process.cwd(), '..'),
+        ];
+
+        let wranglerDir = null;
+        for (const base of possiblePaths) {
+            const checkDir = path.join(base, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
             if (fs.existsSync(checkDir)) {
-                const files = fs.readdirSync(checkDir);
-                const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
-                if (dbFile) {
-                    dbPath = path.join(checkDir, dbFile);
-                    break;
-                }
+                wranglerDir = checkDir;
+                break;
             }
-            currentPath = path.join(currentPath, '..');
+        }
+
+        if (wranglerDir) {
+            const files = fs.readdirSync(wranglerDir);
+            const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+            if (dbFile) {
+                dbPath = path.join(wranglerDir, dbFile);
+            }
         }
     }
 

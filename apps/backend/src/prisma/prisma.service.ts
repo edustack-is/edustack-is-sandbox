@@ -29,20 +29,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             let dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
             if (!dbPath) {
-                console.log(`[PrismaService] Current working directory: ${process.cwd()}`);
-                
-                // Try to find .wrangler folder in current dir or parent (handles different start contexts)
-                let currentPath = process.cwd();
-                let wranglerDir = null;
+                // Determine base path surgically
+                // If we are in monorepo, backend is usually apps/backend
+                const possiblePaths = [
+                    process.cwd(),
+                    path.join(process.cwd(), 'apps/backend'),
+                    path.resolve(process.cwd(), '..'), // if we started inside src
+                ];
 
-                for (let i = 0; i < 3; i++) {
-                    const checkDir = path.join(currentPath, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
-                    console.log(`[PrismaService] Checking for D1 state in: ${checkDir}`);
+                let wranglerDir = null;
+                for (const base of possiblePaths) {
+                    const checkDir = path.join(base, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
                     if (fs.existsSync(checkDir)) {
                         wranglerDir = checkDir;
                         break;
                     }
-                    currentPath = path.join(currentPath, '..');
                 }
 
                 if (wranglerDir) {
@@ -50,17 +51,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
                     const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
                     if (dbFile) {
                         dbPath = path.join(wranglerDir, dbFile);
-                        console.log(`[PrismaService] ✅ Auto-detected Wrangler DB: ${dbPath}`);
                     }
                 }
             }
 
-            // Final fallback or use detected
             const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : null;
             
             if (!finalPath || !fs.existsSync(finalPath)) {
                 console.error(`[PrismaService] ❌ CRITICAL: Could not find database file! Path: ${finalPath}`);
-                // Fallback to something so it doesn't crash on init but it will fail on query
                 options.adapter = new PrismaBetterSqlite3({ url: finalPath || 'missing.db' });
             } else {
                 console.log(`[PrismaService] 🚀 Opening database at: ${finalPath}`);
