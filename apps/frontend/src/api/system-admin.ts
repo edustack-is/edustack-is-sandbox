@@ -37,8 +37,8 @@ export const getSystemAuditLog = async (params?: { page?: number; limit?: number
 
 // ─── Backups ────────────────────────────────────────────────────
 
-export const createBackup = async () => {
-    const response = await api.post('/api/system/backups');
+export const createBackup = async (name?: string) => {
+    const response = await api.post('/api/system/backups', null, { params: { name } });
     return response.data;
 };
 

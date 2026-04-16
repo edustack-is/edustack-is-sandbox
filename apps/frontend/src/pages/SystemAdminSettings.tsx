@@ -976,6 +976,10 @@ function BackupsTab() {
     const [creating, setCreating] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [restoring, setRestoring] = useState<string | null>(null);
+    
+    // New state for custom name dialog
+    const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
+    const [customName, setCustomName] = useState('');
 
     const fetch = useCallback(() => {
         listBackups()
@@ -989,8 +993,10 @@ function BackupsTab() {
     const handleCreate = async () => {
         try {
             setCreating(true);
-            await createBackup();
+            await createBackup(customName || undefined);
             toast.success(t('system_settings.backup_created', 'Záloha vytvořena'));
+            setCustomName('');
+            setIsNameDialogOpen(false);
             fetch();
         } catch {
             toast.error(t('system_settings.backup_create_error', 'Vytvoření zálohy selhalo'));
@@ -1068,10 +1074,38 @@ function BackupsTab() {
                             {t('system_settings.upload_backup', 'Nahrát zálohu')}
                         </Button>
                     </div>
-                    <Button onClick={handleCreate} disabled={creating}>
-                        {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                        {t('system_settings.create_backup', 'Vytvořit zálohu')}
-                    </Button>
+                    
+                    <Dialog open={isNameDialogOpen} onOpenChange={setIsNameDialogOpen}>
+                        <Button onClick={() => setIsNameDialogOpen(true)} disabled={creating}>
+                            {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                            {t('system_settings.create_backup', 'Vytvořit zálohu')}
+                        </Button>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{t('system_settings.create_backup_title', 'Vytvořit novou zálohu')}</DialogTitle>
+                                <DialogDescription>
+                                    {t('system_settings.create_backup_desc_dialog', 'Zadejte název zálohy nebo ponechte prázdné pro automatický název s datem.')}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <Label htmlFor="custom-name">{t('system_settings.backup_name_label', 'Název zálohy')}</Label>
+                                <Input 
+                                    id="custom-name" 
+                                    placeholder="moje-zaloha-pred-zmenou" 
+                                    value={customName}
+                                    onChange={(e) => setCustomName(e.target.value)}
+                                    className="mt-2"
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setIsNameDialogOpen(false)}>{t('common.cancel', 'Zrušit')}</Button>
+                                <Button onClick={handleCreate} disabled={creating}>
+                                    {creating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                                    {t('system_settings.confirm_create', 'Vytvořit')}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
@@ -1089,6 +1123,7 @@ function BackupsTab() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>{t('system_settings.backup_filename', 'Soubor')}</TableHead>
+                                    <TableHead>{t('system_settings.backup_storage', 'Úložiště')}</TableHead>
                                     <TableHead>{t('system_settings.backup_size', 'Velikost')}</TableHead>
                                     <TableHead>{t('system_settings.backup_date', 'Datum')}</TableHead>
                                     <TableHead className="text-right">{t('system_settings.backup_actions', 'Akce')}</TableHead>
@@ -1098,6 +1133,11 @@ function BackupsTab() {
                                 {backups.map((b: any) => (
                                     <TableRow key={b.filename}>
                                         <TableCell className="font-mono text-sm">{b.filename}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={b.storage === 'R2' ? 'default' : 'secondary'} className="text-[10px] uppercase">
+                                                {b.storage}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell>{formatSize(b.size)}</TableCell>
                                         <TableCell className="text-sm">{new Date(b.createdAt).toLocaleString('cs')}</TableCell>
                                         <TableCell className="text-right">

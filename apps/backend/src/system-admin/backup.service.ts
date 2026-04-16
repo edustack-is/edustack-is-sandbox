@@ -33,9 +33,13 @@ export class BackupService {
     }
 
     /** Create a database backup */
-    async createBackup(): Promise<{ filename: string; size: number; storage: 'R2' | 'LOCAL' }> {
+    async createBackup(customName?: string): Promise<{ filename: string; size: number; storage: 'R2' | 'LOCAL' }> {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `backup-${timestamp}.sqlite`;
+        let filename = customName ? `${customName}.sqlite` : `backup-${timestamp}.sqlite`;
+        
+        // Ensure extension is exactly .sqlite once
+        if (filename.endsWith('.sqlite.sqlite')) filename = filename.replace('.sqlite.sqlite', '.sqlite');
+        if (!filename.endsWith('.sqlite')) filename += '.sqlite';
         
         // 1. Get database path
         let sourcePath = process.env.DATABASE_URL?.replace('file:', '');

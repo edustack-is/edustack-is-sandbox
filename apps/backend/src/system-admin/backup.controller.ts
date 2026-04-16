@@ -15,8 +15,8 @@ export class BackupController {
     @Post()
     @ApiOperation({ summary: 'Vytvoření zálohy' })
     @ApiResponse({ status: 201, description: 'Záloha vytvořena.' })
-    async createBackup() {
-        return this.backupService.createBackup();
+    async createBackup(@Query('name') name?: string) {
+        return this.backupService.createBackup(name);
     }
 
     @Get()
