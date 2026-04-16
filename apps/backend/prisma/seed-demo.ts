@@ -7,17 +7,15 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-// ─── DYNAMIC PRISMA CLIENT INITIALIZATION ──────────────────────
+// ─── PRISMA CLIENT INITIALIZATION ──────────────────────
 let options: any = { log: ['warn', 'error'] };
-const dbAdapter = process.env.DB_ADAPTER || 'native';
 
-if (dbAdapter === 'sqlite') {
+if (process.env.DB_BINDING) {
+    // Optional: support for running seed via wrangler if needed
+} else {
     const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
     const dbPath = process.env.DATABASE_URL?.replace('file:', '') || '../../data/dev.db';
     options.adapter = new PrismaBetterSqlite3({ url: dbPath });
-    console.log('Seed: using SQLite adapter');
-} else {
-    console.log('Seed: using native Postgres driver');
 }
 
 const prisma = new PrismaClient(options);
@@ -39,28 +37,13 @@ async function main() {
         'Classroom', 'GradeLevel', 'Semester', 'AcademicYear', 'Room', 'Building', 'School', 'User'
     ];
 
-    const isSqlite = dbAdapter === 'sqlite';
-    if (isSqlite) {
-        await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF;');
-    } else {
-        await prisma.$executeRawUnsafe('SET CONSTRAINTS ALL DEFERRED;');
-    }
-
+    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF;');
     for (const table of cleanupTables) {
         try {
-            if (isSqlite) {
-                await prisma.$executeRawUnsafe(`DELETE FROM "${table}";`);
-            } else {
-                await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE;`);
-            }
-        } catch (e) {
-            // Table might not exist or other issue, skip
-        }
+            await prisma.$executeRawUnsafe(`DELETE FROM "${table}";`);
+        } catch (e) {}
     }
-
-    if (isSqlite) {
-        await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
-    }
+    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
     console.log('✅ Database cleaned');
 
     const saltRounds = 10;

@@ -16,22 +16,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             log: ['warn', 'error'],
         };
 
-        const dbAdapter = process.env.DB_ADAPTER || 'native';
-
-        if (d1 || dbAdapter === 'd1') {
-            // mode: Cloudflare D1
+        if (d1) {
+            // mode: Cloudflare D1 (Production)
             const { PrismaD1 } = require('@prisma/adapter-d1');
-            options.adapter = new PrismaD1(d1 || (globalThis as any).DB);
-            console.log('Prisma initialized with Cloudflare D1 adapter');
-        } else if (dbAdapter === 'sqlite') {
-            // mode: Local SQLite
+            options.adapter = new PrismaD1(d1);
+        } else {
+            // mode: Local Development (Better-SQLite3)
             const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
             const dbPath = process.env.DATABASE_URL?.replace('file:', '') || '../../data/dev.db';
             options.adapter = new PrismaBetterSqlite3({ url: dbPath });
-            console.log('Prisma initialized with Better-SQLite3 adapter');
-        } else {
-            // mode: Native (Postgres via TCP - default for Docker)
-            console.log('Prisma initialized with native driver (Postgres)');
         }
 
         super(options);

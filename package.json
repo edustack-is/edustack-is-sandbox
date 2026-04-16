@@ -8,6 +8,8 @@
     "test": "npm run test --workspaces",
     "db:generate": "npm run prisma:generate -w backend && npm run prisma:generate -w mcp-server",
     "db:push": "npm run prisma:db:push -w backend",
+    "db:init": "wrangler d1 execute edustack_db --local --file=./apps/backend/prisma/schema.sql",
+    "db:deploy": "npx prisma migrate diff --from-empty --to-schema-datamodel ./apps/backend/prisma/schema.prisma --script > ./apps/backend/prisma/schema.sql && wrangler d1 execute edustack_db --remote --file=./apps/backend/prisma/schema.sql",
     "db:studio": "npm run prisma studio -w backend"
   },
   "workspaces": [
