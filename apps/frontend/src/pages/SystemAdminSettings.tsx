@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
     Key, Save, Check, Loader2, AlertCircle, Zap, TrendingUp, BarChart3, Shield, Settings,
     Globe, Github, Apple, Mail, Database, Activity, HardDrive, Download, Trash2, RotateCcw,
-    Plus, ExternalLink, Clock, Server, MemoryStick
+    Plus, ExternalLink, Clock, Server, MemoryStick, Upload
 } from 'lucide-react';
 import { TestDataGenerator } from './TestDataGenerator';
 import {
@@ -30,7 +30,7 @@ import { getSsoSettings, updateSsoProvider } from '@/api/system-sso';
 import {
     getSystemSettings, updateSystemSettings,
     getHealth, getSystemAuditLog,
-    createBackup, listBackups, downloadBackup, restoreBackup, deleteBackup,
+    createBackup, listBackups, downloadBackup, restoreBackup, deleteBackup, uploadBackup,
     type HealthStatus,
 } from '@/api/system-admin';
 import { toast } from 'sonner';
@@ -974,6 +974,7 @@ function BackupsTab() {
     const [backups, setBackups] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [restoring, setRestoring] = useState<string | null>(null);
 
     const fetch = useCallback(() => {
@@ -995,6 +996,23 @@ function BackupsTab() {
             toast.error(t('system_settings.backup_create_error', 'Vytvoření zálohy selhalo'));
         } finally {
             setCreating(false);
+        }
+    };
+
+    const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setUploading(true);
+            await uploadBackup(file);
+            toast.success(t('system_settings.backup_uploaded', 'Záloha byla úspěšně nahrána'));
+            fetch();
+        } catch (err: any) {
+            toast.error(t('system_settings.backup_upload_error', 'Nahrání zálohy selhalo'));
+        } finally {
+            setUploading(false);
+            event.target.value = ''; // Reset input
         }
     };
 
@@ -1033,12 +1051,28 @@ function BackupsTab() {
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-semibold">{t('system_settings.backups_title', 'Zálohy databáze')}</h3>
-                    <p className="text-sm text-muted-foreground">{t('system_settings.backups_desc', 'Vytvářejte a spravujte zálohy PostgreSQL databáze')}</p>
+                    <p className="text-sm text-muted-foreground">{t('system_settings.backups_desc', 'Vytvářejte a spravujte zálohy Cloudflare D1 (SQLite) databáze')}</p>
                 </div>
-                <Button onClick={handleCreate} disabled={creating}>
-                    {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                    {t('system_settings.create_backup', 'Vytvořit zálohu')}
-                </Button>
+                <div className="flex gap-2">
+                    <div className="relative">
+                        <Input
+                            type="file"
+                            className="hidden"
+                            id="backup-upload"
+                            accept=".sqlite"
+                            onChange={handleUpload}
+                            disabled={uploading}
+                        />
+                        <Button variant="outline" onClick={() => document.getElementById('backup-upload')?.click()} disabled={uploading}>
+                            {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            {t('system_settings.upload_backup', 'Nahrát zálohu')}
+                        </Button>
+                    </div>
+                    <Button onClick={handleCreate} disabled={creating}>
+                        {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                        {t('system_settings.create_backup', 'Vytvořit zálohu')}
+                    </Button>
+                </div>
             </div>
 
             <Card>

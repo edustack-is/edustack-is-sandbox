@@ -74,3 +74,14 @@ export const deleteBackup = async (filename: string) => {
     const response = await api.delete(`/api/system/backups/${encodeURIComponent(filename)}`);
     return response.data;
 };
+
+export const uploadBackup = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/system/backups/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
