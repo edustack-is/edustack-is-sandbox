@@ -6,11 +6,12 @@
     "dev": "concurrently -n \"BE,FE,MCP\" -c \"green,blue,yellow\" \"npm run start:dev -w backend\" \"npm run dev -w frontend\" \"npm run dev -w mcp-server\"",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "db:generate": "npm run prisma:generate -w backend && npm run prisma:generate -w mcp-server",
-    "db:push": "npm run prisma:db:push -w backend",
-    "db:init": "wrangler d1 execute edustack_db --local --file=./apps/backend/prisma/schema.sql",
-    "db:deploy": "npx prisma migrate diff --from-empty --to-schema-datamodel ./apps/backend/prisma/schema.prisma --script > ./apps/backend/prisma/schema.sql && wrangler d1 execute edustack_db --remote --file=./apps/backend/prisma/schema.sql",
-    "db:studio": "npm run prisma studio -w backend"
+    "db:sync": "node scripts/sync-schema-provider.js",
+    "db:generate": "npm run db:sync && npm run prisma:generate -w backend && npm run prisma:generate -w mcp-server",
+    "db:init": "npm run db:sync && cd apps/backend && rm -rf .wrangler/state/v3/d1 && npx prisma migrate diff --from-empty --to-schema ./prisma/schema.prisma --script > ./prisma/schema.sql && npx wrangler d1 execute edustack_db --local --file=./prisma/schema.sql",
+    "db:deploy": "npm run db:sync && cd apps/backend && npx prisma migrate diff --from-empty --to-schema ./prisma/schema.prisma --script > ./prisma/schema.sql && npx wrangler d1 execute edustack_db --remote --file=./prisma/schema.sql",
+    "db:studio": "npm run db:sync && npm run prisma studio -w backend",
+    "seed:demo": "npm run seed:demo -w backend"
   },
   "workspaces": [
     "apps/*",

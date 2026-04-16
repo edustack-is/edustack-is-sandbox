@@ -52,21 +52,35 @@ export class AiChatService {
         }
     }
 
-    private async initializeMcp() {
+    private async initializeMcp(retries = 5, delay = 2000) {
         const mcpUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001/sse';
         // @ts-ignore - EventSource polyfill for Node.js
         global.EventSource = EventSource;
 
-        this.mcpTransport = new SSEClientTransport(new URL(mcpUrl));
-        this.mcpClient = new Client({
-            name: "EduStack-Backend-Client",
-            version: "1.0.0",
-        }, {
-            capabilities: {},
-        });
+        for (let i = 0; i < retries; i++) {
+            try {
+                this.logger.log(`Connecting to MCP Server at ${mcpUrl} (attempt ${i + 1}/${retries})...`);
+                this.mcpTransport = new SSEClientTransport(new URL(mcpUrl));
+                this.mcpClient = new Client({
+                    name: "EduStack-Backend-Client",
+                    version: "1.0.0",
+                }, {
+                    capabilities: {},
+                });
 
-        await this.mcpClient.connect(this.mcpTransport);
-        this.logger.log('Connected to MCP Server');
+                await this.mcpClient.connect(this.mcpTransport);
+                this.logger.log('✅ Successfully connected to MCP Server');
+                return;
+            } catch (err) {
+                this.logger.warn(`Failed to connect to MCP Server: ${err.message}. Retrying in ${delay}ms...`);
+                if (i < retries - 1) {
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2; // Exponential backoff
+                } else {
+                    this.logger.error('❌ All attempts to connect to MCP Server failed. AI tools from MCP will be unavailable.');
+                }
+            }
+        }
     }
 
     // ─── CHAT ───────────────────────────────────────────────────

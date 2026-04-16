@@ -7,7 +7,7 @@
 | Vrstva | Stack |
 |--------|-------|
 | Backend | NestJS, Prisma ORM |
-| Databáze | SQLite (Lokálně), Cloudflare D1 (V produkci) |
+| Databáze | Cloudflare D1 (SQLite) |
 | Frontend | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
 | MCP Server | Node.js, SSE transport, 36 AI nástrojů |
 | AI | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
@@ -40,25 +40,33 @@ Pro lokální testování e-mailů (zapomenuté heslo, pozvánky) spusťte MailD
 
 ### 2. Instalace a příprava databáze
 
-Aplikace používá Prisma ORM s adaptérem pro SQLite/D1.
+Aplikace je plně integrovaná s **Cloudflare D1**. Pro lokální vývoj i produkci používáme stejný Wrangler workflow.
 
 ```bash
 # 1. Instalace závislostí
 npm install
 
-# 2. Vygenerování Prisma klienta
+# 2. Vygenerování Prisma klienta (pro TypeScript typy)
 npm run db:generate
 
-# 3. Synchronizace lokální DB (vytvoří data/dev.db)
-npm run db:push
+# 3. Inicializace lokální D1 databáze (vytvoří schéma přes Wrangler)
+npm run db:init
 ```
+
+#### Práce s databází
+
+| Akce | Příkaz | Popis |
+| :--- | :--- | :--- |
+| **Reset / Init** | `npm run db:init` | Vytvoří/aktualizuje lokální D1 schéma |
+| **Deploy** | `npm run db:deploy` | Přenese změny schématu do Cloudflare Cloudu |
+| **Prohlížení** | `npm run db:studio` | Otevře grafické rozhraní Prisma Studio |
 
 ### 3. Demo Data
 
 Chcete-li databázi naplnit kompletním školním nastavením (akademické roky, školy, uživatelé, třídy atd.), spusťte:
 
 ```bash
-npm run seed:demo -w backend
+npm run seed:demo
 ```
 
 **Přihlašovací údaje (Heslo: `password123`):**
@@ -78,20 +86,7 @@ npm run dev
 | Backend API | http://localhost:3000 |
 | Swagger docs | http://localhost:3000/api/docs |
 
-## Nasazení na Cloudflare
-
-Podrobné instrukce pro nasazení do produkce naleznete v souboru [README_CLOUDFLARE.md](README_CLOUDFLARE.md).
-
-Základní příkazy:
-```bash
-# Inicializace D1 v cloudu
-npm run db:deploy
-
-# Nasazení backendu a MCP
-cd apps/backend && wrangler deploy
-cd ../mcp-server && wrangler deploy
-```
-
 ## Dokumentace
 
 - [Funkční analýza](docs/funkcni-analyza.md) – přehled 169 funkcí s aktuálním stavem implementace.
+- [Cloudflare Guide](README_CLOUDFLARE.md) – podrobnější info k nasazení.
