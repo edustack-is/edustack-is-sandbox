@@ -1,289 +1,136 @@
-import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { PrismaD1 } from '@prisma/adapter-d1';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
-    private extendedClient: any;
+    private readonly logger = new Logger(PrismaService.name);
+    public client: any;
 
     constructor(
         private readonly cls: ClsService,
         @Inject('CLOUDFLARE_DB') private readonly d1: any,
     ) {
-        let options: any = {
-            log: ['warn', 'error'],
-        };
+        super(PrismaService.getOptions(d1));
+        this.client = this; // Default to base client until extended
+    }
 
-        if (d1) {
-            // mode: Cloudflare D1 (Production)
+    private static getOptions(d1: any) {
+        const dbAdapter = process.env.DB_ADAPTER || 'sqlite';
+        const options: any = { log: ['warn', 'error'] };
+
+        if (d1 || dbAdapter === 'd1') {
             const { PrismaD1 } = require('@prisma/adapter-d1');
-            options.adapter = new PrismaD1(d1);
-        } else {
-            // mode: Local Development (Better-SQLite3)
+            options.adapter = new PrismaD1(d1 || (globalThis as any).DB);
+        } else if (dbAdapter === 'sqlite') {
             const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
             const fs = require('fs');
             const path = require('path');
-
-            console.log('\n' + '='.repeat(60));
-            console.log('🔍 PRISMA DATABASE DETECTION');
-            console.log('='.repeat(60));
-            console.log(`CWD: ${process.cwd()}`);
-            console.log(`ENV DATABASE_URL: ${process.env.DATABASE_URL || 'not set'}`);
-
-            let dbPath = process.env.DATABASE_URL?.replace('file:', '');
-
-            // If DATABASE_URL is set but points to an empty/missing file, ignore it and try auto-detect
-            if (dbPath && (!fs.existsSync(dbPath) || fs.statSync(dbPath).size === 0)) {
-                console.warn(`[PrismaService] ⚠️ DATABASE_URL points to an empty or missing file (${dbPath}). Switching to auto-detection...`);
-                dbPath = undefined;
-            }
-
-            if (!dbPath) {
-                const possiblePaths = [
-                    process.cwd(),
-                    path.join(process.cwd(), 'apps/backend'),
-                    path.resolve(process.cwd(), '..'),
-                ];
-
-                let wranglerDir = null;
-                for (const base of possiblePaths) {
-                    const checkDir = path.join(base, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
-                    console.log(`Checking: ${checkDir}`);
-                    if (fs.existsSync(checkDir)) {
-                        wranglerDir = checkDir;
-                        console.log(`✅ Found state dir at: ${checkDir}`);
-                        break;
-                    }
-                }
-
-                if (wranglerDir) {
-                    const files = fs.readdirSync(wranglerDir);
-                    const dbFile = files.find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
-                    if (dbFile) {
-                        dbPath = path.join(wranglerDir, dbFile);
-                    }
-                }
-            }
-
-            const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : null;
             
-            if (!finalPath || !fs.existsSync(finalPath)) {
-                const msg = `❌ FATAL: Could not find database file at ${finalPath}. Did you run 'npm run db:init'?`;
-                console.error('\n' + '!'.repeat(60));
-                console.error(msg);
-                console.error('!'.repeat(60) + '\n');
-                throw new Error(msg);
+            let dbPath = process.env.DATABASE_URL?.replace('file:', '');
+            if (!dbPath || (fs.existsSync(dbPath) && fs.statSync(dbPath).size === 0)) {
+                // Auto-detect Wrangler hashed DB
+                const possiblePaths = [process.cwd(), path.join(process.cwd(), 'apps/backend')];
+                for (const base of possiblePaths) {
+                    const dir = path.join(base, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+                    if (fs.existsSync(dir)) {
+                        const dbFile = fs.readdirSync(dir).find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+                        if (dbFile) { dbPath = path.join(dir, dbFile); break; }
+                    }
+                }
             }
-
-            const stats = fs.statSync(finalPath);
-            if (stats.size === 0) {
-                const msg = `❌ FATAL: Database file at ${finalPath} is EMPTY (0 bytes). Did you run 'npm run db:init'?`;
-                console.error(msg);
-                throw new Error(msg);
-            }
-
-            console.log(`🚀 Opening database: ${finalPath} (${stats.size} bytes)`);
-            console.log('='.repeat(60) + '\n');
-
+            const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : 'dev.db';
             options.adapter = new PrismaBetterSqlite3({ url: finalPath });
         }
-
-        super(options);
-
-        return new Proxy(this, {
-            get: (target, prop, receiver) => {
-                if (target.extendedClient && typeof prop === 'string' && !['$connect', '$disconnect', '$on', '$transaction', 'onModuleInit'].includes(prop)) {
-                    return target.extendedClient[prop];
-                }
-                return Reflect.get(target, prop, receiver);
-            },
-        });
+        return options;
     }
 
     async onModuleInit() {
         await this.$connect();
-        const self = this;
+        this.setupExtensions();
+    }
 
-        this.extendedClient = this.$extends({
+    private setupExtensions() {
+        const self = this;
+        this.client = this.$extends({
             query: {
                 $allModels: {
                     async $allOperations({ model, operation, args, query }) {
-                        // 1. Audit Logging bypass
-                        if (model === 'AuditLog' || model === 'SystemLog') {
-                            return query(args);
-                        }
-
-                        // 2. Tenant Isolation
-                        const tenantModels = ['Classroom', 'Subject', 'Grade', 'ScheduleEvent', 'SchoolMembership'];
-                        // Note: SchoolMembership involves schoolId, but it's often accessed by Auth service without a specific school context (to list schools). 
-                        // We should be careful. 
-                        // Actually, AuthService.getSchools uses { where: { userId } }. If we enforce schoolId, it will break.
-                        // So let's EXCLUDE SchoolMembership from automatic isolation for now, or handle it smartly.
-                        // The prompt says "educational entities: Classroom, Subject, Grade, ScheduleEvent".
-                        const isolatedModels = ['Classroom', 'Subject', 'Grade', 'ScheduleEvent'];
-
-                        const schoolId = self.cls.get('schoolId');
-                        const user = self.cls.get('user'); // Global user context
-                        const isSystemAdmin = user?.isSystemAdmin;
-
-                        if (isolatedModels.includes(model) && schoolId && !isSystemAdmin) {
-                            const unsafeArgs = args as any || {};
-
-                            // Write operations (Create)
-                            if (operation === 'create' || operation === 'createMany') {
-                                if (operation === 'create') {
-                                    unsafeArgs.data = { ...unsafeArgs.data, schoolId };
-                                } else {
-                                    if (Array.isArray(unsafeArgs.data)) {
-                                        unsafeArgs.data = unsafeArgs.data.map((d: any) => ({ ...d, schoolId }));
-                                    } else {
-                                        unsafeArgs.data = { ...unsafeArgs.data, schoolId };
-                                    }
-                                }
+                        try {
+                            // 1. Bypass for logs
+                            if (model === 'AuditLog' || model === 'SystemLog' || model === 'AiTokenUsage') {
+                                return query(args);
                             }
 
-                            // Read/Update/Delete operations
-                            if (['findUnique', 'findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count'].includes(operation)) {
+                            // 2. Tenant Isolation
+                            const isolatedModels = ['Classroom', 'Subject', 'Grade', 'ScheduleEvent'];
+                            const schoolId = self.cls.get('schoolId');
+                            const user = self.cls.get('user');
+                            const isSystemAdmin = user?.isSystemAdmin;
 
-                                // For findUnique, we effectively change it to findFirst to allow non-unique filter
-                                if (operation === 'findUnique') {
-                                    // cannot modify where for findUnique if not on unique key
-                                } else {
+                            if (isolatedModels.includes(model) && schoolId && !isSystemAdmin) {
+                                const unsafeArgs = args as any || {};
+                                if (operation === 'create') {
+                                    unsafeArgs.data = { ...unsafeArgs.data, schoolId };
+                                } else if (['findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count'].includes(operation)) {
                                     unsafeArgs.where = { ...unsafeArgs.where, schoolId };
                                 }
                             }
-                        }
 
-                        // Execute Query
-                        const result = await query(args);
+                            // 3. Execute Query
+                            const result = await query(args);
 
-                        // 3. Post-Query Check for findUnique (if we couldn't filter in DB)
-                        if (operation === 'findUnique' && isolatedModels.includes(model) && schoolId && !isSystemAdmin && result) {
-                            if ((result as any).schoolId && (result as any).schoolId !== schoolId) {
-                                // Pretend it doesn't exist
-                                return null;
+                            // 4. Async Audit Log (Non-blocking)
+                            if (['create', 'update', 'delete'].includes(operation) && user?.id) {
+                                self.logAudit(user.id, operation.toUpperCase(), model, (result as any)?.id, null, result)
+                                    .catch(e => self.logger.warn(`Audit log failed: ${e.message}`));
                             }
+
+                            return result;
+                        } catch (error) {
+                            if (error.message?.includes('Too many parameter values')) {
+                                console.error('\n' + '!'.repeat(60));
+                                console.error(`❌ PRISMA PARAMETER OVERFLOW in ${model}.${operation}`);
+                                console.error(`Args: ${JSON.stringify(args).substring(0, 500)}...`);
+                                console.error('!'.repeat(60) + '\n');
+                            }
+                            throw error;
                         }
-
-                        // 4. Audit Logging (using self.handleAudit which wraps the log logic)
-                        // We already executed the query above. `handleAudit` expects to call `query(args)`.
-                        // Since we already called `query(args)`, we cannot call `handleAudit` normally because it would execute twice.
-                        // We must refactor `handleAudit` or move the logging execution here.
-
-                        return self.logAuditAfterQuery(model, operation, args, result, user?.id);
                     },
                 },
             },
         });
-    }
 
-    // Refactored logging to be called AFTER execution
-    async logAuditAfterQuery(model: string, operation: string, args: any, result: any, actorId: string) {
-        if (!actorId) actorId = 'system'; // Default
-
-        // CREATE
-        if (operation === 'create') {
-            await this.logAudit(actorId, 'CREATE', model, result.id, null, result);
-        }
-
-        // UPDATE
-        // Difficulty: We needed 'oldData' BEFORE update. 
-        // With the current flow, we calculated result already. We missed fetching oldData.
-        // If we want AuditLog to keep working correctly (diffing), we need to capture oldData *before* `query(args)`.
-        // This implies we should put the logic *inside* the wrapper.
-
-        return result;
-    }
-
-    // Updated Logic to combine Isolation + Audit in one flow
-    async wrappedOperation({ model, operation, args, query }: any) {
-        const isolatedModels = ['Classroom', 'Subject', 'Grade', 'ScheduleEvent'];
-        const schoolId = this.cls.get('schoolId');
-        const user = this.cls.get('user');
-        const isSystemAdmin = user?.isSystemAdmin;
-        let actorId = user ? user.id : 'system';
-
-        // Apply Isolation Filters
-        if (isolatedModels.includes(model) && schoolId && !isSystemAdmin) {
-            args = args || {};
-            // Write
-            if (operation === 'create' || operation === 'createMany') {
-                if (operation === 'create') args.data = { ...args.data, schoolId };
-                else if (Array.isArray(args.data)) args.data = args.data.map((d: any) => ({ ...d, schoolId }));
-                else args.data = { ...args.data, schoolId };
-            }
-            // Read/Update/Delete (excluding findUnique which we filter post-hoc)
-            if (['findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count'].includes(operation)) {
-                args.where = { ...args.where, schoolId };
+        // Replace methods on this instance to use the extended client
+        // This is safer than a Proxy for NestJS injection
+        const clientProto = Object.getPrototypeOf(this.client);
+        for (const key of Object.keys(this.client)) {
+            if (typeof (this.client as any)[key] === 'object' && key !== 'constructor') {
+                (this as any)[key] = (this.client as any)[key];
             }
         }
-
-        // Pre-operation Audit (Fetch Old Data)
-        let oldData = null;
-        if ((operation === 'update' || operation === 'delete') && args.where) {
-            try {
-                // Warning: This recursive call might trigger extension hooks again if not careful.
-                // But we are calling `(this as any)[model]`, which refers to the `extendedClient` usually?
-                // Actually `this` is `PrismaService` which extends `PrismaClient`.
-                // If we call `this.extendedClient` it triggers hooks.
-                // We should use `super[model]` logic or a way to bypass.
-                // Standard Prisma Client (this) WITHOUT extensions?
-                // `this` IS the standard client if we didn't assign extendedClient to it (we didn't, we used proxy).
-                // So `(this as any)[model]` calls the base client? 
-                // Wait, `this` is proxied in constructor! 
-                // The proxy redirects to `extendedClient` if property matches.
-                // If we want raw client, we might need a way to access it. 
-                // But `findUnique` on raw client won't fail.
-                // Let's assume for now we skip fetching oldData to avoid recursion hell or performance issues in this iteration, 
-                // OR we accept slight overhead.
-                // Better: Just don't log oldData for now or implement 'findUnique' carefully.
-            } catch (e) { }
-        }
-
-        // Execute Query
-        const result = await query(args);
-
-        // Post-operation Isolation for findUnique
-        if (operation === 'findUnique' && isolatedModels.includes(model) && schoolId && !isSystemAdmin && result) {
-            if (result.schoolId !== schoolId) return null;
-        }
-
-        // Post-operation Audit
-        if (operation === 'create') await this.logAudit(actorId, 'CREATE', model, result.id, null, result);
-        if (operation === 'update') await this.logAudit(actorId, 'UPDATE', model, result.id, oldData, result);
-        if (operation === 'delete') await this.logAudit(actorId, 'DELETE', model, result.id, oldData, null);
-
-        return result;
     }
 
     private async logAudit(actorId: string, action: string, entity: string, entityId: string, oldValues: any, newValues: any) {
-        if (!actorId || actorId === 'system') return;
-
         const scrub = (data: any) => {
             if (!data) return null;
             const sensitive = ['passwordHash', 'token', 'invitationToken'];
-            const copy = { ...data };
-            sensitive.forEach(field => {
-                if (field in copy) delete copy[field];
-            });
+            const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data }; // Limit array size in logs
+            if (!Array.isArray(copy)) {
+                sensitive.forEach(field => { if (field in copy) delete copy[field]; });
+            }
             return copy;
         };
 
-        try {
-            await this.auditLog.create({
-                data: {
-                    action,
-                    entity,
-                    entityId,
-                    actorId,
-                    oldValues: scrub(oldValues) ?? undefined,
-                    newValues: scrub(newValues) ?? undefined,
-                },
-            });
-        } catch (e) {
-            console.error('Failed to create audit log', e);
-        }
+        await (this as any).auditLog.create({
+            data: {
+                action,
+                entity,
+                entityId: entityId || 'unknown',
+                actorId,
+                oldValues: scrub(oldValues),
+                newValues: scrub(newValues),
+            },
+        });
     }
 }
