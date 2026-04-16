@@ -1,0 +1,12 @@
+name = "edustack-backend"
+main = "src/index.ts"
+compatibility_date = "2024-04-03"
+
+[vars]
+# JWT_SECRET and ENCRYPTION_KEY should be set via 'wrangler secret put'
+CORS_ORIGIN = "https://edustack.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "edustack_db"
+database_id = "your-database-id-here"
