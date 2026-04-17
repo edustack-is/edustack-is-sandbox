@@ -20,7 +20,7 @@ export class AiService {
       );
     }
     const genAI = new GoogleGenerativeAI(apiKey);
-    return genAI.getGenerativeModel({ model: 'gemini-pro' });
+    return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   }
 
   async seedClassroom(classroomId: string, count: number = 5) {

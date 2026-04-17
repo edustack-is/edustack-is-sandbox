@@ -194,6 +194,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   ) {
     const scrub = (data: any) => {
       if (!data) return null;
+
+      // Handle massive data objects (e.g. from bulk operations)
+      // SQLite has a limit on parameters, and large JSONs can cause issues in D1
+      if (typeof data === 'object' && !Array.isArray(data)) {
+        const keys = Object.keys(data);
+        if (keys.length > 100) {
+          return {
+            _summary: `Object too large to log (${keys.length} keys)`,
+            _keys: keys.slice(0, 10),
+          };
+        }
+      }
+
       const sensitive = ['passwordHash', 'token', 'invitationToken'];
       const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data }; // Limit array size in logs
       if (!Array.isArray(copy)) {
@@ -204,15 +217,30 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       return copy;
     };
 
-    await (this as any).auditLog.create({
-      data: {
-        action,
-        entity,
-        entityId: entityId || 'unknown',
-        actorId,
-        oldValues: scrub(oldValues),
-        newValues: scrub(newValues),
-      },
-    });
+    try {
+      await (this as any).auditLog.create({
+        data: {
+          action,
+          entity,
+          entityId: String(entityId || 'unknown'),
+          actorId,
+          oldValues: scrub(oldValues),
+          newValues: scrub(newValues),
+        },
+      });
+    } catch (e) {
+      // Fallback for extreme cases: log only metadata
+      this.logger.warn(`Audit log detail failed, falling back to metadata only: ${e.message}`);
+      await (this as any).auditLog.create({
+        data: {
+          action,
+          entity,
+          entityId: String(entityId || 'unknown'),
+          actorId,
+          oldValues: { error: 'data_too_large' },
+          newValues: { error: 'data_too_large' },
+        },
+      }).catch(() => {}); // Ultimate silence if even this fails
+    }
   }
 }
