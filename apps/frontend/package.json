@@ -7,6 +7,7 @@
     "dev": "vite --port 5173",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "echo 'No tests yet'",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
