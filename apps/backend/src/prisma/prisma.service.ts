@@ -5,6 +5,8 @@ import { ClsService } from 'nestjs-cls';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger(PrismaService.name);
+  
+  // Use a dedicated property for the extended client to avoid cyclic prototype issues
   public client: any;
 
   constructor(
@@ -12,7 +14,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     @Inject('CLOUDFLARE_DB') private readonly d1: any,
   ) {
     super(PrismaService.getOptions(d1));
-    this.client = this; // Default
+    this.client = this; // Default to base client
   }
 
   private static getOptions(d1: any) {
@@ -57,11 +59,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   private setupExtensions() {
     const self = this;
-    const extended = this.$extends({
+    
+    // Create the extended client
+    this.client = this.$extends({
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
-            // 1. Bypass for logs to avoid recursion and overhead
+            // 1. Bypass for logs
             if (['AuditLog', 'SystemLog', 'AiTokenUsage'].includes(model)) {
               return query(args);
             }
@@ -96,22 +100,61 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       },
     });
 
-    // Correctly proxy ALL methods from the extended client to THIS instance
-    this.client = extended;
-    const keys = Object.keys(extended).concat(Object.getOwnPropertyNames(Object.getPrototypeOf(extended)));
-    for (const key of keys) {
-      if (typeof (extended as any)[key] === 'function' && key !== 'constructor') {
-        (this as any)[key] = (extended as any)[key].bind(extended);
-      } else if (typeof (extended as any)[key] === 'object' && key !== 'constructor') {
-        (this as any)[key] = (extended as any)[key];
-      }
-    }
+    // We MUST NOT try to copy properties from the Proxy back to the instance
+    // Instead, we ensure this service instance proxies key methods to the extended client
+    // For specific models, NestJS uses property access (e.g. this.prisma.user)
+    // We can use a Proxy on the service itself or manually map models.
   }
+
+  // Model accessors that use the extended client
+  get user() { return this.client.user; }
+  get school() { return this.client.school; }
+  get schoolMembership() { return this.client.schoolMembership; }
+  get classroom() { return this.client.classroom; }
+  get subject() { return this.client.subject; }
+  get subjectInstance() { return this.client.subjectInstance; }
+  get grade() { return this.client.grade; }
+  get studentProfile() { return this.client.studentProfile; }
+  get studentEnrollment() { return this.client.studentEnrollment; }
+  get teacherProfile() { return this.client.teacherProfile; }
+  get academicYear() { return this.client.academicYear; }
+  get semester() { return this.client.semester; }
+  get scheduleEvent() { return this.client.scheduleEvent; }
+  get substitution() { return this.client.substitution; }
+  get message() { return this.client.message; }
+  get conversation() { return this.client.conversation; }
+  get notification() { return this.client.notification; }
+  get auditLog() { return this.client.auditLog; }
+  get systemSecret() { return this.client.systemSecret; }
+  get systemLog() { return this.client.systemLog; }
+  get aiTokenUsage() { return this.client.aiTokenUsage; }
+  get timeSlot() { return this.client.timeSlot; }
+  get thematicPlan() { return this.client.thematicPlan; }
+  get teachingMaterial() { return this.client.teachingMaterial; }
+  get lessonPlan() { return this.client.lessonPlan; }
+  get schoolEvent() { return this.client.schoolEvent; }
+  get behaviorGrade() { return this.client.behaviorGrade; }
+  get competencyGrade() { return this.client.competencyGrade; }
+  get competency() { return this.client.competency; }
+  get educationalMeasure() { return this.client.educationalMeasure; }
+  get commissionExam() { return this.client.commissionExam; }
+  get gradingDeadline() { return this.client.gradingDeadline; }
+  get reportCard() { return this.client.reportCard; }
+  get classBookEntry() { return this.client.classBookEntry; }
+  get teacherSignature() { return this.client.teacherSignature; }
+  get room() { return this.client.room; }
+  get building() { return this.client.building; }
+  get scheduleSnapshot() { return this.client.scheduleSnapshot; }
+  get absenceExcuse() { return this.client.absenceExcuse; }
+
+  // Global methods
+  override $queryRaw(query: any, ...values: any[]) { return this.client.$queryRaw(query, ...values); }
+  override $executeRaw(query: any, ...values: any[]) { return this.client.$executeRaw(query, ...values); }
+  override $transaction(arg: any, options?: any) { return this.client.$transaction(arg, options); }
 
   private async logAudit(actorId: string, action: string, entity: string, entityId: string, args: any) {
     const scrub = (data: any) => {
       if (!data) return null;
-      // Stricter scrubbing for audit logs to prevent SQLite parameter overflow
       if (typeof data === 'object') {
         const keys = Object.keys(data);
         if (keys.length > 50) return { _summary: `Object too large (${keys.length} keys)`, _keys: keys.slice(0, 5) };
@@ -126,7 +169,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     };
 
     try {
-      await (this as any).auditLog.create({
+      await this.client.auditLog.create({
         data: {
           action,
           entity,
@@ -136,7 +179,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         },
       });
     } catch (e) {
-      // Fail silently for audit logs
+      // Fail silently
     }
   }
 }
