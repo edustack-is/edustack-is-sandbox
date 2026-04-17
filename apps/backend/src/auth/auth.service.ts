@@ -15,6 +15,18 @@ import { validatePasswordStrength } from '../utils/password-policy';
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
+export interface LoginHelperMembership {
+  schoolName: string;
+  role: string;
+}
+
+export interface LoginHelperUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  memberships: LoginHelperMembership[];
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -717,14 +729,14 @@ export class AuthService {
 
   // ─── Login Helper ─────────────────────────────────────────────
 
-  async getLoginHelperConfig() {
+  async getLoginHelperConfig(): Promise<{ enabled: boolean; defaultPassword?: string }> {
     return {
       enabled: process.env.ENABLE_LOGIN_HELPER === 'true',
       defaultPassword: 'Heslo123!',
     };
   }
 
-  async getLoginHelperUsers() {
+  async getLoginHelperUsers(): Promise<LoginHelperUser[]> {
     if (process.env.ENABLE_LOGIN_HELPER !== 'true') {
       return [];
     }
@@ -742,7 +754,7 @@ export class AuthService {
       },
     });
 
-    const helperUsers = [];
+    const helperUsers: LoginHelperUser[] = [];
     for (const user of users) {
       if (!user.passwordHash) continue;
 
@@ -757,7 +769,7 @@ export class AuthService {
           lastName: user.lastName,
           memberships: user.schoolMemberships.map((m) => ({
             schoolName: m.school.name,
-            role: m.role,
+            role: m.role as string,
           })),
         });
       }
