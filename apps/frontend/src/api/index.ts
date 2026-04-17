@@ -270,6 +270,16 @@ export const getSsoOptions = async (): Promise<string[]> => {
     return response.data;
 };
 
+export const getLoginHelperConfig = async (): Promise<{ enabled: boolean; defaultPassword?: string }> => {
+    const response = await api.get('/api/auth/login-helper-config');
+    return response.data;
+};
+
+export const getLoginHelperUsers = async (): Promise<any[]> => {
+    const response = await api.get('/api/auth/login-helper-users');
+    return response.data;
+};
+
 export const updateProfile = async (data: { avatarUrl?: string }) => {
     const response = await api.patch('/api/auth/profile', data);
     return response.data;

@@ -716,3 +716,28 @@ export class ToggleResponseDto {
   @ApiProperty({ example: true })
   enabled: boolean;
 }
+
+export class LoginHelperUserDto {
+  @ApiProperty({ example: 'admin@example.com' })
+  email: string;
+
+  @ApiProperty({ example: 'Jan' })
+  firstName: string;
+
+  @ApiProperty({ example: 'Novák' })
+  lastName: string;
+
+  @ApiProperty({
+    example: [{ schoolName: 'ZŠ Příkladná', role: 'ADMIN' }],
+    description: 'Seznam škol a rolí uživatele',
+  })
+  memberships: Array<{ schoolName: string; role: string }>;
+}
+
+export class LoginHelperConfigDto {
+  @ApiProperty({ example: true })
+  enabled: boolean;
+
+  @ApiProperty({ example: 'Heslo123!' })
+  defaultPassword?: string;
+}

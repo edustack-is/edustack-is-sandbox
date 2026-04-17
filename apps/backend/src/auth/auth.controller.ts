@@ -34,6 +34,8 @@ import {
   UpdateProfileDto,
   UserProfileDto,
   SuccessResponseDto,
+  LoginHelperConfigDto,
+  LoginHelperUserDto,
 } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
@@ -74,6 +76,22 @@ export class AuthController {
   })
   async getSsoOptions() {
     return this.authService.getSsoOptions();
+  }
+
+  @Public()
+  @Get('login-helper-config')
+  @ApiOperation({ summary: 'Konfigurace login helperu' })
+  @ApiResponse({ status: 200, type: LoginHelperConfigDto })
+  async getLoginHelperConfig() {
+    return this.authService.getLoginHelperConfig();
+  }
+
+  @Public()
+  @Get('login-helper-users')
+  @ApiOperation({ summary: 'Seznam demo uživatelů pro login helper' })
+  @ApiResponse({ status: 200, type: LoginHelperUserDto, isArray: true })
+  async getLoginHelperUsers() {
+    return this.authService.getLoginHelperUsers();
   }
 
   @Public()

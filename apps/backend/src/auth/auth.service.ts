@@ -714,4 +714,58 @@ export class AuthService {
 
     return { message: 'Password has been reset successfully' };
   }
+
+  // ─── Login Helper ─────────────────────────────────────────────
+
+  async getLoginHelperConfig() {
+    return {
+      enabled: process.env.ENABLE_LOGIN_HELPER === 'true',
+      defaultPassword: 'Heslo123!',
+    };
+  }
+
+  async getLoginHelperUsers() {
+    if (process.env.ENABLE_LOGIN_HELPER !== 'true') {
+      return [];
+    }
+
+    const defaultPassword = 'Heslo123!';
+
+    // Fetch all active users with their memberships and schools
+    // We filter by password hash in-memory since bcrypt salts are random
+    const users = await this.prisma.user.findMany({
+      where: { deletedAt: null },
+      include: {
+        schoolMemberships: {
+          include: { school: true },
+        },
+      },
+    });
+
+    const helperUsers = [];
+    for (const user of users) {
+      if (!user.passwordHash) continue;
+
+      // Fast path: many seeded users will have identical hashes if seeded in same batch
+      // but to be 100% sure we must compare
+      const isMatch = await bcrypt.compare(defaultPassword, user.passwordHash);
+
+      if (isMatch) {
+        helperUsers.push({
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          memberships: user.schoolMemberships.map((m) => ({
+            schoolName: m.school.name,
+            role: m.role,
+          })),
+        });
+      }
+
+      // Limit to first 50 matching users for performance/UI
+      if (helperUsers.length >= 50) break;
+    }
+
+    return helperUsers;
+  }
 }

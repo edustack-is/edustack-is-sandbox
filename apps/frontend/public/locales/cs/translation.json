@@ -71,7 +71,11 @@
         "validation_email_invalid": "Neplatný formát emailové adresy",
         "validation_password_required": "Heslo je povinné",
         "forgot_password": "Zapomenuté heslo?",
-        "account_locked_until": "Účet je dočasně uzamčen. Zkuste to znovu za {{minutes}} min."
+        "account_locked_until": "Účet je dočasně uzamčen. Zkuste to znovu za {{minutes}} min.",
+        "helper_title": "Rychlé přihlášení",
+        "helper_subtitle": "Dostupné demo účty",
+        "helper_desc": "Vyberte si uživatele pro okamžité přihlášení (pouze pro demo účely).",
+        "helper_searching": "Hledám demo účty..."
     },
     "forgot_password": {
         "title": "Zapomenuté heslo",

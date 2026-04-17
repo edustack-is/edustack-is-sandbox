@@ -71,7 +71,11 @@
         "validation_email_invalid": "Invalid email format",
         "validation_password_required": "Password is required",
         "forgot_password": "Forgot password?",
-        "account_locked_until": "Account is temporarily locked. Try again in {{minutes}} min."
+        "account_locked_until": "Account is temporarily locked. Try again in {{minutes}} min.",
+        "helper_title": "Quick Login",
+        "helper_subtitle": "Available demo accounts",
+        "helper_desc": "Choose a user for instant login (demo purposes only).",
+        "helper_searching": "Searching for demo accounts..."
     },
     "forgot_password": {
         "title": "Forgot Password",
