@@ -69,59 +69,40 @@ export const Setup = () => {
             .catch(() => { /* no seed files available */ });
     }, []);
 
-    // ─── Global Drag Listeners ─────────────────────────────
-    useEffect(() => {
-        const handleWindowDragEnter = (e: DragEvent) => {
-            e.preventDefault();
-            dragCounter.current++;
-            if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-                setIsDragging(true);
-            }
-        };
+    // ─── Drag and Drop handlers ─────────────────────────────
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
 
-        const handleWindowDragLeave = (e: DragEvent) => {
-            e.preventDefault();
-            dragCounter.current--;
-            if (dragCounter.current === 0) {
-                setIsDragging(false);
-            }
-        };
-
-        const handleWindowDragOver = (e: DragEvent) => {
-            e.preventDefault();
-        };
-
-        const handleWindowDrop = (e: DragEvent) => {
-            e.preventDefault();
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only reset if we leave the parent container
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
             setIsDragging(false);
-            dragCounter.current = 0;
+        }
+    };
 
-            const file = e.dataTransfer?.files?.[0];
-            if (!file) return;
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
 
-            if (file.name.endsWith('.json')) {
-                setSeedMode('upload');
-                processJsonFile(file);
-            } else if (file.name.endsWith('.sqlite') || file.name.endsWith('.db')) {
-                setSeedMode('restore');
-                processSqliteFile(file);
-            } else {
-                setError(t('setup.invalid_file_type', 'Nepodporovaný typ souboru. Použijte .json nebo .sqlite.'));
-            }
-        };
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
 
-        window.addEventListener('dragenter', handleWindowDragEnter);
-        window.addEventListener('dragleave', handleWindowDragLeave);
-        window.addEventListener('dragover', handleWindowDragOver);
-        window.addEventListener('drop', handleWindowDrop);
-
-        return () => {
-            window.removeEventListener('dragenter', handleWindowDragEnter);
-            window.removeEventListener('dragleave', handleWindowDragLeave);
-            window.removeEventListener('dragover', handleWindowDragOver);
-            window.removeEventListener('drop', handleWindowDrop);
-        };
-    }, [t]);
+        if (file.name.endsWith('.json')) {
+            setSeedMode('upload');
+            processJsonFile(file);
+        } else if (file.name.endsWith('.sqlite') || file.name.endsWith('.db')) {
+            setSeedMode('restore');
+            processSqliteFile(file);
+        } else {
+            setError(t('setup.invalid_file_type', 'Nepodporovaný typ souboru. Použijte .json nebo .sqlite.'));
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -307,7 +288,12 @@ export const Setup = () => {
 
     // ─── Main setup form ────────────────────────────────────
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden">
+        <div 
+            className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
             {/* ─── Global Drag Overlay ───────────────────────── */}
             {isDragging && (
                 <div className="fixed inset-0 z-[100] bg-indigo-600/30 backdrop-blur-md pointer-events-none flex items-center justify-center border-[16px] border-white/30 m-4 rounded-[40px] animate-in fade-in duration-300">
@@ -316,7 +302,7 @@ export const Setup = () => {
                             <Upload className="h-12 w-12 text-indigo-600 animate-bounce" />
                         </div>
                         <div className="text-center space-y-2">
-                            <h2 className="text-3xl font-black text-gray-900">{t('setup.drop_to_upload', 'Pustťe pro nahrání')}</h2>
+                            <h2 className="text-3xl font-black text-gray-900">{t('setup.drop_to_upload', 'Pusťte pro nahrání')}</h2>
                             <p className="text-gray-500 font-medium">{t('setup.drop_hint', 'Automaticky rozpoznáme JSON dataset nebo SQLite zálohu.')}</p>
                         </div>
                     </div>
