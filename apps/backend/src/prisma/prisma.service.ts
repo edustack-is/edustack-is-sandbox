@@ -3,18 +3,21 @@ import { PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit {
+export class PrismaService implements OnModuleInit {
   private readonly logger = new Logger(PrismaService.name);
   
-  // The "real" extended client. We use this for all operations.
-  private _client: any;
+  // The actual Prisma client instance
+  private readonly _baseClient: PrismaClient;
+  
+  // The extended client instance
+  private _extendedClient: any;
 
   constructor(
     private readonly cls: ClsService,
     @Inject('CLOUDFLARE_DB') private readonly d1: any,
   ) {
-    super(PrismaService.getOptions(d1));
-    this._client = this; // Default to base client
+    const options = PrismaService.getOptions(d1);
+    this._baseClient = new PrismaClient(options);
   }
 
   private static getOptions(d1: any) {
@@ -53,15 +56,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   }
 
   async onModuleInit() {
-    await this.$connect();
+    await this._baseClient.$connect();
     this.setupExtensions();
   }
 
   private setupExtensions() {
     const self = this;
     
-    // Create the extended client
-    this._client = this.$extends({
+    this._extendedClient = this._baseClient.$extends({
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
@@ -99,34 +101,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         },
       },
     });
-
-    // Replace model properties on THIS service instance to point to the EXTENDED client
-    // This allows services to use 'this.prisma.user' and get the isolation logic.
-    const models = [
-      'user', 'school', 'schoolMembership', 'classroom', 'subject', 'subjectInstance',
-      'grade', 'studentProfile', 'studentEnrollment', 'teacherProfile', 'academicYear',
-      'semester', 'scheduleEvent', 'substitution', 'message', 'conversation',
-      'notification', 'auditLog', 'systemSecret', 'systemLog', 'aiTokenUsage',
-      'timeSlot', 'thematicPlan', 'teachingMaterial', 'lessonPlan', 'schoolEvent',
-      'behaviorGrade', 'competencyGrade', 'competency', 'educationalMeasure',
-      'commissionExam', 'gradingDeadline', 'reportCard', 'classBookEntry',
-      'teacherSignature', 'room', 'building', 'scheduleSnapshot', 'absenceExcuse'
-    ];
-
-    for (const modelName of models) {
-      if ((this._client as any)[modelName]) {
-        (this as any)[modelName] = (this._client as any)[modelName];
-      }
-    }
   }
-
-  // Override global methods to use the extended client
-  // We use direct delegation without "override" keyword for some to avoid cyclic issues in some TS versions
-  // but $transaction is tricky with Proxies.
-  
-  get $transaction() { return this._client.$transaction; }
-  get $queryRaw() { return this._client.$queryRaw; }
-  get $executeRaw() { return this._client.$executeRaw; }
 
   private async logAudit(actorId: string, action: string, entity: string, entityId: string, args: any) {
     const scrub = (data: any) => {
@@ -146,7 +121,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     try {
       // Use the internal extended client directly to avoid re-triggering middleware
-      await this._client.auditLog.create({
+      await this._extendedClient.auditLog.create({
         data: {
           action,
           entity,
@@ -159,4 +134,52 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       // Fail silently
     }
   }
+
+  // Delegate all Prisma model accessors to the extended client
+  get user() { return this._extendedClient.user; }
+  get school() { return this._extendedClient.school; }
+  get schoolMembership() { return this._extendedClient.schoolMembership; }
+  get classroom() { return this._extendedClient.classroom; }
+  get subject() { return this._extendedClient.subject; }
+  get subjectInstance() { return this._extendedClient.subjectInstance; }
+  get grade() { return this._extendedClient.grade; }
+  get studentProfile() { return this._extendedClient.studentProfile; }
+  get studentEnrollment() { return this._extendedClient.studentEnrollment; }
+  get teacherProfile() { return this._extendedClient.teacherProfile; }
+  get academicYear() { return this._extendedClient.academicYear; }
+  get semester() { return this._extendedClient.semester; }
+  get scheduleEvent() { return this._extendedClient.scheduleEvent; }
+  get substitution() { return this._extendedClient.substitution; }
+  get message() { return this._extendedClient.message; }
+  get conversation() { return this._extendedClient.conversation; }
+  get notification() { return this._extendedClient.notification; }
+  get auditLog() { return this._extendedClient.auditLog; }
+  get systemSecret() { return this._extendedClient.systemSecret; }
+  get systemLog() { return this._extendedClient.systemLog; }
+  get aiTokenUsage() { return this._extendedClient.aiTokenUsage; }
+  get timeSlot() { return this._extendedClient.timeSlot; }
+  get thematicPlan() { return this._extendedClient.thematicPlan; }
+  get teachingMaterial() { return this._extendedClient.teachingMaterial; }
+  get lessonPlan() { return this._extendedClient.lessonPlan; }
+  get schoolEvent() { return this._extendedClient.schoolEvent; }
+  get behaviorGrade() { return this._extendedClient.behaviorGrade; }
+  get competencyGrade() { return this._extendedClient.competencyGrade; }
+  get competency() { return this._extendedClient.competency; }
+  get educationalMeasure() { return this._extendedClient.educationalMeasure; }
+  get commissionExam() { return this._extendedClient.commissionExam; }
+  get gradingDeadline() { return this._extendedClient.gradingDeadline; }
+  get reportCard() { return this._extendedClient.reportCard; }
+  get classBookEntry() { return this._extendedClient.classBookEntry; }
+  get teacherSignature() { return this._extendedClient.teacherSignature; }
+  get room() { return this._extendedClient.room; }
+  get building() { return this._extendedClient.building; }
+  get scheduleSnapshot() { return this._extendedClient.scheduleSnapshot; }
+  get absenceExcuse() { return this._extendedClient.absenceExcuse; }
+
+  // Global methods
+  get $transaction() { return this._extendedClient.$transaction; }
+  async $queryRaw(query: any, ...values: any[]) { return this._extendedClient.$queryRaw(query, ...values); }
+  async $executeRaw(query: any, ...values: any[]) { return this._extendedClient.$executeRaw(query, ...values); }
+  async $connect() { return this._baseClient.$connect(); }
+  async $disconnect() { return this._baseClient.$disconnect(); }
 }
