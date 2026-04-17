@@ -23,9 +23,16 @@
 
 ### 1. Konfigurace
 
-Zkopírujte vzor pro lokální vývoj:
+Aplikace vyžaduje nastavení proměnných prostředí. Pro usnadnění jsou připraveny vzory v každé části monorepa:
 
+1.  **Backend:** `apps/backend/.env` (vytvořte kopii z `.env.example`)
+2.  **MCP Server:** `apps/mcp-server/.env` (vytvořte kopii z `.env.example`)
+3.  **Root:** `.env` (vytvořte kopii z `.env.example` - slouží pro globální skripty)
+
+Rychlá příprava všech souborů:
 ```bash
+cp apps/backend/.env.example apps/backend/.env
+cp apps/mcp-server/.env.example apps/mcp-server/.env
 cp .env.example .env
 ```
 
@@ -33,6 +40,7 @@ cp .env.example .env
 |----------|-------|-----------------|
 | `JWT_SECRET` | Klíč pro podepisování JWT tokenů | `openssl rand -base64 64` |
 | `ENCRYPTION_KEY` | AES-256 klíč pro šifrování secrets | `openssl rand -base64 32` |
+| `ENABLE_LOGIN_HELPER` | Zapne panel s demo uživateli na login screenu | `true` nebo `false` |
 
 **SMTP (E-maily):**
 Pro lokální testování e-mailů se při spuštění aplikace automaticky aktivuje MailDev:
