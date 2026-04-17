@@ -280,9 +280,40 @@ export const Setup = () => {
 
     // ─── Main setup form ────────────────────────────────────
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4">
+        <div 
+            className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative"
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={(e) => {
+                // Only stop dragging if we leave the window entirely
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDragging(false);
+                }
+            }}
+        >
+            {/* ─── Global Drag Overlay ───────────────────────── */}
+            {isDragging && (
+                <div className="fixed inset-0 z-50 bg-indigo-600/20 backdrop-blur-sm pointer-events-none flex items-center justify-center border-8 border-indigo-500 border-dashed m-4 rounded-3xl animate-in fade-in duration-300">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+                        <Upload className="h-16 w-16 text-indigo-500 animate-bounce" />
+                        <h2 className="text-2xl font-bold text-gray-900">{t('setup.drop_to_upload', 'Pustťe soubor pro nahrání')}</h2>
+                        <p className="text-gray-500 text-center">{t('setup.drop_hint', 'Automaticky rozpoznáme JSON dataset nebo SQLite zálohu.')}</p>
+                    </div>
+                </div>
+            )}
+
             <InlineLanguageSwitcher />
-            <div className="max-w-xl w-full space-y-6">
+            <div className="max-w-xl w-full space-y-6" onDrop={(e) => {
+                // Auto-switch mode based on dropped file extension
+                const file = e.dataTransfer.files?.[0];
+                if (file?.name.endsWith('.json')) {
+                    setSeedMode('upload');
+                    handleDrop(e, 'json');
+                } else if (file?.name.endsWith('.sqlite') || file?.name.endsWith('.db')) {
+                    setSeedMode('restore');
+                    handleDrop(e, 'sqlite');
+                }
+            }}>
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 mx-auto shadow-lg">
