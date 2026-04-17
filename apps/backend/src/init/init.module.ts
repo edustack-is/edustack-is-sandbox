@@ -7,8 +7,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { SetupTokenGuard } from './setup-token.guard';
 
 @Module({
-    imports: [PrismaModule, JwtModule.register({})],
-    controllers: [InitController],
-    providers: [InitService, SeedService, SetupTokenGuard],
+  imports: [PrismaModule, JwtModule.register({})],
+  controllers: [InitController],
+  providers: [InitService, SeedService, SetupTokenGuard],
 })
-export class InitModule { }
+export class InitModule {}

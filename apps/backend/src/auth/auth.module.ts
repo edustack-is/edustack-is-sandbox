@@ -25,4 +25,4 @@ import { SsoStrategyFactoryService } from './sso-strategy-factory.service';
   providers: [AuthService, JwtStrategy, SsoStrategyFactoryService],
   exports: [AuthService, SsoStrategyFactoryService],
 })
-export class AuthModule { }
+export class AuthModule {}

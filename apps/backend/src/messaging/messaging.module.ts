@@ -5,9 +5,9 @@ import { MessagingController } from './messaging.controller';
 import { NotificationService } from './notification.service';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [MessagingController],
-    providers: [MessagingService, NotificationService],
-    exports: [NotificationService],
+  imports: [PrismaModule],
+  controllers: [MessagingController],
+  providers: [MessagingService, NotificationService],
+  exports: [NotificationService],
 })
-export class MessagingModule { }
+export class MessagingModule {}

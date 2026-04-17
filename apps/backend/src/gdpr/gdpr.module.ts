@@ -3,7 +3,7 @@ import { GdprController } from './gdpr.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [GdprController],
+  imports: [PrismaModule],
+  controllers: [GdprController],
 })
-export class GdprModule { }
+export class GdprModule {}

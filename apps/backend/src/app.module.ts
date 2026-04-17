@@ -41,15 +41,28 @@ import { GdprModule } from './gdpr/gdpr.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 3000,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 3000,
+      },
+    ]),
     NestScheduleModule.forRoot(),
     CryptoModule,
     MailModule,
-    UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
-    SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule,
+    UsersModule,
+    RegistryModule,
+    GradingModule,
+    ScheduleModule,
+    AiModule,
+    AuthModule,
+    InitModule,
+    SystemAdminModule,
+    StudentModule,
+    ParentModule,
+    TeacherModule,
+    DeputyModule,
+    PrincipalModule,
     MessagingModule,
     AttendanceModule,
     CommunityModule,
@@ -71,4 +84,4 @@ import { GdprModule } from './gdpr/gdpr.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -8,15 +8,15 @@ import { RvpImportService } from './rvp-import.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-    imports: [
-        PrismaModule,
-        JwtModule.register({
-            secret: process.env.JWT_SECRET || 'secretKey',
-            signOptions: { expiresIn: '60m' },
-        }),
-    ],
-    controllers: [DeputyController, DeputyCurriculumController],
-    providers: [DeputyService, DeputyCurriculumService, RvpImportService],
-    exports: [DeputyService, DeputyCurriculumService, RvpImportService],
+  imports: [
+    PrismaModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'secretKey',
+      signOptions: { expiresIn: '60m' },
+    }),
+  ],
+  controllers: [DeputyController, DeputyCurriculumController],
+  providers: [DeputyService, DeputyCurriculumService, RvpImportService],
+  exports: [DeputyService, DeputyCurriculumService, RvpImportService],
 })
-export class DeputyModule { }
+export class DeputyModule {}

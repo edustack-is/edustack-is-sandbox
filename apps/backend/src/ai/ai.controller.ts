@@ -1,203 +1,335 @@
-import { Controller, Post, Get, Param, Body, UseGuards, Req, Res, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  Req,
+  Res,
+  ForbiddenException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-import { AiTextResponseDto, SchoolUserResponseDto } from '../common/dto/response.dto';
+import {
+  AiTextResponseDto,
+  SchoolUserResponseDto,
+} from '../common/dto/response.dto';
 @ApiTags('ai')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/ai')
 @UseGuards(JwtAuthGuard)
 export class AiController {
-    constructor(
-        private readonly aiService: AiService,
-        private readonly aiChatService: AiChatService,
-    ) { }
+  constructor(
+    private readonly aiService: AiService,
+    private readonly aiChatService: AiChatService,
+  ) {}
 
-    @Post('seed/:classroomId')
-    async seedClassroom(
-        @Param('classroomId') classroomId: string,
-        @Body('count') count?: number,
+  @Post('seed/:classroomId')
+  async seedClassroom(
+    @Param('classroomId') classroomId: string,
+    @Body('count') count?: number,
+  ) {
+    return this.aiService.seedClassroom(classroomId, count);
+  }
+
+  @Get('providers')
+  async getProviders() {
+    return this.aiChatService.getAvailableProviders();
+  }
+
+  /**
+   * POST /api/ai/chat
+   * Handles conversational AI with role-based context and function calling.
+   */
+  @Post('chat')
+  @ApiOperation({ summary: 'AI chat (streaming)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Streaming AI odpověď (text/event-stream).',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Nedostatečná oprávnění pro tuto operaci.',
+  })
+  async chat(
+    @Req() req: any,
+    @Body()
+    body: {
+      messages: Array<{ role: 'user' | 'model'; text: string }>;
+      provider?: string;
+    },
+  ) {
+    if (
+      !body.messages ||
+      !Array.isArray(body.messages) ||
+      body.messages.length === 0
     ) {
-        return this.aiService.seedClassroom(classroomId, count);
+      throw new ForbiddenException('messages array is required.');
     }
 
-    @Get('providers')
-    async getProviders() {
-        return this.aiChatService.getAvailableProviders();
-    }
+    const userId = req.user.userId;
+    let role =
+      req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
+    if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
+    const schoolId = req.user.schoolId || null;
+    const provider = body.provider || 'google-flash';
+    const preferredLanguage = req.headers['accept-language']?.startsWith('en')
+      ? 'English'
+      : 'Czech';
 
-    /**
-     * POST /api/ai/chat
-     * Handles conversational AI with role-based context and function calling.
-     */
-    @Post('chat')
-    @ApiOperation({ summary: 'AI chat (streaming)' })
-    @ApiResponse({ status: 200, description: 'Streaming AI odpověď (text/event-stream).' })
+    return this.aiChatService.chat(
+      userId,
+      role,
+      schoolId,
+      body.messages,
+      provider,
+      preferredLanguage,
+    );
+  }
 
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-
-    async chat(
-        @Req() req: any,
-        @Body() body: {
-            messages: Array<{ role: 'user' | 'model'; text: string }>;
-            provider?: string;
-        },
+  /**
+   * POST /api/ai/chat/stream
+   * SSE streaming version — sends real-time progress events for tool calls.
+   */
+  @Post('chat/stream')
+  async chatStream(
+    @Req() req: any,
+    @Res({ passthrough: false }) res: any,
+    @Body()
+    body: {
+      messages: Array<{ role: 'user' | 'model'; text: string }>;
+      provider?: string;
+    },
+  ) {
+    if (
+      !body.messages ||
+      !Array.isArray(body.messages) ||
+      body.messages.length === 0
     ) {
-        if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
-            throw new ForbiddenException('messages array is required.');
-        }
-
-        const userId = req.user.userId;
-        let role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
-        if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
-        const schoolId = req.user.schoolId || null;
-        const provider = body.provider || 'google-flash';
-        const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';
-
-        return this.aiChatService.chat(userId, role, schoolId, body.messages, provider, preferredLanguage);
+      res.status(400).json({ error: 'messages array is required.' });
+      return;
     }
 
-    /**
-     * POST /api/ai/chat/stream
-     * SSE streaming version — sends real-time progress events for tool calls.
-     */
-    @Post('chat/stream')
-    async chatStream(
-        @Req() req: any,
-        @Res({ passthrough: false }) res: any,
-        @Body() body: {
-            messages: Array<{ role: 'user' | 'model'; text: string }>;
-            provider?: string;
-        },
-    ) {
-        if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
-            res.status(400).json({ error: 'messages array is required.' });
-            return;
-        }
+    const userId = req.user.userId;
+    let role =
+      req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
+    if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
+    const schoolId = req.user.schoolId || null;
+    const provider = body.provider || 'google-flash';
+    const preferredLanguage = req.headers['accept-language']?.startsWith('en')
+      ? 'English'
+      : 'Czech';
 
-        const userId = req.user.userId;
-        let role = req.user.role || (req.user.isSystemAdmin ? 'SYSTEM_ADMIN' : 'STUDENT');
-        if (role === 'ADMIN' || req.user.isSystemAdmin) role = 'SYSTEM_ADMIN';
-        const schoolId = req.user.schoolId || null;
-        const provider = body.provider || 'google-flash';
-        const preferredLanguage = req.headers['accept-language']?.startsWith('en') ? 'English' : 'Czech';
+    // Setup SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // disable nginx buffering
+    res.flushHeaders();
 
-        // Setup SSE headers
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no'); // disable nginx buffering
-        res.flushHeaders();
+    const sendEvent = (type: string, data: any) => {
+      try {
+        res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+      } catch (e) {
+        // Client may have disconnected
+      }
+    };
 
-        const sendEvent = (type: string, data: any) => {
-            try {
-                res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
-            } catch (e) {
-                // Client may have disconnected
-            }
-        };
+    try {
+      const result = await this.aiChatService.chatStream(
+        userId,
+        role,
+        schoolId,
+        body.messages,
+        provider,
+        preferredLanguage,
+        (event) => sendEvent(event.type, event.data),
+      );
 
-        try {
-            const result = await this.aiChatService.chatStream(
-                userId, role, schoolId, body.messages, provider, preferredLanguage,
-                (event) => sendEvent(event.type, event.data),
-            );
-
-            sendEvent('response', {
-                text: result.response,
-                usage: result.usage,
-                dataChanged: result.dataChanged,
-            });
-        } catch (error: any) {
-            sendEvent('error', {
-                message: error.message || 'AI služba není dostupná.',
-            });
-        }
-
-        sendEvent('done', {});
-        res.end();
+      sendEvent('response', {
+        text: result.response,
+        usage: result.usage,
+        dataChanged: result.dataChanged,
+      });
+    } catch (error: any) {
+      sendEvent('error', {
+        message: error.message || 'AI služba není dostupná.',
+      });
     }
 
-    // ─── NEW AI FEATURES ────────────────────────────────────
+    sendEvent('done', {});
+    res.end();
+  }
 
-    @Post('refine-text')
-    @ApiOperation({ summary: 'AI vylepšení textu' })
-    @ApiResponse({ status: 200, description: 'Vylepšený text.', type: AiTextResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+  // ─── NEW AI FEATURES ────────────────────────────────────
 
-    async refineText(@Body() body: { existingText?: string; context: string; instruction: string }) {
-        return this.aiService.refineText(body);
-    }
+  @Post('refine-text')
+  @ApiOperation({ summary: 'AI vylepšení textu' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vylepšený text.',
+    type: AiTextResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Nedostatečná oprávnění pro tuto operaci.',
+  })
+  async refineText(
+    @Body()
+    body: {
+      existingText?: string;
+      context: string;
+      instruction: string;
+    },
+  ) {
+    return this.aiService.refineText(body);
+  }
 
-    @Post('generate-school-name')
-    @ApiOperation({ summary: 'AI vygenerování náhodného názvu školy pro testovací data' })
-    @ApiResponse({ status: 200, description: 'Náhodný název školy', type: AiTextResponseDto })
-    async generateSchoolName(@Body() body: { schoolType?: string }) {
-        return this.aiService.generateSchoolName(body.schoolType);
-    }
+  @Post('generate-school-name')
+  @ApiOperation({
+    summary: 'AI vygenerování náhodného názvu školy pro testovací data',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Náhodný název školy',
+    type: AiTextResponseDto,
+  })
+  async generateSchoolName(@Body() body: { schoolType?: string }) {
+    return this.aiService.generateSchoolName(body.schoolType);
+  }
 
-    @Post('thematic-plan')
-    @ApiOperation({ summary: 'AI generování tematického plánu' })
-    @ApiResponse({ status: 200, description: 'Vygenerovaný tematický plán.', type: AiTextResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
+  @Post('thematic-plan')
+  @ApiOperation({ summary: 'AI generování tematického plánu' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vygenerovaný tematický plán.',
+    type: AiTextResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Nedostatečná oprávnění pro tuto operaci.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Neplatný požadavek – chyba validace vstupních dat.',
+  })
+  async generateThematicPlan(
+    @Body()
+    body: {
+      subjectName: string;
+      grade: string;
+      hoursPerWeek: number;
+      semesterWeeks?: number;
+      topics?: string;
+    },
+  ) {
+    return this.aiService.generateThematicPlan(body);
+  }
 
-    async generateThematicPlan(@Body() body: {
-        subjectName: string; grade: string; hoursPerWeek: number;
-        semesterWeeks?: number; topics?: string;
-    }) {
-        return this.aiService.generateThematicPlan(body);
-    }
+  @Post('student-recommendations')
+  async generateStudentRecommendations(
+    @Body()
+    body: {
+      studentName: string;
+      grades: Array<{ subject: string; grade: number }>;
+      attendance?: { total: number; absent: number };
+      behavior?: string;
+    },
+  ) {
+    return this.aiService.generateStudentRecommendations(body);
+  }
 
-    @Post('student-recommendations')
-    async generateStudentRecommendations(@Body() body: {
-        studentName: string;
-        grades: Array<{ subject: string; grade: number }>;
-        attendance?: { total: number; absent: number };
-        behavior?: string;
-    }) {
-        return this.aiService.generateStudentRecommendations(body);
-    }
+  @Post('class-analysis')
+  @ApiOperation({ summary: 'AI analýza prospěchu třídy' })
+  @ApiResponse({
+    status: 200,
+    description: 'Analýza prospěchu třídy.',
+    type: AiTextResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Nedostatečná oprávnění pro tuto operaci.',
+  })
+  async analyzeClassPerformance(
+    @Body()
+    body: {
+      className: string;
+      grades: Array<{ student: string; subject: string; grade: number }>;
+      subjectName?: string;
+    },
+  ) {
+    return this.aiService.analyzeClassPerformance(body);
+  }
 
-    @Post('class-analysis')
-    @ApiOperation({ summary: 'AI analýza prospěchu třídy' })
-    @ApiResponse({ status: 200, description: 'Analýza prospěchu třídy.', type: AiTextResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
+  @Post('generate-test')
+  @ApiOperation({ summary: 'AI generování testu' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vygenerovaný test.',
+    type: AiTextResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Nedostatečná oprávnění pro tuto operaci.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Neplatný požadavek – chyba validace vstupních dat.',
+  })
+  async generateTest(
+    @Body()
+    body: {
+      subjectName: string;
+      topic: string;
+      grade: string;
+      questionCount?: number;
+      difficulty?: 'easy' | 'medium' | 'hard';
+      questionTypes?: string;
+    },
+  ) {
+    return this.aiService.generateTest(body);
+  }
 
-    async analyzeClassPerformance(@Body() body: {
-        className: string;
-        grades: Array<{ student: string; subject: string; grade: number }>;
-        subjectName?: string;
-    }) {
-        return this.aiService.analyzeClassPerformance(body);
-    }
-
-    @Post('generate-test')
-    @ApiOperation({ summary: 'AI generování testu' })
-    @ApiResponse({ status: 200, description: 'Vygenerovaný test.', type: AiTextResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.' })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.' })
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.' })
-
-    async generateTest(@Body() body: {
-        subjectName: string; topic: string; grade: string;
-        questionCount?: number; difficulty?: 'easy' | 'medium' | 'hard';
-        questionTypes?: string;
-    }) {
-        return this.aiService.generateTest(body);
-    }
-
-    @Post('generate-written-test')
-    async generateWrittenTest(@Body() body: {
-        subjectName: string; topics: string[]; grade: string;
-        duration?: number; variantCount?: number;
-    }) {
-        return this.aiService.generateWrittenTest(body);
-    }
+  @Post('generate-written-test')
+  async generateWrittenTest(
+    @Body()
+    body: {
+      subjectName: string;
+      topics: string[];
+      grade: string;
+      duration?: number;
+      variantCount?: number;
+    },
+  ) {
+    return this.aiService.generateWrittenTest(body);
+  }
 }

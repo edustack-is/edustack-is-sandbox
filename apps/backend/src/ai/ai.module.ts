@@ -13,4 +13,4 @@ import { SystemAdminModule } from '../system-admin/system-admin.module';
   providers: [AiService, AiChatService],
   exports: [AiChatService],
 })
-export class AiModule { }
+export class AiModule {}

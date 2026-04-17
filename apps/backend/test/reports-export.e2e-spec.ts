@@ -6,67 +6,69 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 describe('Reports and Export API (e2e)', () => {
-    let app: INestApplication<App>;
-    let jwtToken: string;
-    let schoolId: string;
+  let app: INestApplication<App>;
+  let jwtToken: string;
+  let schoolId: string;
 
-    beforeAll(async () => {
-        const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule],
-        }).compile();
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
-        app = moduleFixture.createNestApplication();
-        await app.init();
+    app = moduleFixture.createNestApplication();
+    await app.init();
 
-        const prisma = app.get(PrismaService);
-        const school = await prisma.school.findFirst();
-        schoolId = school.id;
+    const prisma = app.get(PrismaService);
+    const school = await prisma.school.findFirst();
+    schoolId = school.id;
 
-        // Login to get global token
-        const loginRes = await request(app.getHttpServer())
-            .post('/api/auth/login')
-            .send({ email: 'admin@edustack.cz', password: 'admin123' });
-        
-        // Exchange for tenant token
-        const selectRes = await request(app.getHttpServer())
-            .post(`/api/auth/select-school/${schoolId}`)
-            .set('Authorization', `Bearer ${loginRes.body.access_token}`);
-            
-        jwtToken = selectRes.body.access_token;
-    });
+    // Login to get global token
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'admin@edustack.cz', password: 'admin123' });
 
-    afterAll(async () => {
-        try { await app.get(PrismaService).$disconnect(); } catch(e){} 
-        await app.close();
-    });
+    // Exchange for tenant token
+    const selectRes = await request(app.getHttpServer())
+      .post(`/api/auth/select-school/${schoolId}`)
+      .set('Authorization', `Bearer ${loginRes.body.access_token}`);
 
-    it('F157 - CSI Reports: Should generate Czech School Inspectorate JSON report', async () => {
-        const response = await request(app.getHttpServer())
-            .get('/api/reports/csi')
-            .set('Authorization', `Bearer ${jwtToken}`);
+    jwtToken = selectRes.body.access_token;
+  });
 
-        expect(response.status).toBe(200);
-        expect(response.body).toHaveProperty('title');
-        expect(response.body).toHaveProperty('staffing');
-    });
+  afterAll(async () => {
+    try {
+      await app.get(PrismaService).$disconnect();
+    } catch (e) {}
+    await app.close();
+  });
 
-    it('F158 - MSMT Reports: Should generate Ministry of Education JSON report', async () => {
-        const response = await request(app.getHttpServer())
-            .get('/api/reports/msmt')
-            .set('Authorization', `Bearer ${jwtToken}`);
+  it('F157 - CSI Reports: Should generate Czech School Inspectorate JSON report', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/reports/csi')
+      .set('Authorization', `Bearer ${jwtToken}`);
 
-        expect(response.status).toBe(200);
-        expect(response.body).toHaveProperty('summary');
-        expect(response.body).toHaveProperty('gradeBreakdown');
-    });
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('title');
+    expect(response.body).toHaveProperty('staffing');
+  });
 
-    it('F108, F149 - Exports: Should export attendance as CSV', async () => {
-        const response = await request(app.getHttpServer())
-            .get('/api/export/attendance?format=csv')
-            .set('Authorization', `Bearer ${jwtToken}`);
+  it('F158 - MSMT Reports: Should generate Ministry of Education JSON report', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/reports/msmt')
+      .set('Authorization', `Bearer ${jwtToken}`);
 
-        expect(response.status).toBe(200);
-        expect(response.headers['content-type']).toContain('text/csv');
-        expect(response.text.toLowerCase()).toContain('student'); // Check CSV header
-    });
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('summary');
+    expect(response.body).toHaveProperty('gradeBreakdown');
+  });
+
+  it('F108, F149 - Exports: Should export attendance as CSV', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/export/attendance?format=csv')
+      .set('Authorization', `Bearer ${jwtToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/csv');
+    expect(response.text.toLowerCase()).toContain('student'); // Check CSV header
+  });
 });

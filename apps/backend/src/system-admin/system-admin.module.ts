@@ -15,10 +15,24 @@ import { AuthModule } from '../auth/auth.module';
 import { BackupSchedulerService } from './backup-scheduler.service';
 
 @Module({
-    imports: [AuthModule],
-    controllers: [SystemAdminController, SystemAdminAiController, TestDataController, BackupController, MonitoringController],
-    providers: [SystemAdminService, SystemAdminAiService, SystemAdminSsoService, SystemSettingsService, BackupService, BackupSchedulerService, TestDataService, PrismaService],
-    exports: [SystemAdminAiService, SystemSettingsService],
+  imports: [AuthModule],
+  controllers: [
+    SystemAdminController,
+    SystemAdminAiController,
+    TestDataController,
+    BackupController,
+    MonitoringController,
+  ],
+  providers: [
+    SystemAdminService,
+    SystemAdminAiService,
+    SystemAdminSsoService,
+    SystemSettingsService,
+    BackupService,
+    BackupSchedulerService,
+    TestDataService,
+    PrismaService,
+  ],
+  exports: [SystemAdminAiService, SystemSettingsService],
 })
-export class SystemAdminModule { }
-
+export class SystemAdminModule {}

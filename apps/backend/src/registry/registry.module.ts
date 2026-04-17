@@ -8,4 +8,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   controllers: [RegistryController],
   providers: [RegistryService],
 })
-export class RegistryModule { }
+export class RegistryModule {}

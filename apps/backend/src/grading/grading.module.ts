@@ -8,4 +8,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   controllers: [GradingController],
   providers: [GradingService],
 })
-export class GradingModule { }
+export class GradingModule {}

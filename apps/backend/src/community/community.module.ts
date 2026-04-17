@@ -4,8 +4,8 @@ import { CommunityController } from './community.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [CommunityController],
-    providers: [CommunityService],
+  imports: [PrismaModule],
+  controllers: [CommunityController],
+  providers: [CommunityService],
 })
-export class CommunityModule { }
+export class CommunityModule {}

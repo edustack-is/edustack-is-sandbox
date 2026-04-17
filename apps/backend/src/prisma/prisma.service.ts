@@ -4,133 +4,202 @@ import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
-    private readonly logger = new Logger(PrismaService.name);
-    public client: any;
+  private readonly logger = new Logger(PrismaService.name);
+  public client: any;
 
-    constructor(
-        private readonly cls: ClsService,
-        @Inject('CLOUDFLARE_DB') private readonly d1: any,
-    ) {
-        super(PrismaService.getOptions(d1));
-        this.client = this; // Default to base client until extended
+  constructor(
+    private readonly cls: ClsService,
+    @Inject('CLOUDFLARE_DB') private readonly d1: any,
+  ) {
+    super(PrismaService.getOptions(d1));
+    this.client = this; // Default to base client until extended
+  }
+
+  private static getOptions(d1: any) {
+    const dbAdapter = process.env.DB_ADAPTER || 'sqlite';
+    const options: any = { log: ['warn', 'error'] };
+
+    if (d1 || dbAdapter === 'd1') {
+      const { PrismaD1 } = require('@prisma/adapter-d1');
+      options.adapter = new PrismaD1(d1 || (globalThis as any).DB);
+    } else if (dbAdapter === 'sqlite') {
+      const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
+      const fs = require('fs');
+      const path = require('path');
+
+      let dbPath = process.env.DATABASE_URL?.replace('file:', '');
+      if (
+        !dbPath ||
+        (fs.existsSync(dbPath) && fs.statSync(dbPath).size === 0)
+      ) {
+        // Auto-detect Wrangler hashed DB
+        const possiblePaths = [
+          process.cwd(),
+          path.join(process.cwd(), 'apps/backend'),
+        ];
+        for (const base of possiblePaths) {
+          const dir = path.join(
+            base,
+            '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+          );
+          if (fs.existsSync(dir)) {
+            const dbFile = fs
+              .readdirSync(dir)
+              .find(
+                (f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite',
+              );
+            if (dbFile) {
+              dbPath = path.join(dir, dbFile);
+              break;
+            }
+          }
+        }
+      }
+      const finalPath = dbPath
+        ? path.isAbsolute(dbPath)
+          ? dbPath
+          : path.resolve(process.cwd(), dbPath)
+        : 'dev.db';
+      options.adapter = new PrismaBetterSqlite3({ url: finalPath });
     }
+    return options;
+  }
 
-    private static getOptions(d1: any) {
-        const dbAdapter = process.env.DB_ADAPTER || 'sqlite';
-        const options: any = { log: ['warn', 'error'] };
+  async onModuleInit() {
+    await this.$connect();
+    this.setupExtensions();
+  }
 
-        if (d1 || dbAdapter === 'd1') {
-            const { PrismaD1 } = require('@prisma/adapter-d1');
-            options.adapter = new PrismaD1(d1 || (globalThis as any).DB);
-        } else if (dbAdapter === 'sqlite') {
-            const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
-            const fs = require('fs');
-            const path = require('path');
-            
-            let dbPath = process.env.DATABASE_URL?.replace('file:', '');
-            if (!dbPath || (fs.existsSync(dbPath) && fs.statSync(dbPath).size === 0)) {
-                // Auto-detect Wrangler hashed DB
-                const possiblePaths = [process.cwd(), path.join(process.cwd(), 'apps/backend')];
-                for (const base of possiblePaths) {
-                    const dir = path.join(base, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
-                    if (fs.existsSync(dir)) {
-                        const dbFile = fs.readdirSync(dir).find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
-                        if (dbFile) { dbPath = path.join(dir, dbFile); break; }
-                    }
+  private setupExtensions() {
+    const self = this;
+    this.client = this.$extends({
+      query: {
+        $allModels: {
+          async $allOperations({ model, operation, args, query }) {
+            try {
+              // 1. Bypass for logs
+              if (
+                model === 'AuditLog' ||
+                model === 'SystemLog' ||
+                model === 'AiTokenUsage'
+              ) {
+                return query(args);
+              }
+
+              // 2. Tenant Isolation
+              const isolatedModels = [
+                'Classroom',
+                'Subject',
+                'Grade',
+                'ScheduleEvent',
+              ];
+              const schoolId = self.cls.get('schoolId');
+              const user = self.cls.get('user');
+              const isSystemAdmin = user?.isSystemAdmin;
+
+              if (
+                isolatedModels.includes(model) &&
+                schoolId &&
+                !isSystemAdmin
+              ) {
+                const unsafeArgs = (args as any) || {};
+                if (operation === 'create') {
+                  unsafeArgs.data = { ...unsafeArgs.data, schoolId };
+                } else if (
+                  [
+                    'findFirst',
+                    'findMany',
+                    'update',
+                    'updateMany',
+                    'delete',
+                    'deleteMany',
+                    'count',
+                  ].includes(operation)
+                ) {
+                  unsafeArgs.where = { ...unsafeArgs.where, schoolId };
                 }
+              }
+
+              // 3. Execute Query
+              const result = await query(args);
+
+              // 4. Async Audit Log (Non-blocking)
+              if (
+                ['create', 'update', 'delete'].includes(operation) &&
+                user?.id
+              ) {
+                self
+                  .logAudit(
+                    user.id,
+                    operation.toUpperCase(),
+                    model,
+                    (result as any)?.id,
+                    null,
+                    result,
+                  )
+                  .catch((e) =>
+                    self.logger.warn(`Audit log failed: ${e.message}`),
+                  );
+              }
+
+              return result;
+            } catch (error) {
+              if (error.message?.includes('Too many parameter values')) {
+                console.error('\n' + '!'.repeat(60));
+                console.error(
+                  `❌ PRISMA PARAMETER OVERFLOW in ${model}.${operation}`,
+                );
+                console.error(
+                  `Args: ${JSON.stringify(args).substring(0, 500)}...`,
+                );
+                console.error('!'.repeat(60) + '\n');
+              }
+              throw error;
             }
-            const finalPath = dbPath ? (path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)) : 'dev.db';
-            options.adapter = new PrismaBetterSqlite3({ url: finalPath });
-        }
-        return options;
+          },
+        },
+      },
+    });
+
+    // Replace methods on this instance to use the extended client
+    // This is safer than a Proxy for NestJS injection
+    const clientProto = Object.getPrototypeOf(this.client);
+    for (const key of Object.keys(this.client)) {
+      if (typeof this.client[key] === 'object' && key !== 'constructor') {
+        (this as any)[key] = this.client[key];
+      }
     }
+  }
 
-    async onModuleInit() {
-        await this.$connect();
-        this.setupExtensions();
-    }
-
-    private setupExtensions() {
-        const self = this;
-        this.client = this.$extends({
-            query: {
-                $allModels: {
-                    async $allOperations({ model, operation, args, query }) {
-                        try {
-                            // 1. Bypass for logs
-                            if (model === 'AuditLog' || model === 'SystemLog' || model === 'AiTokenUsage') {
-                                return query(args);
-                            }
-
-                            // 2. Tenant Isolation
-                            const isolatedModels = ['Classroom', 'Subject', 'Grade', 'ScheduleEvent'];
-                            const schoolId = self.cls.get('schoolId');
-                            const user = self.cls.get('user');
-                            const isSystemAdmin = user?.isSystemAdmin;
-
-                            if (isolatedModels.includes(model) && schoolId && !isSystemAdmin) {
-                                const unsafeArgs = args as any || {};
-                                if (operation === 'create') {
-                                    unsafeArgs.data = { ...unsafeArgs.data, schoolId };
-                                } else if (['findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count'].includes(operation)) {
-                                    unsafeArgs.where = { ...unsafeArgs.where, schoolId };
-                                }
-                            }
-
-                            // 3. Execute Query
-                            const result = await query(args);
-
-                            // 4. Async Audit Log (Non-blocking)
-                            if (['create', 'update', 'delete'].includes(operation) && user?.id) {
-                                self.logAudit(user.id, operation.toUpperCase(), model, (result as any)?.id, null, result)
-                                    .catch(e => self.logger.warn(`Audit log failed: ${e.message}`));
-                            }
-
-                            return result;
-                        } catch (error) {
-                            if (error.message?.includes('Too many parameter values')) {
-                                console.error('\n' + '!'.repeat(60));
-                                console.error(`❌ PRISMA PARAMETER OVERFLOW in ${model}.${operation}`);
-                                console.error(`Args: ${JSON.stringify(args).substring(0, 500)}...`);
-                                console.error('!'.repeat(60) + '\n');
-                            }
-                            throw error;
-                        }
-                    },
-                },
-            },
+  private async logAudit(
+    actorId: string,
+    action: string,
+    entity: string,
+    entityId: string,
+    oldValues: any,
+    newValues: any,
+  ) {
+    const scrub = (data: any) => {
+      if (!data) return null;
+      const sensitive = ['passwordHash', 'token', 'invitationToken'];
+      const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data }; // Limit array size in logs
+      if (!Array.isArray(copy)) {
+        sensitive.forEach((field) => {
+          if (field in copy) delete copy[field];
         });
+      }
+      return copy;
+    };
 
-        // Replace methods on this instance to use the extended client
-        // This is safer than a Proxy for NestJS injection
-        const clientProto = Object.getPrototypeOf(this.client);
-        for (const key of Object.keys(this.client)) {
-            if (typeof (this.client as any)[key] === 'object' && key !== 'constructor') {
-                (this as any)[key] = (this.client as any)[key];
-            }
-        }
-    }
-
-    private async logAudit(actorId: string, action: string, entity: string, entityId: string, oldValues: any, newValues: any) {
-        const scrub = (data: any) => {
-            if (!data) return null;
-            const sensitive = ['passwordHash', 'token', 'invitationToken'];
-            const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data }; // Limit array size in logs
-            if (!Array.isArray(copy)) {
-                sensitive.forEach(field => { if (field in copy) delete copy[field]; });
-            }
-            return copy;
-        };
-
-        await (this as any).auditLog.create({
-            data: {
-                action,
-                entity,
-                entityId: entityId || 'unknown',
-                actorId,
-                oldValues: scrub(oldValues),
-                newValues: scrub(newValues),
-            },
-        });
-    }
+    await (this as any).auditLog.create({
+      data: {
+        action,
+        entity,
+        entityId: entityId || 'unknown',
+        actorId,
+        oldValues: scrub(oldValues),
+        newValues: scrub(newValues),
+      },
+    });
+  }
 }
