@@ -10,7 +10,7 @@
     "db:generate": "npm run db:sync && npm run prisma:generate -w backend && npm run prisma:generate -w mcp-server",
     "db:init": "npm run db:sync && cd apps/backend && rm -rf .wrangler/state/v3/d1 && npx prisma migrate diff --from-empty --to-schema ./prisma/schema.prisma --script > ./prisma/schema.sql && npx wrangler d1 execute edustack_db --local --file=./prisma/schema.sql",
     "db:deploy": "npm run db:sync && cd apps/backend && npx prisma migrate diff --from-empty --to-schema ./prisma/schema.prisma --script > ./prisma/schema.sql && npx wrangler d1 execute edustack_db --remote --file=./prisma/schema.sql",
-    "db:studio": "npm run db:sync && npm run prisma studio -w backend",
+    "db:studio": "npm run db:sync && cd apps/backend && npx prisma studio",
     "seed:demo": "npm run seed:demo -w backend"
   },
   "workspaces": [

@@ -32,7 +32,7 @@ if (!dbPath) {
 }
 
 if (!dbPath) {
-    dbPath = path.resolve(process.cwd(), "../backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/database.sqlite");
+    throw new Error("❌ Wrangler D1 local database not found. Please run 'npm run db:init' from the project root first.");
 }
 
 const finalPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);

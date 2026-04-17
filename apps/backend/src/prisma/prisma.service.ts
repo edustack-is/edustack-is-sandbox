@@ -63,11 +63,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           currentPath = path.join(currentPath, '..');
         }
       }
-      const finalPath = dbPath
-        ? path.isAbsolute(dbPath)
-          ? dbPath
-          : path.resolve(process.cwd(), dbPath)
-        : path.join(process.cwd(), 'dev.db');
+
+      if (!dbPath) {
+        throw new Error(
+          '❌ Wrangler D1 local database not found. Please run "npm run db:init" first.',
+        );
+      }
+
+      const finalPath = path.isAbsolute(dbPath)
+        ? dbPath
+        : path.resolve(process.cwd(), dbPath);
       options.adapter = new PrismaBetterSqlite3({ url: finalPath });
     }
     return options;
