@@ -1,88 +1,61 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as crypto from 'crypto';
 import { UserRole, UserStatus } from '@prisma/client';
 import { SystemAdminAiService } from '../system-admin/system-admin-ai.service';
+import { generateText } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+
   constructor(
     private prisma: PrismaService,
     private systemAdminAiService: SystemAdminAiService,
   ) {}
 
-  private cachedModel: any = null;
-
+  /**
+   * Dynamically gets the first available AI model provider.
+   * Priority: Google -> OpenAI -> Anthropic
+   */
   private async getModel() {
-    if (this.cachedModel) return this.cachedModel;
-
-    const apiKey = await this.systemAdminAiService.getDecryptedApiKey('google');
-    if (!apiKey) {
-      throw new BadRequestException(
-        'Google AI API klíč není nastaven. Nastavte ho v administraci.',
-      );
+    const googleKey = await this.systemAdminAiService.getDecryptedApiKey('google');
+    if (googleKey) {
+      this.logger.log('Using dynamically selected AI provider: Google (Gemini)');
+      const google = createGoogleGenerativeAI({ apiKey: googleKey });
+      return google('gemini-1.5-flash');
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    let modelName = 'gemini-1.5-flash'; // Default
-
-    try {
-      // 1. Try to fetch available models to choose dynamically
-      this.logger.log('Fetching available Google AI models...');
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
-      );
-      const data = (await response.json()) as any;
-
-      if (data.models && Array.isArray(data.models)) {
-        const available = data.models
-          .filter((m: any) =>
-            m.supportedGenerationMethods.includes('generateContent'),
-          )
-          .map((m: any) => m.name.replace('models/', ''));
-
-        this.logger.log(`Available models: ${available.join(', ')}`);
-
-        // Priority list
-        const priorities = [
-          'gemini-1.5-flash',
-          'gemini-1.5-flash-latest',
-          'gemini-2.0-flash-exp',
-          'gemini-1.0-pro',
-          'gemini-pro',
-        ];
-
-        for (const p of priorities) {
-          if (available.includes(p)) {
-            modelName = p;
-            break;
-          }
-        }
-        
-        // If no priority match, pick any flash model, or just the first available
-        if (!priorities.includes(modelName)) {
-           modelName = available.find(n => n.includes('flash')) || available[0] || modelName;
-        }
-      }
-    } catch (err: any) {
-      this.logger.warn(
-        `Failed to list available models, using default ${modelName}: ${err.message}`,
-      );
+    const openAiKey = await this.systemAdminAiService.getDecryptedApiKey('openai');
+    if (openAiKey) {
+      this.logger.log('Using dynamically selected AI provider: OpenAI');
+      const openai = createOpenAI({ apiKey: openAiKey });
+      return openai('gpt-4o-mini');
     }
 
-    this.logger.log(`Using AI model: ${modelName}`);
-    this.cachedModel = genAI.getGenerativeModel({ model: modelName });
-    return this.cachedModel;
+    const anthropicKey = await this.systemAdminAiService.getDecryptedApiKey('anthropic');
+    if (anthropicKey) {
+      this.logger.log('Using dynamically selected AI provider: Anthropic');
+      const anthropic = createAnthropic({ apiKey: anthropicKey });
+      return anthropic('claude-3-haiku-20240307');
+    }
+
+    throw new BadRequestException(
+      'Žádný AI provider není nastaven. Nastavte Google, OpenAI nebo Anthropic klíč v administraci.',
+    );
   }
 
   async seedClassroom(classroomId: string, count: number = 5) {
     const prompt = `Generate ${count} Czech student names (firstName, lastName) in JSON format. Example: [{"firstName": "Jan", "lastName": "Novak"}, ...]`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
 
     // Extract JSON from potential markdown code blocks
     const jsonMatch =
@@ -96,7 +69,7 @@ export class AiService {
         studentsData = JSON.parse(text);
       }
     } catch (e) {
-      console.error('Failed to parse AI response', text);
+      this.logger.error('Failed to parse AI response', text);
       return { success: false, message: 'Failed to parse AI response' };
     }
 
@@ -167,9 +140,11 @@ export class AiService {
       : `Jsi asistent pro školní informační systém. Vygeneruj text na základě pokynů.\n\nKontext: ${data.context}\nPokyn: ${data.instruction}\n\nVygenerovaný text:`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { text: response.text().trim() };
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    return { text: text.trim() };
   }
 
   async generateSchoolName(schoolType?: string): Promise<{ name: string }> {
@@ -194,10 +169,11 @@ Vrať POUZE název školy, nic jiného. Nepřidávej žádné uvozovky ani vysv�
         `;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const name = response
-      .text()
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    const name = text
       .trim()
       .replace(/^["']|["']$/g, '');
     return { name };
@@ -222,9 +198,11 @@ Formát: tabulka s číslem týdne, tématem, počtem hodin, a poznámkami k akt
 Odpověz v markdown tabulce.`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { plan: response.text().trim() };
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    return { plan: text.trim() };
   }
 
   // ─── STUDENT RECOMMENDATIONS ────────────────────────────
@@ -258,9 +236,11 @@ Vytvoř:
 Piš česky, stručně a konstruktivně.`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { recommendations: response.text().trim() };
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    return { recommendations: text.trim() };
   }
 
   // ─── CLASS PERFORMANCE ANALYSIS ─────────────────────────
@@ -289,9 +269,11 @@ Poskytni:
 Použij českou terminologii. Formátuj přehledně v markdown.`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { analysis: response.text().trim() };
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    return { analysis: text.trim() };
   }
 
   // ─── TEST GENERATION ────────────────────────────────────
@@ -330,9 +312,11 @@ Na konci uveď celkový počet bodů a klíč odpovědí.
 Formátuj v markdown.`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { test: response.text().trim() };
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    return { test: text.trim() };
   }
 
   // ─── WRITTEN TEST (PÍSEMKA) GENERATION ──────────────────
@@ -364,8 +348,10 @@ Pro každou variantu vytvoř:
 Formátuj přehledně v markdown, varianty odděl.`;
 
     const model = await this.getModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { writtenTest: response.text().trim() };
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+    return { writtenTest: text.trim() };
   }
 }
