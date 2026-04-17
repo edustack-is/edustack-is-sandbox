@@ -205,4 +205,54 @@ export class BackupService {
     fs.writeFileSync(destPath, file.buffer);
     return { filename, storage: 'LOCAL' };
   }
+
+  /** Get a backup file for download */
+  async getBackupFile(filename: string): Promise<Buffer> {
+    // 1. Try local
+    const localPath = path.join(BACKUP_DIR, filename);
+    if (fs.existsSync(localPath)) {
+      return fs.readFileSync(localPath);
+    }
+
+    // 2. Try R2 (not implemented yet for simplicity, but could be added here)
+    throw new Error('Backup file not found');
+  }
+
+  /** Restore database from a backup file */
+  async restoreBackup(filename: string): Promise<void> {
+    const localPath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Backup file ${filename} not found locally.`);
+    }
+
+    // 1. Resolve DB path (Wrangler local storage)
+    let dbPath = process.env.DATABASE_URL?.replace('file:', '');
+    if (!dbPath) {
+      const wranglerDir = path.join(
+        process.cwd(),
+        '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+      );
+      if (fs.existsSync(wranglerDir)) {
+        const dbFile = fs
+          .readdirSync(wranglerDir)
+          .find((f) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+        if (dbFile) dbPath = path.join(wranglerDir, dbFile);
+      }
+    }
+
+    if (!dbPath) {
+      throw new Error('Could not find active database file to overwrite');
+    }
+
+    this.logger.log(`Restoring system from backup: ${filename} -> ${dbPath}`);
+
+    try {
+      // 2. Overwrite active DB
+      fs.copyFileSync(localPath, dbPath);
+      this.logger.log('System restored successfully. Application might need restart to clear cache if using better-sqlite3 pooled connections.');
+    } catch (err: any) {
+      this.logger.error('Failed to restore database:', err);
+      throw new Error(`Restore failed: ${err.message}`);
+    }
+  }
 }

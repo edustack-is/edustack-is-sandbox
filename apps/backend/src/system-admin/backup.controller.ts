@@ -11,6 +11,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -43,6 +44,29 @@ export class BackupController {
   @ApiOperation({ summary: 'Seznam záloh' })
   async listBackups() {
     return this.backupService.listBackups();
+  }
+
+  @Get(':filename/download')
+  @ApiOperation({ summary: 'Stažení zálohy' })
+  async downloadBackup(
+    @Param('filename') filename: string,
+    @Res() res: any,
+  ) {
+    const buffer = await this.backupService.getBackupFile(filename);
+    res.set({
+      'Content-Type': 'application/x-sqlite3',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(buffer);
+  }
+
+  @Post(':filename/restore')
+  @ApiOperation({ summary: 'Obnovení systému ze zálohy' })
+  async restoreBackup(@Param('filename') filename: string) {
+    await this.backupService.restoreBackup(filename);
+    return {
+      message: 'System restored successfully. Please refresh the page.',
+    };
   }
 
   @Post('upload')
