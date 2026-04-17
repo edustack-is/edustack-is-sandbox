@@ -5,7 +5,7 @@ import { validatePassword } from '../lib/password-utils';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles, User, Loader2, CheckCircle2, Database, Key, Users, BookOpen,
-    GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2
+    GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2, Upload
 } from 'lucide-react';
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
@@ -29,9 +29,11 @@ export const Setup = () => {
     const [loading, setLoading] = useState(false);
 
     // ─── Seed state ─────────────────────────────────────────
-    const [seedMode, setSeedMode] = useState<'none' | 'file'>('none');
+    const [seedMode, setSeedMode] = useState<'none' | 'file' | 'upload'>('none');
     const [seedFiles, setSeedFiles] = useState<SeedFile[]>([]);
     const [selectedSeed, setSelectedSeed] = useState('');
+    const [uploadedSeedData, setUploadedSeedData] = useState<any>(null);
+    const [uploadedFileName, setUploadedFileName] = useState('');
     const [showAiKeys, setShowAiKeys] = useState(false);
     const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
     const [seedResult, setSeedResult] = useState<any>(null);
@@ -50,6 +52,25 @@ export const Setup = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadedFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const json = JSON.parse(event.target?.result as string);
+                setUploadedSeedData(json);
+                setError('');
+            } catch (err) {
+                setError(t('setup.invalid_json'));
+                setUploadedSeedData(null);
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -65,17 +86,23 @@ export const Setup = () => {
             return;
         }
 
+        if (seedMode === 'upload' && !uploadedSeedData) {
+            setError(t('setup.custom_seed_file'));
+            return;
+        }
+
         setLoading(true);
         try {
-            if (seedMode === 'file' && selectedSeed) {
+            if ((seedMode === 'file' && selectedSeed) || (seedMode === 'upload' && uploadedSeedData)) {
                 // Combined setup + seed
                 const result = await setupWithSeed({
                     ...formData,
-                    seedFilename: selectedSeed,
+                    seedFilename: seedMode === 'file' ? selectedSeed : undefined,
+                    seedData: seedMode === 'upload' ? uploadedSeedData : undefined,
                     aiKeys: hasAnyAiKey() ? aiKeys : undefined,
                 }, setupToken);
                 setSeedResult(result.seed);
-                // After 3s redirect
+                // After 4s redirect
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 4000);
@@ -245,108 +272,150 @@ export const Setup = () => {
                     </div>
 
                     {/* ─── Demo Data Card ────────────────────────── */}
-                    {seedFiles.length > 0 && (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
-                            <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                <Database className="h-5 w-5 text-violet-500" />
-                                {t('setup.demo_data_section')}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                        <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                            <Database className="h-5 w-5 text-violet-500" />
+                            {t('setup.demo_data_section')}
+                        </div>
+
+                        <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
+
+                        {/* Mode selector */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setSeedMode('none')}
+                                className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                    : 'border-gray-200 hover:border-indigo-200 text-gray-600'
+                                    }`}
+                            >
+                                {t('setup.no_demo_data')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSeedMode('file')}
+                                disabled={seedFiles.length === 0}
+                                className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
+                                    ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                    : seedFiles.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'border-gray-200 hover:border-violet-200 text-gray-600'
+                                    }`}
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                {t('setup.load_demo_data')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSeedMode('upload')}
+                                className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'upload'
+                                    ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                    : 'border-gray-200 hover:border-violet-200 text-gray-600'
+                                    }`}
+                            >
+                                <Upload className="h-4 w-4" />
+                                {t('setup.upload_custom_seed')}
+                            </button>
+                        </div>
+
+                        {/* Seed file picker (Server Files) */}
+                        {seedMode === 'file' && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="space-y-2">
+                                    {seedFiles.map((sf) => (
+                                        <label
+                                            key={sf.filename}
+                                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
+                                                ? 'border-violet-400 bg-violet-50'
+                                                : 'border-gray-200 hover:border-violet-200'
+                                                }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="seedFile"
+                                                value={sf.filename}
+                                                checked={selectedSeed === sf.filename}
+                                                onChange={() => setSelectedSeed(sf.filename)}
+                                                className="mt-1 accent-violet-500"
+                                            />
+                                            <div>
+                                                <div className="font-medium text-sm">{sf.name}</div>
+                                                {sf.description && (
+                                                    <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
+                                                )}
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
+                        )}
 
-                            <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
+                        {/* File Upload Picker */}
+                        {seedMode === 'upload' && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                        id="seed-file-upload"
+                                    />
+                                    <label
+                                        htmlFor="seed-file-upload"
+                                        className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadedSeedData
+                                            ? 'border-green-400 bg-green-50'
+                                            : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
+                                            }`}
+                                    >
+                                        <Upload className={`h-8 w-8 mb-2 ${uploadedSeedData ? 'text-green-500' : 'text-gray-400'}`} />
+                                        <span className="text-sm font-medium text-gray-700">
+                                            {uploadedFileName || t('setup.custom_seed_file')}
+                                        </span>
+                                        <span className="text-xs text-gray-500 mt-1">
+                                            {t('setup.custom_seed_help')}
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
 
-                            {/* Mode selector */}
-                            <div className="flex gap-3">
+                        {/* AI Keys (optional) - Shared for both seed modes */}
+                        {(seedMode === 'file' || seedMode === 'upload') && (
+                            <div className="border-t pt-4">
                                 <button
                                     type="button"
-                                    onClick={() => setSeedMode('none')}
-                                    className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
-                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                        : 'border-gray-200 hover:border-indigo-200 text-gray-600'
-                                        }`}
+                                    onClick={() => setShowAiKeys(!showAiKeys)}
+                                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
                                 >
-                                    {t('setup.no_demo_data')}
+                                    {showAiKeys ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                    <Key className="h-4 w-4" />
+                                    {t('setup.ai_keys_optional')}
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSeedMode('file')}
-                                    className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
-                                        ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                        : 'border-gray-200 hover:border-violet-200 text-gray-600'
-                                        }`}
-                                >
-                                    <Sparkles className="h-4 w-4" />
-                                    {t('setup.load_demo_data')}
-                                </button>
-                            </div>
 
-                            {/* Seed file picker */}
-                            {seedMode === 'file' && (
-                                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                    <div className="space-y-2">
-                                        {seedFiles.map((sf) => (
-                                            <label
-                                                key={sf.filename}
-                                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
-                                                    ? 'border-violet-400 bg-violet-50'
-                                                    : 'border-gray-200 hover:border-violet-200'
-                                                    }`}
-                                            >
+                                {showAiKeys && (
+                                    <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
+                                        {[
+                                            { key: 'geminiApiKey', label: 'Google Gemini API Key', placeholder: 'AIza...' },
+                                            { key: 'openAiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...' },
+                                            { key: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...' },
+                                        ].map(({ key, label, placeholder }) => (
+                                            <div key={key} className="space-y-1">
+                                                <label className="text-xs font-medium text-gray-600">{label}</label>
                                                 <input
-                                                    type="radio"
-                                                    name="seedFile"
-                                                    value={sf.filename}
-                                                    checked={selectedSeed === sf.filename}
-                                                    onChange={() => setSelectedSeed(sf.filename)}
-                                                    className="mt-1 accent-violet-500"
+                                                    type="password"
+                                                    placeholder={placeholder}
+                                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                                    value={(aiKeys as any)[key]}
+                                                    onChange={(e) => setAiKeys({ ...aiKeys, [key]: e.target.value })}
                                                 />
-                                                <div>
-                                                    <div className="font-medium text-sm">{sf.name}</div>
-                                                    {sf.description && (
-                                                        <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
-                                                    )}
-                                                </div>
-                                            </label>
+                                            </div>
                                         ))}
                                     </div>
-
-                                    {/* AI Keys (optional) */}
-                                    <div className="border-t pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowAiKeys(!showAiKeys)}
-                                            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-                                        >
-                                            {showAiKeys ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                            <Key className="h-4 w-4" />
-                                            {t('setup.ai_keys_optional')}
-                                        </button>
-
-                                        {showAiKeys && (
-                                            <div className="space-y-3 mt-3 animate-in slide-in-from-top-2 duration-200">
-                                                <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
-                                                {[
-                                                    { key: 'geminiApiKey', label: 'Google Gemini API Key', placeholder: 'AIza...' },
-                                                    { key: 'openAiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...' },
-                                                    { key: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...' },
-                                                ].map(({ key, label, placeholder }) => (
-                                                    <div key={key} className="space-y-1">
-                                                        <label className="text-xs font-medium text-gray-600">{label}</label>
-                                                        <input
-                                                            type="password"
-                                                            placeholder={placeholder}
-                                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                                            value={(aiKeys as any)[key]}
-                                                            onChange={(e) => setAiKeys({ ...aiKeys, [key]: e.target.value })}
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     {/* ─── Submit ─────────────────────────────────── */}
                     <button
@@ -360,12 +429,12 @@ export const Setup = () => {
                         {loading ? (
                             <>
                                 <Loader2 className="h-5 w-5 animate-spin" />
-                                {seedMode === 'file' ? t('setup.creating_with_seed') : t('setup.creating')}
+                                {(seedMode === 'file' || seedMode === 'upload') ? t('setup.creating_with_seed') : t('setup.creating')}
                             </>
                         ) : (
                             <>
-                                {seedMode === 'file' && <Sparkles className="h-5 w-5" />}
-                                {seedMode === 'file' ? t('setup.create_with_seed') : t('setup.create_button')}
+                                {(seedMode === 'file' || seedMode === 'upload') && <Sparkles className="h-5 w-5" />}
+                                {(seedMode === 'file' || seedMode === 'upload') ? t('setup.create_with_seed') : t('setup.create_button')}
                             </>
                         )}
                     </button>
