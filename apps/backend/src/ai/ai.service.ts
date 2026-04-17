@@ -12,16 +12,68 @@ export class AiService {
     private systemAdminAiService: SystemAdminAiService,
   ) {}
 
+  private cachedModel: any = null;
+
   private async getModel() {
+    if (this.cachedModel) return this.cachedModel;
+
     const apiKey = await this.systemAdminAiService.getDecryptedApiKey('google');
     if (!apiKey) {
       throw new BadRequestException(
         'Google AI API klíč není nastaven. Nastavte ho v administraci.',
       );
     }
+
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-1.5-flash-latest as primary, then try fallbacks if needed
-    return genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    let modelName = 'gemini-1.5-flash'; // Default
+
+    try {
+      // 1. Try to fetch available models to choose dynamically
+      this.logger.log('Fetching available Google AI models...');
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      );
+      const data = (await response.json()) as any;
+
+      if (data.models && Array.isArray(data.models)) {
+        const available = data.models
+          .filter((m: any) =>
+            m.supportedGenerationMethods.includes('generateContent'),
+          )
+          .map((m: any) => m.name.replace('models/', ''));
+
+        this.logger.log(`Available models: ${available.join(', ')}`);
+
+        // Priority list
+        const priorities = [
+          'gemini-1.5-flash',
+          'gemini-1.5-flash-latest',
+          'gemini-2.0-flash-exp',
+          'gemini-1.0-pro',
+          'gemini-pro',
+        ];
+
+        for (const p of priorities) {
+          if (available.includes(p)) {
+            modelName = p;
+            break;
+          }
+        }
+        
+        // If no priority match, pick any flash model, or just the first available
+        if (!priorities.includes(modelName)) {
+           modelName = available.find(n => n.includes('flash')) || available[0] || modelName;
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to list available models, using default ${modelName}: ${err.message}`,
+      );
+    }
+
+    this.logger.log(`Using AI model: ${modelName}`);
+    this.cachedModel = genAI.getGenerativeModel({ model: modelName });
+    return this.cachedModel;
   }
 
   async seedClassroom(classroomId: string, count: number = 5) {
