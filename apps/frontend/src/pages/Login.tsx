@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { login, getSsoOptions, exchangeSsoToken, getLoginHelperConfig, getLoginHelperUsers } from '../api';
+import { login, getSsoOptions, exchangeSsoToken, getLoginHelperConfig, getLoginHelperUsers, LoginHelperUser, LoginHelperConfig } from '../api';
 import { Loader2, Shield, UserCircle, ChevronRight, GraduationCap, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,8 +63,8 @@ export const Login = () => {
     const [submitting, setSubmitting] = useState(false);
 
     // ─── Login Helper state ─────────────────────────────────
-    const [helperConfig, setHelperConfig] = useState<{ enabled: boolean; defaultPassword?: string } | null>(null);
-    const [helperUsers, setHelperUsers] = useState<any[]>([]);
+    const [helperConfig, setHelperConfig] = useState<LoginHelperConfig | null>(null);
+    const [helperUsers, setHelperUsers] = useState<LoginHelperUser[]>([]);
     const [loadingHelper, setLoadingHelper] = useState(false);
 
     useEffect(() => {

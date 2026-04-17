@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n \"BE,FE,MCP,MAIL\" -c \"green,blue,yellow,magenta\" \"npm run start:dev -w backend\" \"npm run dev -w frontend\" \"npm run dev -w mcp-server\" \"npx maildev --smtp 1025 --web 1081\"",
+    "dev": "node scripts/summary.js && concurrently -n \"BE,FE,MCP,MAIL\" -c \"green,blue,yellow,magenta\" \"npm run start:dev -w backend\" \"npm run dev -w frontend\" \"npm run dev -w mcp-server\" \"npx maildev --smtp 1025 --web 1081\"",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "db:sync": "node scripts/sync-schema-provider.js",

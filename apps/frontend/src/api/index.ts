@@ -1,6 +1,32 @@
 import axios from 'axios';
 import i18n from '../i18n';
 
+export interface LoginHelperUser {
+    email: string;
+    firstName: string;
+    lastName: string;
+    memberships: Array<{ schoolName: string; role: string }>;
+}
+
+export interface LoginHelperConfig {
+    enabled: boolean;
+    defaultPassword?: string;
+}
+
+export interface SetupWithSeedPayload {
+    adminFirstName: string;
+    adminLastName: string;
+    adminEmail: string;
+    adminPassword: string;
+    seedFilename?: string;
+    seedData?: any;
+    aiKeys?: {
+        geminiApiKey?: string;
+        openAiApiKey?: string;
+        anthropicApiKey?: string;
+    };
+}
+
 export const api = axios.create({
     baseURL: '/',
     withCredentials: true,
@@ -233,8 +259,8 @@ export const getSeedFiles = async (setupToken?: string) => {
     return response.data; // Array<{ filename, name, description }>
 };
 
-export const setupWithSeed = async (data: any, setupToken?: string) => {
-    const { confirmPassword, ...payload } = data;
+export const setupWithSeed = async (data: SetupWithSeedPayload, setupToken?: string) => {
+    const { confirmPassword, ...payload } = data as any;
     const response = await api.post('/api/init/setup-with-seed', payload, {
         timeout: 60000,
         headers: setupHeaders(setupToken),
@@ -270,12 +296,12 @@ export const getSsoOptions = async (): Promise<string[]> => {
     return response.data;
 };
 
-export const getLoginHelperConfig = async (): Promise<{ enabled: boolean; defaultPassword?: string }> => {
+export const getLoginHelperConfig = async (): Promise<LoginHelperConfig> => {
     const response = await api.get('/api/auth/login-helper-config');
     return response.data;
 };
 
-export const getLoginHelperUsers = async (): Promise<any[]> => {
+export const getLoginHelperUsers = async (): Promise<LoginHelperUser[]> => {
     const response = await api.get('/api/auth/login-helper-users');
     return response.data;
 };

@@ -14,8 +14,6 @@ import {
 import {
   ApiTags,
   ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
@@ -24,16 +22,6 @@ import { validateCreateSchoolDto } from './dto/create-school.dto';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 import { SystemAdminSsoService } from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
-
-import { SuccessResponseDto } from '../common/dto/api.dto';
-import {
-  AuditLogEntryDto,
-  SchoolResponseDto,
-  SchoolUserResponseDto,
-  SsoConfigResponseDto,
-  SystemDashboardResponseDto,
-  SystemSettingsResponseDto,
-} from '../common/dto/response.dto';
 
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')

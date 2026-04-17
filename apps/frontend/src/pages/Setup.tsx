@@ -11,6 +11,20 @@ import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
 type SeedFile = { filename: string; name: string; description: string };
 
+interface SeedResult {
+    school: { id: string; name: string };
+    counts: {
+        gradeLevels: number;
+        subjects: number;
+        curriculumEntries: number;
+        staff: number;
+        students: number;
+        rooms: number;
+    };
+    defaultPassword: string;
+    summary: string;
+}
+
 export const Setup = () => {
     const { t } = useTranslation();
 
@@ -32,11 +46,11 @@ export const Setup = () => {
     const [seedMode, setSeedMode] = useState<'none' | 'file' | 'upload'>('none');
     const [seedFiles, setSeedFiles] = useState<SeedFile[]>([]);
     const [selectedSeed, setSelectedSeed] = useState('');
-    const [uploadedSeedData, setUploadedSeedData] = useState<any>(null);
+    const [uploadedSeedData, setUploadedSeedData] = useState<Record<string, any> | null>(null);
     const [uploadedFileName, setUploadedFileName] = useState('');
     const [showAiKeys, setShowAiKeys] = useState(false);
     const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
-    const [seedResult, setSeedResult] = useState<any>(null);
+    const [seedResult, setSeedResult] = useState<SeedResult | null>(null);
 
     // ─── Load seed files on mount ───────────────────────────
     useEffect(() => {
