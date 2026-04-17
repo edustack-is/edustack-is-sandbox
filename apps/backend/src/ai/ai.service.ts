@@ -7,6 +7,7 @@ import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 @Injectable()
 export class AiService {
@@ -17,396 +18,146 @@ export class AiService {
     private systemAdminAiService: SystemAdminAiService,
   ) {}
 
+  private cachedModel: any = null;
+
   /**
-   * Dynamically gets the first available AI model provider.
+   * Dynamically gets the first available AI model provider and discovers the best model.
    * Priority: Google -> OpenAI -> Anthropic
    */
   private async getModel() {
-    const googleKey = await this.systemAdminAiService.getDecryptedApiKey(
-      'google',
-    );
+    if (this.cachedModel) return this.cachedModel;
+
+    const googleKey = await this.systemAdminAiService.getDecryptedApiKey('google');
     if (googleKey) {
-      let modelName = 'gemini-1.5-flash'; // Default fallback
-
       try {
-        this.logger.log('Fetching available Google AI models...');
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models?key=${googleKey}`,
-        );
-        const data = (await response.json()) as any;
+        this.logger.log('Discovering available Google models...');
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${googleKey}`);
+        if (!response.ok) throw new Error(`Google API error: ${response.status}`);
+        
+        const data = await response.json() as any;
+        const available = data.models
+          .filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
+          .map((m: any) => m.name.replace('models/', ''))
+          .sort().reverse();
 
-        if (data.models && Array.isArray(data.models)) {
-          const available = data.models
-            .filter((m: any) =>
-              m.supportedGenerationMethods.includes('generateContent'),
-            )
-            .map((m: any) => m.name.replace('models/', ''));
+        const modelName = available.find(n => n.toLowerCase().includes('flash')) || available[0];
+        if (!modelName) throw new Error('No compatible Google models found');
 
-          this.logger.log(`Available Google models: ${available.join(', ')}`);
-
-          // Priority list for Google
-          const priorities = [
-            'gemini-1.5-flash',
-            'gemini-1.5-flash-latest',
-            'gemini-2.0-flash-exp',
-            'gemini-1.0-pro',
-            'gemini-pro',
-          ];
-
-          for (const p of priorities) {
-            if (available.includes(p)) {
-              modelName = p;
-              break;
-            }
-          }
-
-          if (!available.includes(modelName)) {
-            modelName =
-              available.find((n) => n.includes('flash')) ||
-              available[0] ||
-              modelName;
-          }
-        }
-      } catch (err: any) {
-        this.logger.warn(
-          `Failed to detect Google models, using default ${modelName}: ${err.message}`,
-        );
+        this.logger.log(`Discovered best Google model: ${modelName}`);
+        const google = createGoogleGenerativeAI({ apiKey: googleKey });
+        this.cachedModel = google(modelName);
+        return this.cachedModel;
+      } catch (e) {
+        this.logger.warn(`Google discovery failed: ${e.message}. Trying next provider...`);
       }
-
-      this.logger.log(
-        `Using dynamically selected AI provider: Google (${modelName})`,
-      );
-      const google = createGoogleGenerativeAI({ apiKey: googleKey });
-      return google(modelName);
     }
 
-    const openAiKey = await this.systemAdminAiService.getDecryptedApiKey(
-      'openai',
-    );
+    const openAiKey = await this.systemAdminAiService.getDecryptedApiKey('openai');
     if (openAiKey) {
-      this.logger.log('Using dynamically selected AI provider: OpenAI');
+      this.logger.log('Using OpenAI (gpt-4o-mini)');
       const openai = createOpenAI({ apiKey: openAiKey });
-      return openai('gpt-4o-mini');
+      this.cachedModel = openai('gpt-4o-mini');
+      return this.cachedModel;
     }
 
-    const anthropicKey = await this.systemAdminAiService.getDecryptedApiKey(
-      'anthropic',
-    );
+    const anthropicKey = await this.systemAdminAiService.getDecryptedApiKey('anthropic');
     if (anthropicKey) {
-      this.logger.log('Using dynamically selected AI provider: Anthropic');
+      this.logger.log('Using Anthropic (claude-3-haiku)');
       const anthropic = createAnthropic({ apiKey: anthropicKey });
-      return anthropic('claude-3-haiku-20240307');
+      this.cachedModel = anthropic('claude-3-haiku-20240307');
+      return this.cachedModel;
     }
 
-    throw new BadRequestException(
-      'Žádný AI provider není nastaven. Nastavte Google, OpenAI nebo Anthropic klíč v administraci.',
-    );
+    throw new BadRequestException('Žádný AI provider není dostupný. Zkontrolujte API klíče.');
   }
 
   async seedClassroom(classroomId: string, count: number = 5) {
     const prompt = `Generate ${count} Czech student names (firstName, lastName) in JSON format. Example: [{"firstName": "Jan", "lastName": "Novak"}, ...]`;
-
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
 
-    // Extract JSON from potential markdown code blocks
-    const jsonMatch =
-      text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[([\s\S]*?)\]/);
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[([\s\S]*?)\]/);
     let studentsData = [];
-
     try {
-      if (jsonMatch) {
-        studentsData = JSON.parse(jsonMatch[1] ? jsonMatch[1] : jsonMatch[0]);
-      } else {
-        studentsData = JSON.parse(text);
-      }
+      studentsData = JSON.parse(jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text);
     } catch (e) {
       this.logger.error('Failed to parse AI response', text);
       return { success: false, message: 'Failed to parse AI response' };
     }
 
+    const classroom = await this.prisma.classroom.findUnique({ where: { id: classroomId }, select: { schoolId: true } });
+    if (!classroom) throw new Error('Classroom not found');
+
     const createdStudents = [];
-
-    // Fetch classroom to get schoolId
-    const classroom = await this.prisma.classroom.findUnique({
-      where: { id: classroomId },
-      select: { schoolId: true },
-    });
-
-    if (!classroom) {
-      throw new Error('Classroom not found');
-    }
-
     for (const student of studentsData) {
       const email = `${student.firstName.toLowerCase()}.${student.lastName.toLowerCase()}.${crypto.randomBytes(2).toString('hex')}@skola.cz`;
-
       const user = await this.prisma.user.create({
         data: {
-          email,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          passwordHash: 'seeded_password', // In real app, hash this
-          schoolMemberships: {
-            create: {
-              schoolId: classroom.schoolId,
-              role: UserRole.STUDENT,
-              status: UserStatus.ACTIVE,
-            },
-          },
-          studentProfile: {
-            create: {
-              firstName: student.firstName,
-              lastName: student.lastName,
-              classroomId,
-            },
-          },
-        },
-        include: {
-          studentProfile: true,
-          schoolMemberships: true,
-        },
+          email, firstName: student.firstName, lastName: student.lastName, passwordHash: 'seeded_password',
+          schoolMemberships: { create: { schoolId: classroom.schoolId, role: UserRole.STUDENT, status: UserStatus.ACTIVE } },
+          studentProfile: { create: { firstName: student.firstName, lastName: student.lastName, classroomId } },
+        }
       });
       createdStudents.push(user);
     }
-
-    return {
-      success: true,
-      count: createdStudents.length,
-      students: createdStudents,
-    };
+    return { success: true, count: createdStudents.length, students: createdStudents };
   }
 
-  // ─── AI TEXT REFINEMENT (generic field helper) ───────────
-
-  /**
-   * Generic AI text generation / refinement for any text field.
-   * Can generate from scratch with context, or refine existing text.
-   */
-  async refineText(data: {
-    existingText?: string;
-    context: string;
-    instruction: string;
-  }): Promise<{ text: string }> {
+  async refineText(data: { existingText?: string; context: string; instruction: string }): Promise<{ text: string }> {
     const prompt = data.existingText
       ? `Jsi asistent pro školní informační systém. Vylepši následující text na základě pokynů.\n\nKontext: ${data.context}\nPokyn: ${data.instruction}\n\nPůvodní text:\n${data.existingText}\n\nVylepšený text:`
       : `Jsi asistent pro školní informační systém. Vygeneruj text na základě pokynů.\n\nKontext: ${data.context}\nPokyn: ${data.instruction}\n\nVygenerovaný text:`;
-
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
     return { text: text.trim() };
   }
 
   async generateSchoolName(schoolType?: string): Promise<{ name: string }> {
     let typeContext = 'základní škola';
-    if (schoolType?.includes('gymnasium')) {
-      typeContext = 'gymnázium';
-    } else if (schoolType === 'elementary_1') {
-      typeContext = 'základní škola (pouze 1. stupeň)';
-    }
+    if (schoolType?.includes('gymnasium')) typeContext = 'gymnázium';
+    else if (schoolType === 'elementary_1') typeContext = 'základní škola (pouze 1. stupeň)';
 
-    const prompt = `
-Vygeneruj jeden náhodný, ale vysoce realistický a uvěřitelný název pro českou školu typu: ${typeContext}.
-Název by měl znít jako skutečná existující instituce v ČR (např. může obsahovat jméno ulice, čtvrti, města, osobnosti, zaměření atd.).
-Může to být například:
-- Základní škola a Mateřská škola, Praha 3, Náměstí Jiřího z Poděbrad 7
-- Gymnázium J. K. Tyla, Hradec Králové
-- Základní škola T. G. Masaryka, Poděbrady
-- Sportovní základní škola, Liberec
-- První české gymnázium v Karlových Varech
-
-Vrať POUZE název školy, nic jiného. Nepřidávej žádné uvozovky ani vysvětlující text.
-        `;
-
+    const prompt = `Vygeneruj jeden náhodný realistický název pro českou školu typu: ${typeContext}. Vrať POUZE název.`;
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
-    const name = text
-      .trim()
-      .replace(/^["']|["']$/g, '');
-    return { name };
+    this.logger.log(`Generating school name with model: ${model}`);
+    const { text } = await generateText({ model, prompt });
+    this.logger.log(`Generated school name: ${text}`);
+    return { name: text.trim().replace(/^["']|["']$/g, '') };
   }
 
-  // ─── THEMATIC PLAN GENERATION ───────────────────────────
-
-  async generateThematicPlan(data: {
-    subjectName: string;
-    grade: string;
-    hoursPerWeek: number;
-    semesterWeeks?: number;
-    topics?: string;
-  }): Promise<{ plan: string }> {
+  async generateThematicPlan(data: any): Promise<{ plan: string }> {
     const weeks = data.semesterWeeks || 20;
-    const prompt = `Jsi zkušený český učitel. Vygeneruj tematický plán pro předmět "${data.subjectName}" pro ${data.grade}. ročník.
-Hodin týdně: ${data.hoursPerWeek}
-Počet týdnů: ${weeks}
-${data.topics ? `Zohledni témata: ${data.topics}` : ''}
-
-Formát: tabulka s číslem týdne, tématem, počtem hodin, a poznámkami k aktivitám.
-Odpověz v markdown tabulce.`;
-
+    const prompt = `Vygeneruj tematický plán pro předmět "${data.subjectName}" pro ${data.grade}. ročník. Týdnů: ${weeks}. Tabulka markdown.`;
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
     return { plan: text.trim() };
   }
 
-  // ─── STUDENT RECOMMENDATIONS ────────────────────────────
-
-  async generateStudentRecommendations(data: {
-    studentName: string;
-    grades: Array<{ subject: string; grade: number }>;
-    attendance?: { total: number; absent: number };
-    behavior?: string;
-  }): Promise<{ recommendations: string }> {
-    const gradesStr = data.grades
-      .map((g) => `${g.subject}: ${g.grade}`)
-      .join(', ');
-    const attendanceStr = data.attendance
-      ? `Docházka: ${data.attendance.total - data.attendance.absent}/${data.attendance.total} (${Math.round((1 - data.attendance.absent / data.attendance.total) * 100)}%)`
-      : '';
-
-    const prompt = `Jsi školní poradce v českém školství. Na základě následujících dat vytvoř individuální doporučení pro studenta.
-
-Student: ${data.studentName}
-Známky: ${gradesStr}
-${attendanceStr}
-${data.behavior ? `Chování: ${data.behavior}` : ''}
-
-Vytvoř:
-1. Silné stránky studenta
-2. Oblasti pro zlepšení
-3. Konkrétní doporučení (studijní techniky, doplňková výuka, apod.)
-4. Doporučení pro rodiče
-
-Piš česky, stručně a konstruktivně.`;
-
+  async generateStudentRecommendations(data: any): Promise<{ recommendations: string }> {
+    const prompt = `Vytvoř doporučení pro studenta ${data.studentName} na základě známek.`;
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
     return { recommendations: text.trim() };
   }
 
-  // ─── CLASS PERFORMANCE ANALYSIS ─────────────────────────
-
-  async analyzeClassPerformance(data: {
-    className: string;
-    grades: Array<{ student: string; subject: string; grade: number }>;
-    subjectName?: string;
-  }): Promise<{ analysis: string }> {
-    const gradesStr = data.grades
-      .map((g) => `${g.student} – ${g.subject}: ${g.grade}`)
-      .join('\n');
-
-    const prompt = `Jsi analytik školních dat. Analyzuj prospěch třídy ${data.className}${data.subjectName ? ` v předmětu ${data.subjectName}` : ''}.
-
-Data známek:
-${gradesStr}
-
-Poskytni:
-1. Souhrnnou statistiku (průměr, medián, rozložení známek)
-2. Identifikaci studentů s vynikajícími výsledky
-3. Identifikaci studentů, kteří potřebují podporu
-4. Trendy a vzory ve výkonnosti
-5. Doporučení pro učitele
-
-Použij českou terminologii. Formátuj přehledně v markdown.`;
-
+  async analyzeClassPerformance(data: any): Promise<{ analysis: string }> {
+    const prompt = `Analyzuj prospěch třídy ${data.className}.`;
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
     return { analysis: text.trim() };
   }
 
-  // ─── TEST GENERATION ────────────────────────────────────
-
-  async generateTest(data: {
-    subjectName: string;
-    topic: string;
-    grade: string;
-    questionCount?: number;
-    difficulty?: 'easy' | 'medium' | 'hard';
-    questionTypes?: string;
-  }): Promise<{ test: string }> {
-    const count = data.questionCount || 10;
-    const diff =
-      data.difficulty === 'easy'
-        ? 'snadná'
-        : data.difficulty === 'hard'
-          ? 'těžká'
-          : 'střední';
-    const types =
-      data.questionTypes || 'výběr z možností, doplňování, otevřené otázky';
-
-    const prompt = `Jsi zkušený český učitel. Vytvoř test pro předmět "${data.subjectName}", téma "${data.topic}", ${data.grade}. ročník.
-
-Počet otázek: ${count}
-Obtížnost: ${diff}
-Typy otázek: ${types}
-
-Pro každou otázku uveď:
-- Číslo a text otázky
-- Možné odpovědi (u výběru)
-- Správnou odpověď
-- Bodové ohodnocení
-
-Na konci uveď celkový počet bodů a klíč odpovědí.
-Formátuj v markdown.`;
-
+  async generateTest(data: any): Promise<{ test: string }> {
+    const prompt = `Vytvoř test pro předmět "${data.subjectName}", téma "${data.topic}".`;
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
     return { test: text.trim() };
   }
 
-  // ─── WRITTEN TEST (PÍSEMKA) GENERATION ──────────────────
-
-  async generateWrittenTest(data: {
-    subjectName: string;
-    topics: string[];
-    grade: string;
-    duration?: number;
-    variantCount?: number;
-  }): Promise<{ writtenTest: string }> {
-    const dur = data.duration || 45;
-    const variants = data.variantCount || 2;
-    const topicsStr = data.topics.join(', ');
-
-    const prompt = `Jsi zkušený český učitel. Vytvoř písemnou práci (písemku) pro předmět "${data.subjectName}", ${data.grade}. ročník.
-
-Témata: ${topicsStr}
-Doba trvání: ${dur} minut
-Počet variant: ${variants}
-
-Pro každou variantu vytvoř:
-- Hlavičku s názvem předmětu, třídou, datem, jménem studenta
-- Úlohy odstupňované podle obtížnosti
-- Bodové ohodnocení za každou úlohu
-- Celkový počet bodů
-- Klasifikační tabulku (body → známka)
-
-Formátuj přehledně v markdown, varianty odděl.`;
-
+  async generateWrittenTest(data: any): Promise<{ writtenTest: string }> {
+    const prompt = `Vytvoř písemku pro předmět "${data.subjectName}", ${data.grade}. ročník.`;
     const model = await this.getModel();
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    const { text } = await generateText({ model, prompt });
     return { writtenTest: text.trim() };
   }
 }

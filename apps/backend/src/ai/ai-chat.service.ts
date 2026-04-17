@@ -611,74 +611,86 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
   private async getModelProvider(provider: string) {
     const keys = await this.getApiKeys();
 
-    // Google models
-    if (provider.startsWith('google')) {
+    // Support dynamic IDs like 'google:gemini-1.5-flash' or legacy 'google-flash'
+    const [providerType, modelOverride] = provider.includes(':') 
+        ? provider.split(':') 
+        : [provider.split('-')[0], null];
+
+    if (providerType === 'google' || provider === 'google-flash' || provider === 'google-pro') {
       if (!keys.geminiApiKey)
         throw new ServiceUnavailableException('Gemini API key is missing.');
       const google = createGoogleGenerativeAI({ apiKey: keys.geminiApiKey });
 
-      const modelMap: Record<string, string> = {
-        google: 'gemini-2.0-flash',
-        'google-flash': 'gemini-2.0-flash',
-        'google-pro': 'gemini-2.5-pro',
-        'google-flash-lite': 'gemini-2.0-flash-lite',
-      };
-      const modelId = modelMap[provider] || 'gemini-2.0-flash';
+      let modelId = modelOverride;
+      if (!modelId) {
+          // Legacy mapping
+          const modelMap: Record<string, string> = {
+            'google-flash': 'gemini-2.0-flash',
+            'google-pro': 'gemini-1.5-pro',
+            'google': 'gemini-1.5-flash',
+          };
+          modelId = modelMap[provider] || 'gemini-1.5-flash';
+      }
+
       this.logger.log(`Using Google model: ${modelId}`);
       return google(modelId);
     }
 
-    switch (provider) {
-      case 'openai':
+    if (providerType === 'openai' || provider === 'openai') {
         if (!keys.openAiApiKey)
           throw new ServiceUnavailableException('OpenAI API key is missing.');
         const openai = createOpenAI({ apiKey: keys.openAiApiKey });
-        return openai('gpt-4o');
-
-      case 'anthropic':
-        if (!keys.anthropicApiKey)
-          throw new ServiceUnavailableException(
-            'Anthropic API key is missing.',
-          );
-        const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
-        return anthropic('claude-3-5-sonnet-20240620');
-
-      default:
-        if (!keys.geminiApiKey)
-          throw new ServiceUnavailableException('Gemini API key is missing.');
-        const google = createGoogleGenerativeAI({ apiKey: keys.geminiApiKey });
-        return google('gemini-2.0-flash');
+        return openai(modelOverride || 'gpt-4o-mini');
     }
+
+    if (providerType === 'anthropic' || provider === 'anthropic') {
+        if (!keys.anthropicApiKey)
+          throw new ServiceUnavailableException('Anthropic API key is missing.');
+        const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
+        return anthropic(modelOverride || 'claude-3-5-sonnet-20240620');
+    }
+
+    throw new ServiceUnavailableException(`Unsupported provider: ${provider}`);
   }
 
   async getAvailableProviders() {
     const keys = await this.getApiKeys();
-    const providers = [
-      {
-        id: 'google-flash',
-        name: 'Gemini 2.0 Flash',
-        enabled: !!keys.geminiApiKey,
-      },
-      {
-        id: 'google-pro',
-        name: 'Gemini 2.5 Pro',
-        enabled: !!keys.geminiApiKey,
-      },
-      {
-        id: 'google-flash-lite',
-        name: 'Gemini 2.0 Flash Lite',
-        enabled: !!keys.geminiApiKey,
-      },
-      { id: 'openai', name: 'OpenAI GPT-4o', enabled: !!keys.openAiApiKey },
-      {
-        id: 'anthropic',
-        name: 'Anthropic Claude 3.5 Sonnet',
-        enabled: !!keys.anthropicApiKey,
-      },
-    ];
-    return providers
-      .filter((p) => p.enabled)
-      .map((p) => ({ id: p.id, name: p.name }));
+    const providers: Array<{ id: string; name: string }> = [];
+
+    // 1. Discover Google Models
+    if (keys.geminiApiKey) {
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${keys.geminiApiKey}`);
+            const data = await response.json() as any;
+            if (data.models) {
+                data.models
+                    .filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
+                    .forEach((m: any) => {
+                        const shortName = m.name.replace('models/', '');
+                        providers.push({
+                            id: `google:${shortName}`,
+                            name: `Google ${m.displayName || shortName}`
+                        });
+                    });
+            }
+        } catch (e) {
+            this.logger.warn(`Failed to discover Google models: ${e.message}`);
+        }
+    }
+
+    // 2. OpenAI (Hardcoded for now as their list API is huge, but marked as available)
+    if (keys.openAiApiKey) {
+        providers.push({ id: 'openai:gpt-4o-mini', name: 'OpenAI GPT-4o Mini' });
+        providers.push({ id: 'openai:gpt-4o', name: 'OpenAI GPT-4o' });
+    }
+
+    // 3. Anthropic
+    if (keys.anthropicApiKey) {
+        providers.push({ id: 'anthropic:claude-3-5-sonnet-20240620', name: 'Anthropic Claude 3.5 Sonnet' });
+        providers.push({ id: 'anthropic:claude-3-haiku-20240307', name: 'Anthropic Claude 3 Haiku' });
+    }
+
+    return providers;
   }
 
   private async getApiKeys() {
