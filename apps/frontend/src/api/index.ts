@@ -280,17 +280,6 @@ export const restoreBackup = async (file: File, setupToken?: string) => {
     return response.data;
 };
 
-export const restoreBackup = async (file: File, setupToken?: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await api.post('/api/init/restore-backup', formData, {
-        headers: {
-            ...setupHeaders(setupToken),
-            'Content-Type': 'multipart/form-data',
-        },
-    });
-    return response.data;
-};
 export const acceptInvitation = async (payload: { token: string; password: string }) => {
     const response = await api.post('/api/auth/accept-invite', payload);
     return response.data; // { access_token: string }
