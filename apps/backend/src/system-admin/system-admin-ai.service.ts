@@ -112,6 +112,57 @@ export class SystemAdminAiService {
     }
   }
 
+  // ─── MODEL DISCOVERY & CACHING ─────────────────────────────
+
+  private googleModelsCache: { models: string[]; timestamp: number } | null =
+    null;
+  private readonly CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+  /**
+   * Dynamically fetch available Google AI models with caching.
+   * Returns a list of model IDs supporting generateContent.
+   */
+  async getDiscoverableGoogleModels(): Promise<string[]> {
+    // 1. Check Cache
+    const now = Date.now();
+    if (this.googleModelsCache && now - this.googleModelsCache.timestamp < this.CACHE_TTL) {
+      return this.googleModelsCache.models;
+    }
+
+    const apiKey = await this.getDecryptedApiKey('google');
+    if (!apiKey) return [];
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`Google API returned ${response.status}`);
+      }
+
+      const data = (await response.json()) as any;
+      if (!data.models || !Array.isArray(data.models)) {
+        throw new Error('Invalid response format');
+      }
+
+      const models = data.models
+        .filter((m: any) =>
+          m.supportedGenerationMethods.includes('generateContent'),
+        )
+        .map((m: any) => m.name.replace('models/', ''))
+        .sort()
+        .reverse();
+
+      // 2. Update Cache
+      this.googleModelsCache = { models, timestamp: now };
+      return models;
+    } catch (err: any) {
+      // If error, return empty but don't cache failure (or log it)
+      return [];
+    }
+  }
+
   // ─── AGGREGATED USAGE ───────────────────────────────────────
 
   async getAiUsage() {

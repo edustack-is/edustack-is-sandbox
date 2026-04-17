@@ -30,25 +30,27 @@ export class AiService {
     const googleKey = await this.systemAdminAiService.getDecryptedApiKey('google');
     if (googleKey) {
       try {
-        this.logger.log('Discovering available Google models...');
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${googleKey}`);
-        if (!response.ok) throw new Error(`Google API error: ${response.status}`);
-        
-        const data = await response.json() as any;
-        const available = data.models
-          .filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
-          .map((m: any) => m.name.replace('models/', ''))
-          .sort().reverse();
+        const available = await this.systemAdminAiService.getDiscoverableGoogleModels();
 
-        const modelName = available.find((n: string) => n.toLowerCase().includes('flash')) || available[0];
-        if (!modelName) throw new Error('No compatible Google models found');
+        if (available.length === 0) {
+          throw new Error('No compatible Google models found or API key is invalid.');
+        }
+
+        this.logger.log(`Supported Google models found: ${available.join(', ')}`);
+
+        // Strategy: Prefer 'flash' models (fastest/cheapest), then any first available
+        const modelName =
+          available.find((n: string) => n.toLowerCase().includes('flash')) ||
+          available[0];
 
         this.logger.log(`Discovered best Google model: ${modelName}`);
         const google = createGoogleGenerativeAI({ apiKey: googleKey });
         this.cachedModel = google(modelName);
         return this.cachedModel;
       } catch (e) {
-        this.logger.warn(`Google discovery failed: ${e.message}. Trying next provider...`);
+        this.logger.warn(
+          `Google discovery failed: ${e.message}. Trying next provider...`,
+        );
       }
     }
 

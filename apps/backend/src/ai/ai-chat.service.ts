@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { EventSource } from 'eventsource';
+import { SystemAdminAiService } from '../system-admin/system-admin-ai.service';
 
 // ─── Role-based system instructions ─────────────────────────────
 
@@ -43,6 +44,7 @@ export class AiChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoService: CryptoService,
+    private readonly systemAdminAiService: SystemAdminAiService,
   ) {
     if (process.env.NODE_ENV !== 'test') {
       this.initializeMcp().catch((err) =>
@@ -612,31 +614,40 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     const keys = await this.getApiKeys();
 
     // Support dynamic IDs like 'google:gemini-1.5-flash' or legacy 'google-flash'
-    const [providerType, modelOverride] = provider.includes(':') 
-        ? provider.split(':') 
-        : [provider.split('-')[0], null];
+    const [providerType, modelOverride] = provider.includes(':')
+      ? provider.split(':')
+      : [provider.split('-')[0], null];
 
-    if (providerType === 'google' || provider === 'google-flash' || provider === 'google-pro') {
+    if (
+      providerType === 'google' ||
+      provider === 'google-flash' ||
+      provider === 'google-pro'
+    ) {
       if (!keys.geminiApiKey)
         throw new ServiceUnavailableException('Gemini API key is missing.');
       const google = createGoogleGenerativeAI({ apiKey: keys.geminiApiKey });
 
       let modelId = modelOverride;
       if (!modelId) {
-          // Legacy mapping
-          const modelMap: Record<string, string> = {
-            'google-flash': 'gemini-2.0-flash',
-            'google-pro': 'gemini-1.5-pro',
-            'google': 'gemini-1.5-flash',
-          };
-          modelId = modelMap[provider] || 'gemini-1.5-flash';
+        // Dynamic discovery for legacy/default calls
+        const available =
+          await this.systemAdminAiService.getDiscoverableGoogleModels();
+        modelId =
+          available.find((n) => n.toLowerCase().includes('flash')) ||
+          available[0];
+
+        if (!modelId) {
+          throw new ServiceUnavailableException(
+            'No compatible Google models found for this API key.',
+          );
+        }
       }
 
       this.logger.log(`Using Google model: ${modelId}`);
       return google(modelId);
     }
 
-    if (providerType === 'openai' || provider === 'openai') {
+    if (providerType === 'openai') {
         if (!keys.openAiApiKey)
           throw new ServiceUnavailableException('OpenAI API key is missing.');
         const openai = createOpenAI({ apiKey: keys.openAiApiKey });
@@ -660,19 +671,13 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     // 1. Discover Google Models
     if (keys.geminiApiKey) {
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${keys.geminiApiKey}`);
-            const data = await response.json() as any;
-            if (data.models) {
-                data.models
-                    .filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
-                    .forEach((m: any) => {
-                        const shortName = m.name.replace('models/', '');
-                        providers.push({
-                            id: `google:${shortName}`,
-                            name: `Google ${m.displayName || shortName}`
-                        });
-                    });
-            }
+            const available = await this.systemAdminAiService.getDiscoverableGoogleModels();
+            available.forEach((modelId) => {
+                providers.push({
+                    id: `google:${modelId}`,
+                    name: `Google ${modelId}`
+                });
+            });
         } catch (e) {
             this.logger.warn(`Failed to discover Google models: ${e.message}`);
         }
