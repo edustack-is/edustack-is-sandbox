@@ -9,7 +9,8 @@ const chalk = {
   gray: (s) => `\x1b[90m${s}\x1b[0m`,
 };
 
-console.log(`
+const printSummary = () => {
+  console.log(`
 ${chalk.bold(chalk.cyan('🚀 EduStack IS – Development environment summary'))}
 ${chalk.gray('───────────────────────────────────────────────────')}
 
@@ -22,3 +23,14 @@ ${chalk.gray('──────────────────────
 
 ${chalk.gray('───────────────────────────────────────────────────')}
 `);
+};
+
+// Check for --delay flag
+const delayArg = process.argv.find(arg => arg.startsWith('--delay='));
+const delay = delayArg ? parseInt(delayArg.split('=')[1], 10) : 0;
+
+if (delay > 0) {
+  setTimeout(printSummary, delay);
+} else {
+  printSummary();
+}
