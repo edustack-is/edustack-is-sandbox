@@ -55,6 +55,7 @@ export const Setup = () => {
     const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
     const [seedResult, setSeedResult] = useState<SeedResult | null>(null);
     const [restoreSuccess, setRestoreSuccess] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // ─── Load seed files on mount ───────────────────────────
     useEffect(() => {
@@ -113,6 +114,40 @@ export const Setup = () => {
             setError(err.response?.data?.message || 'Restore failed');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // ─── Drag and Drop handlers ─────────────────────────────
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setIsDragging(true);
+        } else if (e.type === "dragleave") {
+            setIsDragging(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent, type: 'json' | 'sqlite') => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+
+        if (type === 'json') {
+            if (!file.name.endsWith('.json')) {
+                setError(t('setup.invalid_file_type', 'Soubor musí být ve formátu JSON.'));
+                return;
+            }
+            handleFileUpload({ target: { files: [file] } } as any);
+        } else {
+            if (!file.name.endsWith('.sqlite') && !file.name.endsWith('.db')) {
+                setError(t('setup.invalid_file_type_sqlite', 'Soubor musí být ve formátu .sqlite nebo .db.'));
+                return;
+            }
+            handleBackupUpload({ target: { files: [file] } } as any);
         }
     };
 
@@ -325,12 +360,18 @@ export const Setup = () => {
                                 />
                                 <label
                                     htmlFor="backup-file-upload"
-                                    className={`flex flex-col items-center justify-center w-full p-10 border-2 border-dashed rounded-xl cursor-pointer transition-all ${backupFile
-                                        ? 'border-green-400 bg-green-50'
-                                        : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
+                                    onDragEnter={handleDrag}
+                                    onDragLeave={handleDrag}
+                                    onDragOver={handleDrag}
+                                    onDrop={(e) => handleDrop(e, 'sqlite')}
+                                    className={`flex flex-col items-center justify-center w-full p-10 border-2 border-dashed rounded-xl cursor-pointer transition-all ${isDragging
+                                        ? 'border-indigo-500 bg-indigo-50 shadow-inner'
+                                        : backupFile
+                                            ? 'border-green-400 bg-green-50'
+                                            : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
                                         }`}
                                 >
-                                    <Database className={`h-12 w-12 mb-3 ${backupFile ? 'text-green-500' : 'text-gray-400'}`} />
+                                    <Database className={`h-12 w-12 mb-3 ${isDragging ? 'text-indigo-500 animate-bounce' : backupFile ? 'text-green-500' : 'text-gray-400'}`} />
                                     <span className="text-sm font-medium text-gray-700 text-center">
                                         {backupFileName || t('setup.select_backup_file', 'Vyberte soubor zálohy (.sqlite)')}
                                     </span>
@@ -524,12 +565,18 @@ export const Setup = () => {
                                             />
                                             <label
                                                 htmlFor="seed-file-upload"
-                                                className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadedSeedData
-                                                    ? 'border-green-400 bg-green-50'
-                                                    : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
+                                                onDragEnter={handleDrag}
+                                                onDragLeave={handleDrag}
+                                                onDragOver={handleDrag}
+                                                onDrop={(e) => handleDrop(e, 'json')}
+                                                className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${isDragging
+                                                    ? 'border-indigo-500 bg-indigo-50 shadow-inner'
+                                                    : uploadedSeedData
+                                                        ? 'border-green-400 bg-green-50'
+                                                        : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
                                                     }`}
                                             >
-                                                <Upload className={`h-8 w-8 mb-2 ${uploadedSeedData ? 'text-green-500' : 'text-gray-400'}`} />
+                                                <Upload className={`h-8 w-8 mb-2 ${isDragging ? 'text-indigo-500 animate-bounce' : uploadedSeedData ? 'text-green-500' : 'text-gray-400'}`} />
                                                 <span className="text-sm font-medium text-gray-700">
                                                     {uploadedFileName || t('setup.custom_seed_file')}
                                                 </span>
@@ -537,8 +584,7 @@ export const Setup = () => {
                                                     {t('setup.custom_seed_help')}
                                                 </span>
                                             </label>
-                                        </div>
-                                    </div>
+                                        </div>                                    </div>
                                 )}
 
                                 {(seedMode === 'file' || seedMode === 'upload') && (
