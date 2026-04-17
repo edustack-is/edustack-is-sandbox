@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type SeedFile = { filename: string; name: string; description: string };
 
@@ -67,47 +68,74 @@ export const Setup = () => {
                 if (files.length > 0) setSelectedSeed(files[0].filename);
             })
             .catch(() => { /* no seed files available */ });
+    }, [setupToken]);
+
+    // ─── Robust Global Drag & Drop ──────────────────────────
+    useEffect(() => {
+        const onDragOver = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+        };
+
+        const onDragEnter = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter.current++;
+            if (dragCounter.current === 1) {
+                setIsDragging(true);
+            }
+        };
+
+        const onDragLeave = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter.current--;
+            if (dragCounter.current === 0) {
+                setIsDragging(false);
+            }
+        };
+
+        const onDrop = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            dragCounter.current = 0;
+
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                handleDroppedFile(file);
+            }
+        };
+
+        window.addEventListener('dragover', onDragOver);
+        window.addEventListener('dragenter', onDragEnter);
+        window.addEventListener('dragleave', onDragLeave);
+        window.addEventListener('drop', onDrop);
+
+        return () => {
+            window.removeEventListener('dragover', onDragOver);
+            window.removeEventListener('dragenter', onDragEnter);
+            window.removeEventListener('dragleave', onDragLeave);
+            window.removeEventListener('drop', onDrop);
+        };
     }, []);
 
-    // ─── Drag and Drop handlers ─────────────────────────────
-    const handleDragEnter = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    };
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'copy';
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Check if we are really leaving the container
-        if (e.relatedTarget === null || !e.currentTarget.contains(e.relatedTarget as Node)) {
-            setIsDragging(false);
-        }
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        const file = e.dataTransfer?.files?.[0];
-        if (!file) return;
-
-        if (file.name.toLowerCase().endsWith('.json')) {
+    const handleDroppedFile = (file: File) => {
+        const name = file.name.toLowerCase();
+        if (name.endsWith('.json')) {
             setSeedMode('upload');
             processJsonFile(file);
-        } else if (file.name.toLowerCase().endsWith('.sqlite') || file.name.toLowerCase().endsWith('.db')) {
+            toast.success(t('setup.json_detected', 'Detekován JSON dataset'));
+        } else if (name.endsWith('.sqlite') || name.endsWith('.db')) {
             setSeedMode('restore');
             processSqliteFile(file);
+            toast.success(t('setup.sqlite_detected', 'Detekována SQLite záloha'));
         } else {
-            setError(t('setup.invalid_file_type', 'Nepodporovaný typ souboru. Použijte .json nebo .sqlite.'));
+            toast.error(t('setup.invalid_file_type', 'Nepodporovaný typ souboru. Použijte .json nebo .sqlite.'));
         }
     };
 
@@ -295,16 +323,10 @@ export const Setup = () => {
 
     // ─── Main setup form ────────────────────────────────────
     return (
-        <div 
-            className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden"
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-        >
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden">
             {/* ─── Global Drag Overlay ───────────────────────── */}
             {isDragging && (
-                <div className="fixed inset-0 z-[100] bg-indigo-600/30 backdrop-blur-md pointer-events-none flex items-center justify-center border-[16px] border-white/30 m-4 rounded-[40px] animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] bg-indigo-600/40 backdrop-blur-md pointer-events-none flex items-center justify-center border-[16px] border-white/30 m-4 rounded-[40px] animate-in fade-in duration-300">
                     <div className="bg-white p-12 rounded-3xl shadow-2xl flex flex-col items-center gap-6 scale-in-center">
                         <div className="w-24 h-24 rounded-full bg-indigo-50 flex items-center justify-center">
                             <Upload className="h-12 w-12 text-indigo-600 animate-bounce" />
