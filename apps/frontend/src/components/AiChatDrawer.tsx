@@ -105,12 +105,9 @@ export function AiChatDrawer() {
                 const available = await getAvailableProviders();
                 setProviders(available);
 
-                // Set default if current selection is not available, or just default to first
+                // Always select the first available provider from the list
                 if (available.length > 0) {
-                    // If previously selected is not in list, reset to first
-                    if (!available.find(p => p.id === selectedProvider)) {
-                        setSelectedProvider(available[0].id);
-                    }
+                    setSelectedProvider(available[0].id);
                 }
             } catch (err) {
                 console.error('Failed to fetch AI providers', err);
