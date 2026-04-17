@@ -116,7 +116,6 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 | F053 | Deaktivace/suspendování uživatele | ✅ | Suspend/reactivate tlačítka v tabulce |
 | F054 | Export uživatelů (CSV/Excel) | ✅ | CSV export s BOM pro Excel |
 | F055 | Fotogalerie třídy | ❌ | |
-| F056 | Hromadný import z XML (Bakaláři formát) | ❌ | |
 
 ---
 
