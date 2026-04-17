@@ -290,7 +290,7 @@ ${truncated}`,
         extractedCode: es.code,
         existingId: match?.id || null,
         existingName: match?.name || null,
-        action: match ? 'match' : 'create',
+        action: (match ? 'match' : 'create') as 'match' | 'create',
       };
     });
 
@@ -304,7 +304,7 @@ ${truncated}`,
         gradeLevel: gl,
         existingId: match?.id || null,
         existingName: match?.name || null,
-        action: match ? 'match' : 'create',
+        action: (match ? 'match' : 'create') as 'match' | 'create',
       };
     });
 
