@@ -19,21 +19,42 @@ import "./tools/grading.js";
 
 // Store transports by session ID
 const transports = new Map<string, SSEServerTransport>();
+let currentTransport: SSEServerTransport | null = null;
 
 app.get("/sse", async (req, res) => {
-    console.log("New SSE connection");
+    console.log("New SSE connection requested");
+    
+    // Close existing transport if any
+    if (currentTransport) {
+        console.log("Closing existing transport to allow new connection");
+        try {
+            await server.close();
+        } catch (e) {
+            // Ignore close errors
+        }
+    }
+
     const transport = new SSEServerTransport("/message", res);
     const sessionId = transport.sessionId;
     transports.set(sessionId, transport);
+    currentTransport = transport;
+    
     console.log(`SSE session started: ${sessionId}`);
 
     // Clean up on disconnect
     res.on("close", () => {
         console.log(`SSE session closed: ${sessionId}`);
         transports.delete(sessionId);
+        if (currentTransport === transport) {
+            currentTransport = null;
+        }
     });
 
-    await server.connect(transport);
+    try {
+        await server.connect(transport);
+    } catch (err: any) {
+        console.error("Failed to connect transport to MCP server:", err);
+    }
 });
 
 app.post("/message", async (req, res) => {
