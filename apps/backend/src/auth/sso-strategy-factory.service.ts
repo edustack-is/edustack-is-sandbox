@@ -51,7 +51,15 @@ export class SsoStrategyFactoryService implements OnModuleInit {
 
     for (const [service, keys] of Object.entries(grouped)) {
       try {
-        this.registerStrategy(service, keys as Record<string, string>);
+        // Strip 'sso_' prefix if present (backward compatibility for old seeds)
+        const normalizedService = service.startsWith('sso_')
+          ? service.substring(4)
+          : service;
+
+        this.registerStrategy(
+          normalizedService,
+          keys as Record<string, string>,
+        );
       } catch (err: any) {
         this.logger.error(
           `Failed to register ${service} strategy: ${err.message}`,
