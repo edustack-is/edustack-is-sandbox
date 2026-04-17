@@ -23,16 +23,9 @@
 
 ### 1. Konfigurace
 
-Aplikace vyžaduje nastavení proměnných prostředí. Pro usnadnění jsou připraveny vzory v každé části monorepa:
+Aplikace používá jeden společný soubor s proměnnými prostředí v kořenu projektu.
 
-1.  **Backend:** `apps/backend/.env` (vytvořte kopii z `.env.example`)
-2.  **MCP Server:** `apps/mcp-server/.env` (vytvořte kopii z `.env.example`)
-3.  **Root:** `.env` (vytvořte kopii z `.env.example` - slouží pro globální skripty)
-
-Rychlá příprava všech souborů:
 ```bash
-cp apps/backend/.env.example apps/backend/.env
-cp apps/mcp-server/.env.example apps/mcp-server/.env
 cp .env.example .env
 ```
 

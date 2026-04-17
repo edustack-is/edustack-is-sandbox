@@ -40,6 +40,7 @@ import { GdprModule } from './gdpr/gdpr.module';
     }),
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', '../../.env'],
     }),
     ThrottlerModule.forRoot([
       {

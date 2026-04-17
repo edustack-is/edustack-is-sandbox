@@ -4,8 +4,18 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { server } from "./server.js";
 import { databasePath } from "./db.js";
+import path from "path";
+import fs from "fs";
 
-dotenv.config();
+// Find and load root .env
+const envPaths = [".env", "../../.env"];
+for (const p of envPaths) {
+    const fullPath = path.resolve(process.cwd(), p);
+    if (fs.existsSync(fullPath)) {
+        dotenv.config({ path: fullPath });
+        break;
+    }
+}
 
 const app = express();
 app.use(cors());

@@ -5,7 +5,15 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 
-dotenv.config();
+// Find and load root .env
+const envPaths = [".env", "../../.env"];
+for (const p of envPaths) {
+    const fullPath = path.resolve(process.cwd(), p);
+    if (fs.existsSync(fullPath)) {
+        dotenv.config({ path: fullPath });
+        break;
+    }
+}
 
 let dbPath = process.env.DATABASE_URL?.replace("file:", "");
 
