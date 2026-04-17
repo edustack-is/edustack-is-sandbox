@@ -110,12 +110,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
               const user = self.cls.get('user');
               const isSystemAdmin = user?.isSystemAdmin;
 
+              const unsafeArgs = (args as any) || {};
+
               if (
                 isolatedModels.includes(model) &&
                 schoolId &&
                 !isSystemAdmin
               ) {
-                const unsafeArgs = (args as any) || {};
                 if (operation === 'create') {
                   unsafeArgs.data = { ...unsafeArgs.data, schoolId };
                 } else if (
@@ -134,39 +135,34 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
               }
 
               // 3. Execute Query
-              const result = await query(args);
+              let result;
+              try {
+                result = await query(unsafeArgs);
+              } catch (err: any) {
+                if (err.message?.includes('parameter values')) {
+                   console.error(`❌ PRISMA PARAMETER OVERFLOW in ${model}.${operation}`);
+                }
+                throw err;
+              }
 
               // 4. Async Audit Log (Non-blocking)
               if (
-                ['create', 'update', 'delete'].includes(operation) &&
+                ['create', 'update', 'delete', 'upsert'].includes(operation) &&
                 user?.id
               ) {
-                self
-                  .logAudit(
-                    user.id,
-                    operation.toUpperCase(),
-                    model,
-                    (result as any)?.id,
-                    null,
-                    result,
-                  )
-                  .catch((e) =>
-                    self.logger.warn(`Audit log failed: ${e.message}`),
-                  );
+                const entityId = (result as any)?.id || (unsafeArgs as any)?.where?.id || 'unknown';
+                self.logAudit(
+                  user.id,
+                  operation.toUpperCase(),
+                  model,
+                  String(entityId),
+                  null,
+                  operation === 'update' ? null : unsafeArgs,
+                ).catch(e => self.logger.warn(`Audit log async task failed: ${e.message}`));
               }
 
               return result;
             } catch (error) {
-              if (error.message?.includes('Too many parameter values')) {
-                console.error('\n' + '!'.repeat(60));
-                console.error(
-                  `❌ PRISMA PARAMETER OVERFLOW in ${model}.${operation}`,
-                );
-                console.error(
-                  `Args: ${JSON.stringify(args).substring(0, 500)}...`,
-                );
-                console.error('!'.repeat(60) + '\n');
-              }
               throw error;
             }
           },
@@ -175,7 +171,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     });
 
     // Replace methods on this instance to use the extended client
-    // This is safer than a Proxy for NestJS injection
     const clientProto = Object.getPrototypeOf(this.client);
     for (const key of Object.keys(this.client)) {
       if (typeof this.client[key] === 'object' && key !== 'constructor') {
@@ -195,20 +190,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     const scrub = (data: any) => {
       if (!data) return null;
 
-      // Handle massive data objects (e.g. from bulk operations)
-      // SQLite has a limit on parameters, and large JSONs can cause issues in D1
+      // Handle massive data objects
       if (typeof data === 'object' && !Array.isArray(data)) {
         const keys = Object.keys(data);
         if (keys.length > 100) {
-          return {
-            _summary: `Object too large to log (${keys.length} keys)`,
-            _keys: keys.slice(0, 10),
-          };
+          return { _summary: `Object too large to log (${keys.length} keys)`, _keys: keys.slice(0, 10) };
         }
       }
 
       const sensitive = ['passwordHash', 'token', 'invitationToken'];
-      const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data }; // Limit array size in logs
+      const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data };
       if (!Array.isArray(copy)) {
         sensitive.forEach((field) => {
           if (field in copy) delete copy[field];
@@ -229,18 +220,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         },
       });
     } catch (e) {
-      // Fallback for extreme cases: log only metadata
-      this.logger.warn(`Audit log detail failed, falling back to metadata only: ${e.message}`);
-      await (this as any).auditLog.create({
-        data: {
-          action,
-          entity,
-          entityId: String(entityId || 'unknown'),
-          actorId,
-          oldValues: { error: 'data_too_large' },
-          newValues: { error: 'data_too_large' },
-        },
-      }).catch(() => {}); // Ultimate silence if even this fails
+      this.logger.warn(`Audit log failed: ${e.message}`);
     }
   }
 }

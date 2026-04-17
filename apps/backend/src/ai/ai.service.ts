@@ -20,10 +20,8 @@ export class AiService {
       );
     }
     const genAI = new GoogleGenerativeAI(apiKey);
-    return genAI.getGenerativeModel(
-      { model: 'gemini-1.5-flash' },
-      { apiVersion: 'v1' },
-    );
+    // Use gemini-1.5-flash-latest as primary, then try fallbacks if needed
+    return genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
   }
 
   async seedClassroom(classroomId: string, count: number = 5) {
