@@ -255,6 +255,7 @@
         "DEPUTY": "Deputy",
         "PRINCIPAL": "Principal",
         "ADMIN": "Admin",
+        "SYSTEM_ADMIN": "System Administrator",
         "PARENT": "Parent"
     },
     "statuses": {

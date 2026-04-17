@@ -255,6 +255,7 @@
         "DEPUTY": "Zástupce",
         "PRINCIPAL": "Ředitel",
         "ADMIN": "Správce",
+        "SYSTEM_ADMIN": "Systémový administrátor",
         "PARENT": "Rodič"
     },
     "statuses": {

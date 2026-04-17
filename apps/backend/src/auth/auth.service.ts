@@ -763,14 +763,24 @@ export class AuthService {
       const isMatch = await bcrypt.compare(defaultPassword, user.passwordHash);
 
       if (isMatch) {
+        const memberships = user.schoolMemberships.map((m) => ({
+          schoolName: m.school.name,
+          role: m.role as string,
+        }));
+
+        // Add virtual "System" membership for system admins
+        if (user.isSystemAdmin) {
+          memberships.unshift({
+            schoolName: 'System',
+            role: 'SYSTEM_ADMIN',
+          });
+        }
+
         helperUsers.push({
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          memberships: user.schoolMemberships.map((m) => ({
-            schoolName: m.school.name,
-            role: m.role as string,
-          })),
+          memberships,
         });
       }
 
