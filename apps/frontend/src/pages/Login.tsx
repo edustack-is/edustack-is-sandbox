@@ -67,6 +67,21 @@ export const Login = () => {
     const [helperUsers, setHelperUsers] = useState<LoginHelperUser[]>([]);
     const [loadingHelper, setLoadingHelper] = useState(false);
 
+    // ─── Filter state ───────────────────────────────────────
+    const [selectedSchool, setSelectedSchool] = useState<string>('all');
+    const [selectedRole, setSelectedRole] = useState<string>('all');
+
+    // Compute unique options for filters
+    const uniqueSchools = Array.from(new Set(helperUsers.flatMap(u => u.memberships.map(m => m.schoolName)))).sort();
+    const uniqueRoles = Array.from(new Set(helperUsers.flatMap(u => u.memberships.map(m => m.role)))).sort();
+
+    // Apply filters
+    const filteredUsers = helperUsers.filter(user => {
+        const matchesSchool = selectedSchool === 'all' || user.memberships.some(m => m.schoolName === selectedSchool);
+        const matchesRole = selectedRole === 'all' || user.memberships.some(m => m.role === selectedRole);
+        return matchesSchool && matchesRole;
+    });
+
     useEffect(() => {
         // Handle SSO callback — token is in an httpOnly cookie, exchange it
         const ssoOk = searchParams.get('sso');
@@ -325,9 +340,29 @@ export const Login = () => {
                             <p className="text-sm text-gray-500 mt-1">
                                 {t('login.helper_desc')}
                             </p>
-                        </div>
+                            </div>
 
-                        <div className="flex-1 overflow-y-auto max-h-[450px] pr-2 custom-scrollbar">
+                            {/* ─── Filters ───────────────────────────────── */}
+                            <div className="grid grid-cols-2 gap-2 mb-4">
+                            <select
+                                value={selectedSchool}
+                                onChange={(e) => setSelectedSchool(e.target.value)}
+                                className="text-xs border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                                <option value="all">{t('login.filter_all_schools', 'Všechny školy')}</option>
+                                {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <select
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                className="text-xs border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                                <option value="all">{t('login.filter_all_roles', 'Všechny role')}</option>
+                                {uniqueRoles.map(r => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
+                            </select>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto max-h-[450px] pr-2 custom-scrollbar">
                             {loadingHelper ? (
                                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-gray-400">
                                     <Loader2 className="h-8 w-8 animate-spin" />
@@ -335,7 +370,7 @@ export const Login = () => {
                                 </div>
                             ) : (
                                 <div className="grid gap-3">
-                                    {helperUsers.map((user) => (
+                                    {filteredUsers.map((user) => (
                                         <button
                                             key={user.email}
                                             type="button"
@@ -368,10 +403,14 @@ export const Login = () => {
                                             </div>
                                         </button>
                                     ))}
+                                    {filteredUsers.length === 0 && !loadingHelper && (
+                                        <div className="text-center py-10 text-gray-400 text-sm">
+                                            {t('login.no_users_found', 'Žádní uživatelé nevyhovují filtrům')}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
-                    </div>
+                            </div>                    </div>
                 )}
             </div>
         </div>

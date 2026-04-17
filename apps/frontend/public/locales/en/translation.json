@@ -75,7 +75,10 @@
         "helper_title": "Quick Login",
         "helper_subtitle": "Available demo accounts",
         "helper_desc": "Choose a user for instant login (demo purposes only).",
-        "helper_searching": "Searching for demo accounts..."
+        "helper_searching": "Searching for demo accounts...",
+        "filter_all_schools": "All schools",
+        "filter_all_roles": "All roles",
+        "no_users_found": "No users match the filters"
     },
     "forgot_password": {
         "title": "Forgot Password",

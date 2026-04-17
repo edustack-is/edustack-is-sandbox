@@ -75,7 +75,10 @@
         "helper_title": "Rychlé přihlášení",
         "helper_subtitle": "Dostupné demo účty",
         "helper_desc": "Vyberte si uživatele pro okamžité přihlášení (pouze pro demo účely).",
-        "helper_searching": "Hledám demo účty..."
+        "helper_searching": "Hledám demo účty...",
+        "filter_all_schools": "Všechny školy",
+        "filter_all_roles": "Všechny role",
+        "no_users_found": "Žádní uživatelé nevyhovují filtrům"
     },
     "forgot_password": {
         "title": "Zapomenuté heslo",
