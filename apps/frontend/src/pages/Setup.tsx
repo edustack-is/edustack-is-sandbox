@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { setupApp, getSeedFiles, setupWithSeed, restoreBackup } from '../api';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
@@ -9,6 +9,7 @@ import {
     History, FileCode
 } from 'lucide-react';
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
+import { cn } from '@/lib/utils';
 
 type SeedFile = { filename: string; name: string; description: string };
 
@@ -28,6 +29,7 @@ interface SeedResult {
 
 export const Setup = () => {
     const { t } = useTranslation();
+    const dragCounter = useRef(0);
 
     // ─── Read setup token from URL ?token=... ────────────────
     const setupToken = new URLSearchParams(window.location.search).get('token') || undefined;
@@ -67,14 +69,65 @@ export const Setup = () => {
             .catch(() => { /* no seed files available */ });
     }, []);
 
+    // ─── Global Drag Listeners ─────────────────────────────
+    useEffect(() => {
+        const handleWindowDragEnter = (e: DragEvent) => {
+            e.preventDefault();
+            dragCounter.current++;
+            if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+                setIsDragging(true);
+            }
+        };
+
+        const handleWindowDragLeave = (e: DragEvent) => {
+            e.preventDefault();
+            dragCounter.current--;
+            if (dragCounter.current === 0) {
+                setIsDragging(false);
+            }
+        };
+
+        const handleWindowDragOver = (e: DragEvent) => {
+            e.preventDefault();
+        };
+
+        const handleWindowDrop = (e: DragEvent) => {
+            e.preventDefault();
+            setIsDragging(false);
+            dragCounter.current = 0;
+
+            const file = e.dataTransfer?.files?.[0];
+            if (!file) return;
+
+            if (file.name.endsWith('.json')) {
+                setSeedMode('upload');
+                processJsonFile(file);
+            } else if (file.name.endsWith('.sqlite') || file.name.endsWith('.db')) {
+                setSeedMode('restore');
+                processSqliteFile(file);
+            } else {
+                setError(t('setup.invalid_file_type', 'Nepodporovaný typ souboru. Použijte .json nebo .sqlite.'));
+            }
+        };
+
+        window.addEventListener('dragenter', handleWindowDragEnter);
+        window.addEventListener('dragleave', handleWindowDragLeave);
+        window.addEventListener('dragover', handleWindowDragOver);
+        window.addEventListener('drop', handleWindowDrop);
+
+        return () => {
+            window.removeEventListener('dragenter', handleWindowDragEnter);
+            window.removeEventListener('dragleave', handleWindowDragLeave);
+            window.removeEventListener('dragover', handleWindowDragOver);
+            window.removeEventListener('drop', handleWindowDrop);
+        };
+    }, [t]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    const processJsonFile = (file: File) => {
         setUploadedFileName(file.name);
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -90,12 +143,20 @@ export const Setup = () => {
         reader.readAsText(file);
     };
 
-    const handleBackupUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const processSqliteFile = (file: File) => {
         setBackupFile(file);
         setBackupFileName(file.name);
         setError('');
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processJsonFile(file);
+    };
+
+    const handleBackupUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processSqliteFile(file);
     };
 
     const handleRestore = async (e: React.FormEvent) => {
@@ -114,40 +175,6 @@ export const Setup = () => {
             setError(err.response?.data?.message || 'Restore failed');
         } finally {
             setLoading(false);
-        }
-    };
-
-    // ─── Drag and Drop handlers ─────────────────────────────
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setIsDragging(true);
-        } else if (e.type === "dragleave") {
-            setIsDragging(false);
-        }
-    };
-
-    const handleDrop = (e: React.DragEvent, type: 'json' | 'sqlite') => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        const file = e.dataTransfer.files?.[0];
-        if (!file) return;
-
-        if (type === 'json') {
-            if (!file.name.endsWith('.json')) {
-                setError(t('setup.invalid_file_type', 'Soubor musí být ve formátu JSON.'));
-                return;
-            }
-            handleFileUpload({ target: { files: [file] } } as any);
-        } else {
-            if (!file.name.endsWith('.sqlite') && !file.name.endsWith('.db')) {
-                setError(t('setup.invalid_file_type_sqlite', 'Soubor musí být ve formátu .sqlite nebo .db.'));
-                return;
-            }
-            handleBackupUpload({ target: { files: [file] } } as any);
         }
     };
 
@@ -206,7 +233,7 @@ export const Setup = () => {
     if (restoreSuccess) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
-                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-green-100">
+                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-green-100 animate-in zoom-in duration-300">
                     <div className="text-center space-y-3">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
                             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -228,7 +255,7 @@ export const Setup = () => {
     if (seedResult) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
-                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-indigo-100">
+                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-indigo-100 animate-in zoom-in duration-300">
                     <div className="text-center space-y-3">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
                             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -280,40 +307,25 @@ export const Setup = () => {
 
     // ─── Main setup form ────────────────────────────────────
     return (
-        <div 
-            className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative"
-            onDragEnter={handleDrag}
-            onDragOver={handleDrag}
-            onDragLeave={(e) => {
-                // Only stop dragging if we leave the window entirely
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setIsDragging(false);
-                }
-            }}
-        >
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden">
             {/* ─── Global Drag Overlay ───────────────────────── */}
             {isDragging && (
-                <div className="fixed inset-0 z-50 bg-indigo-600/20 backdrop-blur-sm pointer-events-none flex items-center justify-center border-8 border-indigo-500 border-dashed m-4 rounded-3xl animate-in fade-in duration-300">
-                    <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
-                        <Upload className="h-16 w-16 text-indigo-500 animate-bounce" />
-                        <h2 className="text-2xl font-bold text-gray-900">{t('setup.drop_to_upload', 'Pustťe soubor pro nahrání')}</h2>
-                        <p className="text-gray-500 text-center">{t('setup.drop_hint', 'Automaticky rozpoznáme JSON dataset nebo SQLite zálohu.')}</p>
+                <div className="fixed inset-0 z-[100] bg-indigo-600/30 backdrop-blur-md pointer-events-none flex items-center justify-center border-[16px] border-white/30 m-4 rounded-[40px] animate-in fade-in duration-300">
+                    <div className="bg-white p-12 rounded-3xl shadow-2xl flex flex-col items-center gap-6 scale-in-center">
+                        <div className="w-24 h-24 rounded-full bg-indigo-50 flex items-center justify-center">
+                            <Upload className="h-12 w-12 text-indigo-600 animate-bounce" />
+                        </div>
+                        <div className="text-center space-y-2">
+                            <h2 className="text-3xl font-black text-gray-900">{t('setup.drop_to_upload', 'Pustťe pro nahrání')}</h2>
+                            <p className="text-gray-500 font-medium">{t('setup.drop_hint', 'Automaticky rozpoznáme JSON dataset nebo SQLite zálohu.')}</p>
+                        </div>
                     </div>
                 </div>
             )}
 
             <InlineLanguageSwitcher />
-            <div className="max-w-xl w-full space-y-6" onDrop={(e) => {
-                // Auto-switch mode based on dropped file extension
-                const file = e.dataTransfer.files?.[0];
-                if (file?.name.endsWith('.json')) {
-                    setSeedMode('upload');
-                    handleDrop(e, 'json');
-                } else if (file?.name.endsWith('.sqlite') || file?.name.endsWith('.db')) {
-                    setSeedMode('restore');
-                    handleDrop(e, 'sqlite');
-                }
-            }}>
+            
+            <div className={cn("max-w-xl w-full space-y-6 transition-all duration-500", isDragging && "blur-sm scale-[0.98] opacity-50")}>
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 mx-auto shadow-lg">
@@ -324,7 +336,7 @@ export const Setup = () => {
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 text-center">
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 text-center animate-in shake duration-500">
                         {error}
                     </div>
                 )}
@@ -341,10 +353,10 @@ export const Setup = () => {
                             <button
                                 type="button"
                                 onClick={() => setSeedMode('none')}
-                                className={`p-4 rounded-xl border-2 text-left transition-all ${seedMode !== 'restore'
-                                    ? 'border-indigo-500 bg-indigo-50/50 shadow-sm'
-                                    : 'border-gray-100 hover:border-indigo-200'
-                                    }`}
+                                className={cn(
+                                    "p-4 rounded-xl border-2 text-left transition-all",
+                                    seedMode !== 'restore' ? "border-indigo-500 bg-indigo-50/50 shadow-sm" : "border-gray-100 hover:border-indigo-200"
+                                )}
                             >
                                 <div className="flex items-center gap-2 font-bold text-indigo-900 mb-1">
                                     <Sparkles className="h-4 w-4" />
@@ -357,10 +369,10 @@ export const Setup = () => {
                             <button
                                 type="button"
                                 onClick={() => setSeedMode('restore')}
-                                className={`p-4 rounded-xl border-2 text-left transition-all ${seedMode === 'restore'
-                                    ? 'border-violet-500 bg-violet-50/50 shadow-sm'
-                                    : 'border-gray-100 hover:border-violet-200'
-                                    }`}
+                                className={cn(
+                                    "p-4 rounded-xl border-2 text-left transition-all",
+                                    seedMode === 'restore' ? "border-violet-500 bg-violet-50/50 shadow-sm" : "border-gray-100 hover:border-violet-200"
+                                )}
                             >
                                 <div className="flex items-center gap-2 font-bold text-violet-900 mb-1">
                                     <History className="h-4 w-4" />
@@ -375,7 +387,7 @@ export const Setup = () => {
 
                     {seedMode === 'restore' ? (
                         /* ─── RESTORE FORM ────────────────────────── */
-                        <form onSubmit={handleRestore} className="bg-white rounded-2xl shadow-sm border border-violet-200 p-6 space-y-6">
+                        <form onSubmit={handleRestore} className="bg-white rounded-2xl shadow-sm border border-violet-200 p-6 space-y-6 animate-in slide-in-from-right duration-300">
                             <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                                 <FileCode className="h-5 w-5 text-violet-500" />
                                 {t('setup.restore_section', 'Nahrání zálohy')}
@@ -391,18 +403,12 @@ export const Setup = () => {
                                 />
                                 <label
                                     htmlFor="backup-file-upload"
-                                    onDragEnter={handleDrag}
-                                    onDragLeave={handleDrag}
-                                    onDragOver={handleDrag}
-                                    onDrop={(e) => handleDrop(e, 'sqlite')}
-                                    className={`flex flex-col items-center justify-center w-full p-10 border-2 border-dashed rounded-xl cursor-pointer transition-all ${isDragging
-                                        ? 'border-indigo-500 bg-indigo-50 shadow-inner'
-                                        : backupFile
-                                            ? 'border-green-400 bg-green-50'
-                                            : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
-                                        }`}
+                                    className={cn(
+                                        "flex flex-col items-center justify-center w-full p-10 border-2 border-dashed rounded-xl cursor-pointer transition-all",
+                                        backupFile ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-violet-400 hover:bg-violet-50"
+                                    )}
                                 >
-                                    <Database className={`h-12 w-12 mb-3 ${isDragging ? 'text-indigo-500 animate-bounce' : backupFile ? 'text-green-500' : 'text-gray-400'}`} />
+                                    <Database className={cn("h-12 w-12 mb-3", backupFile ? "text-green-500" : "text-gray-400")} />
                                     <span className="text-sm font-medium text-gray-700 text-center">
                                         {backupFileName || t('setup.select_backup_file', 'Vyberte soubor zálohy (.sqlite)')}
                                     </span>
@@ -435,7 +441,7 @@ export const Setup = () => {
                         </form>
                     ) : (
                         /* ─── REGULAR SETUP FORM ───────────────────── */
-                        <form className="space-y-6" onSubmit={handleSubmit}>
+                        <form className="space-y-6 animate-in slide-in-from-left duration-300" onSubmit={handleSubmit}>
                             {/* Admin Account Card */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
                                 <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
@@ -521,10 +527,10 @@ export const Setup = () => {
                                     <button
                                         type="button"
                                         onClick={() => setSeedMode('none')}
-                                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
-                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                            : 'border-gray-200 hover:border-indigo-200 text-gray-600'
-                                            }`}
+                                        className={cn(
+                                            "p-3 rounded-xl border-2 text-sm font-medium transition-all",
+                                            seedMode === 'none' ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 hover:border-indigo-200 text-gray-600"
+                                        )}
                                     >
                                         {t('setup.no_demo_data')}
                                     </button>
@@ -532,10 +538,10 @@ export const Setup = () => {
                                         type="button"
                                         onClick={() => setSeedMode('file')}
                                         disabled={seedFiles.length === 0}
-                                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
-                                            ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                            : seedFiles.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'border-gray-200 hover:border-violet-200 text-gray-600'
-                                            }`}
+                                        className={cn(
+                                            "p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2",
+                                            seedMode === 'file' ? "border-violet-500 bg-violet-50 text-violet-700" : (seedFiles.length === 0 ? "opacity-50 grayscale cursor-not-allowed" : "border-gray-200 hover:border-violet-200 text-gray-600")
+                                        )}
                                     >
                                         <Sparkles className="h-4 w-4" />
                                         {t('setup.load_demo_data')}
@@ -543,10 +549,10 @@ export const Setup = () => {
                                     <button
                                         type="button"
                                         onClick={() => setSeedMode('upload')}
-                                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'upload'
-                                            ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                            : 'border-gray-200 hover:border-violet-200 text-gray-600'
-                                            }`}
+                                        className={cn(
+                                            "p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2",
+                                            seedMode === 'upload' ? "border-violet-500 bg-violet-50 text-violet-700" : "border-gray-200 hover:border-violet-200 text-gray-600"
+                                        )}
                                     >
                                         <Upload className="h-4 w-4" />
                                         {t('setup.upload_custom_seed')}
@@ -559,10 +565,10 @@ export const Setup = () => {
                                             {seedFiles.map((sf) => (
                                                 <label
                                                     key={sf.filename}
-                                                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
-                                                        ? 'border-violet-400 bg-violet-50'
-                                                        : 'border-gray-200 hover:border-violet-200'
-                                                        }`}
+                                                    className={cn(
+                                                        "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                                        selectedSeed === sf.filename ? "border-violet-400 bg-violet-50" : "border-gray-200 hover:border-violet-200"
+                                                    )}
                                                 >
                                                     <input
                                                         type="radio"
@@ -596,18 +602,12 @@ export const Setup = () => {
                                             />
                                             <label
                                                 htmlFor="seed-file-upload"
-                                                onDragEnter={handleDrag}
-                                                onDragLeave={handleDrag}
-                                                onDragOver={handleDrag}
-                                                onDrop={(e) => handleDrop(e, 'json')}
-                                                className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${isDragging
-                                                    ? 'border-indigo-500 bg-indigo-50 shadow-inner'
-                                                    : uploadedSeedData
-                                                        ? 'border-green-400 bg-green-50'
-                                                        : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
-                                                    }`}
+                                                className={cn(
+                                                    "flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all",
+                                                    uploadedSeedData ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-violet-400 hover:bg-violet-50"
+                                                )}
                                             >
-                                                <Upload className={`h-8 w-8 mb-2 ${isDragging ? 'text-indigo-500 animate-bounce' : uploadedSeedData ? 'text-green-500' : 'text-gray-400'}`} />
+                                                <Upload className={cn("h-8 w-8 mb-2", uploadedSeedData ? "text-green-500" : "text-gray-400")} />
                                                 <span className="text-sm font-medium text-gray-700">
                                                     {uploadedFileName || t('setup.custom_seed_file')}
                                                 </span>
@@ -615,7 +615,8 @@ export const Setup = () => {
                                                     {t('setup.custom_seed_help')}
                                                 </span>
                                             </label>
-                                        </div>                                    </div>
+                                        </div>
+                                    </div>
                                 )}
 
                                 {(seedMode === 'file' || seedMode === 'upload') && (

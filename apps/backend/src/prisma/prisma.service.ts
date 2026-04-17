@@ -6,15 +6,15 @@ import { ClsService } from 'nestjs-cls';
 export class PrismaService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger(PrismaService.name);
   
-  // Use a dedicated property for the extended client to avoid cyclic prototype issues
-  public client: any;
+  // The "real" extended client. We use this for all operations.
+  private _client: any;
 
   constructor(
     private readonly cls: ClsService,
     @Inject('CLOUDFLARE_DB') private readonly d1: any,
   ) {
     super(PrismaService.getOptions(d1));
-    this.client = this; // Default to base client
+    this._client = this; // Default to base client
   }
 
   private static getOptions(d1: any) {
@@ -61,7 +61,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     const self = this;
     
     // Create the extended client
-    this.client = this.$extends({
+    this._client = this.$extends({
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
@@ -100,57 +100,33 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       },
     });
 
-    // We MUST NOT try to copy properties from the Proxy back to the instance
-    // Instead, we ensure this service instance proxies key methods to the extended client
-    // For specific models, NestJS uses property access (e.g. this.prisma.user)
-    // We can use a Proxy on the service itself or manually map models.
+    // Replace model properties on THIS service instance to point to the EXTENDED client
+    // This allows services to use 'this.prisma.user' and get the isolation logic.
+    const models = [
+      'user', 'school', 'schoolMembership', 'classroom', 'subject', 'subjectInstance',
+      'grade', 'studentProfile', 'studentEnrollment', 'teacherProfile', 'academicYear',
+      'semester', 'scheduleEvent', 'substitution', 'message', 'conversation',
+      'notification', 'auditLog', 'systemSecret', 'systemLog', 'aiTokenUsage',
+      'timeSlot', 'thematicPlan', 'teachingMaterial', 'lessonPlan', 'schoolEvent',
+      'behaviorGrade', 'competencyGrade', 'competency', 'educationalMeasure',
+      'commissionExam', 'gradingDeadline', 'reportCard', 'classBookEntry',
+      'teacherSignature', 'room', 'building', 'scheduleSnapshot', 'absenceExcuse'
+    ];
+
+    for (const modelName of models) {
+      if ((this._client as any)[modelName]) {
+        (this as any)[modelName] = (this._client as any)[modelName];
+      }
+    }
   }
 
-  // Model accessors that use the extended client
-  get user() { return this.client.user; }
-  get school() { return this.client.school; }
-  get schoolMembership() { return this.client.schoolMembership; }
-  get classroom() { return this.client.classroom; }
-  get subject() { return this.client.subject; }
-  get subjectInstance() { return this.client.subjectInstance; }
-  get grade() { return this.client.grade; }
-  get studentProfile() { return this.client.studentProfile; }
-  get studentEnrollment() { return this.client.studentEnrollment; }
-  get teacherProfile() { return this.client.teacherProfile; }
-  get academicYear() { return this.client.academicYear; }
-  get semester() { return this.client.semester; }
-  get scheduleEvent() { return this.client.scheduleEvent; }
-  get substitution() { return this.client.substitution; }
-  get message() { return this.client.message; }
-  get conversation() { return this.client.conversation; }
-  get notification() { return this.client.notification; }
-  get auditLog() { return this.client.auditLog; }
-  get systemSecret() { return this.client.systemSecret; }
-  get systemLog() { return this.client.systemLog; }
-  get aiTokenUsage() { return this.client.aiTokenUsage; }
-  get timeSlot() { return this.client.timeSlot; }
-  get thematicPlan() { return this.client.thematicPlan; }
-  get teachingMaterial() { return this.client.teachingMaterial; }
-  get lessonPlan() { return this.client.lessonPlan; }
-  get schoolEvent() { return this.client.schoolEvent; }
-  get behaviorGrade() { return this.client.behaviorGrade; }
-  get competencyGrade() { return this.client.competencyGrade; }
-  get competency() { return this.client.competency; }
-  get educationalMeasure() { return this.client.educationalMeasure; }
-  get commissionExam() { return this.client.commissionExam; }
-  get gradingDeadline() { return this.client.gradingDeadline; }
-  get reportCard() { return this.client.reportCard; }
-  get classBookEntry() { return this.client.classBookEntry; }
-  get teacherSignature() { return this.client.teacherSignature; }
-  get room() { return this.client.room; }
-  get building() { return this.client.building; }
-  get scheduleSnapshot() { return this.client.scheduleSnapshot; }
-  get absenceExcuse() { return this.client.absenceExcuse; }
-
-  // Global methods
-  override $queryRaw(query: any, ...values: any[]) { return this.client.$queryRaw(query, ...values); }
-  override $executeRaw(query: any, ...values: any[]) { return this.client.$executeRaw(query, ...values); }
-  override $transaction(arg: any, options?: any) { return this.client.$transaction(arg, options); }
+  // Override global methods to use the extended client
+  // We use direct delegation without "override" keyword for some to avoid cyclic issues in some TS versions
+  // but $transaction is tricky with Proxies.
+  
+  get $transaction() { return this._client.$transaction; }
+  get $queryRaw() { return this._client.$queryRaw; }
+  get $executeRaw() { return this._client.$executeRaw; }
 
   private async logAudit(actorId: string, action: string, entity: string, entityId: string, args: any) {
     const scrub = (data: any) => {
@@ -169,7 +145,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     };
 
     try {
-      await this.client.auditLog.create({
+      // Use the internal extended client directly to avoid re-triggering middleware
+      await this._client.auditLog.create({
         data: {
           action,
           entity,
