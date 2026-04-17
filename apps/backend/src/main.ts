@@ -341,7 +341,10 @@ async function bootstrap() {
     SwaggerModule.setup('/api/docs', app, document);
   }
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port, '127.0.0.1');
+  const logger = new Logger('Bootstrap');
+  logger.log(`Backend API is running on: http://127.0.0.1:${port}`);
 
   // ─── Auto-seed (docker-compose.demo.yml) ─────────────────────
   if (process.env.AUTO_SEED === 'true') {
