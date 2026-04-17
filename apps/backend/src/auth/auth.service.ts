@@ -742,9 +742,14 @@ export class AuthService {
     }
 
     const defaultPassword = 'Heslo123!';
+    const allowedRoles = (
+      process.env.LOGIN_HELPER_ROLES ||
+      'SYSTEM_ADMIN,ADMIN,TEACHER,DEPUTY,PRINCIPAL,STUDENT,PARENT'
+    )
+      .split(',')
+      .map((r) => r.trim().toUpperCase());
 
     // Fetch all active users with their memberships and schools
-    // We filter by password hash in-memory since bcrypt salts are random
     const users = await this.prisma.user.findMany({
       where: { deletedAt: null },
       include: {
@@ -758,33 +763,35 @@ export class AuthService {
     for (const user of users) {
       if (!user.passwordHash) continue;
 
-      // Fast path: many seeded users will have identical hashes if seeded in same batch
-      // but to be 100% sure we must compare
       const isMatch = await bcrypt.compare(defaultPassword, user.passwordHash);
 
       if (isMatch) {
-        const memberships = user.schoolMemberships.map((m) => ({
-          schoolName: m.school.name,
-          role: m.role as string,
-        }));
+        let memberships = user.schoolMemberships
+          .filter((m) => allowedRoles.includes(m.role.toUpperCase()))
+          .map((m) => ({
+            schoolName: m.school.name,
+            role: m.role as string,
+          }));
 
         // Add virtual "System" membership for system admins
-        if (user.isSystemAdmin) {
+        if (user.isSystemAdmin && allowedRoles.includes('SYSTEM_ADMIN')) {
           memberships.unshift({
             schoolName: 'System',
             role: 'SYSTEM_ADMIN',
           });
         }
 
-        helperUsers.push({
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          memberships,
-        });
+        // Only add user if they have at least one allowed membership
+        if (memberships.length > 0) {
+          helperUsers.push({
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            memberships,
+          });
+        }
       }
 
-      // Limit to first 50 matching users for performance/UI
       if (helperUsers.length >= 50) break;
     }
 
