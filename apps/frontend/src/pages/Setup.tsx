@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { setupApp, getSeedFiles, setupWithSeed } from '../api';
+import { setupApp, getSeedFiles, setupWithSeed, restoreBackup } from '../api';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles, User, Loader2, CheckCircle2, Database, Key, Users, BookOpen,
-    GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2, Upload
+    GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2, Upload,
+    History, FileCode
 } from 'lucide-react';
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
@@ -43,14 +44,17 @@ export const Setup = () => {
     const [loading, setLoading] = useState(false);
 
     // ─── Seed state ─────────────────────────────────────────
-    const [seedMode, setSeedMode] = useState<'none' | 'file' | 'upload'>('none');
+    const [seedMode, setSeedMode] = useState<'none' | 'file' | 'upload' | 'restore'>('none');
     const [seedFiles, setSeedFiles] = useState<SeedFile[]>([]);
     const [selectedSeed, setSelectedSeed] = useState('');
     const [uploadedSeedData, setUploadedSeedData] = useState<Record<string, any> | null>(null);
     const [uploadedFileName, setUploadedFileName] = useState('');
+    const [backupFile, setBackupFile] = useState<File | null>(null);
+    const [backupFileName, setBackupFileName] = useState('');
     const [showAiKeys, setShowAiKeys] = useState(false);
     const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
     const [seedResult, setSeedResult] = useState<SeedResult | null>(null);
+    const [restoreSuccess, setRestoreSuccess] = useState(false);
 
     // ─── Load seed files on mount ───────────────────────────
     useEffect(() => {
@@ -78,11 +82,38 @@ export const Setup = () => {
                 setUploadedSeedData(json);
                 setError('');
             } catch (err) {
-                setError(t('setup.invalid_json'));
+                setError(t('setup.invalid_json', 'Neplatný JSON soubor.'));
                 setUploadedSeedData(null);
             }
         };
         reader.readAsText(file);
+    };
+
+    const handleBackupUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setBackupFile(file);
+        setBackupFileName(file.name);
+        setError('');
+    };
+
+    const handleRestore = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!backupFile) return;
+
+        setLoading(true);
+        setError('');
+        try {
+            await restoreBackup(backupFile, setupToken);
+            setRestoreSuccess(true);
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 3000);
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Restore failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -108,7 +139,6 @@ export const Setup = () => {
         setLoading(true);
         try {
             if ((seedMode === 'file' && selectedSeed) || (seedMode === 'upload' && uploadedSeedData)) {
-                // Combined setup + seed
                 const result = await setupWithSeed({
                     ...formData,
                     seedFilename: seedMode === 'file' ? selectedSeed : undefined,
@@ -116,7 +146,6 @@ export const Setup = () => {
                     aiKeys: hasAnyAiKey() ? aiKeys : undefined,
                 }, setupToken);
                 setSeedResult(result.seed);
-                // After 4s redirect
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 4000);
@@ -138,7 +167,29 @@ export const Setup = () => {
 
     const hasAnyAiKey = () => aiKeys.geminiApiKey || aiKeys.openAiApiKey || aiKeys.anthropicApiKey;
 
-    // ─── Seed completed ─────────────────────────────────────
+    // ─── Seed/Restore completed ─────────────────────────────
+    if (restoreSuccess) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
+                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-green-100">
+                    <div className="text-center space-y-3">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
+                            <CheckCircle2 className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900">{t('setup.restore_complete', 'Obnova dokončena!')}</h2>
+                        <p className="text-muted-foreground">{t('setup.restore_complete_desc', 'Databáze byla úspěšně obnovena ze zálohy. Přesměrování na přihlášení...')}</p>
+                    </div>
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t('setup.redirecting')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (seedResult) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
@@ -212,247 +263,344 @@ export const Setup = () => {
                     </div>
                 )}
 
-                <form className="space-y-6" onSubmit={handleSubmit}>
-                    {/* ─── Admin Account Card ────────────────────── */}
+                <div className="space-y-6">
+                    {/* ─── Mode Selector ────────────────────────── */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
                         <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                            <User className="h-5 w-5 text-indigo-500" />
-                            {t('setup.admin_section')}
+                            <Layers className="h-5 w-5 text-indigo-500" />
+                            {t('setup.mode_section', 'Metoda instalace')}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">{t('setup.first_name')}</label>
-                                <input
-                                    id="adminFirstName"
-                                    name="adminFirstName"
-                                    type="text"
-                                    required
-                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                    value={formData.adminFirstName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">{t('setup.last_name')}</label>
-                                <input
-                                    id="adminLastName"
-                                    name="adminLastName"
-                                    type="text"
-                                    required
-                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                    value={formData.adminLastName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">{t('setup.admin_email')}</label>
-                            <input
-                                id="adminEmail"
-                                name="adminEmail"
-                                type="email"
-                                required
-                                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                value={formData.adminEmail}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700">{t('setup.password')}</label>
-                                <PasswordInput
-                                    id="adminPassword"
-                                    name="adminPassword"
-                                    required
-                                    value={formData.adminPassword}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">{t('setup.confirm_password')}</label>
-                                <PasswordInput
-                                    id="confirmPassword"
-                                    name="confirmPassword"
-                                    required
-                                    showStrength={false}
-                                    value={formData.confirmPassword}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ─── Demo Data Card ────────────────────────── */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
-                        <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                            <Database className="h-5 w-5 text-violet-500" />
-                            {t('setup.demo_data_section')}
-                        </div>
-
-                        <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
-
-                        {/* Mode selector */}
-                        <div className="grid grid-cols-3 gap-2">
                             <button
                                 type="button"
                                 onClick={() => setSeedMode('none')}
-                                className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                    : 'border-gray-200 hover:border-indigo-200 text-gray-600'
+                                className={`p-4 rounded-xl border-2 text-left transition-all ${seedMode !== 'restore'
+                                    ? 'border-indigo-500 bg-indigo-50/50 shadow-sm'
+                                    : 'border-gray-100 hover:border-indigo-200'
                                     }`}
                             >
-                                {t('setup.no_demo_data')}
+                                <div className="flex items-center gap-2 font-bold text-indigo-900 mb-1">
+                                    <Sparkles className="h-4 w-4" />
+                                    {t('setup.mode_new', 'Nová instalace')}
+                                </div>
+                                <div className="text-xs text-indigo-600/70">
+                                    {t('setup.mode_new_desc', 'Vytvořit prázdný systém nebo načíst demo data.')}
+                                </div>
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setSeedMode('file')}
-                                disabled={seedFiles.length === 0}
-                                className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
-                                    ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                    : seedFiles.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'border-gray-200 hover:border-violet-200 text-gray-600'
+                                onClick={() => setSeedMode('restore')}
+                                className={`p-4 rounded-xl border-2 text-left transition-all ${seedMode === 'restore'
+                                    ? 'border-violet-500 bg-violet-50/50 shadow-sm'
+                                    : 'border-gray-100 hover:border-violet-200'
                                     }`}
                             >
-                                <Sparkles className="h-4 w-4" />
-                                {t('setup.load_demo_data')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSeedMode('upload')}
-                                className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'upload'
-                                    ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                    : 'border-gray-200 hover:border-violet-200 text-gray-600'
-                                    }`}
-                            >
-                                <Upload className="h-4 w-4" />
-                                {t('setup.upload_custom_seed')}
+                                <div className="flex items-center gap-2 font-bold text-violet-900 mb-1">
+                                    <History className="h-4 w-4" />
+                                    {t('setup.mode_restore', 'Obnovit ze zálohy')}
+                                </div>
+                                <div className="text-xs text-violet-600/70">
+                                    {t('setup.mode_restore_desc', 'Nahrát existující databázi (.sqlite).')}
+                                </div>
                             </button>
                         </div>
+                    </div>
 
-                        {/* Seed file picker (Server Files) */}
-                        {seedMode === 'file' && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="space-y-2">
-                                    {seedFiles.map((sf) => (
-                                        <label
-                                            key={sf.filename}
-                                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
-                                                ? 'border-violet-400 bg-violet-50'
-                                                : 'border-gray-200 hover:border-violet-200'
-                                                }`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="seedFile"
-                                                value={sf.filename}
-                                                checked={selectedSeed === sf.filename}
-                                                onChange={() => setSelectedSeed(sf.filename)}
-                                                className="mt-1 accent-violet-500"
-                                            />
-                                            <div>
-                                                <div className="font-medium text-sm">{sf.name}</div>
-                                                {sf.description && (
-                                                    <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
-                                                )}
-                                            </div>
-                                        </label>
-                                    ))}
+                    {seedMode === 'restore' ? (
+                        /* ─── RESTORE FORM ────────────────────────── */
+                        <form onSubmit={handleRestore} className="bg-white rounded-2xl shadow-sm border border-violet-200 p-6 space-y-6">
+                            <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                <FileCode className="h-5 w-5 text-violet-500" />
+                                {t('setup.restore_section', 'Nahrání zálohy')}
+                            </div>
+
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept=".sqlite,.db"
+                                    onChange={handleBackupUpload}
+                                    className="hidden"
+                                    id="backup-file-upload"
+                                />
+                                <label
+                                    htmlFor="backup-file-upload"
+                                    className={`flex flex-col items-center justify-center w-full p-10 border-2 border-dashed rounded-xl cursor-pointer transition-all ${backupFile
+                                        ? 'border-green-400 bg-green-50'
+                                        : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
+                                        }`}
+                                >
+                                    <Database className={`h-12 w-12 mb-3 ${backupFile ? 'text-green-500' : 'text-gray-400'}`} />
+                                    <span className="text-sm font-medium text-gray-700 text-center">
+                                        {backupFileName || t('setup.select_backup_file', 'Vyberte soubor zálohy (.sqlite)')}
+                                    </span>
+                                    <span className="text-xs text-gray-500 mt-2 text-center max-w-[300px]">
+                                        {t('setup.restore_warning', 'Upozornění: Tato akce přepíše aktuální databázi daty ze zálohy.')}
+                                    </span>
+                                </label>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading || !backupFile}
+                                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
+                                    bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 
+                                    disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        {t('setup.restoring', 'Obnovuji systém...')}
+                                    </>
+                                ) : (
+                                    <>
+                                        <History className="h-5 w-5" />
+                                        {t('setup.restore_button', 'Obnovit systém ze zálohy')}
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    ) : (
+                        /* ─── REGULAR SETUP FORM ───────────────────── */
+                        <form className="space-y-6" onSubmit={handleSubmit}>
+                            {/* Admin Account Card */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                                <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                    <User className="h-5 w-5 text-indigo-500" />
+                                    {t('setup.admin_section')}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">{t('setup.first_name')}</label>
+                                        <input
+                                            id="adminFirstName"
+                                            name="adminFirstName"
+                                            type="text"
+                                            required
+                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                            value={formData.adminFirstName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">{t('setup.last_name')}</label>
+                                        <input
+                                            id="adminLastName"
+                                            name="adminLastName"
+                                            type="text"
+                                            required
+                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                            value={formData.adminLastName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">{t('setup.admin_email')}</label>
+                                    <input
+                                        id="adminEmail"
+                                        name="adminEmail"
+                                        type="email"
+                                        required
+                                        className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                        value={formData.adminEmail}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700">{t('setup.password')}</label>
+                                        <PasswordInput
+                                            id="adminPassword"
+                                            name="adminPassword"
+                                            required
+                                            value={formData.adminPassword}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">{t('setup.confirm_password')}</label>
+                                        <PasswordInput
+                                            id="confirmPassword"
+                                            name="confirmPassword"
+                                            required
+                                            showStrength={false}
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        )}
 
-                        {/* File Upload Picker */}
-                        {seedMode === 'upload' && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="relative">
-                                    <input
-                                        type="file"
-                                        accept=".json"
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                        id="seed-file-upload"
-                                    />
-                                    <label
-                                        htmlFor="seed-file-upload"
-                                        className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadedSeedData
-                                            ? 'border-green-400 bg-green-50'
-                                            : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
+                            {/* Demo Data Card */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                                <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                    <Database className="h-5 w-5 text-violet-500" />
+                                    {t('setup.demo_data_section')}
+                                </div>
+
+                                <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeedMode('none')}
+                                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
+                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                            : 'border-gray-200 hover:border-indigo-200 text-gray-600'
                                             }`}
                                     >
-                                        <Upload className={`h-8 w-8 mb-2 ${uploadedSeedData ? 'text-green-500' : 'text-gray-400'}`} />
-                                        <span className="text-sm font-medium text-gray-700">
-                                            {uploadedFileName || t('setup.custom_seed_file')}
-                                        </span>
-                                        <span className="text-xs text-gray-500 mt-1">
-                                            {t('setup.custom_seed_help')}
-                                        </span>
-                                    </label>
+                                        {t('setup.no_demo_data')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeedMode('file')}
+                                        disabled={seedFiles.length === 0}
+                                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
+                                            ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                            : seedFiles.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'border-gray-200 hover:border-violet-200 text-gray-600'
+                                            }`}
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                        {t('setup.load_demo_data')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeedMode('upload')}
+                                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'upload'
+                                            ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                            : 'border-gray-200 hover:border-violet-200 text-gray-600'
+                                            }`}
+                                    >
+                                        <Upload className="h-4 w-4" />
+                                        {t('setup.upload_custom_seed')}
+                                    </button>
                                 </div>
-                            </div>
-                        )}
 
-                        {/* AI Keys (optional) - Shared for both seed modes */}
-                        {(seedMode === 'file' || seedMode === 'upload') && (
-                            <div className="border-t pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAiKeys(!showAiKeys)}
-                                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-                                >
-                                    {showAiKeys ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                    <Key className="h-4 w-4" />
-                                    {t('setup.ai_keys_optional')}
-                                </button>
+                                {seedMode === 'file' && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="space-y-2">
+                                            {seedFiles.map((sf) => (
+                                                <label
+                                                    key={sf.filename}
+                                                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
+                                                        ? 'border-violet-400 bg-violet-50'
+                                                        : 'border-gray-200 hover:border-violet-200'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="seedFile"
+                                                        value={sf.filename}
+                                                        checked={selectedSeed === sf.filename}
+                                                        onChange={() => setSelectedSeed(sf.filename)}
+                                                        className="mt-1 accent-violet-500"
+                                                    />
+                                                    <div>
+                                                        <div className="font-medium text-sm">{sf.name}</div>
+                                                        {sf.description && (
+                                                            <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
-                                {showAiKeys && (
-                                    <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
-                                        {[
-                                            { key: 'geminiApiKey', label: 'Google Gemini API Key', placeholder: 'AIza...' },
-                                            { key: 'openAiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...' },
-                                            { key: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...' },
-                                        ].map(({ key, label, placeholder }) => (
-                                            <div key={key} className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-600">{label}</label>
-                                                <input
-                                                    type="password"
-                                                    placeholder={placeholder}
-                                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                                    value={(aiKeys as any)[key]}
-                                                    onChange={(e) => setAiKeys({ ...aiKeys, [key]: e.target.value })}
-                                                />
+                                {seedMode === 'upload' && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept=".json"
+                                                onChange={handleFileUpload}
+                                                className="hidden"
+                                                id="seed-file-upload"
+                                            />
+                                            <label
+                                                htmlFor="seed-file-upload"
+                                                className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadedSeedData
+                                                    ? 'border-green-400 bg-green-50'
+                                                    : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50'
+                                                    }`}
+                                            >
+                                                <Upload className={`h-8 w-8 mb-2 ${uploadedSeedData ? 'text-green-500' : 'text-gray-400'}`} />
+                                                <span className="text-sm font-medium text-gray-700">
+                                                    {uploadedFileName || t('setup.custom_seed_file')}
+                                                </span>
+                                                <span className="text-xs text-gray-500 mt-1">
+                                                    {t('setup.custom_seed_help')}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(seedMode === 'file' || seedMode === 'upload') && (
+                                    <div className="border-t pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAiKeys(!showAiKeys)}
+                                            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                                        >
+                                            {showAiKeys ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                            <Key className="h-4 w-4" />
+                                            {t('setup.ai_keys_optional')}
+                                        </button>
+
+                                        {showAiKeys && (
+                                            <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
+                                                {[
+                                                    { key: 'geminiApiKey', label: 'Google Gemini API Key', placeholder: 'AIza...' },
+                                                    { key: 'openAiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...' },
+                                                    { key: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...' },
+                                                ].map(({ key, label, placeholder }) => (
+                                                    <div key={key} className="space-y-1">
+                                                        <label className="text-xs font-medium text-gray-600">{label}</label>
+                                                        <input
+                                                            type="password"
+                                                            placeholder={placeholder}
+                                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                                            value={(aiKeys as any)[key]}
+                                                            onChange={(e) => setAiKeys({ ...aiKeys, [key]: e.target.value })}
+                                                        />
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </div>
 
-                    {/* ─── Submit ─────────────────────────────────── */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
-                            bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700
-                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
-                            disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                {(seedMode === 'file' || seedMode === 'upload') ? t('setup.creating_with_seed') : t('setup.creating')}
-                            </>
-                        ) : (
-                            <>
-                                {(seedMode === 'file' || seedMode === 'upload') && <Sparkles className="h-5 w-5" />}
-                                {(seedMode === 'file' || seedMode === 'upload') ? t('setup.create_with_seed') : t('setup.create_button')}
-                            </>
-                        )}
-                    </button>
-                </form>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
+                                    bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
+                                    disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        {(seedMode === 'file' || seedMode === 'upload') ? t('setup.creating_with_seed') : t('setup.creating')}
+                                    </>
+                                ) : (
+                                    <>
+                                        {(seedMode === 'file' || seedMode === 'upload') && <Sparkles className="h-5 w-5" />}
+                                        {(seedMode === 'file' || seedMode === 'upload') ? t('setup.create_with_seed') : t('setup.create_button')}
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+                </div>
             </div>
         </div>
     );

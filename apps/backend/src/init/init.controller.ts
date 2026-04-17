@@ -1,10 +1,25 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiResponse,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/public.decorator';
 import { InitService, SetupDto } from './init.service';
 import { SeedService, SeedData } from './seed.service';
 import { SetupTokenGuard } from './setup-token.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import {
   InitStatusResponseDto,
@@ -150,5 +165,31 @@ export class InitController {
   })
   async getSeedFiles() {
     return this.seedService.getAvailableSeedFiles();
+  }
+
+  @Public()
+  @UseGuards(SetupTokenGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('restore-backup')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Obnovit systém ze zálohy (.sqlite)',
+    description:
+      'Přepíše aktuální databázi nahraným souborem zálohy. Funguje pouze pokud systém ještě není inicializovaný.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async restoreBackup(@UploadedFile() file: Express.Multer.File) {
+    return this.initService.restoreFromSqlite(file);
   }
 }

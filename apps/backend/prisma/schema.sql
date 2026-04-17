@@ -1,4 +1,3 @@
-[dotenv@17.2.3] injecting env (22) from ../../.env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
 -- CreateTable
 CREATE TABLE "SystemLog" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
