@@ -40,7 +40,7 @@ export class AiService {
           .map((m: any) => m.name.replace('models/', ''))
           .sort().reverse();
 
-        const modelName = available.find(n => n.toLowerCase().includes('flash')) || available[0];
+        const modelName = available.find((n: string) => n.toLowerCase().includes('flash')) || available[0];
         if (!modelName) throw new Error('No compatible Google models found');
 
         this.logger.log(`Discovered best Google model: ${modelName}`);
