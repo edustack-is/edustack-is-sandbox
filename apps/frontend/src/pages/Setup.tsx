@@ -70,17 +70,24 @@ export const Setup = () => {
     }, []);
 
     // ─── Drag and Drop handlers ─────────────────────────────
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
         setIsDragging(true);
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        // Only reset if we leave the parent container
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+        // Check if we are really leaving the container
+        if (e.relatedTarget === null || !e.currentTarget.contains(e.relatedTarget as Node)) {
             setIsDragging(false);
         }
     };
@@ -90,13 +97,13 @@ export const Setup = () => {
         e.stopPropagation();
         setIsDragging(false);
 
-        const file = e.dataTransfer.files?.[0];
+        const file = e.dataTransfer?.files?.[0];
         if (!file) return;
 
-        if (file.name.endsWith('.json')) {
+        if (file.name.toLowerCase().endsWith('.json')) {
             setSeedMode('upload');
             processJsonFile(file);
-        } else if (file.name.endsWith('.sqlite') || file.name.endsWith('.db')) {
+        } else if (file.name.toLowerCase().endsWith('.sqlite') || file.name.toLowerCase().endsWith('.db')) {
             setSeedMode('restore');
             processSqliteFile(file);
         } else {
@@ -290,6 +297,7 @@ export const Setup = () => {
     return (
         <div 
             className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden"
+            onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
