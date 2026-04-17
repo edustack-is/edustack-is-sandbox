@@ -12,7 +12,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     @Inject('CLOUDFLARE_DB') private readonly d1: any,
   ) {
     super(PrismaService.getOptions(d1));
-    this.client = this; // Default to base client until extended
+    this.client = this; // Default
   }
 
   private static getOptions(d1: any) {
@@ -28,35 +28,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       const path = require('path');
 
       let dbPath = process.env.DATABASE_URL?.replace('file:', '');
-      if (
-        !dbPath ||
-        (fs.existsSync(dbPath) && fs.statSync(dbPath).size === 0)
-      ) {
-        // Auto-detect Wrangler hashed DB
+      if (!dbPath || (fs.existsSync(dbPath) && fs.statSync(dbPath).size === 0)) {
         let currentPath = process.cwd();
-        // Scan up to 4 levels up to find the apps/backend/.wrangler state (monorepo root context)
         for (let i = 0; i < 4; i++) {
-          const dir = path.join(
-            currentPath,
-            'apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
-          );
-          const dirDirect = path.join(
-            currentPath,
-            '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
-          );
-
+          const dir = path.join(currentPath, 'apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+          const dirDirect = path.join(currentPath, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
           for (const d of [dir, dirDirect]) {
             if (fs.existsSync(d)) {
-              const dbFile = fs
-                .readdirSync(d)
-                .find(
-                  (f: string) =>
-                    f.endsWith('.sqlite') && f !== 'metadata.sqlite',
-                );
-              if (dbFile) {
-                dbPath = path.join(d, dbFile);
-                break;
-              }
+              const dbFile = fs.readdirSync(d).find((f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+              if (dbFile) { dbPath = path.join(d, dbFile); break; }
             }
           }
           if (dbPath) break;
@@ -64,16 +44,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         }
       }
 
-      if (!dbPath) {
-        throw new Error(
-          '❌ Wrangler D1 local database not found. Please run "npm run db:init" first.',
-        );
-      }
-
-      const finalPath = path.isAbsolute(dbPath)
-        ? dbPath
-        : path.resolve(process.cwd(), dbPath);
-      options.adapter = new PrismaBetterSqlite3({ url: finalPath });
+      if (!dbPath) throw new Error('❌ Wrangler D1 database not found.');
+      options.adapter = new PrismaBetterSqlite3({ url: path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath) });
     }
     return options;
   }
@@ -85,127 +57,72 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   private setupExtensions() {
     const self = this;
-    this.client = this.$extends({
+    const extended = this.$extends({
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
-            try {
-              // 1. Bypass for logs
-              if (
-                model === 'AuditLog' ||
-                model === 'SystemLog' ||
-                model === 'AiTokenUsage'
-              ) {
-                return query(args);
-              }
-
-              // 2. Tenant Isolation
-              const isolatedModels = [
-                'Classroom',
-                'Subject',
-                'Grade',
-                'ScheduleEvent',
-              ];
-              const schoolId = self.cls.get('schoolId');
-              const user = self.cls.get('user');
-              const isSystemAdmin = user?.isSystemAdmin;
-
-              const unsafeArgs = (args as any) || {};
-
-              if (
-                isolatedModels.includes(model) &&
-                schoolId &&
-                !isSystemAdmin
-              ) {
-                if (operation === 'create') {
-                  unsafeArgs.data = { ...unsafeArgs.data, schoolId };
-                } else if (
-                  [
-                    'findFirst',
-                    'findMany',
-                    'update',
-                    'updateMany',
-                    'delete',
-                    'deleteMany',
-                    'count',
-                  ].includes(operation)
-                ) {
-                  unsafeArgs.where = { ...unsafeArgs.where, schoolId };
-                }
-              }
-
-              // 3. Execute Query
-              let result;
-              try {
-                result = await query(unsafeArgs);
-              } catch (err: any) {
-                if (err.message?.includes('parameter values')) {
-                   console.error(`❌ PRISMA PARAMETER OVERFLOW in ${model}.${operation}`);
-                }
-                throw err;
-              }
-
-              // 4. Async Audit Log (Non-blocking)
-              if (
-                ['create', 'update', 'delete', 'upsert'].includes(operation) &&
-                user?.id
-              ) {
-                const entityId = (result as any)?.id || (unsafeArgs as any)?.where?.id || 'unknown';
-                self.logAudit(
-                  user.id,
-                  operation.toUpperCase(),
-                  model,
-                  String(entityId),
-                  null,
-                  operation === 'update' ? null : unsafeArgs,
-                ).catch(e => self.logger.warn(`Audit log async task failed: ${e.message}`));
-              }
-
-              return result;
-            } catch (error) {
-              throw error;
+            // 1. Bypass for logs to avoid recursion and overhead
+            if (['AuditLog', 'SystemLog', 'AiTokenUsage'].includes(model)) {
+              return query(args);
             }
+
+            // 2. Tenant Isolation
+            const isolatedModels = ['Classroom', 'Subject', 'Grade', 'ScheduleEvent'];
+            const schoolId = self.cls.get('schoolId');
+            const user = self.cls.get('user');
+            const isSystemAdmin = user?.isSystemAdmin;
+
+            const unsafeArgs = (args as any) || {};
+            if (isolatedModels.includes(model) && schoolId && !isSystemAdmin) {
+              if (operation === 'create') unsafeArgs.data = { ...unsafeArgs.data, schoolId };
+              else if (['findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count'].includes(operation)) {
+                unsafeArgs.where = { ...unsafeArgs.where, schoolId };
+              }
+            }
+
+            // 3. Execute main query
+            const result = await query(unsafeArgs);
+
+            // 4. Async Audit Log
+            if (['create', 'update', 'delete', 'upsert'].includes(operation) && user?.id) {
+              const entityId = (result as any)?.id || (unsafeArgs as any)?.where?.id || 'unknown';
+              self.logAudit(user.id, operation.toUpperCase(), model, String(entityId), unsafeArgs)
+                  .catch(e => self.logger.warn(`Audit log failed: ${e.message}`));
+            }
+
+            return result;
           },
         },
       },
     });
 
-    // Replace methods on this instance to use the extended client
-    const clientProto = Object.getPrototypeOf(this.client);
-    for (const key of Object.keys(this.client)) {
-      if (typeof this.client[key] === 'object' && key !== 'constructor') {
-        (this as any)[key] = this.client[key];
+    // Correctly proxy ALL methods from the extended client to THIS instance
+    this.client = extended;
+    const keys = Object.keys(extended).concat(Object.getOwnPropertyNames(Object.getPrototypeOf(extended)));
+    for (const key of keys) {
+      if (typeof (extended as any)[key] === 'function' && key !== 'constructor') {
+        (this as any)[key] = (extended as any)[key].bind(extended);
+      } else if (typeof (extended as any)[key] === 'object' && key !== 'constructor') {
+        (this as any)[key] = (extended as any)[key];
       }
     }
   }
 
-  private async logAudit(
-    actorId: string,
-    action: string,
-    entity: string,
-    entityId: string,
-    oldValues: any,
-    newValues: any,
-  ) {
+  private async logAudit(actorId: string, action: string, entity: string, entityId: string, args: any) {
     const scrub = (data: any) => {
       if (!data) return null;
-
-      // Handle massive data objects
-      if (typeof data === 'object' && !Array.isArray(data)) {
+      // Stricter scrubbing for audit logs to prevent SQLite parameter overflow
+      if (typeof data === 'object') {
         const keys = Object.keys(data);
-        if (keys.length > 100) {
-          return { _summary: `Object too large to log (${keys.length} keys)`, _keys: keys.slice(0, 10) };
+        if (keys.length > 50) return { _summary: `Object too large (${keys.length} keys)`, _keys: keys.slice(0, 5) };
+        const copy = Array.isArray(data) ? data.slice(0, 3) : { ...data };
+        const sensitive = ['passwordHash', 'token', 'invitationToken'];
+        if (!Array.isArray(copy)) {
+            sensitive.forEach(f => delete (copy as any)[f]);
         }
+        return copy;
       }
-
-      const sensitive = ['passwordHash', 'token', 'invitationToken'];
-      const copy = Array.isArray(data) ? [...data.slice(0, 5)] : { ...data };
-      if (!Array.isArray(copy)) {
-        sensitive.forEach((field) => {
-          if (field in copy) delete copy[field];
-        });
-      }
-      return copy;
+      return data;
     };
 
     try {
@@ -213,14 +130,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         data: {
           action,
           entity,
-          entityId: String(entityId || 'unknown'),
+          entityId,
           actorId,
-          oldValues: scrub(oldValues),
-          newValues: scrub(newValues),
+          newValues: scrub(args?.data || args),
         },
       });
     } catch (e) {
-      this.logger.warn(`Audit log failed: ${e.message}`);
+      // Fail silently for audit logs
     }
   }
 }

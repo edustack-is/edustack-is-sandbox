@@ -7,7 +7,6 @@ import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 @Injectable()
 export class AiService {
@@ -21,8 +20,8 @@ export class AiService {
   private cachedModel: any = null;
 
   /**
-   * Dynamically gets the first available AI model provider and discovers the best model.
-   * Priority: Google -> OpenAI -> Anthropic
+   * Dynamically gets the first available AI model provider.
+   * Uses Vercel AI SDK providers for consistency with AiChatService.
    */
   private async getModel() {
     if (this.cachedModel) return this.cachedModel;
@@ -31,26 +30,15 @@ export class AiService {
     if (googleKey) {
       try {
         const available = await this.systemAdminAiService.getDiscoverableGoogleModels();
-
-        if (available.length === 0) {
-          throw new Error('No compatible Google models found or API key is invalid.');
+        if (available.length > 0) {
+          const modelName = available.find(n => n.toLowerCase().includes('flash')) || available[0];
+          this.logger.log(`Using discovered Google model: ${modelName}`);
+          const google = createGoogleGenerativeAI({ apiKey: googleKey });
+          this.cachedModel = google(modelName);
+          return this.cachedModel;
         }
-
-        this.logger.log(`Supported Google models found: ${available.join(', ')}`);
-
-        // Strategy: Prefer 'flash' models (fastest/cheapest), then any first available
-        const modelName =
-          available.find((n: string) => n.toLowerCase().includes('flash')) ||
-          available[0];
-
-        this.logger.log(`Discovered best Google model: ${modelName}`);
-        const google = createGoogleGenerativeAI({ apiKey: googleKey });
-        this.cachedModel = google(modelName);
-        return this.cachedModel;
       } catch (e) {
-        this.logger.warn(
-          `Google discovery failed: ${e.message}. Trying next provider...`,
-        );
+        this.logger.warn(`Google discovery failed: ${e.message}`);
       }
     }
 
@@ -119,11 +107,9 @@ export class AiService {
     if (schoolType?.includes('gymnasium')) typeContext = 'gymnázium';
     else if (schoolType === 'elementary_1') typeContext = 'základní škola (pouze 1. stupeň)';
 
-    const prompt = `Vygeneruj jeden náhodný realistický název pro českou školu typu: ${typeContext}. Vrať POUZE název.`;
+    const prompt = `Vygeneruj jeden náhodný realistický název pro českou školu typu: ${typeContext}. Vrať POUZE název bez uvozovek.`;
     const model = await this.getModel();
-    this.logger.log(`Generating school name with model: ${model}`);
     const { text } = await generateText({ model, prompt });
-    this.logger.log(`Generated school name: ${text}`);
     return { name: text.trim().replace(/^["']|["']$/g, '') };
   }
 

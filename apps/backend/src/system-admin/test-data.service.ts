@@ -392,10 +392,19 @@ export class TestDataService {
       calendarEvents: 0,
     };
 
-    // 1. Create school
-    const school = await this.prisma.school.create({
-      data: { name: config.schoolName },
+    // 1. Create school (upsert if exists)
+    let school = await this.prisma.school.findFirst({
+      where: { name: config.schoolName },
     });
+
+    if (school) {
+      this.logger.log(`School ${config.schoolName} already exists. Wiping data before regenerating...`);
+      await this.wipeSchoolData(school.id);
+    } else {
+      school = await this.prisma.school.create({
+        data: { name: config.schoolName },
+      });
+    }
     const schoolId = school.id;
 
     // 2. Create structure
