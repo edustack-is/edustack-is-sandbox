@@ -26,12 +26,20 @@ export class SsoStrategyFactoryService implements OnModuleInit {
     this.logger.log('Reloading SSO strategies...');
 
     // 1. Fetch all SSO secrets using raw prisma to bypass isolation proxy issues during boot
-    const allSsoSecrets = await (this.prisma as any).systemSecret.findMany({
-      where: {
-        type: SecretType.SSO,
-        isActive: true,
-      },
-    });
+    let allSsoSecrets = [];
+    try {
+      allSsoSecrets = await (this.prisma as any).systemSecret.findMany({
+        where: { type: SecretType.SSO, isActive: true },
+      });
+    } catch (err: any) {
+      if (err.code === 'P2021' || err.message?.includes('no such table')) {
+        this.logger.warn(
+          'SystemSecret table not found. Skipping SSO strategy loading (expected on first run).',
+        );
+        return;
+      }
+      throw err;
+    }
 
     // 2. Clear existing dynamic strategies (Passport doesn't have a built-in "unregister",
     // but we can overwrite by registering again with the same name if needed,
