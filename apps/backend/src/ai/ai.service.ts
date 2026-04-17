@@ -22,21 +22,76 @@ export class AiService {
    * Priority: Google -> OpenAI -> Anthropic
    */
   private async getModel() {
-    const googleKey = await this.systemAdminAiService.getDecryptedApiKey('google');
+    const googleKey = await this.systemAdminAiService.getDecryptedApiKey(
+      'google',
+    );
     if (googleKey) {
-      this.logger.log('Using dynamically selected AI provider: Google (Gemini)');
+      let modelName = 'gemini-1.5-flash'; // Default fallback
+
+      try {
+        this.logger.log('Fetching available Google AI models...');
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1/models?key=${googleKey}`,
+        );
+        const data = (await response.json()) as any;
+
+        if (data.models && Array.isArray(data.models)) {
+          const available = data.models
+            .filter((m: any) =>
+              m.supportedGenerationMethods.includes('generateContent'),
+            )
+            .map((m: any) => m.name.replace('models/', ''));
+
+          this.logger.log(`Available Google models: ${available.join(', ')}`);
+
+          // Priority list for Google
+          const priorities = [
+            'gemini-1.5-flash',
+            'gemini-1.5-flash-latest',
+            'gemini-2.0-flash-exp',
+            'gemini-1.0-pro',
+            'gemini-pro',
+          ];
+
+          for (const p of priorities) {
+            if (available.includes(p)) {
+              modelName = p;
+              break;
+            }
+          }
+
+          if (!available.includes(modelName)) {
+            modelName =
+              available.find((n) => n.includes('flash')) ||
+              available[0] ||
+              modelName;
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to detect Google models, using default ${modelName}: ${err.message}`,
+        );
+      }
+
+      this.logger.log(
+        `Using dynamically selected AI provider: Google (${modelName})`,
+      );
       const google = createGoogleGenerativeAI({ apiKey: googleKey });
-      return google('gemini-1.5-flash');
+      return google(modelName);
     }
 
-    const openAiKey = await this.systemAdminAiService.getDecryptedApiKey('openai');
+    const openAiKey = await this.systemAdminAiService.getDecryptedApiKey(
+      'openai',
+    );
     if (openAiKey) {
       this.logger.log('Using dynamically selected AI provider: OpenAI');
       const openai = createOpenAI({ apiKey: openAiKey });
       return openai('gpt-4o-mini');
     }
 
-    const anthropicKey = await this.systemAdminAiService.getDecryptedApiKey('anthropic');
+    const anthropicKey = await this.systemAdminAiService.getDecryptedApiKey(
+      'anthropic',
+    );
     if (anthropicKey) {
       this.logger.log('Using dynamically selected AI provider: Anthropic');
       const anthropic = createAnthropic({ apiKey: anthropicKey });
