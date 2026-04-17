@@ -35,9 +35,9 @@ if (!dbPath) {
     throw new Error("❌ Wrangler D1 local database not found. Please run 'npm run db:init' from the project root first.");
 }
 
-const finalPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
-console.log(`[MCP] 🚀 Opening database at: ${finalPath}`);
+export const databasePath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
+console.log(`[MCP] 🚀 Opening database at: ${databasePath}`);
 
-const adapter = new PrismaBetterSqlite3({ url: finalPath });
+const adapter = new PrismaBetterSqlite3({ url: databasePath });
 
 export const prisma = new PrismaClient({ adapter });
