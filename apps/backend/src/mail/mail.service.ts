@@ -84,4 +84,24 @@ export class MailService {
 
         return this.sendMail(to, subject, text, html);
     }
+
+    async sendNotificationEmail(to: string, title: string, body?: string, linkUrl?: string) {
+        const subject = `EduStack: ${title}`;
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+        const fullLinkUrl = linkUrl ? `${frontendUrl}${linkUrl.startsWith('/') ? '' : '/'}${linkUrl}` : null;
+
+        const text = `${title}${body ? `\n\n${body}` : ''}${fullLinkUrl ? `\n\nZobrazit v aplikaci: ${fullLinkUrl}` : ''}`;
+
+        const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1a1a1a;">${title}</h2>
+                ${body ? `<p style="color: #4a4a4a;">${body}</p>` : ''}
+                ${fullLinkUrl ? `<p><a href="${fullLinkUrl}" style="display: inline-block; padding: 8px 16px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px;">Zobrazit v aplikaci</a></p>` : ''}
+                <hr style="border-color: #e5e7eb; margin: 20px 0;" />
+                <p style="color: #9ca3af; font-size: 12px;">Tuto notifikaci můžete vypnout v nastavení profilu.</p>
+            </div>
+        `;
+
+        return this.sendMail(to, subject, text, html);
+    }
 }

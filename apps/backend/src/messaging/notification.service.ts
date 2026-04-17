@@ -33,20 +33,11 @@ export class NotificationService {
             });
 
             if (user?.emailNotificationsEnabled && user.email) {
-                const html = `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2 style="color: #1a1a1a;">${title}</h2>
-                        ${body ? `<p style="color: #4a4a4a;">${body}</p>` : ''}
-                        ${linkUrl ? `<p><a href="http://localhost:5173${linkUrl}" style="display: inline-block; padding: 8px 16px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px;">Zobrazit v aplikaci</a></p>` : ''}
-                        <hr style="border-color: #e5e7eb; margin: 20px 0;" />
-                        <p style="color: #9ca3af; font-size: 12px;">Tuto notifikaci můžete vypnout v nastavení profilu.</p>
-                    </div>
-                `;
-                await this.mailService.sendMail(
+                await this.mailService.sendNotificationEmail(
                     user.email,
-                    `EduStack: ${title}`,
-                    body || title,
-                    html,
+                    title,
+                    body,
+                    linkUrl,
                 );
             }
         } catch (err) {
@@ -91,16 +82,7 @@ export class NotificationService {
         });
         if (!user?.emailNotificationsEnabled || !user.email) return;
 
-        const html = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1a1a1a;">${title}</h2>
-                ${body ? `<p style="color: #4a4a4a;">${body}</p>` : ''}
-                ${linkUrl ? `<p><a href="http://localhost:5173${linkUrl}" style="display: inline-block; padding: 8px 16px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px;">Zobrazit v aplikaci</a></p>` : ''}
-                <hr style="border-color: #e5e7eb; margin: 20px 0;" />
-                <p style="color: #9ca3af; font-size: 12px;">Tuto notifikaci můžete vypnout v nastavení profilu.</p>
-            </div>
-        `;
-        await this.mailService.sendMail(user.email, `EduStack: ${title}`, body || title, html);
+        await this.mailService.sendNotificationEmail(user.email, title, body, linkUrl);
     }
 
     /**
