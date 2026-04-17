@@ -273,52 +273,47 @@ export class SeedService {
     if (seed.sso) {
       for (const [provider, config] of Object.entries(seed.sso)) {
         if (config && config.clientId && config.clientSecret) {
+          // Note: Provider name should be raw (e.g. "google", "github")
+          const serviceName = provider.toLowerCase();
+
           await this.prisma.systemSecret.upsert({
             where: {
               type_service_key: {
                 type: SecretType.SSO,
-                service: `sso_${provider}`,
+                service: serviceName,
                 key: 'CLIENT_ID',
               },
             },
-            update: { value: this.cryptoService.encrypt(config.clientId) },
+            update: {
+              value: config.clientId,
+              isActive: config.isActive ?? true,
+            },
             create: {
               type: SecretType.SSO,
-              service: `sso_${provider}`,
+              service: serviceName,
               key: 'CLIENT_ID',
-              value: this.cryptoService.encrypt(config.clientId),
+              value: config.clientId,
+              isActive: config.isActive ?? true,
             },
           });
           await this.prisma.systemSecret.upsert({
             where: {
               type_service_key: {
                 type: SecretType.SSO,
-                service: `sso_${provider}`,
+                service: serviceName,
                 key: 'CLIENT_SECRET',
               },
             },
-            update: { value: this.cryptoService.encrypt(config.clientSecret) },
+            update: {
+              value: this.cryptoService.encrypt(config.clientSecret),
+              isActive: config.isActive ?? true,
+            },
             create: {
               type: SecretType.SSO,
-              service: `sso_${provider}`,
+              service: serviceName,
               key: 'CLIENT_SECRET',
               value: this.cryptoService.encrypt(config.clientSecret),
-            },
-          });
-          await this.prisma.systemSecret.upsert({
-            where: {
-              type_service_key: {
-                type: SecretType.SSO,
-                service: `sso_${provider}`,
-                key: 'IS_ACTIVE',
-              },
-            },
-            update: { value: String(config.isActive) },
-            create: {
-              type: SecretType.SSO,
-              service: `sso_${provider}`,
-              key: 'IS_ACTIVE',
-              value: String(config.isActive),
+              isActive: config.isActive ?? true,
             },
           });
           counts.ssoProviders++;

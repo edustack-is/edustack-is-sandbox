@@ -33,33 +33,41 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         (fs.existsSync(dbPath) && fs.statSync(dbPath).size === 0)
       ) {
         // Auto-detect Wrangler hashed DB
-        const possiblePaths = [
-          process.cwd(),
-          path.join(process.cwd(), 'apps/backend'),
-        ];
-        for (const base of possiblePaths) {
+        let currentPath = process.cwd();
+        // Scan up to 4 levels up to find the apps/backend/.wrangler state (monorepo root context)
+        for (let i = 0; i < 4; i++) {
           const dir = path.join(
-            base,
+            currentPath,
+            'apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+          );
+          const dirDirect = path.join(
+            currentPath,
             '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
           );
-          if (fs.existsSync(dir)) {
-            const dbFile = fs
-              .readdirSync(dir)
-              .find(
-                (f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite',
-              );
-            if (dbFile) {
-              dbPath = path.join(dir, dbFile);
-              break;
+
+          for (const d of [dir, dirDirect]) {
+            if (fs.existsSync(d)) {
+              const dbFile = fs
+                .readdirSync(d)
+                .find(
+                  (f: string) =>
+                    f.endsWith('.sqlite') && f !== 'metadata.sqlite',
+                );
+              if (dbFile) {
+                dbPath = path.join(d, dbFile);
+                break;
+              }
             }
           }
+          if (dbPath) break;
+          currentPath = path.join(currentPath, '..');
         }
       }
       const finalPath = dbPath
         ? path.isAbsolute(dbPath)
           ? dbPath
           : path.resolve(process.cwd(), dbPath)
-        : 'dev.db';
+        : path.join(process.cwd(), 'dev.db');
       options.adapter = new PrismaBetterSqlite3({ url: finalPath });
     }
     return options;
