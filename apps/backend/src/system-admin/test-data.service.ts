@@ -219,7 +219,7 @@ function getSubjectsForType(type: string): SubjectDef[] {
     case 'elementary_full': {
       const merged = [...SUBJECTS_ELEMENTARY_1, ...SUBJECTS_ELEMENTARY_2];
       const seen = new Set<string>();
-      return merged.filter((s) => {
+      return merged.filter((s: any) => {
         if (seen.has(s.code)) return false;
         seen.add(s.code);
         return true;
@@ -451,7 +451,7 @@ export class TestDataService {
       where: { userId: { in: teacherUserIds } },
       select: { id: true },
     });
-    teacherProfileIds = teacherProfiles.map((t) => t.id);
+    teacherProfileIds = teacherProfiles.map((t: any) => t.id);
 
     // 5. Schedule
     if (
@@ -623,7 +623,7 @@ export class TestDataService {
       { lessonNumber: 8, startTime: '14:35', endTime: '15:20' },
     ];
     await this.prisma.lessonTimeSlot.createMany({
-      data: slots.map((s) => ({ ...s, schoolId })),
+      data: slots.map((s: any) => ({ ...s, schoolId })),
     });
 
     // Create rooms
@@ -763,7 +763,7 @@ export class TestDataService {
 
       const classroomIdx = i % classroomIds.length;
       const classroomId = classroomIds[classroomIdx];
-      const classroom = classrooms.find((c) => c.id === classroomId);
+      const classroom = classrooms.find((c: any) => c.id === classroomId);
 
       const user = await this.prisma.user.create({
         data: {
@@ -956,7 +956,7 @@ export class TestDataService {
     for (const classroom of classrooms) {
       // Get instances for this grade level
       const gradeInstances = instances.filter(
-        (i) => i.gradeLevel.levelNumber === classroom.grade,
+        (i: any) => i.gradeLevel.levelNumber === classroom.grade,
       );
       if (gradeInstances.length === 0) continue;
 
@@ -966,7 +966,7 @@ export class TestDataService {
       for (let day = 1; day <= 5; day++) {
         const lessonsToday = randInt(5, maxLessons);
         for (let lesson = 1; lesson <= lessonsToday; lesson++) {
-          const slot = slots.find((s) => s.lessonNumber === lesson);
+          const slot = slots.find((s: any) => s.lessonNumber === lesson);
           if (!slot) continue;
 
           // Pick a subject instance (round-robin through available ones)
@@ -1039,7 +1039,7 @@ export class TestDataService {
 
       // Find subject instances for this student's grade
       const relevantInstances = instances.filter(
-        (i) => i.gradeLevel.levelNumber === student.classroom!.grade,
+        (i: any) => i.gradeLevel.levelNumber === student.classroom!.grade,
       );
 
       for (const instance of relevantInstances) {
@@ -1106,7 +1106,8 @@ export class TestDataService {
           ? pick(parentUserIds)
           : pick(studentUserIds.length > 0 ? studentUserIds : allUserIds);
       if (recipientId === senderId && allUserIds.length > 1) {
-        recipientId = allUserIds.find((id) => id !== senderId) || recipientId;
+        recipientId =
+          allUserIds.find((id: string) => id !== senderId) || recipientId;
       }
 
       const conversation = await this.prisma.conversation.create({
@@ -1157,7 +1158,7 @@ export class TestDataService {
             type: 'SCHOOL_BROADCAST',
             schoolId,
             participants: {
-              create: uniqueParticipants.map((uid) => ({ userId: uid })),
+              create: uniqueParticipants.map((uid: string) => ({ userId: uid })),
             },
           },
         });
@@ -1315,7 +1316,7 @@ export class TestDataService {
       }
 
       const relevantInstances = instances.filter(
-        (i) => i.gradeLevel.levelNumber === student.classroom!.grade,
+        (i: any) => i.gradeLevel.levelNumber === student.classroom!.grade,
       );
       for (const instance of relevantInstances) {
         try {
@@ -1446,7 +1447,7 @@ export class TestDataService {
     );
 
     // Delete in dependency order (children before parents)
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: any) => {
       // 1. Communication
       await tx.notification.deleteMany({
         where: {
@@ -1456,7 +1457,7 @@ export class TestDataService {
                 where: { conversation: { schoolId } },
                 select: { userId: true },
               })
-            ).map((p) => p.userId),
+            ).map((p: any) => p.userId),
           },
         },
       });
@@ -1513,7 +1514,7 @@ export class TestDataService {
         where: { schoolId },
         select: { userId: true },
       });
-      const userIds = memberships.map((m) => m.userId);
+      const userIds = memberships.map((m: any) => m.userId);
 
       // Check which users ONLY belong to this school
       const userIdsOnlyInThisSchool: string[] = [];
@@ -1581,7 +1582,7 @@ export class TestDataService {
   }> {
     this.logger.warn('Wiping ALL data in the system');
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       // Count before
       const schoolCount = await tx.school.count();
       const usersBefore = await tx.user.count();

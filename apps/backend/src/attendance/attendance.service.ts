@@ -91,7 +91,7 @@ export class AttendanceService {
     const records = await this.prisma.attendance.findMany({
       where: {
         schoolId,
-        studentId: { in: classroom.students.map((s) => s.id) },
+        studentId: { in: classroom.students.map((s: any) => s.id) },
         date: new Date(date),
       },
       orderBy: [{ lessonNumber: 'asc' }],
@@ -158,7 +158,7 @@ export class AttendanceService {
         select: { students: { select: { id: true } } },
       });
       if (classroom)
-        where.studentId = { in: classroom.students.map((s) => s.id) };
+        where.studentId = { in: classroom.students.map((s: any) => s.id) };
     }
     return this.prisma.absenceExcuse.findMany({
       where,
@@ -231,7 +231,7 @@ export class AttendanceService {
 
     const where: any = {
       schoolId,
-      studentId: { in: classroom.students.map((s) => s.id) },
+      studentId: { in: classroom.students.map((s: any) => s.id) },
     };
     if (dateFrom || dateTo) {
       where.date = {};
@@ -242,7 +242,7 @@ export class AttendanceService {
     const records = await this.prisma.attendance.findMany({ where });
 
     // Aggregate per student
-    const stats = classroom.students.map((student) => {
+    const stats = classroom.students.map((student: any) => {
       const studentRecords = records.filter((r) => r.studentId === student.id);
       const total = studentRecords.length;
       const present = studentRecords.filter(

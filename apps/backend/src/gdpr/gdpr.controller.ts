@@ -105,14 +105,14 @@ export class GdprController {
       user,
       studentProfile,
       teacherProfile: teacherProfile ? { id: teacherProfile.id } : null,
-      memberships: memberships.map((m) => ({
+      memberships: memberships.map((m: any) => ({
         school: m.school.name,
         role: m.role,
         joinedAt: m.createdAt,
       })),
       grades,
       attendance,
-      messages: messages.map((m) => ({
+      messages: messages.map((m: any) => ({
         content: m.content,
         sentAt: m.createdAt,
       })),

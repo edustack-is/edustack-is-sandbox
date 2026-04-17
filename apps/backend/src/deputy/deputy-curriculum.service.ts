@@ -132,7 +132,7 @@ export class DeputyCurriculumService {
         },
       },
     });
-    return memberships.map((m) => ({
+    return memberships.map((m: any) => ({
       id: m.userId,
       firstName: m.user.firstName,
       lastName: m.user.lastName,
@@ -1003,7 +1003,7 @@ export class DeputyCurriculumService {
       select: { userId: true },
     });
 
-    const validStudentIds = memberships.map((m) => m.userId);
+    const validStudentIds = memberships.map((m: any) => m.userId);
     const invalidIds = data.studentIds.filter(
       (id) => !validStudentIds.includes(id),
     );
@@ -1084,7 +1084,7 @@ export class DeputyCurriculumService {
       },
       orderBy: { user: { lastName: 'asc' } },
     });
-    return memberships.map((m) => ({
+    return memberships.map((m: any) => ({
       id: m.userId,
       firstName: m.user.firstName,
       lastName: m.user.lastName,

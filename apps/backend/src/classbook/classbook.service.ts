@@ -50,11 +50,11 @@ export class ClassBookService {
       orderBy: { lessonNumber: 'asc' },
     });
 
-    const existingMap = new Map(existing.map((e) => [e.lessonNumber, e]));
+    const existingMap = new Map(existing.map((e: any) => [e.lessonNumber, e]));
 
     // Merge: for each schedule event, return existing entry or a "template"
-    return scheduleEvents.map((se) => {
-      const entry = existingMap.get(se.lessonNumber);
+    return scheduleEvents.map((se: any) => {
+      const entry = existingMap.get(se.lessonNumber) as any;
       if (entry) {
         return {
           ...entry,

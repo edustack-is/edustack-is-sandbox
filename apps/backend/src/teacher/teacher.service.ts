@@ -62,7 +62,7 @@ export class TeacherService {
       distinct: ['classroomId'],
     });
 
-    const classroomIds = events.map((e) => e.classroomId);
+    const classroomIds = events.map((e: any) => e.classroomId);
 
     const classrooms = await this.prisma.classroom.findMany({
       where: { id: { in: classroomIds } },

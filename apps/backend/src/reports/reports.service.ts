@@ -34,9 +34,9 @@ export class ReportsService {
       if (!isNaN(num)) bySubject[subj].grades.push(num);
     }
 
-    const subjectStats = Object.values(bySubject).map((s) => {
-      const sorted = [...s.grades].sort((a, b) => a - b);
-      const sum = sorted.reduce((a, b) => a + b, 0);
+    const subjectStats = Object.values(bySubject).map((s: any) => {
+      const sorted = [...s.grades].sort((a: number, b: number) => a - b);
+      const sum = sorted.reduce((a: number, b: number) => a + b, 0);
       const avg = sorted.length ? sum / sorted.length : 0;
       const median = sorted.length
         ? sorted.length % 2 === 0
@@ -59,7 +59,8 @@ export class ReportsService {
         distribution,
         passRate: sorted.length
           ? Math.round(
-              (sorted.filter((v) => v <= 4).length / sorted.length) * 100,
+              (sorted.filter((v: number) => v <= 4).length / sorted.length) *
+                100,
             )
           : 0,
       };
@@ -79,23 +80,27 @@ export class ReportsService {
     }
 
     const studentStats = Object.values(byStudent)
-      .map((s) => ({
+      .map((s: any) => ({
         student: s.name,
         count: s.grades.length,
         average: s.grades.length
           ? Math.round(
-              (s.grades.reduce((a, b) => a + b, 0) / s.grades.length) * 100,
+              (s.grades.reduce((a: number, b: number) => a + b, 0) /
+                s.grades.length) *
+                100,
             ) / 100
           : 0,
       }))
-      .sort((a, b) => a.average - b.average);
+      .sort((a: any, b: any) => a.average - b.average);
 
     const allGrades = grades
-      .map((g) => parseFloat(g.value))
-      .filter((v) => !isNaN(v));
+      .map((g: any) => parseFloat(g.value))
+      .filter((v: number) => !isNaN(v));
     const overallAvg = allGrades.length
       ? Math.round(
-          (allGrades.reduce((a, b) => a + b, 0) / allGrades.length) * 100,
+          (allGrades.reduce((a: number, b: number) => a + b, 0) /
+            allGrades.length) *
+            100,
         ) / 100
       : 0;
 
@@ -114,7 +119,7 @@ export class ReportsService {
     });
 
     const classroomStats = await Promise.all(
-      classrooms.map(async (c) => {
+      classrooms.map(async (c: any) => {
         const stats = await this.getGradeStatsByClassroom(
           schoolId,
           c.id,
@@ -194,13 +199,13 @@ export class ReportsService {
     }
 
     const students = Object.values(byStudent)
-      .map((s) => ({
+      .map((s: any) => ({
         ...s,
         attendanceRate: s.total
           ? Math.round(((s.total - s.absent) / s.total) * 100)
           : 100,
       }))
-      .sort((a, b) => a.attendanceRate - b.attendanceRate);
+      .sort((a: any, b: any) => a.attendanceRate - b.attendanceRate);
 
     return {
       summary: { total, byStatus },
@@ -239,11 +244,13 @@ export class ReportsService {
     });
 
     const numGrades = grades
-      .map((g) => parseFloat(g.value))
-      .filter((v) => !isNaN(v));
+      .map((g: any) => parseFloat(g.value))
+      .filter((v: number) => !isNaN(v));
     const avgGrade = numGrades.length
       ? Math.round(
-          (numGrades.reduce((a, b) => a + b, 0) / numGrades.length) * 100,
+          (numGrades.reduce((a: number, b: number) => a + b, 0) /
+            numGrades.length) *
+            100,
         ) / 100
       : 0;
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<
@@ -271,7 +278,7 @@ export class ReportsService {
         students: studentCount,
         classrooms: classrooms.length,
       },
-      classes: classrooms.map((c) => ({
+      classes: classrooms.map((c: any) => ({
         name: c.name,
         studentCount: c._count.students,
       })),
@@ -281,7 +288,9 @@ export class ReportsService {
         distribution,
         passRate: numGrades.length
           ? Math.round(
-              (numGrades.filter((v) => v <= 4).length / numGrades.length) * 100,
+              (numGrades.filter((v: number) => v <= 4).length /
+                numGrades.length) *
+                100,
             )
           : 0,
       },
@@ -345,7 +354,9 @@ export class ReportsService {
     });
 
     const subjects = [
-      ...new Set(subjectInstances.map((s) => s.template?.name).filter(Boolean)),
+      ...new Set(
+        subjectInstances.map((s: any) => s.template?.name).filter(Boolean),
+      ),
     ].sort();
 
     const rooms = await this.prisma.room.findMany({
@@ -366,12 +377,17 @@ export class ReportsService {
         totalClassrooms: classrooms.length,
         totalSubjects: subjects.length,
       },
-      gradeBreakdown: Object.values(byGrade).sort((a, b) => a.level - b.level),
+      gradeBreakdown: Object.values(byGrade).sort(
+        (a: any, b: any) => a.level - b.level,
+      ),
       subjects,
       facilities: {
         rooms: rooms.length,
-        computerLabs: rooms.filter((r) => r.isComputerLab).length,
-        totalCapacity: rooms.reduce((sum, r) => sum + (r.capacity || 0), 0),
+        computerLabs: rooms.filter((r: any) => r.isComputerLab).length,
+        totalCapacity: rooms.reduce(
+          (sum: number, r: any) => sum + (r.capacity || 0),
+          0,
+        ),
       },
       generatedAt: new Date().toISOString(),
     };
@@ -402,7 +418,7 @@ ${report.classes.map((c: any) => `<tr><td>${c.name}</td><td>${c.studentCount}</t
 <tr><th>Průměr</th><td>${report.grading.average}</td></tr>
 <tr><th>Úspěšnost</th><td>${report.grading.passRate}%</td></tr></table>
 <table><tr><th>Známka</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
-<tr><td>Počet</td>${[1, 2, 3, 4, 5].map((n) => `<td>${report.grading.distribution[n]}</td>`).join('')}</tr></table>
+<tr><td>Počet</td>${[1, 2, 3, 4, 5].map((n: number) => `<td>${report.grading.distribution[n]}</td>`).join('')}</tr></table>
 <h3>Docházka</h3>
 <table><tr><th>Celkem záznamů</th><td>${report.attendance.totalRecords}</td></tr>
 <tr><th>Absence</th><td>${report.attendance.absentRecords}</td></tr>

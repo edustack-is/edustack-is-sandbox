@@ -296,8 +296,8 @@ ${truncated}`,
 
     // Match grade levels
     const allGrades = [
-      ...new Set(extraction.allocations.map((a) => a.gradeLevel)),
-    ].sort((a, b) => a - b);
+      ...new Set(extraction.allocations.map((a: any) => a.gradeLevel)),
+    ].sort((a: number, b: number) => a - b);
     const matchedGrades = allGrades.map((gl) => {
       const match = existingGradeLevels.find((g) => g.levelNumber === gl);
       return {
@@ -455,7 +455,7 @@ ${truncated}`,
 
     const findAndDecrypt = (service: string, key: string): string | null => {
       const secret = secrets.find(
-        (s) => s.service === service && s.key === key,
+        (s: any) => s.service === service && s.key === key,
       );
       if (!secret) return null;
       try {

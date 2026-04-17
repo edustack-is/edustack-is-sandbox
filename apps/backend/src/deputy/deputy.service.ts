@@ -80,7 +80,7 @@ export class DeputyService {
       pendingMembers,
       currentAcademicYear,
       upcomingEvents,
-      recentMembers: recentMembers.map((m) => ({
+      recentMembers: recentMembers.map((m: any) => ({
         id: m.user.id,
         name: `${m.user.firstName} ${m.user.lastName}`,
         email: m.user.email,
@@ -737,7 +737,7 @@ export class DeputyService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return memberships.map((m) => ({
+    return memberships.map((m: any) => ({
       id: m.user.id,
       membershipId: m.id,
       email: m.user.email,
@@ -778,7 +778,7 @@ export class DeputyService {
       }>;
     },
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       // 1. Create student user
       const studentEmail =
         data.student.email || `student-${crypto.randomUUID()}@noemail.local`;
@@ -955,7 +955,7 @@ export class DeputyService {
     const hashedToken = await bcrypt.hash(invitationToken, 10);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    const user = await this.prisma.$transaction(async (tx) => {
+    const user = await this.prisma.$transaction(async (tx: any) => {
       // Find or create user
       let user = await tx.user.findUnique({ where: { email: data.email } });
 
@@ -1440,7 +1440,7 @@ export class DeputyService {
 
     const header =
       'Příjmení;Jméno;Email;Role;Status;Úvazek;Poslední přihlášení;Datum vytvoření';
-    const rows = memberships.map((m) => {
+    const rows = memberships.map((m: any) => {
       const u = m.user;
       return [
         u.lastName,
@@ -1575,7 +1575,7 @@ export class DeputyService {
     // Delete existing weeks and recreate
     await this.prisma.thematicPlanWeek.deleteMany({ where: { planId } });
     const created = await this.prisma.thematicPlanWeek.createMany({
-      data: weeks.map((w) => ({ ...w, planId })),
+      data: weeks.map((w: any) => ({ ...w, planId })),
     });
     await this.audit(actorId, 'SAVE_PLAN_WEEKS', 'ThematicPlan', planId, {
       weekCount: weeks.length,

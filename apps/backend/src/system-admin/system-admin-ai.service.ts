@@ -57,7 +57,7 @@ export class SystemAdminAiService {
     });
 
     const findSecret = (service: string, key: string) =>
-      secrets.find((s) => s.service === service && s.key === key);
+      secrets.find((s: any) => s.service === service && s.key === key);
 
     const maskKey = (encryptedValue: string | undefined) => {
       if (!encryptedValue) return null;
@@ -179,7 +179,7 @@ export class SystemAdminAiService {
 
     // Enrich with school names
     const schoolIds = bySchool
-      .map((s) => s.schoolId)
+      .map((s: any) => s.schoolId)
       .filter(Boolean) as string[];
     const schools =
       schoolIds.length > 0
@@ -188,9 +188,11 @@ export class SystemAdminAiService {
             select: { id: true, name: true },
           })
         : [];
-    const schoolMap = Object.fromEntries(schools.map((s) => [s.id, s.name]));
+    const schoolMap = Object.fromEntries(
+      schools.map((s: any) => [s.id, s.name]),
+    );
 
-    const perSchool = bySchool.map((row) => ({
+    const perSchool = bySchool.map((row: any) => ({
       schoolId: row.schoolId,
       schoolName: row.schoolId
         ? (schoolMap[row.schoolId] ?? 'Unknown')
@@ -209,7 +211,7 @@ export class SystemAdminAiService {
       _count: true,
     });
 
-    const perProvider = byProvider.map((p) => ({
+    const perProvider = byProvider.map((p: any) => ({
       provider: p.provider || 'unknown',
       totalTokens: p._sum.totalTokens ?? 0,
       requestCount: p._count,
@@ -227,7 +229,7 @@ export class SystemAdminAiService {
       startOfMonth,
     );
 
-    const daily = dailyRaw.map((row) => ({
+    const daily = dailyRaw.map((row: any) => ({
       date: row.day,
       totalTokens: Number(row.total_tokens),
       requestCount: Number(row.request_count),

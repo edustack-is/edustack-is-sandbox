@@ -692,7 +692,7 @@ export class ScheduleService {
     // 6. For each classroom, find matching grade-level instances and place them
     for (const classroom of classrooms) {
       const gradeInstances = instances.filter(
-        (i) => i.gradeLevel.levelNumber === classroom.grade,
+        (i: any) => i.gradeLevel.levelNumber === classroom.grade,
       );
       if (gradeInstances.length === 0) continue;
 
@@ -872,8 +872,8 @@ export class ScheduleService {
 
     // Build lookup by day+lesson+classroom
     const key = (e: any) => `${e.dayOfWeek}-${e.lessonNumber}-${e.classroomId}`;
-    const oldMap = new Map(oldEvents.map((e) => [key(e), e]));
-    const newMap = new Map(currentEvents.map((e) => [key(e), e]));
+    const oldMap = new Map<string, any>(oldEvents.map((e: any) => [key(e), e]));
+    const newMap = new Map<string, any>(currentEvents.map((e: any) => [key(e), e]));
 
     const added: any[] = [];
     const removed: any[] = [];

@@ -244,14 +244,14 @@ export class GradingService {
       distinct: ['subjectInstanceId'],
     });
 
-    const subjectInstances = events.map((e) => e.subject);
-    const studentIds = classroom.students.map((s) => s.id);
+    const subjectInstances = events.map((e: any) => e.subject);
+    const studentIds = classroom.students.map((s: any) => s.id);
 
     // Get all grades
     const where: any = {
       schoolId,
       studentId: { in: studentIds },
-      subjectInstanceId: { in: subjectInstances.map((s) => s.id) },
+      subjectInstanceId: { in: subjectInstances.map((s: any) => s.id) },
     };
     if (opts?.semesterId) where.semesterId = opts.semesterId;
 
@@ -272,12 +272,12 @@ export class GradingService {
         name: classroom.name,
         grade: classroom.grade,
       },
-      students: classroom.students.map((s) => ({
+      students: classroom.students.map((s: any) => ({
         id: s.id,
         firstName: s.firstName,
         lastName: s.lastName,
       })),
-      subjects: subjectInstances.map((si) => ({
+      subjects: subjectInstances.map((si: any) => ({
         id: si.id,
         name: si.template.name,
         code: si.template.code,
@@ -380,7 +380,7 @@ export class GradingService {
       distinct: ['subjectInstanceId'],
     });
 
-    const subjectInstances = events.map((e) => ({
+    const subjectInstances = events.map((e: any) => ({
       id: e.subject.id,
       name: e.subject.template.name,
       code: e.subject.template.code,
@@ -388,12 +388,12 @@ export class GradingService {
 
     // Calculate averages for each student × subject
     const studentsData = await Promise.all(
-      classroom.students.map(async (student) => {
+      classroom.students.map(async (student: any) => {
         const subjectAverages = await Promise.all(
-          subjectInstances.map(async (si) => {
+          subjectInstances.map(async (si: any) => {
             const avg = await this.calculateWeightedAverage(student.id, si.id);
             const reportCard = student.reportCards.find(
-              (rc) => rc.subjectInstanceId === si.id,
+              (rc: any) => rc.subjectInstanceId === si.id,
             );
             return {
               subjectInstanceId: si.id,
@@ -573,7 +573,7 @@ Vrať pouze upravený text hodnocení, bez dalšího komentáře.`;
       },
     });
 
-    return entries.map((e) => ({
+    return entries.map((e: any) => ({
       subjectTemplateId: e.subjectTemplateId,
       subjectCode: e.subjectTemplate.code,
       subjectName: e.subjectTemplate.name,
@@ -635,7 +635,7 @@ Vrať pouze upravený text hodnocení, bez dalšího komentáře.`;
       where: {
         schoolId,
         semesterId,
-        studentId: { in: classroom.students.map((s) => s.id) },
+        studentId: { in: classroom.students.map((s: any) => s.id) },
       },
     });
 
@@ -737,7 +737,7 @@ Vrať pouze upravený text hodnocení, bez dalšího komentáře.`;
         select: { students: { select: { id: true } } },
       });
       if (classroom)
-        where.studentId = { in: classroom.students.map((s) => s.id) };
+        where.studentId = { in: classroom.students.map((s: any) => s.id) };
     }
     return this.prisma.educationalMeasure.findMany({
       where,
@@ -873,7 +873,7 @@ Vrať pouze upravený text hodnocení, bez dalšího komentáře.`;
         select: { students: { select: { id: true } } },
       });
       if (classroom)
-        where.studentId = { in: classroom.students.map((s) => s.id) };
+        where.studentId = { in: classroom.students.map((s: any) => s.id) };
     }
     return this.prisma.commissionExam.findMany({
       where,

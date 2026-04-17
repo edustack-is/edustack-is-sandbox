@@ -706,7 +706,7 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
 
     const findAndDecrypt = (service: string, key: string): string | null => {
       const secret = secrets.find(
-        (s) => s.service === service && s.key === key,
+        (s: any) => s.service === service && s.key === key,
       );
       if (!secret) return null;
       try {

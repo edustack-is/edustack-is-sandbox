@@ -60,7 +60,7 @@ export class MessagingService {
       orderBy: { conversation: { updatedAt: 'desc' } },
     });
 
-    return participations.map((p) => {
+    return participations.map((p: any) => {
       const conv = p.conversation;
       const lastMessage = conv.messages[0] || null;
       const unreadCount =
@@ -75,7 +75,7 @@ export class MessagingService {
         subject: conv.subject,
         type: conv.type,
         classroomId: conv.classroomId,
-        participants: conv.participants.map((pp) => pp.user),
+        participants: conv.participants.map((pp: any) => pp.user),
         lastMessage: lastMessage
           ? {
               id: lastMessage.id,
@@ -198,7 +198,7 @@ export class MessagingService {
     const subject = message.conversation.subject || 'Nová zpráva';
 
     await this.notificationService.notifyMany(
-      otherParticipants.map((p) => p.userId),
+      otherParticipants.map((p: any) => p.userId),
       'MESSAGE',
       `${senderName}: ${subject}`,
       preview,
@@ -250,7 +250,7 @@ export class MessagingService {
     // Create conversation with all participants
     const allParticipantIds = [
       creatorId,
-      ...recipientIds.filter((id) => id !== creatorId),
+      ...recipientIds.filter((id: string) => id !== creatorId),
     ];
 
     const conversation = await this.prisma.conversation.create({
@@ -260,7 +260,7 @@ export class MessagingService {
         schoolId,
         classroomId: classroomId || null,
         participants: {
-          create: allParticipantIds.map((userId) => ({ userId })),
+          create: allParticipantIds.map((userId: string) => ({ userId })),
         },
       },
       include: {
@@ -305,9 +305,9 @@ export class MessagingService {
 
     return (
       conversations.find(
-        (c) =>
+        (c: any) =>
           c.participants.length === 2 &&
-          c.participants.some((p) => p.userId === user2),
+          c.participants.some((p: any) => p.userId === user2),
       ) || null
     );
   }
@@ -363,7 +363,7 @@ export class MessagingService {
         },
       },
     });
-    return memberships.map((m) => ({
+    return memberships.map((m: any) => ({
       ...m.user,
       role: m.role,
     }));
@@ -382,7 +382,7 @@ export class MessagingService {
       select: { classroomId: true },
       distinct: ['classroomId'],
     });
-    const classroomIds = scheduleEvents.map((e) => e.classroomId);
+    const classroomIds = scheduleEvents.map((e: any) => e.classroomId);
 
     // Students in those classrooms
     const students = await this.prisma.studentProfile.findMany({
@@ -401,7 +401,7 @@ export class MessagingService {
     });
 
     // Parents of those students
-    const studentUserIds = students.map((s) => s.userId);
+    const studentUserIds = students.map((s: any) => s.userId);
     const parentRelations = await this.prisma.parentStudent.findMany({
       where: { studentId: { in: studentUserIds } },
       include: {
@@ -477,7 +477,7 @@ export class MessagingService {
     });
 
     const teacherProfiles = await this.prisma.teacherProfile.findMany({
-      where: { id: { in: scheduleEvents.map((e) => e.teacherId) } },
+      where: { id: { in: scheduleEvents.map((e: any) => e.teacherId) } },
       include: {
         user: {
           select: {
@@ -544,7 +544,7 @@ export class MessagingService {
     });
 
     const classroomIds = parentRelations
-      .map((pr) => pr.student.studentProfile?.classroomId)
+      .map((pr: any) => pr.student.studentProfile?.classroomId)
       .filter(Boolean) as string[];
 
     if (classroomIds.length === 0) return [];
@@ -557,7 +557,7 @@ export class MessagingService {
     });
 
     const teacherProfiles = await this.prisma.teacherProfile.findMany({
-      where: { id: { in: scheduleEvents.map((e) => e.teacherId) } },
+      where: { id: { in: scheduleEvents.map((e: any) => e.teacherId) } },
       include: {
         user: {
           select: {
@@ -652,7 +652,7 @@ export class MessagingService {
     });
 
     return this.prisma.classroom.findMany({
-      where: { id: { in: events.map((e) => e.classroomId) } },
+      where: { id: { in: events.map((e: any) => e.classroomId) } },
       select: { id: true, name: true, grade: true },
       orderBy: { name: 'asc' },
     });
@@ -675,20 +675,20 @@ export class MessagingService {
     });
 
     // Get parents of those students
-    const studentUserIds = students.map((s) => s.userId);
+    const studentUserIds = students.map((s: any) => s.userId);
     const parentRelations = await this.prisma.parentStudent.findMany({
       where: { studentId: { in: studentUserIds } },
       select: { parentId: true },
     });
 
     const recipientIds = [
-      ...students.map((s) => s.userId),
-      ...parentRelations.map((p) => p.parentId),
+      ...students.map((s: any) => s.userId),
+      ...parentRelations.map((p: any) => p.parentId),
     ];
 
     // Deduplicate
     const uniqueRecipients = [...new Set(recipientIds)].filter(
-      (id) => id !== senderId,
+      (id: string) => id !== senderId,
     );
 
     return this.createConversation(
@@ -719,7 +719,7 @@ export class MessagingService {
     return this.createConversation(
       senderId,
       schoolId,
-      memberships.map((m) => m.userId),
+      memberships.map((m: any) => m.userId),
       subject,
       'SCHOOL_BROADCAST',
       undefined,
@@ -783,7 +783,7 @@ Message: "${content.replace(/"/g, '\\"').substring(0, 500)}";
           select: { userId: true },
         });
         await this.notificationService.notifyMany(
-          admins.map((a) => a.userId),
+          admins.map((a: any) => a.userId),
           'SYSTEM',
           'Zpráva označena',
           `Zpráva byla automaticky označena: ${result.reason}`,

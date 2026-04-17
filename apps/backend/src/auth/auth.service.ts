@@ -518,7 +518,7 @@ export class AuthService {
 
     // Check if identity exists
     const existingIdentity = user.identities.find(
-      (id) => id.provider === provider && id.providerId === providerId,
+      (id: any) => id.provider === provider && id.providerId === providerId,
     );
 
     if (!existingIdentity) {
@@ -634,7 +634,7 @@ export class AuthService {
       },
       select: { schoolId: true },
     });
-    return memberships.map((m) => m.schoolId);
+    return memberships.map((m: any) => m.schoolId);
   }
 
   /**
@@ -645,7 +645,7 @@ export class AuthService {
       where: { userId },
       select: { schoolId: true },
     });
-    return memberships.map((m) => m.schoolId);
+    return memberships.map((m: any) => m.schoolId);
   }
 
   // ─── Password Reset ──────────────────────────────────────────
@@ -767,8 +767,8 @@ export class AuthService {
 
       if (isMatch) {
         let memberships = user.schoolMemberships
-          .filter((m) => allowedRoles.includes(m.role.toUpperCase()))
-          .map((m) => ({
+          .filter((m: any) => allowedRoles.includes(m.role.toUpperCase()))
+          .map((m: any) => ({
             schoolName: m.school.name,
             role: m.role as string,
           }));
