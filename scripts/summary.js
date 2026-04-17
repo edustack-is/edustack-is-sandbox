@@ -14,12 +14,12 @@ const printSummary = () => {
 ${chalk.bold(chalk.cyan('🚀 EduStack IS – Development environment summary'))}
 ${chalk.gray('───────────────────────────────────────────────────')}
 
-  ${chalk.green('➜  Frontend App:')}   ${chalk.bold('http://localhost:5173')}
-  ${chalk.blue('➜  Backend API:')}    ${chalk.bold('http://localhost:3000')}
-  ${chalk.yellow('➜  MCP Server:')}     ${chalk.bold('http://localhost:3001')}
-  ${chalk.magenta('➜  MailDev Web:')}    ${chalk.bold('http://localhost:1081')}
+  ${chalk.green('➜  Frontend App:')}   ${chalk.bold('http://127.0.0.1:5173')}
+  ${chalk.blue('➜  Backend API:')}    ${chalk.bold('http://127.0.0.1:3000')}
+  ${chalk.yellow('➜  MCP Server:')}     ${chalk.bold('http://127.0.0.1:3001')}
+  ${chalk.magenta('➜  MailDev Web:')}    ${chalk.bold('http://127.0.0.1:1081')}
   
-  ${chalk.cyan('➜  API Specs:')}      ${chalk.bold('http://localhost:3000/api/docs')}
+  ${chalk.cyan('➜  API Specs:')}      ${chalk.bold('http://127.0.0.1:3000/api/docs')}
 
 ${chalk.gray('───────────────────────────────────────────────────')}
 `);
