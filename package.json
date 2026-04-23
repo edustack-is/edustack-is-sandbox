@@ -6,13 +6,9 @@
     "dev": "node scripts/summary.js && concurrently -n \"INFO,BE,FE,MCP,MAIL\" -c \"cyan,green,blue,yellow,magenta\" \"node scripts/summary.js --delay=10000\" \"npm run start:dev -w backend\" \"npm run dev -w frontend\" \"npm run dev -w mcp-server\" \"npx maildev --smtp 1025 --web 1081\"",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "db:sync": "node scripts/sync-schema-provider.js",
-    "db:generate": "npm run db:sync && npm run prisma:generate -w backend && npm run prisma:generate -w mcp-server",
     "db:init": "cd apps/backend && rm -rf .wrangler && npx wrangler d1 execute edustack_db --local --command=\"SELECT 1\" && npx wrangler d1 execute edustack_db --local --file=./src/database/schema.sql",
-    "format": "prettier --write \".\"",
     "db:deploy": "cd apps/backend && npx wrangler d1 execute edustack_db --remote --file=./src/database/schema.sql",
-    "db:studio": "npm run db:sync && cd apps/backend && npx prisma studio",
-    "seed:demo": "npm run seed:demo -w backend",
+    "format": "prettier --write \".\"",
     "test:e2e": "npm run test:e2e -w frontend",
     "test:e2e:ui": "npm run test:e2e:ui -w frontend",
     "test:e2e:install": "npm run test:e2e:install -w frontend"
@@ -22,7 +18,6 @@
     "packages/*"
   ],
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "prisma": "^7.7.0"
+    "concurrently": "^9.2.1"
   }
 }
