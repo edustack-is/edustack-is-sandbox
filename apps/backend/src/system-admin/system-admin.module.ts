@@ -10,7 +10,6 @@ import { BackupController } from './backup.controller';
 import { MonitoringController } from './monitoring.controller';
 import { TestDataController } from './test-data.controller';
 import { TestDataService } from './test-data.service';
-import { PrismaService } from '../prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { BackupSchedulerService } from './backup-scheduler.service';
 
@@ -31,7 +30,6 @@ import { BackupSchedulerService } from './backup-scheduler.service';
     BackupService,
     BackupSchedulerService,
     TestDataService,
-    PrismaService,
   ],
   exports: [SystemAdminAiService, SystemSettingsService],
 })

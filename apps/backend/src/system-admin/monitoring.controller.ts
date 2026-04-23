@@ -5,20 +5,15 @@ import {
   Body,
   Query,
   UseGuards,
-  Req,
   Logger,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { Public } from '../auth/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 
-import {
-  HealthCheckResponseDto,
-  MetricsResponseDto,
-} from '../common/dto/response.dto';
 // ─── In-memory Prometheus-style metrics ─────────────────────────
 const metrics = {
   httpRequestsTotal: 0,
@@ -38,7 +33,7 @@ export function incrementMetric(key: keyof typeof metrics) {
 export class MonitoringController {
   private readonly logger = new Logger(MonitoringController.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   // ─── Health Check (public) ──────────────────────────────────
   @Public()
@@ -46,7 +41,7 @@ export class MonitoringController {
   async health() {
     let dbStatus = 'ok';
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.db.query('SELECT 1');
     } catch {
       dbStatus = 'error';
     }
@@ -154,28 +149,46 @@ export class MonitoringController {
     const take = Math.min(Number(limit) || 50, 100);
     const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
 
-    const where: any = { schoolId: null }; // system-level only
-    if (action) where.action = action;
+    let whereClause = 'WHERE schoolId IS NULL';
+    const params: any[] = [];
+    if (action) {
+      whereClause += ' AND action = ?';
+      params.push(action);
+    }
 
-    const [data, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where,
-        include: {
-          actor: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take,
-        skip,
-      }),
-      this.prisma.auditLog.count({ where }),
+    const sql = `
+      SELECT a.*, u.id as actorId, u.firstName, u.lastName, u.email
+      FROM AuditLog a
+      LEFT JOIN User u ON a.actorId = u.id
+      ${whereClause}
+      ORDER BY a.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const countSql = `SELECT COUNT(*) as count FROM AuditLog ${whereClause}`;
+
+    const [rows, countResult] = await Promise.all([
+      this.db.query(sql, [...params, take, skip]),
+      this.db.queryOne<{ count: number }>(countSql, params),
     ]);
 
-    return { data, total, page: Number(page), limit: take };
-  }
+    const data = rows.map((row: any) => ({
+      ...row,
+      actor: row.actorId
+        ? {
+            id: row.actorId,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+          }
+        : null,
+    }));
 
-  // ─── Settings CRUD (admin only) ─────────────────────────────
-  // These are handled separately because they share the /api prefix
-  // but the actual settings endpoints are on the SystemAdminController
+    return {
+      data,
+      total: countResult?.count || 0,
+      page: Number(page),
+      limit: take,
+    };
+  }
 }

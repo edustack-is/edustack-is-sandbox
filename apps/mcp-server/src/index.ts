@@ -1,14 +1,14 @@
-import express from "express";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import cors from "cors";
-import dotenv from "dotenv";
-import { server } from "./server.js";
-import { databasePath } from "./db.js";
-import path from "path";
-import fs from "fs";
+import express from 'express';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { server } from './server.js';
+import { databasePath } from './db.js';
+import path from 'path';
+import fs from 'fs';
 
 // Find and load root .env
-const envPaths = [".env", "../../.env"];
+const envPaths = ['.env', '../../.env'];
 for (const p of envPaths) {
     const fullPath = path.resolve(process.cwd(), p);
     if (fs.existsSync(fullPath)) {
@@ -21,18 +21,18 @@ const app = express();
 app.use(cors());
 
 // Import tools (they register themselves on the server)
-import "./tools/management.js";
-import "./tools/analytics.js";
-import "./tools/users.js";
-import "./tools/seeding.js";
-import "./tools/curriculum.js";
-import "./tools/grading.js";
+import './tools/management.js';
+import './tools/analytics.js';
+import './tools/users.js';
+import './tools/seeding.js';
+import './tools/curriculum.js';
+import './tools/grading.js';
 
 // Store transports by session ID
 const transports = new Map<string, SSEServerTransport>();
 let currentTransport: SSEServerTransport | null = null;
 
-app.get("/", (req, res) => {
+app.get('/', (req, res) => {
     // Access private tools list for diagnostic info
     const toolCount = (server as any)._tools?.size || 0;
 
@@ -85,12 +85,12 @@ app.get("/", (req, res) => {
     `);
 });
 
-app.get("/sse", async (req, res) => {
-    console.log("New SSE connection requested");
-    
+app.get('/sse', async (req, res) => {
+    console.log('New SSE connection requested');
+
     // Close existing transport if any
     if (currentTransport) {
-        console.log("Closing existing transport to allow new connection");
+        console.log('Closing existing transport to allow new connection');
         try {
             await server.close();
         } catch (e) {
@@ -98,15 +98,15 @@ app.get("/sse", async (req, res) => {
         }
     }
 
-    const transport = new SSEServerTransport("/message", res);
+    const transport = new SSEServerTransport('/message', res);
     const sessionId = transport.sessionId;
     transports.set(sessionId, transport);
     currentTransport = transport;
-    
+
     console.log(`SSE session started: ${sessionId}`);
 
     // Clean up on disconnect
-    res.on("close", () => {
+    res.on('close', () => {
         console.log(`SSE session closed: ${sessionId}`);
         transports.delete(sessionId);
         if (currentTransport === transport) {
@@ -117,11 +117,11 @@ app.get("/sse", async (req, res) => {
     try {
         await server.connect(transport);
     } catch (err: any) {
-        console.error("Failed to connect transport to MCP server:", err);
+        console.error('Failed to connect transport to MCP server:', err);
     }
 });
 
-app.post("/message", async (req, res) => {
+app.post('/message', async (req, res) => {
     const sessionId = req.query.sessionId as string;
     console.log(`Received message for session: ${sessionId}`);
 
@@ -132,12 +132,14 @@ app.post("/message", async (req, res) => {
         } catch (err) {
             console.error(`Error handling message for session ${sessionId}:`, err);
             if (!res.headersSent) {
-                res.status(500).json({ error: "Internal error" });
+                res.status(500).json({ error: 'Internal error' });
             }
         }
     } else {
-        console.error(`No transport found for session: ${sessionId}, available sessions: ${Array.from(transports.keys()).join(', ')}`);
-        res.status(400).json({ error: "No active SSE transport for this session" });
+        console.error(
+            `No transport found for session: ${sessionId}, available sessions: ${Array.from(transports.keys()).join(', ')}`,
+        );
+        res.status(400).json({ error: 'No active SSE transport for this session' });
     }
 });
 

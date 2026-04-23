@@ -3,9 +3,9 @@ import {
   ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { CryptoService } from '../utils/crypto.service';
-import { SecretType } from '@prisma/client';
+import { SecretType, SystemSecret, School } from '../database/types';
 import { generateText, tool, ToolSet, jsonSchema } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
@@ -15,6 +15,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { EventSource } from 'eventsource';
 import { SystemAdminAiService } from '../system-admin/system-admin-ai.service';
+import * as crypto from 'crypto';
 
 // ─── Role-based system instructions ─────────────────────────────
 
@@ -42,7 +43,7 @@ export class AiChatService {
   private mcpTransport: SSEClientTransport | null = null;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     private readonly cryptoService: CryptoService,
     private readonly systemAdminAiService: SystemAdminAiService,
   ) {
@@ -121,10 +122,10 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     contextParts.push(`Aktuální uživatel: userId="${userId}", role="${role}".`);
     if (schoolId) {
       // Fetch school name for user-friendly context
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-        select: { name: true },
-      });
+      const school = await this.db.queryOne<School>(
+        'SELECT name FROM School WHERE id = ?',
+        [schoolId],
+      );
       const schoolName = school?.name || 'Neznámá škola';
       contextParts.push(
         `Uživatel pracuje v kontextu školy "${schoolName}" (interní ID: ${schoolId}). Pokud budeš volat nástroje (Tools) vyžadující schoolId, automaticky použij toto ID, pokud uživatel nespecifikuje jiné.`,
@@ -363,10 +364,10 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     const contextParts: string[] = [];
     contextParts.push(`Aktuální uživatel: userId="${userId}", role="${role}".`);
     if (schoolId) {
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-        select: { name: true },
-      });
+      const school = await this.db.queryOne<School>(
+        'SELECT name FROM School WHERE id = ?',
+        [schoolId],
+      );
       const schoolName = school?.name || 'Neznámá škola';
       contextParts.push(
         `Uživatel pracuje v kontextu školy "${schoolName}" (interní ID: ${schoolId}). Pokud budeš volat nástroje (Tools) vyžadující schoolId, automaticky použij toto ID, pokud uživatel nespecifikuje jiné.`,
@@ -648,17 +649,17 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     }
 
     if (providerType === 'openai') {
-        if (!keys.openAiApiKey)
-          throw new ServiceUnavailableException('OpenAI API key is missing.');
-        const openai = createOpenAI({ apiKey: keys.openAiApiKey });
-        return openai(modelOverride || 'gpt-4o-mini');
+      if (!keys.openAiApiKey)
+        throw new ServiceUnavailableException('OpenAI API key is missing.');
+      const openai = createOpenAI({ apiKey: keys.openAiApiKey });
+      return openai(modelOverride || 'gpt-4o-mini');
     }
 
     if (providerType === 'anthropic' || provider === 'anthropic') {
-        if (!keys.anthropicApiKey)
-          throw new ServiceUnavailableException('Anthropic API key is missing.');
-        const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
-        return anthropic(modelOverride || 'claude-3-5-sonnet-20240620');
+      if (!keys.anthropicApiKey)
+        throw new ServiceUnavailableException('Anthropic API key is missing.');
+      const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
+      return anthropic(modelOverride || 'claude-3-5-sonnet-20240620');
     }
 
     throw new ServiceUnavailableException(`Unsupported provider: ${provider}`);
@@ -670,29 +671,36 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
 
     // 1. Discover Google Models
     if (keys.geminiApiKey) {
-        try {
-            const available = await this.systemAdminAiService.getDiscoverableGoogleModels();
-            available.forEach((modelId) => {
-                providers.push({
-                    id: `google:${modelId}`,
-                    name: `Google ${modelId}`
-                });
-            });
-        } catch (e) {
-            this.logger.warn(`Failed to discover Google models: ${e.message}`);
-        }
+      try {
+        const available =
+          await this.systemAdminAiService.getDiscoverableGoogleModels();
+        available.forEach((modelId) => {
+          providers.push({
+            id: `google:${modelId}`,
+            name: `Google ${modelId}`,
+          });
+        });
+      } catch (e) {
+        this.logger.warn(`Failed to discover Google models: ${e.message}`);
+      }
     }
 
     // 2. OpenAI (Hardcoded for now as their list API is huge, but marked as available)
     if (keys.openAiApiKey) {
-        providers.push({ id: 'openai:gpt-4o-mini', name: 'OpenAI GPT-4o Mini' });
-        providers.push({ id: 'openai:gpt-4o', name: 'OpenAI GPT-4o' });
+      providers.push({ id: 'openai:gpt-4o-mini', name: 'OpenAI GPT-4o Mini' });
+      providers.push({ id: 'openai:gpt-4o', name: 'OpenAI GPT-4o' });
     }
 
     // 3. Anthropic
     if (keys.anthropicApiKey) {
-        providers.push({ id: 'anthropic:claude-3-5-sonnet-20240620', name: 'Anthropic Claude 3.5 Sonnet' });
-        providers.push({ id: 'anthropic:claude-3-haiku-20240307', name: 'Anthropic Claude 3 Haiku' });
+      providers.push({
+        id: 'anthropic:claude-3-5-sonnet-20240620',
+        name: 'Anthropic Claude 3.5 Sonnet',
+      });
+      providers.push({
+        id: 'anthropic:claude-3-haiku-20240307',
+        name: 'Anthropic Claude 3 Haiku',
+      });
     }
 
     return providers;
@@ -700,9 +708,10 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
 
   private async getApiKeys() {
     // Read API keys from systemSecret table (same place admin UI writes them)
-    const secrets = await this.prisma.systemSecret.findMany({
-      where: { type: SecretType.AI },
-    });
+    const secrets = await this.db.query<SystemSecret>(
+      'SELECT * FROM "SystemSecret" WHERE type = ?',
+      [SecretType.AI],
+    );
 
     const findAndDecrypt = (service: string, key: string): string | null => {
       const secret = secrets.find(
@@ -774,18 +783,21 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     if (!usage) return;
 
     try {
-      await this.prisma.aiTokenUsage.create({
-        data: {
+      await this.db.execute(
+        'INSERT INTO "AiTokenUsage" (id, userId, schoolId, provider, modelName, inputTokens, outputTokens, totalTokens, promptType, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
           userId,
-          schoolId: schoolId || null, // normalize empty string to null
+          schoolId || null,
           provider,
-          modelName: model,
-          inputTokens: usage.promptTokens ?? 0,
-          outputTokens: usage.completionTokens ?? 0,
-          totalTokens: usage.totalTokens ?? 0,
-          promptType: 'CHAT',
-        },
-      });
+          model,
+          usage.promptTokens ?? 0,
+          usage.completionTokens ?? 0,
+          usage.totalTokens ?? 0,
+          'CHAT',
+          new Date().toISOString(),
+        ],
+      );
     } catch (err) {
       this.logger.error('Failed to track AI usage:', err);
     }
@@ -825,23 +837,23 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
   }
 
   private async executeFetchStudentGrades(studentId: string) {
-    const grades = await this.prisma.grade.findMany({
-      where: { studentId },
-      include: {
-        subjectInstance: {
-          include: { template: true },
-        },
-      },
-      orderBy: { date: 'desc' },
-      take: 50,
-    });
+    const grades = await this.db.query(
+      `SELECT g.*, st.name as subjectName
+       FROM Grade g
+       LEFT JOIN SubjectInstance si ON g.subjectInstanceId = si.id
+       LEFT JOIN SubjectTemplate st ON si.templateId = st.id
+       WHERE g.studentId = ?
+       ORDER BY g.date DESC
+       LIMIT 50`,
+      [studentId],
+    );
 
     return grades.map((g: any) => ({
-      subject: g.subjectInstance?.template?.name ?? 'Neznámý předmět',
+      subject: g.subjectName ?? 'Neznámý předmět',
       value: g.value,
       weight: g.weight,
       description: g.description,
-      gradedAt: g.date.toISOString(),
+      gradedAt: g.date,
     }));
   }
 }

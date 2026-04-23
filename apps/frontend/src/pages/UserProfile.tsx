@@ -4,7 +4,23 @@ import type { Area } from 'react-easy-crop';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, Shield, Link as LinkIcon, Globe, Github, Apple, Camera, Upload, X, Check, ZoomIn, ZoomOut, Crop } from 'lucide-react';
+import {
+    Loader2,
+    User,
+    Mail,
+    Shield,
+    Link as LinkIcon,
+    Globe,
+    Github,
+    Apple,
+    Camera,
+    Upload,
+    X,
+    Check,
+    ZoomIn,
+    ZoomOut,
+    Crop,
+} from 'lucide-react';
 import { getMe, getUserIdentities, linkIdentity, getSsoOptions, updateProfile, uploadAvatar } from '@/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -35,7 +51,7 @@ function getAvatarMeta(avatarUrl: string | null | undefined) {
     if (!avatarUrl) return null;
     if (avatarUrl.startsWith('emoji:')) {
         const id = avatarUrl.replace('emoji:', '');
-        return PREDEFINED_AVATARS.find(a => a.id === id) || null;
+        return PREDEFINED_AVATARS.find((a) => a.id === id) || null;
     }
     return null;
 }
@@ -59,17 +75,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area, outputSize = 256
     canvas.width = outputSize;
     canvas.height = outputSize;
 
-    ctx.drawImage(
-        image,
-        pixelCrop.x,
-        pixelCrop.y,
-        pixelCrop.width,
-        pixelCrop.height,
-        0,
-        0,
-        outputSize,
-        outputSize,
-    );
+    ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, outputSize, outputSize);
 
     return new Promise((resolve, reject) => {
         canvas.toBlob(
@@ -217,9 +223,8 @@ export function UserProfile() {
         { id: 'apple', name: 'Apple', icon: Apple, color: 'text-black' },
     ];
 
-    const providers = allProviders.filter(p =>
-        identities.some(id => id.provider.toLowerCase() === p.id) ||
-        activeSsoOptions.includes(p.id)
+    const providers = allProviders.filter(
+        (p) => identities.some((id) => id.provider.toLowerCase() === p.id) || activeSsoOptions.includes(p.id),
     );
 
     return (
@@ -231,12 +236,17 @@ export function UserProfile() {
                 <Card className="md:col-span-1">
                     <CardHeader className="text-center">
                         <div className="relative mx-auto group">
-                            <div className={cn(
-                                "w-24 h-24 rounded-full flex items-center justify-center mb-4 overflow-hidden transition-all",
-                                "ring-2 ring-offset-2 ring-primary/20",
-                                avatarMeta ? `bg-gradient-to-br ${avatarMeta.bg}` :
-                                    hasCustomImage ? '' : 'bg-primary/10'
-                            )}>
+                            <div
+                                className={cn(
+                                    'w-24 h-24 rounded-full flex items-center justify-center mb-4 overflow-hidden transition-all',
+                                    'ring-2 ring-offset-2 ring-primary/20',
+                                    avatarMeta
+                                        ? `bg-gradient-to-br ${avatarMeta.bg}`
+                                        : hasCustomImage
+                                          ? ''
+                                          : 'bg-primary/10',
+                                )}
+                            >
                                 {avatarMeta ? (
                                     <span className="text-4xl">{avatarMeta.emoji}</span>
                                 ) : hasCustomImage ? (
@@ -253,13 +263,17 @@ export function UserProfile() {
                                 <Camera className="w-4 h-4" />
                             </button>
                         </div>
-                        <CardTitle>{user?.firstName} {user?.lastName}</CardTitle>
+                        <CardTitle>
+                            {user?.firstName} {user?.lastName}
+                        </CardTitle>
                         <CardDescription>{user?.email}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-sm">
                             <Shield className="w-4 h-4 text-muted-foreground" />
-                            <span>{t('common.role')}: {user?.isSystemAdmin ? 'System Admin' : t('profile.user_role')}</span>
+                            <span>
+                                {t('common.role')}: {user?.isSystemAdmin ? 'System Admin' : t('profile.user_role')}
+                            </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                             <Mail className="w-4 h-4 text-muted-foreground" />
@@ -270,7 +284,6 @@ export function UserProfile() {
 
                 {/* ──── Avatar Picker / Cropper / SSO ──── */}
                 <div className="md:col-span-2 space-y-6">
-
                     {/* ══════ Image Cropper Modal ══════ */}
                     {imageSrc && (
                         <Card className="animate-in slide-in-from-top-2 fade-in duration-300 overflow-hidden">
@@ -319,7 +332,9 @@ export function UserProfile() {
                                             [&::-webkit-slider-thumb]:hover:scale-125"
                                     />
                                     <ZoomIn className="w-4 h-4 text-muted-foreground shrink-0" />
-                                    <span className="text-xs text-muted-foreground w-10 text-right">{Math.round(zoom * 100)}%</span>
+                                    <span className="text-xs text-muted-foreground w-10 text-right">
+                                        {Math.round(zoom * 100)}%
+                                    </span>
                                 </div>
 
                                 {/* Action Buttons */}
@@ -354,7 +369,12 @@ export function UserProfile() {
                                         <Camera className="w-4 h-4 text-primary" />
                                         {t('profile.change_avatar')}
                                     </CardTitle>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAvatarPickerOpen(false)}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => setAvatarPickerOpen(false)}
+                                    >
                                         <X className="w-4 h-4" />
                                     </Button>
                                 </div>
@@ -363,19 +383,21 @@ export function UserProfile() {
                             <CardContent className="space-y-4">
                                 {/* Predefined Avatars Grid */}
                                 <div>
-                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">{t('profile.predefined_avatars')}</p>
+                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
+                                        {t('profile.predefined_avatars')}
+                                    </p>
                                     <div className="grid grid-cols-6 gap-3">
-                                        {PREDEFINED_AVATARS.map(a => {
+                                        {PREDEFINED_AVATARS.map((a) => {
                                             const isSelected = user?.avatarUrl === `emoji:${a.id}`;
                                             return (
                                                 <button
                                                     key={a.id}
                                                     onClick={() => handleSelectAvatar(a.id)}
                                                     className={cn(
-                                                        "relative w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110",
+                                                        'relative w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110',
                                                         `bg-gradient-to-br ${a.bg}`,
-                                                        isSelected && "ring-2 ring-primary ring-offset-2",
-                                                        "shadow-md hover:shadow-lg"
+                                                        isSelected && 'ring-2 ring-primary ring-offset-2',
+                                                        'shadow-md hover:shadow-lg',
                                                     )}
                                                     title={a.id}
                                                 >
@@ -393,7 +415,9 @@ export function UserProfile() {
 
                                 {/* Upload Section */}
                                 <div className="border-t pt-4">
-                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">{t('profile.custom_image')}</p>
+                                    <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
+                                        {t('profile.custom_image')}
+                                    </p>
                                     <div className="flex gap-3">
                                         <input
                                             ref={fileInputRef}
@@ -437,30 +461,37 @@ export function UserProfile() {
                                 <LinkIcon className="w-5 h-5 text-primary" />
                                 {t('profile.sso_title')}
                             </CardTitle>
-                            <CardDescription>
-                                {t('profile.sso_description')}
-                            </CardDescription>
+                            <CardDescription>{t('profile.sso_description')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {providers.map((p) => {
-                                const linked = identities.find(id => id.provider.toLowerCase() === p.id);
+                                const linked = identities.find((id) => id.provider.toLowerCase() === p.id);
                                 return (
-                                    <div key={p.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors">
+                                    <div
+                                        key={p.id}
+                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors"
+                                    >
                                         <div className="flex items-center gap-3">
                                             <p.icon className={`w-5 h-5 ${p.color}`} />
                                             <div>
                                                 <p className="font-medium">{p.name}</p>
                                                 {linked ? (
                                                     <p className="text-xs text-muted-foreground">
-                                                        {t('profile.linked_at')} {new Date(linked.createdAt).toLocaleDateString()}
+                                                        {t('profile.linked_at')}{' '}
+                                                        {new Date(linked.createdAt).toLocaleDateString()}
                                                     </p>
                                                 ) : (
-                                                    <p className="text-xs text-muted-foreground italic">{t('profile.not_linked')}</p>
+                                                    <p className="text-xs text-muted-foreground italic">
+                                                        {t('profile.not_linked')}
+                                                    </p>
                                                 )}
                                             </div>
                                         </div>
                                         {linked ? (
-                                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                                            <Badge
+                                                variant="outline"
+                                                className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                                            >
                                                 {t('profile.active')}
                                             </Badge>
                                         ) : (

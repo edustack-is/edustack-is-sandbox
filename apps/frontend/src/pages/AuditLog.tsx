@@ -3,14 +3,7 @@ import { api } from '@/api';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
 interface AuditLogEntry {
@@ -101,9 +94,7 @@ export function AuditLog() {
                     <ClipboardList className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        {t('audit_log.title', 'Audit log')}
-                    </h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('audit_log.title', 'Audit log')}</h1>
                     <p className="text-muted-foreground text-sm">
                         {t('audit_log.description', 'Historie akcí provedených v rámci školy')}
                     </p>
@@ -148,10 +139,13 @@ export function AuditLog() {
                                             {formatDate(log.createdAt)}
                                         </TableCell>
                                         <TableCell className="text-sm">
-                                            {log.actor
-                                                ? `${log.actor.firstName} ${log.actor.lastName}`
-                                                : <span className="text-muted-foreground italic">{t('common.system', 'Systém')}</span>
-                                            }
+                                            {log.actor ? (
+                                                `${log.actor.firstName} ${log.actor.lastName}`
+                                            ) : (
+                                                <span className="text-muted-foreground italic">
+                                                    {t('common.system', 'Systém')}
+                                                </span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="secondary" className={getActionColor(log.action)}>
@@ -176,13 +170,14 @@ export function AuditLog() {
                     {/* Pagination */}
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">
-                            {t('audit_log.showing', 'Zobrazeno')} {(page - 1) * limit + 1}–{Math.min(page * limit, total)} {t('audit_log.of', 'z')} {total}
+                            {t('audit_log.showing', 'Zobrazeno')} {(page - 1) * limit + 1}–
+                            {Math.min(page * limit, total)} {t('audit_log.of', 'z')} {total}
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
                                 disabled={page <= 1}
                             >
                                 <ChevronLeft className="h-4 w-4" />
@@ -193,7 +188,7 @@ export function AuditLog() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                                 disabled={page >= totalPages}
                             >
                                 <ChevronRight className="h-4 w-4" />

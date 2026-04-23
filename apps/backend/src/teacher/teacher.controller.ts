@@ -16,7 +16,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole, AttendanceStatus } from '@prisma/client';
+import { UserRole, AttendanceStatus } from '../database/types';
 import { TeacherService } from './teacher.service';
 import { GradeResponseDto, SuccessResponseDto } from '../common/dto/api.dto';
 

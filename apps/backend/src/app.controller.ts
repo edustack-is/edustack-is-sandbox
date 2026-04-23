@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from './auth/public.decorator';
-import { PrismaService } from './prisma/prisma.service';
+import { DatabaseService } from './database/database.service';
 import { ApiExcludeController } from '@nestjs/swagger';
 
 @ApiExcludeController()
 @Controller()
 export class AppController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   @Public()
   @Get()
@@ -16,7 +16,7 @@ export class AppController {
 
     try {
       // Simple query to verify connection
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.db.query('SELECT 1');
       dbStatus = 'Connected';
     } catch (err) {
       dbError = err.message;

@@ -31,9 +31,11 @@ import { ClassBookModule } from './classbook/classbook.module';
 import { ExportModule } from './export/export.module';
 import { ReportsModule } from './reports/reports.module';
 import { GdprModule } from './gdpr/gdpr.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
+    DatabaseModule,
     ClsModule.forRoot({
       global: true,
       middleware: { mount: true },

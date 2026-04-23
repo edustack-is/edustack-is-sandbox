@@ -1,787 +1,783 @@
 {
-    "meta": {
-        "name": "EduStack Demo Seed",
-        "description": "Demo data for classroom presentation. Creates a school with staff, students, subjects, and curriculum.",
-        "version": "1.0",
-        "locale": "cs"
+  "meta": {
+    "name": "EduStack Demo Seed",
+    "description": "Demo data for classroom presentation. Creates a school with staff, students, subjects, and curriculum.",
+    "version": "1.0",
+    "locale": "cs"
+  },
+  "sso": {
+    "google": {
+      "clientId": "placeholder-google-client-id",
+      "clientSecret": "placeholder-google-client-secret",
+      "isActive": true
     },
-    "sso": {
-        "google": {
-            "clientId": "placeholder-google-client-id",
-            "clientSecret": "placeholder-google-client-secret",
-            "isActive": true
-        },
-        "github": {
-            "clientId": "placeholder-github-client-id",
-            "clientSecret": "placeholder-github-client-secret",
-            "isActive": false
-        }
+    "github": {
+      "clientId": "placeholder-github-client-id",
+      "clientSecret": "placeholder-github-client-secret",
+      "isActive": false
+    }
+  },
+  "ai": {
+    "geminiApiKey": "placeholder-gemini-api-key",
+    "openAiApiKey": "placeholder-openai-api-key",
+    "anthropicApiKey": "placeholder-anthropic-api-key"
+  },
+  "school": {
+    "name": "Základní škola T. G. Masaryka",
+    "address": "Školní 123, 150 00 Praha 5"
+  },
+  "gradeLevels": [
+    {
+      "name": "1. ročník",
+      "levelNumber": 1
     },
-    "ai": {
-        "geminiApiKey": "placeholder-gemini-api-key",
-        "openAiApiKey": "placeholder-openai-api-key",
-        "anthropicApiKey": "placeholder-anthropic-api-key"
+    {
+      "name": "2. ročník",
+      "levelNumber": 2
     },
-    "school": {
-        "name": "Základní škola T. G. Masaryka",
-        "address": "Školní 123, 150 00 Praha 5"
+    {
+      "name": "3. ročník",
+      "levelNumber": 3
     },
-    "gradeLevels": [
-        {
-            "name": "1. ročník",
-            "levelNumber": 1
-        },
-        {
-            "name": "2. ročník",
-            "levelNumber": 2
-        },
-        {
-            "name": "3. ročník",
-            "levelNumber": 3
-        },
-        {
-            "name": "4. ročník",
-            "levelNumber": 4
-        },
-        {
-            "name": "5. ročník",
-            "levelNumber": 5
-        },
-        {
-            "name": "6. ročník",
-            "levelNumber": 6
-        },
-        {
-            "name": "7. ročník",
-            "levelNumber": 7
-        },
-        {
-            "name": "8. ročník",
-            "levelNumber": 8
-        },
-        {
-            "name": "9. ročník",
-            "levelNumber": 9
-        }
-    ],
-    "subjects": [
-        {
-            "name": "Český jazyk a literatura",
-            "code": "ČJ"
-        },
-        {
-            "name": "Anglický jazyk",
-            "code": "AJ"
-        },
-        {
-            "name": "Matematika",
-            "code": "M"
-        },
-        {
-            "name": "Informatika",
-            "code": "INF"
-        },
-        {
-            "name": "Prvouka",
-            "code": "PRV"
-        },
-        {
-            "name": "Přírodověda",
-            "code": "PŘ"
-        },
-        {
-            "name": "Vlastivěda",
-            "code": "VL"
-        },
-        {
-            "name": "Dějepis",
-            "code": "D"
-        },
-        {
-            "name": "Občanská výchova",
-            "code": "OV"
-        },
-        {
-            "name": "Fyzika",
-            "code": "F"
-        },
-        {
-            "name": "Chemie",
-            "code": "CH"
-        },
-        {
-            "name": "Přírodopis",
-            "code": "PŘI"
-        },
-        {
-            "name": "Zeměpis",
-            "code": "Z"
-        },
-        {
-            "name": "Hudební výchova",
-            "code": "HV"
-        },
-        {
-            "name": "Výtvarná výchova",
-            "code": "VV"
-        },
-        {
-            "name": "Tělesná výchova",
-            "code": "TV"
-        },
-        {
-            "name": "Pracovní činnosti",
-            "code": "PČ"
-        }
-    ],
-    "curriculumVersion": {
-        "name": "ŠVP 2025 – Škola pro život",
-        "validFrom": "2025-09-01",
-        "allocations": [
-            {
-                "subject": "ČJ",
-                "grade": 1,
-                "hours": 9
-            },
-            {
-                "subject": "ČJ",
-                "grade": 2,
-                "hours": 9
-            },
-            {
-                "subject": "ČJ",
-                "grade": 3,
-                "hours": 8
-            },
-            {
-                "subject": "ČJ",
-                "grade": 4,
-                "hours": 7
-            },
-            {
-                "subject": "ČJ",
-                "grade": 5,
-                "hours": 7
-            },
-            {
-                "subject": "ČJ",
-                "grade": 6,
-                "hours": 5
-            },
-            {
-                "subject": "ČJ",
-                "grade": 7,
-                "hours": 4
-            },
-            {
-                "subject": "ČJ",
-                "grade": 8,
-                "hours": 4
-            },
-            {
-                "subject": "ČJ",
-                "grade": 9,
-                "hours": 4
-            },
-            {
-                "subject": "AJ",
-                "grade": 3,
-                "hours": 3
-            },
-            {
-                "subject": "AJ",
-                "grade": 4,
-                "hours": 3
-            },
-            {
-                "subject": "AJ",
-                "grade": 5,
-                "hours": 3
-            },
-            {
-                "subject": "AJ",
-                "grade": 6,
-                "hours": 3
-            },
-            {
-                "subject": "AJ",
-                "grade": 7,
-                "hours": 3
-            },
-            {
-                "subject": "AJ",
-                "grade": 8,
-                "hours": 3
-            },
-            {
-                "subject": "AJ",
-                "grade": 9,
-                "hours": 3
-            },
-            {
-                "subject": "M",
-                "grade": 1,
-                "hours": 4
-            },
-            {
-                "subject": "M",
-                "grade": 2,
-                "hours": 5
-            },
-            {
-                "subject": "M",
-                "grade": 3,
-                "hours": 5
-            },
-            {
-                "subject": "M",
-                "grade": 4,
-                "hours": 5
-            },
-            {
-                "subject": "M",
-                "grade": 5,
-                "hours": 5
-            },
-            {
-                "subject": "M",
-                "grade": 6,
-                "hours": 5
-            },
-            {
-                "subject": "M",
-                "grade": 7,
-                "hours": 4
-            },
-            {
-                "subject": "M",
-                "grade": 8,
-                "hours": 4
-            },
-            {
-                "subject": "M",
-                "grade": 9,
-                "hours": 4
-            },
-            {
-                "subject": "INF",
-                "grade": 4,
-                "hours": 1
-            },
-            {
-                "subject": "INF",
-                "grade": 5,
-                "hours": 1
-            },
-            {
-                "subject": "INF",
-                "grade": 6,
-                "hours": 1
-            },
-            {
-                "subject": "INF",
-                "grade": 7,
-                "hours": 1
-            },
-            {
-                "subject": "INF",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "INF",
-                "grade": 9,
-                "hours": 1
-            },
-            {
-                "subject": "PRV",
-                "grade": 1,
-                "hours": 2
-            },
-            {
-                "subject": "PRV",
-                "grade": 2,
-                "hours": 2
-            },
-            {
-                "subject": "PRV",
-                "grade": 3,
-                "hours": 2
-            },
-            {
-                "subject": "PŘ",
-                "grade": 4,
-                "hours": 2
-            },
-            {
-                "subject": "PŘ",
-                "grade": 5,
-                "hours": 2
-            },
-            {
-                "subject": "VL",
-                "grade": 4,
-                "hours": 2
-            },
-            {
-                "subject": "VL",
-                "grade": 5,
-                "hours": 2
-            },
-            {
-                "subject": "D",
-                "grade": 6,
-                "hours": 2
-            },
-            {
-                "subject": "D",
-                "grade": 7,
-                "hours": 2
-            },
-            {
-                "subject": "D",
-                "grade": 8,
-                "hours": 2
-            },
-            {
-                "subject": "D",
-                "grade": 9,
-                "hours": 2
-            },
-            {
-                "subject": "OV",
-                "grade": 6,
-                "hours": 1
-            },
-            {
-                "subject": "OV",
-                "grade": 7,
-                "hours": 1
-            },
-            {
-                "subject": "OV",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "OV",
-                "grade": 9,
-                "hours": 1
-            },
-            {
-                "subject": "F",
-                "grade": 6,
-                "hours": 2
-            },
-            {
-                "subject": "F",
-                "grade": 7,
-                "hours": 2
-            },
-            {
-                "subject": "F",
-                "grade": 8,
-                "hours": 2
-            },
-            {
-                "subject": "F",
-                "grade": 9,
-                "hours": 1
-            },
-            {
-                "subject": "CH",
-                "grade": 8,
-                "hours": 2
-            },
-            {
-                "subject": "CH",
-                "grade": 9,
-                "hours": 2
-            },
-            {
-                "subject": "PŘI",
-                "grade": 6,
-                "hours": 2
-            },
-            {
-                "subject": "PŘI",
-                "grade": 7,
-                "hours": 2
-            },
-            {
-                "subject": "PŘI",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "PŘI",
-                "grade": 9,
-                "hours": 2
-            },
-            {
-                "subject": "Z",
-                "grade": 6,
-                "hours": 2
-            },
-            {
-                "subject": "Z",
-                "grade": 7,
-                "hours": 2
-            },
-            {
-                "subject": "Z",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "Z",
-                "grade": 9,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 1,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 2,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 3,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 4,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 5,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 6,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 7,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "HV",
-                "grade": 9,
-                "hours": 1
-            },
-            {
-                "subject": "VV",
-                "grade": 1,
-                "hours": 1
-            },
-            {
-                "subject": "VV",
-                "grade": 2,
-                "hours": 1
-            },
-            {
-                "subject": "VV",
-                "grade": 3,
-                "hours": 1
-            },
-            {
-                "subject": "VV",
-                "grade": 4,
-                "hours": 2
-            },
-            {
-                "subject": "VV",
-                "grade": 5,
-                "hours": 2
-            },
-            {
-                "subject": "VV",
-                "grade": 6,
-                "hours": 2
-            },
-            {
-                "subject": "VV",
-                "grade": 7,
-                "hours": 2
-            },
-            {
-                "subject": "VV",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "VV",
-                "grade": 9,
-                "hours": 1
-            },
-            {
-                "subject": "TV",
-                "grade": 1,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 2,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 3,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 4,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 5,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 6,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 7,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 8,
-                "hours": 2
-            },
-            {
-                "subject": "TV",
-                "grade": 9,
-                "hours": 2
-            },
-            {
-                "subject": "PČ",
-                "grade": 1,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 2,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 3,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 4,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 5,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 6,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 7,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 8,
-                "hours": 1
-            },
-            {
-                "subject": "PČ",
-                "grade": 9,
-                "hours": 1
-            }
-        ]
+    {
+      "name": "4. ročník",
+      "levelNumber": 4
     },
-    "academicYear": {
-        "name": "2025/2026",
-        "startDate": "2025-09-01",
-        "endDate": "2026-06-30",
-        "isCurrent": true,
-        "semesters": [
-            {
-                "number": 1,
-                "name": "1. pololetí",
-                "startDate": "2025-09-01",
-                "endDate": "2026-01-31"
-            },
-            {
-                "number": 2,
-                "name": "2. pololetí",
-                "startDate": "2026-02-01",
-                "endDate": "2026-06-30"
-            }
-        ]
+    {
+      "name": "5. ročník",
+      "levelNumber": 5
     },
-    "staff": [
-        {
-            "firstName": "Jana",
-            "lastName": "Nováková",
-            "email": "novakova@skola.test",
-            "role": "DEPUTY"
-        },
-        {
-            "firstName": "Petr",
-            "lastName": "Svoboda",
-            "email": "svoboda@skola.test",
-            "role": "TEACHER"
-        },
-        {
-            "firstName": "Eva",
-            "lastName": "Dvořáková",
-            "email": "dvorakova@skola.test",
-            "role": "TEACHER"
-        },
-        {
-            "firstName": "Martin",
-            "lastName": "Procházka",
-            "email": "prochazka@skola.test",
-            "role": "TEACHER"
-        },
-        {
-            "firstName": "Alena",
-            "lastName": "Veselá",
-            "email": "vesela@skola.test",
-            "role": "TEACHER"
-        },
-        {
-            "firstName": "Tomáš",
-            "lastName": "Kučera",
-            "email": "kucera@skola.test",
-            "role": "TEACHER"
-        },
-        {
-            "firstName": "Lucie",
-            "lastName": "Marková",
-            "email": "markova@skola.test",
-            "role": "TEACHER"
-        },
-        {
-            "firstName": "David",
-            "lastName": "Horák",
-            "email": "horak@skola.test",
-            "role": "PRINCIPAL"
-        }
-    ],
-    "students": [
-        {
-            "firstName": "Adam",
-            "lastName": "Novotný",
-            "grade": 5
-        },
-        {
-            "firstName": "Barbora",
-            "lastName": "Černá",
-            "grade": 5
-        },
-        {
-            "firstName": "Cyril",
-            "lastName": "Pokorný",
-            "grade": 5
-        },
-        {
-            "firstName": "Daniela",
-            "lastName": "Králová",
-            "grade": 5
-        },
-        {
-            "firstName": "Eliáš",
-            "lastName": "Jelínek",
-            "grade": 6
-        },
-        {
-            "firstName": "Františka",
-            "lastName": "Benešová",
-            "grade": 6
-        },
-        {
-            "firstName": "Gustav",
-            "lastName": "Fialka",
-            "grade": 6
-        },
-        {
-            "firstName": "Helena",
-            "lastName": "Šťastná",
-            "grade": 7
-        },
-        {
-            "firstName": "Ivan",
-            "lastName": "Dostál",
-            "grade": 7
-        },
-        {
-            "firstName": "Julie",
-            "lastName": "Krejčí",
-            "grade": 8
-        },
-        {
-            "firstName": "Karel",
-            "lastName": "Pospíšil",
-            "grade": 8
-        },
-        {
-            "firstName": "Lenka",
-            "lastName": "Vlčková",
-            "grade": 9
-        }
-    ],
-    "rooms": [
-        {
-            "name": "Učebna 101",
-            "capacity": 30,
-            "isComputerLab": false
-        },
-        {
-            "name": "Učebna 102",
-            "capacity": 30,
-            "isComputerLab": false
-        },
-        {
-            "name": "Počítačová učebna",
-            "capacity": 20,
-            "isComputerLab": true
-        },
-        {
-            "name": "Tělocvična",
-            "capacity": 60,
-            "isComputerLab": false
-        },
-        {
-            "name": "Laboratoř",
-            "capacity": 15,
-            "isComputerLab": false,
-            "specialEquipment": [
-                "mikroskopy",
-                "digestoř",
-                "váhy"
-            ]
-        }
+    {
+      "name": "6. ročník",
+      "levelNumber": 6
+    },
+    {
+      "name": "7. ročník",
+      "levelNumber": 7
+    },
+    {
+      "name": "8. ročník",
+      "levelNumber": 8
+    },
+    {
+      "name": "9. ročník",
+      "levelNumber": 9
+    }
+  ],
+  "subjects": [
+    {
+      "name": "Český jazyk a literatura",
+      "code": "ČJ"
+    },
+    {
+      "name": "Anglický jazyk",
+      "code": "AJ"
+    },
+    {
+      "name": "Matematika",
+      "code": "M"
+    },
+    {
+      "name": "Informatika",
+      "code": "INF"
+    },
+    {
+      "name": "Prvouka",
+      "code": "PRV"
+    },
+    {
+      "name": "Přírodověda",
+      "code": "PŘ"
+    },
+    {
+      "name": "Vlastivěda",
+      "code": "VL"
+    },
+    {
+      "name": "Dějepis",
+      "code": "D"
+    },
+    {
+      "name": "Občanská výchova",
+      "code": "OV"
+    },
+    {
+      "name": "Fyzika",
+      "code": "F"
+    },
+    {
+      "name": "Chemie",
+      "code": "CH"
+    },
+    {
+      "name": "Přírodopis",
+      "code": "PŘI"
+    },
+    {
+      "name": "Zeměpis",
+      "code": "Z"
+    },
+    {
+      "name": "Hudební výchova",
+      "code": "HV"
+    },
+    {
+      "name": "Výtvarná výchova",
+      "code": "VV"
+    },
+    {
+      "name": "Tělesná výchova",
+      "code": "TV"
+    },
+    {
+      "name": "Pracovní činnosti",
+      "code": "PČ"
+    }
+  ],
+  "curriculumVersion": {
+    "name": "ŠVP 2025 – Škola pro život",
+    "validFrom": "2025-09-01",
+    "allocations": [
+      {
+        "subject": "ČJ",
+        "grade": 1,
+        "hours": 9
+      },
+      {
+        "subject": "ČJ",
+        "grade": 2,
+        "hours": 9
+      },
+      {
+        "subject": "ČJ",
+        "grade": 3,
+        "hours": 8
+      },
+      {
+        "subject": "ČJ",
+        "grade": 4,
+        "hours": 7
+      },
+      {
+        "subject": "ČJ",
+        "grade": 5,
+        "hours": 7
+      },
+      {
+        "subject": "ČJ",
+        "grade": 6,
+        "hours": 5
+      },
+      {
+        "subject": "ČJ",
+        "grade": 7,
+        "hours": 4
+      },
+      {
+        "subject": "ČJ",
+        "grade": 8,
+        "hours": 4
+      },
+      {
+        "subject": "ČJ",
+        "grade": 9,
+        "hours": 4
+      },
+      {
+        "subject": "AJ",
+        "grade": 3,
+        "hours": 3
+      },
+      {
+        "subject": "AJ",
+        "grade": 4,
+        "hours": 3
+      },
+      {
+        "subject": "AJ",
+        "grade": 5,
+        "hours": 3
+      },
+      {
+        "subject": "AJ",
+        "grade": 6,
+        "hours": 3
+      },
+      {
+        "subject": "AJ",
+        "grade": 7,
+        "hours": 3
+      },
+      {
+        "subject": "AJ",
+        "grade": 8,
+        "hours": 3
+      },
+      {
+        "subject": "AJ",
+        "grade": 9,
+        "hours": 3
+      },
+      {
+        "subject": "M",
+        "grade": 1,
+        "hours": 4
+      },
+      {
+        "subject": "M",
+        "grade": 2,
+        "hours": 5
+      },
+      {
+        "subject": "M",
+        "grade": 3,
+        "hours": 5
+      },
+      {
+        "subject": "M",
+        "grade": 4,
+        "hours": 5
+      },
+      {
+        "subject": "M",
+        "grade": 5,
+        "hours": 5
+      },
+      {
+        "subject": "M",
+        "grade": 6,
+        "hours": 5
+      },
+      {
+        "subject": "M",
+        "grade": 7,
+        "hours": 4
+      },
+      {
+        "subject": "M",
+        "grade": 8,
+        "hours": 4
+      },
+      {
+        "subject": "M",
+        "grade": 9,
+        "hours": 4
+      },
+      {
+        "subject": "INF",
+        "grade": 4,
+        "hours": 1
+      },
+      {
+        "subject": "INF",
+        "grade": 5,
+        "hours": 1
+      },
+      {
+        "subject": "INF",
+        "grade": 6,
+        "hours": 1
+      },
+      {
+        "subject": "INF",
+        "grade": 7,
+        "hours": 1
+      },
+      {
+        "subject": "INF",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "INF",
+        "grade": 9,
+        "hours": 1
+      },
+      {
+        "subject": "PRV",
+        "grade": 1,
+        "hours": 2
+      },
+      {
+        "subject": "PRV",
+        "grade": 2,
+        "hours": 2
+      },
+      {
+        "subject": "PRV",
+        "grade": 3,
+        "hours": 2
+      },
+      {
+        "subject": "PŘ",
+        "grade": 4,
+        "hours": 2
+      },
+      {
+        "subject": "PŘ",
+        "grade": 5,
+        "hours": 2
+      },
+      {
+        "subject": "VL",
+        "grade": 4,
+        "hours": 2
+      },
+      {
+        "subject": "VL",
+        "grade": 5,
+        "hours": 2
+      },
+      {
+        "subject": "D",
+        "grade": 6,
+        "hours": 2
+      },
+      {
+        "subject": "D",
+        "grade": 7,
+        "hours": 2
+      },
+      {
+        "subject": "D",
+        "grade": 8,
+        "hours": 2
+      },
+      {
+        "subject": "D",
+        "grade": 9,
+        "hours": 2
+      },
+      {
+        "subject": "OV",
+        "grade": 6,
+        "hours": 1
+      },
+      {
+        "subject": "OV",
+        "grade": 7,
+        "hours": 1
+      },
+      {
+        "subject": "OV",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "OV",
+        "grade": 9,
+        "hours": 1
+      },
+      {
+        "subject": "F",
+        "grade": 6,
+        "hours": 2
+      },
+      {
+        "subject": "F",
+        "grade": 7,
+        "hours": 2
+      },
+      {
+        "subject": "F",
+        "grade": 8,
+        "hours": 2
+      },
+      {
+        "subject": "F",
+        "grade": 9,
+        "hours": 1
+      },
+      {
+        "subject": "CH",
+        "grade": 8,
+        "hours": 2
+      },
+      {
+        "subject": "CH",
+        "grade": 9,
+        "hours": 2
+      },
+      {
+        "subject": "PŘI",
+        "grade": 6,
+        "hours": 2
+      },
+      {
+        "subject": "PŘI",
+        "grade": 7,
+        "hours": 2
+      },
+      {
+        "subject": "PŘI",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "PŘI",
+        "grade": 9,
+        "hours": 2
+      },
+      {
+        "subject": "Z",
+        "grade": 6,
+        "hours": 2
+      },
+      {
+        "subject": "Z",
+        "grade": 7,
+        "hours": 2
+      },
+      {
+        "subject": "Z",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "Z",
+        "grade": 9,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 1,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 2,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 3,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 4,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 5,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 6,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 7,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "HV",
+        "grade": 9,
+        "hours": 1
+      },
+      {
+        "subject": "VV",
+        "grade": 1,
+        "hours": 1
+      },
+      {
+        "subject": "VV",
+        "grade": 2,
+        "hours": 1
+      },
+      {
+        "subject": "VV",
+        "grade": 3,
+        "hours": 1
+      },
+      {
+        "subject": "VV",
+        "grade": 4,
+        "hours": 2
+      },
+      {
+        "subject": "VV",
+        "grade": 5,
+        "hours": 2
+      },
+      {
+        "subject": "VV",
+        "grade": 6,
+        "hours": 2
+      },
+      {
+        "subject": "VV",
+        "grade": 7,
+        "hours": 2
+      },
+      {
+        "subject": "VV",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "VV",
+        "grade": 9,
+        "hours": 1
+      },
+      {
+        "subject": "TV",
+        "grade": 1,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 2,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 3,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 4,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 5,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 6,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 7,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 8,
+        "hours": 2
+      },
+      {
+        "subject": "TV",
+        "grade": 9,
+        "hours": 2
+      },
+      {
+        "subject": "PČ",
+        "grade": 1,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 2,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 3,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 4,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 5,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 6,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 7,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 8,
+        "hours": 1
+      },
+      {
+        "subject": "PČ",
+        "grade": 9,
+        "hours": 1
+      }
     ]
+  },
+  "academicYear": {
+    "name": "2025/2026",
+    "startDate": "2025-09-01",
+    "endDate": "2026-06-30",
+    "isCurrent": true,
+    "semesters": [
+      {
+        "number": 1,
+        "name": "1. pololetí",
+        "startDate": "2025-09-01",
+        "endDate": "2026-01-31"
+      },
+      {
+        "number": 2,
+        "name": "2. pololetí",
+        "startDate": "2026-02-01",
+        "endDate": "2026-06-30"
+      }
+    ]
+  },
+  "staff": [
+    {
+      "firstName": "Jana",
+      "lastName": "Nováková",
+      "email": "novakova@skola.test",
+      "role": "DEPUTY"
+    },
+    {
+      "firstName": "Petr",
+      "lastName": "Svoboda",
+      "email": "svoboda@skola.test",
+      "role": "TEACHER"
+    },
+    {
+      "firstName": "Eva",
+      "lastName": "Dvořáková",
+      "email": "dvorakova@skola.test",
+      "role": "TEACHER"
+    },
+    {
+      "firstName": "Martin",
+      "lastName": "Procházka",
+      "email": "prochazka@skola.test",
+      "role": "TEACHER"
+    },
+    {
+      "firstName": "Alena",
+      "lastName": "Veselá",
+      "email": "vesela@skola.test",
+      "role": "TEACHER"
+    },
+    {
+      "firstName": "Tomáš",
+      "lastName": "Kučera",
+      "email": "kucera@skola.test",
+      "role": "TEACHER"
+    },
+    {
+      "firstName": "Lucie",
+      "lastName": "Marková",
+      "email": "markova@skola.test",
+      "role": "TEACHER"
+    },
+    {
+      "firstName": "David",
+      "lastName": "Horák",
+      "email": "horak@skola.test",
+      "role": "PRINCIPAL"
+    }
+  ],
+  "students": [
+    {
+      "firstName": "Adam",
+      "lastName": "Novotný",
+      "grade": 5
+    },
+    {
+      "firstName": "Barbora",
+      "lastName": "Černá",
+      "grade": 5
+    },
+    {
+      "firstName": "Cyril",
+      "lastName": "Pokorný",
+      "grade": 5
+    },
+    {
+      "firstName": "Daniela",
+      "lastName": "Králová",
+      "grade": 5
+    },
+    {
+      "firstName": "Eliáš",
+      "lastName": "Jelínek",
+      "grade": 6
+    },
+    {
+      "firstName": "Františka",
+      "lastName": "Benešová",
+      "grade": 6
+    },
+    {
+      "firstName": "Gustav",
+      "lastName": "Fialka",
+      "grade": 6
+    },
+    {
+      "firstName": "Helena",
+      "lastName": "Šťastná",
+      "grade": 7
+    },
+    {
+      "firstName": "Ivan",
+      "lastName": "Dostál",
+      "grade": 7
+    },
+    {
+      "firstName": "Julie",
+      "lastName": "Krejčí",
+      "grade": 8
+    },
+    {
+      "firstName": "Karel",
+      "lastName": "Pospíšil",
+      "grade": 8
+    },
+    {
+      "firstName": "Lenka",
+      "lastName": "Vlčková",
+      "grade": 9
+    }
+  ],
+  "rooms": [
+    {
+      "name": "Učebna 101",
+      "capacity": 30,
+      "isComputerLab": false
+    },
+    {
+      "name": "Učebna 102",
+      "capacity": 30,
+      "isComputerLab": false
+    },
+    {
+      "name": "Počítačová učebna",
+      "capacity": 20,
+      "isComputerLab": true
+    },
+    {
+      "name": "Tělocvična",
+      "capacity": 60,
+      "isComputerLab": false
+    },
+    {
+      "name": "Laboratoř",
+      "capacity": 15,
+      "isComputerLab": false,
+      "specialEquipment": ["mikroskopy", "digestoř", "váhy"]
+    }
+  ]
 }

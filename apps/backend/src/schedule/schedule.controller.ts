@@ -21,7 +21,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole, SubstitutionType } from '@prisma/client';
+import { UserRole, SubstitutionType } from '../database/types';
 import { ScheduleService } from './schedule.service';
 import {
   CreateScheduleEventDto,

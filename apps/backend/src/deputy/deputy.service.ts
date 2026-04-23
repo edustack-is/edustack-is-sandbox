@@ -3,8 +3,30 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { UserRole, UserStatus } from '@prisma/client';
+import { DatabaseService } from '../database/database.service';
+import {
+  UserRole,
+  UserStatus,
+  RoomSharing,
+  Room,
+  Building,
+  School,
+  User,
+  SchoolMembership,
+  Classroom,
+  SubjectTemplate,
+  AcademicYear,
+  SchoolEvent,
+  TeacherProfile,
+  StudentProfile,
+  ParentStudent,
+  ThematicPlan,
+  ThematicPlanWeek,
+  LessonPreparation,
+  TeachingMaterial,
+  RvpCompetency,
+  CompetencyMapping,
+} from '../database/types';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
@@ -12,7 +34,7 @@ import { MailService } from '../mail/mail.service';
 @Injectable()
 export class DeputyService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     private readonly mailService: MailService,
   ) {}
 
@@ -20,70 +42,83 @@ export class DeputyService {
 
   async getSchoolDashboard(schoolId: string) {
     const [
-      studentCount,
-      teacherCount,
-      classroomCount,
-      subjectCount,
-      roomCount,
-      buildingCount,
+      studentCountResult,
+      teacherCountResult,
+      classroomCountResult,
+      subjectCountResult,
+      roomCountResult,
+      buildingCountResult,
       currentAcademicYear,
       recentMembers,
       upcomingEvents,
+      totalMembersResult,
+      pendingMembersResult,
     ] = await Promise.all([
-      this.prisma.schoolMembership.count({
-        where: { schoolId, role: 'STUDENT', status: UserStatus.ACTIVE },
-      }),
-      this.prisma.schoolMembership.count({
-        where: { schoolId, role: 'TEACHER', status: UserStatus.ACTIVE },
-      }),
-      this.prisma.classroom.count({ where: { schoolId } }),
-      this.prisma.subjectTemplate.count({ where: { schoolId } }),
-      this.prisma.room.count({ where: { schoolId } }),
-      this.prisma.building.count({ where: { schoolId } }),
-      this.prisma.academicYear.findFirst({
-        where: { schoolId, isCurrent: true },
-        select: { id: true, name: true, startDate: true, endDate: true },
-      }),
-      this.prisma.schoolMembership.findMany({
-        where: { schoolId },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: {
-          user: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-        },
-      }),
-      this.prisma.schoolEvent.findMany({
-        where: { schoolId, date: { gte: new Date() } },
-        orderBy: { date: 'asc' },
-        take: 5,
-      }),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = "STUDENT" AND status = "ACTIVE"',
+        [schoolId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = "TEACHER" AND status = "ACTIVE"',
+        [schoolId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "Classroom" WHERE schoolId = ?',
+        [schoolId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "SubjectTemplate" WHERE schoolId = ?',
+        [schoolId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "Room" WHERE schoolId = ?',
+        [schoolId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "Building" WHERE schoolId = ?',
+        [schoolId],
+      ),
+      this.db.queryOne<AcademicYear>(
+        'SELECT id, name, startDate, endDate FROM "AcademicYear" WHERE schoolId = ? AND isCurrent = 1 LIMIT 1',
+        [schoolId],
+      ),
+      this.db.query(
+        `SELECT m.*, u.id as userId, u.firstName, u.lastName, u.email 
+         FROM "SchoolMembership" m 
+         JOIN "User" u ON m.userId = u.id 
+         WHERE m.schoolId = ? 
+         ORDER BY m.createdAt DESC LIMIT 5`,
+        [schoolId],
+      ),
+      this.db.query<SchoolEvent>(
+        'SELECT * FROM "SchoolEvent" WHERE schoolId = ? AND date >= ? ORDER BY date ASC LIMIT 5',
+        [schoolId, new Date().toISOString()],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ?',
+        [schoolId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND status = "PENDING"',
+        [schoolId],
+      ),
     ]);
 
-    // Count all members (not just active)
-    const totalMembers = await this.prisma.schoolMembership.count({
-      where: { schoolId },
-    });
-    const pendingMembers = await this.prisma.schoolMembership.count({
-      where: { schoolId, status: UserStatus.PENDING },
-    });
-
     return {
-      studentCount,
-      teacherCount,
-      classroomCount,
-      subjectCount,
-      roomCount,
-      buildingCount,
-      totalMembers,
-      pendingMembers,
+      studentCount: studentCountResult?.count || 0,
+      teacherCount: teacherCountResult?.count || 0,
+      classroomCount: classroomCountResult?.count || 0,
+      subjectCount: subjectCountResult?.count || 0,
+      roomCount: roomCountResult?.count || 0,
+      buildingCount: buildingCountResult?.count || 0,
+      totalMembers: totalMembersResult?.count || 0,
+      pendingMembers: pendingMembersResult?.count || 0,
       currentAcademicYear,
       upcomingEvents,
       recentMembers: recentMembers.map((m: any) => ({
-        id: m.user.id,
-        name: `${m.user.firstName} ${m.user.lastName}`,
-        email: m.user.email,
+        id: m.userId,
+        name: `${m.firstName} ${m.lastName}`,
+        email: m.email,
         role: m.role,
         status: m.status,
         createdAt: m.createdAt,
@@ -94,18 +129,47 @@ export class DeputyService {
   // ─── CLASSROOM CRUD ──────────────────────────────────────────────
 
   async getClassrooms(schoolId: string) {
-    return this.prisma.classroom.findMany({
-      where: { schoolId },
-      include: {
-        students: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-        homeroomTeacher: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-      },
-      orderBy: [{ grade: 'asc' }, { name: 'asc' }],
-    });
+    const classrooms = await this.db.query<Classroom>(
+      'SELECT * FROM "Classroom" WHERE schoolId = ? ORDER BY grade ASC, name ASC',
+      [schoolId],
+    );
+
+    const result = [];
+    for (const classroom of classrooms) {
+      const students = await this.db.query(
+        `SELECT sp.*, u.firstName as userFirstName, u.lastName as userLastName 
+         FROM "StudentProfile" sp 
+         JOIN "User" u ON sp.userId = u.id 
+         WHERE sp.classroomId = ?`,
+        [classroom.id],
+      );
+
+      const homeroomTeacher = await this.db.queryOne(
+        `SELECT tp.*, u.firstName as userFirstName, u.lastName as userLastName 
+         FROM "TeacherProfile" tp 
+         JOIN "User" u ON tp.userId = u.id 
+         WHERE tp.homeroomClassId = ?`,
+        [classroom.id],
+      );
+
+      result.push({
+        ...classroom,
+        students: students.map((s: any) => ({
+          ...s,
+          user: { firstName: s.userFirstName, lastName: s.userLastName },
+        })),
+        homeroomTeacher: homeroomTeacher
+          ? {
+              ...homeroomTeacher,
+              user: {
+                firstName: (homeroomTeacher as any).userFirstName,
+                lastName: (homeroomTeacher as any).userLastName,
+              },
+            }
+          : null,
+      });
+    }
+    return result;
   }
 
   async createClassroom(
@@ -113,17 +177,17 @@ export class DeputyService {
     schoolId: string,
     data: { name: string; grade: number },
   ) {
-    const classroom = await this.prisma.classroom.create({
-      data: { name: data.name, grade: data.grade, schoolId },
-    });
-
-    await this.audit(
-      actorId,
-      'CREATE_CLASSROOM',
-      'Classroom',
-      classroom.id,
-      data,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Classroom" (id, name, grade, schoolId) VALUES (?, ?, ?, ?)',
+      [id, data.name, data.grade, schoolId],
     );
+
+    const classroom = (await this.db.queryOne<Classroom>(
+      'SELECT * FROM "Classroom" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'CREATE_CLASSROOM', 'Classroom', id, data);
     return classroom;
   }
 
@@ -133,16 +197,34 @@ export class DeputyService {
     id: string,
     data: { name?: string; grade?: number },
   ) {
-    const existing = await this.prisma.classroom.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<Classroom>(
+      'SELECT * FROM "Classroom" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Classroom not found');
 
-    const updated = await this.prisma.classroom.update({
-      where: { id },
-      data,
-    });
+    const fields = [];
+    const values = [];
+    if (data.name !== undefined) {
+      fields.push('"name" = ?');
+      values.push(data.name);
+    }
+    if (data.grade !== undefined) {
+      fields.push('"grade" = ?');
+      values.push(data.grade);
+    }
 
+    if (fields.length > 0) {
+      await this.db.execute(
+        `UPDATE "Classroom" SET ${fields.join(', ')} WHERE id = ?`,
+        [...values, id],
+      );
+    }
+
+    const updated = (await this.db.queryOne<Classroom>(
+      'SELECT * FROM "Classroom" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_CLASSROOM',
@@ -155,12 +237,13 @@ export class DeputyService {
   }
 
   async deleteClassroom(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.classroom.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<Classroom>(
+      'SELECT * FROM "Classroom" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Classroom not found');
 
-    await this.prisma.classroom.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "Classroom" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_CLASSROOM',
@@ -175,10 +258,10 @@ export class DeputyService {
   // ─── SUBJECT CRUD ────────────────────────────────────────────────
 
   async getSubjects(schoolId: string) {
-    return this.prisma.subjectTemplate.findMany({
-      where: { schoolId },
-      orderBy: { name: 'asc' },
-    });
+    return this.db.query<SubjectTemplate>(
+      'SELECT * FROM "SubjectTemplate" WHERE schoolId = ? ORDER BY name ASC',
+      [schoolId],
+    );
   }
 
   async createSubject(
@@ -186,22 +269,17 @@ export class DeputyService {
     schoolId: string,
     data: { name: string; code: string; svpDescription?: string },
   ) {
-    const subject = await this.prisma.subjectTemplate.create({
-      data: {
-        name: data.name,
-        code: data.code,
-        svpDescription: data.svpDescription,
-        schoolId,
-      },
-    });
-
-    await this.audit(
-      actorId,
-      'CREATE_SUBJECT',
-      'SubjectTemplate',
-      subject.id,
-      data,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "SubjectTemplate" (id, name, code, svpDescription, schoolId) VALUES (?, ?, ?, ?, ?)',
+      [id, data.name, data.code, data.svpDescription || null, schoolId],
     );
+
+    const subject = (await this.db.queryOne<SubjectTemplate>(
+      'SELECT * FROM "SubjectTemplate" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'CREATE_SUBJECT', 'SubjectTemplate', id, data);
     return subject;
   }
 
@@ -211,15 +289,38 @@ export class DeputyService {
     id: string,
     data: { name?: string; code?: string; svpDescription?: string },
   ) {
-    const existing = await this.prisma.subjectTemplate.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<SubjectTemplate>(
+      'SELECT * FROM "SubjectTemplate" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Subject template not found');
 
-    const updated = await this.prisma.subjectTemplate.update({
-      where: { id },
-      data,
-    });
+    const fields = [];
+    const values = [];
+    if (data.name !== undefined) {
+      fields.push('"name" = ?');
+      values.push(data.name);
+    }
+    if (data.code !== undefined) {
+      fields.push('"code" = ?');
+      values.push(data.code);
+    }
+    if (data.svpDescription !== undefined) {
+      fields.push('"svpDescription" = ?');
+      values.push(data.svpDescription);
+    }
+
+    if (fields.length > 0) {
+      await this.db.execute(
+        `UPDATE "SubjectTemplate" SET ${fields.join(', ')} WHERE id = ?`,
+        [...values, id],
+      );
+    }
+
+    const updated = (await this.db.queryOne<SubjectTemplate>(
+      'SELECT * FROM "SubjectTemplate" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_SUBJECT',
@@ -232,12 +333,13 @@ export class DeputyService {
   }
 
   async deleteSubject(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.subjectTemplate.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<SubjectTemplate>(
+      'SELECT * FROM "SubjectTemplate" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Subject template not found');
 
-    await this.prisma.subjectTemplate.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "SubjectTemplate" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_SUBJECT',
@@ -252,11 +354,22 @@ export class DeputyService {
   // ─── ROOM CRUD ───────────────────────────────────────────────────
 
   async getRooms(schoolId: string) {
-    return this.prisma.room.findMany({
-      where: { schoolId },
-      include: { building: { select: { id: true, name: true } } },
-      orderBy: { name: 'asc' },
-    });
+    const rooms = await this.db.query<Room>(
+      'SELECT * FROM "Room" WHERE schoolId = ? ORDER BY name ASC',
+      [schoolId],
+    );
+
+    const result = [];
+    for (const room of rooms) {
+      const building = room.buildingId
+        ? await this.db.queryOne<{ id: string; name: string }>(
+            'SELECT id, name FROM "Building" WHERE id = ?',
+            [room.buildingId],
+          )
+        : null;
+      result.push({ ...room, building });
+    }
+    return result;
   }
 
   async createRoom(
@@ -271,19 +384,28 @@ export class DeputyService {
       floor?: number;
     },
   ) {
-    const room = await this.prisma.room.create({
-      data: {
-        name: data.name,
-        capacity: data.capacity ?? 30,
-        isComputerLab: data.isComputerLab ?? false,
-        specialEquipment: data.specialEquipment ?? [],
-        buildingId: data.buildingId || null,
-        floor: data.floor ?? null,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Room" (id, name, capacity, isComputerLab, specialEquipment, buildingId, floor, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.name,
+        data.capacity ?? 30,
+        data.isComputerLab ? 1 : 0,
+        data.specialEquipment ? JSON.stringify(data.specialEquipment) : null,
+        data.buildingId || null,
+        data.floor ?? null,
         schoolId,
-      },
-    });
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
 
-    await this.audit(actorId, 'CREATE_ROOM', 'Room', room.id, data);
+    const room = (await this.db.queryOne<Room>(
+      'SELECT * FROM "Room" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'CREATE_ROOM', 'Room', id, data);
     return room;
   }
 
@@ -300,23 +422,61 @@ export class DeputyService {
       floor?: number | null;
     },
   ) {
-    const existing = await this.prisma.room.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<Room>(
+      'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Room not found');
 
-    const updated = await this.prisma.room.update({ where: { id }, data });
+    const fields = ['updatedAt = ?'];
+    const values: any[] = [new Date().toISOString()];
+
+    if (data.name !== undefined) {
+      fields.push('"name" = ?');
+      values.push(data.name);
+    }
+    if (data.capacity !== undefined) {
+      fields.push('"capacity" = ?');
+      values.push(data.capacity);
+    }
+    if (data.isComputerLab !== undefined) {
+      fields.push('"isComputerLab" = ?');
+      values.push(data.isComputerLab ? 1 : 0);
+    }
+    if (data.specialEquipment !== undefined) {
+      fields.push('"specialEquipment" = ?');
+      values.push(JSON.stringify(data.specialEquipment));
+    }
+    if (data.buildingId !== undefined) {
+      fields.push('"buildingId" = ?');
+      values.push(data.buildingId);
+    }
+    if (data.floor !== undefined) {
+      fields.push('"floor" = ?');
+      values.push(data.floor);
+    }
+
+    await this.db.execute(
+      `UPDATE "Room" SET ${fields.join(', ')} WHERE id = ?`,
+      [...values, id],
+    );
+
+    const updated = (await this.db.queryOne<Room>(
+      'SELECT * FROM "Room" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(actorId, 'UPDATE_ROOM', 'Room', id, data, existing);
     return updated;
   }
 
   async deleteRoom(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.room.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<Room>(
+      'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Room not found');
 
-    await this.prisma.room.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "Room" WHERE id = ?', [id]);
     await this.audit(actorId, 'DELETE_ROOM', 'Room', id, null, existing);
     return { deleted: true };
   }
@@ -324,11 +484,19 @@ export class DeputyService {
   // ─── BUILDING CRUD ───────────────────────────────────────────────
 
   async getBuildings(schoolId: string) {
-    return this.prisma.building.findMany({
-      where: { schoolId },
-      include: { rooms: { select: { id: true, name: true } } },
-      orderBy: { name: 'asc' },
-    });
+    const buildings = await this.db.query<Building>(
+      'SELECT * FROM "Building" WHERE schoolId = ? ORDER BY name ASC',
+      [schoolId],
+    );
+    const result = [];
+    for (const b of buildings) {
+      const rooms = await this.db.query<{ id: string; name: string }>(
+        'SELECT id, name FROM "Room" WHERE buildingId = ?',
+        [b.id],
+      );
+      result.push({ ...b, rooms });
+    }
+    return result;
   }
 
   async createBuilding(
@@ -336,15 +504,25 @@ export class DeputyService {
     schoolId: string,
     data: { name: string; address?: string; floors?: number },
   ) {
-    const building = await this.prisma.building.create({
-      data: {
-        name: data.name,
-        address: data.address,
-        floors: data.floors ?? 1,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Building" (id, name, address, floors, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.name,
+        data.address || null,
+        data.floors ?? 1,
         schoolId,
-      },
-    });
-    await this.audit(actorId, 'CREATE_BUILDING', 'Building', building.id, data);
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
+
+    const building = (await this.db.queryOne<Building>(
+      'SELECT * FROM "Building" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'CREATE_BUILDING', 'Building', id, data);
     return building;
   }
 
@@ -354,11 +532,37 @@ export class DeputyService {
     id: string,
     data: { name?: string; address?: string; floors?: number },
   ) {
-    const existing = await this.prisma.building.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<Building>(
+      'SELECT * FROM "Building" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Building not found');
-    const updated = await this.prisma.building.update({ where: { id }, data });
+
+    const fields = ['updatedAt = ?'];
+    const values: any[] = [new Date().toISOString()];
+
+    if (data.name !== undefined) {
+      fields.push('"name" = ?');
+      values.push(data.name);
+    }
+    if (data.address !== undefined) {
+      fields.push('"address" = ?');
+      values.push(data.address);
+    }
+    if (data.floors !== undefined) {
+      fields.push('"floors" = ?');
+      values.push(data.floors);
+    }
+
+    await this.db.execute(
+      `UPDATE "Building" SET ${fields.join(', ')} WHERE id = ?`,
+      [...values, id],
+    );
+
+    const updated = (await this.db.queryOne<Building>(
+      'SELECT * FROM "Building" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_BUILDING',
@@ -371,11 +575,13 @@ export class DeputyService {
   }
 
   async deleteBuilding(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.building.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<Building>(
+      'SELECT * FROM "Building" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Building not found');
-    await this.prisma.building.delete({ where: { id } });
+
+    await this.db.execute('DELETE FROM "Building" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_BUILDING',
@@ -395,17 +601,25 @@ export class DeputyService {
     roomId: string,
     targetSchoolId: string,
   ) {
-    const room = await this.prisma.room.findFirst({
-      where: { id: roomId, schoolId },
-    });
+    const room = await this.db.queryOne<Room>(
+      'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
+      [roomId, schoolId],
+    );
     if (!room) throw new NotFoundException('Room not found in your school');
     if (schoolId === targetSchoolId)
       throw new BadRequestException('Cannot share room with the same school');
 
-    const sharing = await this.prisma.roomSharing.create({
-      data: { roomId, sharedWithSchoolId: targetSchoolId },
-    });
-    await this.audit(actorId, 'SHARE_ROOM', 'RoomSharing', sharing.id, {
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "RoomSharing" (id, roomId, sharedWithSchoolId, createdAt) VALUES (?, ?, ?, ?)',
+      [id, roomId, targetSchoolId, new Date().toISOString()],
+    );
+
+    const sharing = (await this.db.queryOne<RoomSharing>(
+      'SELECT * FROM "RoomSharing" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'SHARE_ROOM', 'RoomSharing', id, {
       roomId,
       targetSchoolId,
     });
@@ -418,22 +632,21 @@ export class DeputyService {
     roomId: string,
     targetSchoolId: string,
   ) {
-    const room = await this.prisma.room.findFirst({
-      where: { id: roomId, schoolId },
-    });
+    const room = await this.db.queryOne<Room>(
+      'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
+      [roomId, schoolId],
+    );
     if (!room) throw new NotFoundException('Room not found in your school');
 
-    const sharing = await this.prisma.roomSharing.findUnique({
-      where: {
-        roomId_sharedWithSchoolId: {
-          roomId,
-          sharedWithSchoolId: targetSchoolId,
-        },
-      },
-    });
+    const sharing = await this.db.queryOne<RoomSharing>(
+      'SELECT * FROM "RoomSharing" WHERE roomId = ? AND sharedWithSchoolId = ?',
+      [roomId, targetSchoolId],
+    );
     if (!sharing) throw new NotFoundException('Sharing not found');
 
-    await this.prisma.roomSharing.delete({ where: { id: sharing.id } });
+    await this.db.execute('DELETE FROM "RoomSharing" WHERE id = ?', [
+      sharing.id,
+    ]);
     await this.audit(actorId, 'UNSHARE_ROOM', 'RoomSharing', sharing.id, {
       roomId,
       targetSchoolId,
@@ -442,49 +655,53 @@ export class DeputyService {
   }
 
   async getSharedRooms(schoolId: string) {
-    // Rooms shared TO this school by other schools
-    const sharings = await this.prisma.roomSharing.findMany({
-      where: { sharedWithSchoolId: schoolId },
-      include: {
-        room: {
-          include: {
-            school: { select: { id: true, name: true } },
-            building: { select: { id: true, name: true } },
-          },
-        },
-      },
-    });
-    return sharings.map((s) => ({
+    const sharings = await this.db.query(
+      `SELECT rs.*, r.name as roomName, r.capacity, r.schoolId as ownerId, s.name as ownerName, b.name as buildingName 
+       FROM "RoomSharing" rs 
+       JOIN "Room" r ON rs.roomId = r.id 
+       JOIN "School" s ON r.schoolId = s.id 
+       LEFT JOIN "Building" b ON r.buildingId = b.id 
+       WHERE rs.sharedWithSchoolId = ?`,
+      [schoolId],
+    );
+
+    return sharings.map((s: any) => ({
       id: s.id,
-      room: s.room,
-      ownerSchool: s.room.school,
+      room: {
+        id: s.roomId,
+        name: s.roomName,
+        capacity: s.capacity,
+        school: { id: s.ownerId, name: s.ownerName },
+        building: s.buildingName ? { name: s.buildingName } : null,
+      },
+      ownerSchool: { id: s.ownerId, name: s.ownerName },
     }));
   }
 
   async getRoomSharingsForRoom(roomId: string) {
-    return this.prisma.roomSharing.findMany({
-      where: { roomId },
-      include: {
-        room: { include: { school: { select: { id: true, name: true } } } },
-      },
-    });
+    return this.db.query(
+      `SELECT rs.*, s.id as schoolId, s.name as schoolName 
+       FROM "RoomSharing" rs 
+       JOIN "School" s ON rs.sharedWithSchoolId = s.id 
+       WHERE rs.roomId = ?`,
+      [roomId],
+    );
   }
 
   // ─── SCHOOL EVENT CRUD ───────────────────────────────────────────
 
   async getEvents(schoolId: string) {
-    return this.prisma.schoolEvent.findMany({
-      where: { schoolId },
-      orderBy: { date: 'asc' },
-    });
+    return this.db.query<SchoolEvent>(
+      'SELECT * FROM "SchoolEvent" WHERE schoolId = ? ORDER BY date ASC',
+      [schoolId],
+    );
   }
 
   async getUpcomingEvents(schoolId: string, limit = 10) {
-    return this.prisma.schoolEvent.findMany({
-      where: { schoolId, date: { gte: new Date() } },
-      orderBy: { date: 'asc' },
-      take: limit,
-    });
+    return this.db.query<SchoolEvent>(
+      'SELECT * FROM "SchoolEvent" WHERE schoolId = ? AND date >= ? ORDER BY date ASC LIMIT ?',
+      [schoolId, new Date().toISOString(), limit],
+    );
   }
 
   async createEvent(
@@ -499,18 +716,28 @@ export class DeputyService {
       allDay?: boolean;
     },
   ) {
-    const event = await this.prisma.schoolEvent.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        date: new Date(data.date),
-        endDate: data.endDate ? new Date(data.endDate) : null,
-        type: data.type ?? 'OTHER',
-        allDay: data.allDay ?? true,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "SchoolEvent" (id, title, description, date, endDate, type, allDay, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.title,
+        data.description || null,
+        new Date(data.date).toISOString(),
+        data.endDate ? new Date(data.endDate).toISOString() : null,
+        data.type ?? 'OTHER',
+        (data.allDay ?? true) ? 1 : 0,
         schoolId,
-      },
-    });
-    await this.audit(actorId, 'CREATE_EVENT', 'SchoolEvent', event.id, data);
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
+
+    const event = (await this.db.queryOne<SchoolEvent>(
+      'SELECT * FROM "SchoolEvent" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'CREATE_EVENT', 'SchoolEvent', id, data);
     return event;
   }
 
@@ -527,19 +754,49 @@ export class DeputyService {
       allDay?: boolean;
     },
   ) {
-    const existing = await this.prisma.schoolEvent.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<SchoolEvent>(
+      'SELECT * FROM "SchoolEvent" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Event not found');
 
-    const updateData: any = { ...data };
-    if (data.date) updateData.date = new Date(data.date);
-    if (data.endDate) updateData.endDate = new Date(data.endDate);
+    const fields = ['updatedAt = ?'];
+    const values: any[] = [new Date().toISOString()];
 
-    const updated = await this.prisma.schoolEvent.update({
-      where: { id },
-      data: updateData,
-    });
+    if (data.title !== undefined) {
+      fields.push('"title" = ?');
+      values.push(data.title);
+    }
+    if (data.description !== undefined) {
+      fields.push('"description" = ?');
+      values.push(data.description);
+    }
+    if (data.date !== undefined) {
+      fields.push('"date" = ?');
+      values.push(new Date(data.date).toISOString());
+    }
+    if (data.endDate !== undefined) {
+      fields.push('"endDate" = ?');
+      values.push(data.endDate ? new Date(data.endDate).toISOString() : null);
+    }
+    if (data.type !== undefined) {
+      fields.push('"type" = ?');
+      values.push(data.type);
+    }
+    if (data.allDay !== undefined) {
+      fields.push('"allDay" = ?');
+      values.push(data.allDay ? 1 : 0);
+    }
+
+    await this.db.execute(
+      `UPDATE "SchoolEvent" SET ${fields.join(', ')} WHERE id = ?`,
+      [...values, id],
+    );
+
+    const updated = (await this.db.queryOne<SchoolEvent>(
+      'SELECT * FROM "SchoolEvent" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_EVENT',
@@ -552,11 +809,13 @@ export class DeputyService {
   }
 
   async deleteEvent(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.schoolEvent.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne<SchoolEvent>(
+      'SELECT * FROM "SchoolEvent" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Event not found');
-    await this.prisma.schoolEvent.delete({ where: { id } });
+
+    await this.db.execute('DELETE FROM "SchoolEvent" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_EVENT',
@@ -587,11 +846,11 @@ export class DeputyService {
       );
     }
 
-    // PRINCIPAL uniqueness: only one per school
-    if (data.role === 'PRINCIPAL') {
-      const existingPrincipal = await this.prisma.schoolMembership.findFirst({
-        where: { schoolId, role: 'PRINCIPAL' },
-      });
+    if (data.role === UserRole.PRINCIPAL) {
+      const existingPrincipal = await this.db.queryOne(
+        'SELECT id FROM "SchoolMembership" WHERE schoolId = ? AND role = "PRINCIPAL"',
+        [schoolId],
+      );
       if (existingPrincipal) {
         throw new BadRequestException(
           'This school already has a principal. Only one principal per school is allowed.',
@@ -599,168 +858,186 @@ export class DeputyService {
       }
     }
 
-    // Check if user already exists
-    let user = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
+    let user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE email = ?',
+      [data.email],
+    );
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = await bcrypt.hash(invitationToken, 10);
-    const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
+    const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    if (!user) {
-      // Create new user
-      user = await this.prisma.user.create({
-        data: {
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          invitationToken: hashedToken,
-          invitationExpires,
-        },
-      });
-    } else {
-      // Update existing user with invitation token
-      user = await this.prisma.user.update({
-        where: { id: user.id },
-        data: { invitationToken: hashedToken, invitationExpires },
-      });
-    }
+    return this.db.transaction(async (db) => {
+      if (!user) {
+        const userId = crypto.randomUUID();
+        await db.execute(
+          'INSERT INTO "User" (id, email, firstName, lastName, invitationToken, invitationExpires, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            userId,
+            data.email,
+            data.firstName,
+            data.lastName,
+            hashedToken,
+            invitationExpires.toISOString(),
+            new Date().toISOString(),
+          ],
+        );
+        user = (await db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [
+          userId,
+        ]))!;
+      } else {
+        await db.execute(
+          'UPDATE "User" SET invitationToken = ?, invitationExpires = ? WHERE id = ?',
+          [hashedToken, invitationExpires.toISOString(), user.id],
+        );
+      }
 
-    // Create school membership with appropriate role
-    const membershipData: any = {
-      userId: user.id,
-      schoolId,
-      role: data.role,
-      status: UserStatus.PENDING,
-    };
+      const existingMembership = await db.queryOne(
+        'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?',
+        [user.id, schoolId],
+      );
+      if (existingMembership) {
+        await db.execute(
+          'UPDATE "SchoolMembership" SET role = ?, status = ?, workloadPercentage = ?, updatedAt = ? WHERE id = ?',
+          [
+            data.role,
+            'PENDING',
+            data.workloadPercentage ?? null,
+            new Date().toISOString(),
+            existingMembership.id,
+          ],
+        );
+      } else {
+        await db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, workloadPercentage, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            user.id,
+            schoolId,
+            data.role,
+            'PENDING',
+            data.workloadPercentage ?? null,
+            new Date().toISOString(),
+            new Date().toISOString(),
+          ],
+        );
+      }
 
-    if (data.role === 'TEACHER' && data.workloadPercentage !== undefined) {
-      membershipData.workloadPercentage = data.workloadPercentage;
-    }
+      if (data.role === UserRole.TEACHER) {
+        const existingProfile = await db.queryOne(
+          'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+          [user.id],
+        );
+        if (!existingProfile) {
+          await db.execute(
+            'INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)',
+            [crypto.randomUUID(), user.id],
+          );
+        }
+      } else if (data.role === UserRole.STUDENT) {
+        const existingProfile = await db.queryOne(
+          'SELECT id FROM "StudentProfile" WHERE userId = ?',
+          [user.id],
+        );
+        if (!existingProfile) {
+          await db.execute(
+            'INSERT INTO "StudentProfile" (id, userId, firstName, lastName) VALUES (?, ?, ?, ?)',
+            [crypto.randomUUID(), user.id, data.firstName, data.lastName],
+          );
+        }
+      }
 
-    // Upsert membership (user might already be a member with different role)
-    await this.prisma.schoolMembership.upsert({
-      where: { userId_schoolId: { userId: user.id, schoolId } },
-      create: membershipData,
-      update: {
+      const fullToken = `${user.id}.${invitationToken}`;
+      this.mailService
+        .sendInvitation(
+          user.email,
+          `${user.firstName} ${user.lastName}`,
+          fullToken,
+        )
+        .catch((e) => console.error('Failed to send invitation email', e));
+
+      await this.audit(actorId, 'INVITE_USER', 'User', user.id, {
+        email: data.email,
         role: data.role,
-        status: UserStatus.PENDING,
-        ...(data.role === 'TEACHER' && data.workloadPercentage !== undefined
-          ? { workloadPercentage: data.workloadPercentage }
-          : {}),
-      },
-    });
-
-    // Create teacher/student profile if needed
-    if (data.role === 'TEACHER') {
-      await this.prisma.teacherProfile.upsert({
-        where: { userId: user.id },
-        create: { userId: user.id },
-        update: {},
+        workloadPercentage: data.workloadPercentage,
       });
-    } else if (data.role === 'STUDENT') {
-      await this.prisma.studentProfile.upsert({
-        where: { userId: user.id },
-        create: {
-          userId: user.id,
-          firstName: data.firstName,
-          lastName: data.lastName,
-        },
-        update: {},
-      });
-    }
 
-    const fullToken = `${user.id}.${invitationToken}`;
-
-    // Send invitation email
-    this.mailService
-      .sendInvitation(
-        user.email,
-        `${user.firstName} ${user.lastName}`,
-        fullToken,
-      )
-      .catch((e) => console.error('Failed to send invitation email', e));
-
-    await this.audit(actorId, 'INVITE_USER', 'User', user.id, {
-      email: data.email,
-      role: data.role,
-      workloadPercentage: data.workloadPercentage,
+      return { token: fullToken, userId: user.id };
     });
-
-    return { token: fullToken, userId: user.id };
   }
 
   // ─── SCHOOL-SCOPED USER LIST ────────────────────────────────────
 
   async getSchoolUsers(schoolId: string) {
-    const memberships = await this.prisma.schoolMembership.findMany({
-      where: { schoolId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            lastLogin: true,
-            createdAt: true,
-            studentProfile: {
-              select: {
-                id: true,
-                classroom: { select: { id: true, name: true } },
-              },
-            },
-            teacherProfile: {
-              select: {
-                id: true,
-                homeroomClass: { select: { id: true, name: true } },
-              },
-            },
-            childOf: {
-              select: {
-                parent: {
-                  select: { id: true, firstName: true, lastName: true },
-                },
-              },
-            },
-            parentOf: {
-              select: {
-                student: {
-                  select: { id: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const memberships = await this.db.query(
+      `SELECT m.*, u.firstName, u.lastName, u.email, u.lastLogin, u.createdAt as userCreatedAt 
+       FROM "SchoolMembership" m 
+       JOIN "User" u ON m.userId = u.id 
+       WHERE m.schoolId = ? 
+       ORDER BY m.createdAt DESC`,
+      [schoolId],
+    );
 
-    return memberships.map((m: any) => ({
-      id: m.user.id,
-      membershipId: m.id,
-      email: m.user.email,
-      firstName: m.user.firstName,
-      lastName: m.user.lastName,
-      role: m.role,
-      status: m.status,
-      workloadPercentage: m.workloadPercentage,
-      lastLogin: m.user.lastLogin,
-      createdAt: m.user.createdAt,
-      classroomName: m.user.studentProfile?.classroom?.name || null,
-      classroomId: m.user.studentProfile?.classroom?.id || null,
-      homeroomClassName: m.user.teacherProfile?.homeroomClass?.name || null,
-      teacherProfileId: m.user.teacherProfile?.id || null,
-      parents: (m.user.childOf || []).map((r: any) => ({
-        id: r.parent.id,
-        name: `${r.parent.firstName} ${r.parent.lastName}`,
-      })),
-      children: (m.user.parentOf || []).map((r: any) => ({
-        id: r.student.id,
-        name: `${r.student.firstName} ${r.student.lastName}`,
-      })),
-    }));
+    const result = [];
+    for (const m of memberships) {
+      const studentProfile = await this.db.queryOne(
+        `SELECT sp.id, c.id as classroomId, c.name as classroomName 
+         FROM "StudentProfile" sp 
+         LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+         WHERE sp.userId = ?`,
+        [m.userId],
+      );
+
+      const teacherProfile = await this.db.queryOne(
+        `SELECT tp.id, c.id as classroomId, c.name as classroomName 
+         FROM "TeacherProfile" tp 
+         LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id 
+         WHERE tp.userId = ?`,
+        [m.userId],
+      );
+
+      const parents = await this.db.query(
+        `SELECT u.id, u.firstName, u.lastName 
+         FROM "ParentStudent" ps 
+         JOIN "User" u ON ps.parentId = u.id 
+         WHERE ps.studentId = ?`,
+        [m.userId],
+      );
+
+      const children = await this.db.query(
+        `SELECT u.id, u.firstName, u.lastName 
+         FROM "ParentStudent" ps 
+         JOIN "User" u ON ps.studentId = u.id 
+         WHERE ps.parentId = ?`,
+        [m.userId],
+      );
+
+      result.push({
+        id: m.userId,
+        membershipId: m.id,
+        email: m.email,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        role: m.role,
+        status: m.status,
+        workloadPercentage: m.workloadPercentage,
+        lastLogin: m.lastLogin,
+        createdAt: m.userCreatedAt,
+        classroomName: (studentProfile as any)?.classroomName || null,
+        classroomId: (studentProfile as any)?.classroomId || null,
+        homeroomClassName: (teacherProfile as any)?.classroomName || null,
+        teacherProfileId: (teacherProfile as any)?.id || null,
+        parents: parents.map((p: any) => ({
+          id: p.id,
+          name: `${p.firstName} ${p.lastName}`,
+        })),
+        children: children.map((c: any) => ({
+          id: c.id,
+          name: `${c.firstName} ${c.lastName}`,
+        })),
+      });
+    }
+    return result;
   }
 
   // ─── CREATE STUDENT + FAMILY ────────────────────────────────────
@@ -778,8 +1055,7 @@ export class DeputyService {
       }>;
     },
   ) {
-    return this.prisma.$transaction(async (tx: any) => {
-      // 1. Create student user
+    return this.db.transaction(async (db) => {
       const studentEmail =
         data.student.email || `student-${crypto.randomUUID()}@noemail.local`;
       const studentInvitationToken = data.student.email
@@ -790,97 +1066,107 @@ export class DeputyService {
         : null;
       const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-      const studentUser = await tx.user.create({
-        data: {
-          email: studentEmail,
-          firstName: data.student.firstName,
-          lastName: data.student.lastName,
-          ...(studentHashedToken
-            ? {
-                invitationToken: studentHashedToken,
-                invitationExpires: invitationExpires,
-              }
-            : {}),
-        },
-      });
+      const studentId = crypto.randomUUID();
+      await db.execute(
+        'INSERT INTO "User" (id, email, firstName, lastName, invitationToken, invitationExpires, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          studentId,
+          studentEmail,
+          data.student.firstName,
+          data.student.lastName,
+          studentHashedToken,
+          studentInvitationToken ? invitationExpires.toISOString() : null,
+          new Date().toISOString(),
+        ],
+      );
 
-      // 2. Create SchoolMembership for student
-      await tx.schoolMembership.create({
-        data: {
-          userId: studentUser.id,
+      await db.execute(
+        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          studentId,
           schoolId,
-          role: 'STUDENT',
-          status: UserStatus.PENDING,
-        },
-      });
+          'STUDENT',
+          'PENDING',
+          new Date().toISOString(),
+          new Date().toISOString(),
+        ],
+      );
 
-      // 3. Create StudentProfile
-      await tx.studentProfile.create({
-        data: {
-          userId: studentUser.id,
-          firstName: data.student.firstName,
-          lastName: data.student.lastName,
-        },
-      });
+      await db.execute(
+        'INSERT INTO "StudentProfile" (id, userId, firstName, lastName) VALUES (?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          studentId,
+          data.student.firstName,
+          data.student.lastName,
+        ],
+      );
 
-      // 4. Process parents
-      const createdParents: Array<{
-        userId: string;
-        email: string;
-        token?: string;
-      }> = [];
-
+      const createdParents = [];
       for (const parentData of data.parents) {
-        // Find or create parent user
-        let parentUser = await tx.user.findUnique({
-          where: { email: parentData.email },
-        });
+        let parentUser = await db.queryOne<User>(
+          'SELECT * FROM "User" WHERE email = ?',
+          [parentData.email],
+        );
         const parentInvitationToken = crypto.randomBytes(32).toString('hex');
         const parentHashedToken = await bcrypt.hash(parentInvitationToken, 10);
 
         if (!parentUser) {
-          parentUser = await tx.user.create({
-            data: {
-              email: parentData.email,
-              firstName: parentData.firstName,
-              lastName: parentData.lastName,
-              invitationToken: parentHashedToken,
-              invitationExpires: invitationExpires,
-            },
-          });
+          const pId = crypto.randomUUID();
+          await db.execute(
+            'INSERT INTO "User" (id, email, firstName, lastName, invitationToken, invitationExpires, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              pId,
+              parentData.email,
+              parentData.firstName,
+              parentData.lastName,
+              parentHashedToken,
+              invitationExpires.toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+          parentUser = (await db.queryOne<User>(
+            'SELECT * FROM "User" WHERE id = ?',
+            [pId],
+          ))!;
         } else {
-          parentUser = await tx.user.update({
-            where: { id: parentUser.id },
-            data: {
-              invitationToken: parentHashedToken,
-              invitationExpires: invitationExpires,
-            },
-          });
+          await db.execute(
+            'UPDATE "User" SET invitationToken = ?, invitationExpires = ? WHERE id = ?',
+            [parentHashedToken, invitationExpires.toISOString(), parentUser.id],
+          );
         }
 
-        // Create/upsert SchoolMembership for parent
-        await tx.schoolMembership.upsert({
-          where: { userId_schoolId: { userId: parentUser.id, schoolId } },
-          create: {
-            userId: parentUser.id,
-            schoolId,
-            role: 'PARENT',
-            status: UserStatus.PENDING,
-          },
-          update: {},
-        });
+        const existingMembership = await db.queryOne(
+          'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?',
+          [parentUser.id, schoolId],
+        );
+        if (!existingMembership) {
+          await db.execute(
+            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              parentUser.id,
+              schoolId,
+              'PARENT',
+              'PENDING',
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+        }
 
-        // Create ParentStudent link
-        await tx.parentStudent.upsert({
-          where: {
-            parentId_studentId: {
-              parentId: parentUser.id,
-              studentId: studentUser.id,
-            },
-          },
-          create: { parentId: parentUser.id, studentId: studentUser.id },
-          update: {},
-        });
+        await db.execute(
+          'INSERT INTO "ParentStudent" (id, parentId, studentId, createdAt) SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM "ParentStudent" WHERE parentId = ? AND studentId = ?)',
+          [
+            crypto.randomUUID(),
+            parentUser.id,
+            studentId,
+            new Date().toISOString(),
+            parentUser.id,
+            studentId,
+          ],
+        );
 
         const fullParentToken = `${parentUser.id}.${parentInvitationToken}`;
         createdParents.push({
@@ -889,7 +1175,6 @@ export class DeputyService {
           token: fullParentToken,
         });
 
-        // Send invitation email to parent
         this.mailService
           .sendInvitation(
             parentData.email,
@@ -901,27 +1186,28 @@ export class DeputyService {
           );
       }
 
-      // 5. Audit
-      await tx.auditLog.create({
-        data: {
+      await db.execute(
+        'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
           actorId,
-          action: 'CREATE_STUDENT_FAMILY',
-          entity: 'User',
-          entityId: studentUser.id,
-          newValues: {
+          'CREATE_STUDENT_FAMILY',
+          'User',
+          studentId,
+          JSON.stringify({
             student: data.student,
             parentCount: data.parents.length,
-          },
-        },
-      });
+          }),
+          new Date().toISOString(),
+        ],
+      );
 
-      // Send invitation email to student (outside loop, once)
       if (studentInvitationToken) {
         this.mailService
           .sendInvitation(
-            studentUser.email,
-            `${studentUser.firstName} ${studentUser.lastName}`,
-            `${studentUser.id}.${studentInvitationToken}`,
+            studentEmail,
+            `${data.student.firstName} ${data.student.lastName}`,
+            `${studentId}.${studentInvitationToken}`,
           )
           .catch((e) =>
             console.error('Failed to send student invitation email', e),
@@ -929,10 +1215,10 @@ export class DeputyService {
       }
 
       return {
-        student: { id: studentUser.id, email: studentEmail },
+        student: { id: studentId, email: studentEmail },
         parents: createdParents,
         studentToken: studentInvitationToken
-          ? `${studentUser.id}.${studentInvitationToken}`
+          ? `${studentId}.${studentInvitationToken}`
           : null,
       };
     });
@@ -955,120 +1241,129 @@ export class DeputyService {
     const hashedToken = await bcrypt.hash(invitationToken, 10);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    const user = await this.prisma.$transaction(async (tx: any) => {
-      // Find or create user
-      let user = await tx.user.findUnique({ where: { email: data.email } });
+    return this.db.transaction(async (db) => {
+      let user = await db.queryOne<User>(
+        'SELECT * FROM "User" WHERE email = ?',
+        [data.email],
+      );
 
       if (!user) {
-        user = await tx.user.create({
-          data: {
-            email: data.email,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            invitationToken: hashedToken,
-            invitationExpires,
-          },
-        });
+        const uId = crypto.randomUUID();
+        await db.execute(
+          'INSERT INTO "User" (id, email, firstName, lastName, invitationToken, invitationExpires, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            uId,
+            data.email,
+            data.firstName,
+            data.lastName,
+            hashedToken,
+            invitationExpires.toISOString(),
+            new Date().toISOString(),
+          ],
+        );
+        user = (await db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [
+          uId,
+        ]))!;
       } else {
-        user = await tx.user.update({
-          where: { id: user.id },
-          data: { invitationToken: hashedToken, invitationExpires },
-        });
+        await db.execute(
+          'UPDATE "User" SET invitationToken = ?, invitationExpires = ? WHERE id = ?',
+          [hashedToken, invitationExpires.toISOString(), user.id],
+        );
       }
 
-      // Create SchoolMembership
-      await tx.schoolMembership.upsert({
-        where: { userId_schoolId: { userId: user.id, schoolId } },
-        create: {
-          userId: user.id,
-          schoolId,
-          role: data.role,
-          status: UserStatus.PENDING,
-          workloadPercentage: data.workloadPercentage,
-        },
-        update: {
-          role: data.role,
-          status: UserStatus.PENDING,
-          workloadPercentage: data.workloadPercentage,
-        },
+      const existingMembership = await db.queryOne(
+        'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?',
+        [user.id, schoolId],
+      );
+      if (existingMembership) {
+        await db.execute(
+          'UPDATE "SchoolMembership" SET role = ?, status = ?, workloadPercentage = ?, updatedAt = ? WHERE id = ?',
+          [
+            data.role,
+            'PENDING',
+            data.workloadPercentage,
+            new Date().toISOString(),
+            existingMembership.id,
+          ],
+        );
+      } else {
+        await db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, workloadPercentage, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            user.id,
+            schoolId,
+            data.role,
+            'PENDING',
+            data.workloadPercentage,
+            new Date().toISOString(),
+            new Date().toISOString(),
+          ],
+        );
+      }
+
+      if (data.role === 'TEACHER') {
+        const existingProfile = await db.queryOne(
+          'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+          [user.id],
+        );
+        if (!existingProfile) {
+          await db.execute(
+            'INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)',
+            [crypto.randomUUID(), user.id],
+          );
+        }
+      }
+
+      const fullToken = `${user.id}.${invitationToken}`;
+      this.mailService
+        .sendInvitation(
+          user.email,
+          `${user.firstName} ${user.lastName}`,
+          fullToken,
+        )
+        .catch((e) => console.error('Failed to send invitation email', e));
+
+      await this.audit(actorId, 'CREATE_STAFF', 'User', user.id, {
+        email: data.email,
+        role: data.role,
+        workloadPercentage: data.workloadPercentage,
       });
 
-      // Create TeacherProfile if TEACHER
-      if (data.role === 'TEACHER') {
-        await tx.teacherProfile.upsert({
-          where: { userId: user.id },
-          create: { userId: user.id },
-          update: {},
-        });
-      }
-      return user;
+      return { token: fullToken, userId: user.id };
     });
-
-    const fullToken = `${user.id}.${invitationToken}`;
-
-    // Send invitation email
-    this.mailService
-      .sendInvitation(
-        user.email,
-        `${user.firstName} ${user.lastName}`,
-        fullToken,
-      )
-      .catch((e) => console.error('Failed to send invitation email', e));
-
-    await this.audit(actorId, 'CREATE_STAFF', 'User', user.id, {
-      email: data.email,
-      role: data.role,
-      workloadPercentage: data.workloadPercentage,
-    });
-
-    return { token: fullToken, userId: user.id };
   }
 
   async resendInvitation(actorId: string, schoolId: string, userId: string) {
-    // 1. Verify user exists and belongs to the school
-    const membership = await this.prisma.schoolMembership.findUnique({
-      where: { userId_schoolId: { userId, schoolId } },
-      include: { user: true },
-    });
-
-    if (!membership) {
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.email, u.firstName, u.lastName FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [userId, schoolId],
+    );
+    if (!membership)
       throw new NotFoundException('User not found in this school');
-    }
-
-    if (membership.status !== UserStatus.PENDING) {
+    if ((membership as any).status !== 'PENDING')
       throw new BadRequestException('User is already active or not pending');
-    }
 
-    const user = membership.user;
-
-    // 2. Generate new token
     const invitationToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = await bcrypt.hash(invitationToken, 10);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        invitationToken: hashedToken,
-        invitationExpires,
-      },
-    });
+    await this.db.execute(
+      'UPDATE "User" SET invitationToken = ?, invitationExpires = ? WHERE id = ?',
+      [hashedToken, invitationExpires.toISOString(), userId],
+    );
 
-    // 3. Send email
     const fullToken = `${userId}.${invitationToken}`;
-    // We'll use fire-and-forget for email sending if we want to be consistent,
-    // but for a manual action like "resend", maybe it's better to await or at least handle error.
     this.mailService
       .sendInvitation(
-        user.email,
-        `${user.firstName} ${user.lastName}`,
+        (membership as any).email,
+        `${(membership as any).firstName} ${(membership as any).lastName}`,
         fullToken,
       )
       .catch((e) => console.error('Failed to resend invitation email', e));
 
-    // 4. Audit
     await this.audit(actorId, 'RESEND_INVITATION', 'User', userId, {
-      email: user.email,
+      email: (membership as any).email,
     });
 
     return { success: true };
@@ -1081,45 +1376,39 @@ export class DeputyService {
     schoolId: string,
     targetUserId: string,
   ) {
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId: targetUserId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.email FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [targetUserId, schoolId],
+    );
     if (!membership)
       throw new NotFoundException('User is not a member of this school.');
-
-    // Cannot remove yourself
-    if (actorId === targetUserId) {
+    if (actorId === targetUserId)
       throw new BadRequestException('Cannot remove yourself from the school.');
-    }
-
-    // Cannot remove PRINCIPAL unless you are PRINCIPAL
-    if (membership.role === 'PRINCIPAL') {
+    if ((membership as any).role === 'PRINCIPAL')
       throw new BadRequestException(
         'Cannot remove the principal. Contact system admin.',
       );
-    }
 
-    await this.prisma.schoolMembership.update({
-      where: { id: membership.id },
-      data: { status: 'ARCHIVED' },
-    });
+    await this.db.execute(
+      'UPDATE "SchoolMembership" SET status = "ARCHIVED", updatedAt = ? WHERE id = ?',
+      [new Date().toISOString(), (membership as any).id],
+    );
 
     await this.audit(
       actorId,
       'REMOVE_SCHOOL_USER',
       'SchoolMembership',
-      membership.id,
+      (membership as any).id,
       {
         userId: targetUserId,
-        email: membership.user.email,
-        role: membership.role,
+        email: (membership as any).email,
+        role: (membership as any).role,
         newStatus: 'ARCHIVED',
       },
     );
 
     return {
-      message: `User ${membership.user.email} has been removed from the school.`,
+      message: `User ${(membership as any).email} has been removed from the school.`,
     };
   }
 
@@ -1130,44 +1419,38 @@ export class DeputyService {
     schoolId: string,
     targetUserId: string,
   ) {
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId: targetUserId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.firstName, u.lastName, u.email FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [targetUserId, schoolId],
+    );
     if (!membership)
       throw new NotFoundException('User is not a member of this school.');
-
-    if (membership.role !== 'STUDENT') {
+    if ((membership as any).role !== 'STUDENT')
       throw new BadRequestException('Only students can be set as alumni.');
-    }
-
-    if (membership.status === 'ALUMNI') {
+    if ((membership as any).status === 'ALUMNI')
       throw new BadRequestException('User is already marked as alumni.');
-    }
 
-    const oldStatus = membership.status;
-    await this.prisma.schoolMembership.update({
-      where: { id: membership.id },
-      data: { status: 'ALUMNI' },
-    });
+    const oldStatus = (membership as any).status;
+    await this.db.execute(
+      'UPDATE "SchoolMembership" SET status = "ALUMNI", updatedAt = ? WHERE id = ?',
+      [new Date().toISOString(), (membership as any).id],
+    );
 
     await this.audit(
       actorId,
       'SET_ALUMNI',
       'SchoolMembership',
-      membership.id,
+      (membership as any).id,
       {
         userId: targetUserId,
-        email: membership.user.email,
+        email: (membership as any).email,
         newStatus: 'ALUMNI',
       },
-      {
-        oldStatus,
-      },
+      { oldStatus },
     );
 
     return {
-      message: `Student ${membership.user.firstName} ${membership.user.lastName} has been marked as alumni.`,
+      message: `Student ${(membership as any).firstName} ${(membership as any).lastName} has been marked as alumni.`,
     };
   }
 
@@ -1179,42 +1462,36 @@ export class DeputyService {
     targetUserId: string,
     jwtService: any,
   ) {
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId: targetUserId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.email FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [targetUserId, schoolId],
+    );
     if (!membership)
       throw new NotFoundException('User is not a member of this school.');
-
-    // Cannot impersonate PRINCIPAL or DEPUTY
-    if (['PRINCIPAL', 'DEPUTY'].includes(membership.role)) {
+    if (['PRINCIPAL', 'DEPUTY'].includes((membership as any).role))
       throw new BadRequestException('Cannot impersonate school management.');
-    }
 
-    // Audit
     await this.audit(actorId, 'IMPERSONATE_SCHOOL_USER', 'User', targetUserId, {
-      email: membership.user.email,
-      role: membership.role,
+      email: (membership as any).email,
+      role: (membership as any).role,
       schoolId,
       readOnly: true,
     });
 
-    // Generate a read-only tenant token for the target user
     const payload = {
-      sub: membership.user.id,
-      email: membership.user.email,
+      sub: targetUserId,
+      email: (membership as any).email,
       schoolId,
-      role: membership.role,
+      role: (membership as any).role,
       type: 'TENANT',
       isImpersonated: true,
       readOnly: true,
       actorId,
     };
 
-    return {
-      access_token: jwtService.sign(payload),
-    };
+    return { access_token: jwtService.sign(payload) };
   }
+
   // ─── UPDATE SCHOOL USER ────────────────────────────────────────────
 
   async updateSchoolUser(
@@ -1228,50 +1505,71 @@ export class DeputyService {
       workloadPercentage?: number;
     },
   ) {
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.firstName, u.lastName, u.email FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [userId, schoolId],
+    );
     if (!membership)
       throw new NotFoundException('User is not a member of this school.');
 
     const oldValues = {
-      firstName: membership.user.firstName,
-      lastName: membership.user.lastName,
-      email: membership.user.email,
-      workloadPercentage: membership.workloadPercentage,
+      firstName: (membership as any).firstName,
+      lastName: (membership as any).lastName,
+      email: (membership as any).email,
+      workloadPercentage: (membership as any).workloadPercentage,
     };
 
-    // Update user fields
-    const userUpdate: any = {};
-    if (data.firstName !== undefined) userUpdate.firstName = data.firstName;
-    if (data.lastName !== undefined) userUpdate.lastName = data.lastName;
-    if (data.email !== undefined) userUpdate.email = data.email;
-
-    if (Object.keys(userUpdate).length > 0) {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: userUpdate,
-      });
+    const userFields = [];
+    const userValues = [];
+    if (data.firstName !== undefined) {
+      userFields.push('firstName = ?');
+      userValues.push(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      userFields.push('lastName = ?');
+      userValues.push(data.lastName);
+    }
+    if (data.email !== undefined) {
+      userFields.push('email = ?');
+      userValues.push(data.email);
     }
 
-    // Update membership fields
+    if (userFields.length > 0) {
+      await this.db.execute(
+        `UPDATE "User" SET ${userFields.join(', ')} WHERE id = ?`,
+        [...userValues, userId],
+      );
+    }
+
     if (data.workloadPercentage !== undefined) {
-      await this.prisma.schoolMembership.update({
-        where: { id: membership.id },
-        data: { workloadPercentage: data.workloadPercentage },
-      });
+      await this.db.execute(
+        'UPDATE "SchoolMembership" SET workloadPercentage = ?, updatedAt = ? WHERE id = ?',
+        [
+          data.workloadPercentage,
+          new Date().toISOString(),
+          (membership as any).id,
+        ],
+      );
     }
 
-    // Update student profile name if student
-    if (membership.role === 'STUDENT' && (data.firstName || data.lastName)) {
-      await this.prisma.studentProfile.updateMany({
-        where: { userId },
-        data: {
-          ...(data.firstName ? { firstName: data.firstName } : {}),
-          ...(data.lastName ? { lastName: data.lastName } : {}),
-        },
-      });
+    if (
+      (membership as any).role === 'STUDENT' &&
+      (data.firstName || data.lastName)
+    ) {
+      const spFields = [];
+      const spValues = [];
+      if (data.firstName) {
+        spFields.push('firstName = ?');
+        spValues.push(data.firstName);
+      }
+      if (data.lastName) {
+        spFields.push('lastName = ?');
+        spValues.push(data.lastName);
+      }
+      await this.db.execute(
+        `UPDATE "StudentProfile" SET ${spFields.join(', ')} WHERE userId = ?`,
+        [...spValues, userId],
+      );
     }
 
     await this.audit(
@@ -1288,70 +1586,64 @@ export class DeputyService {
   // ─── SUSPEND / REACTIVATE USER ───────────────────────────────────
 
   async suspendUser(actorId: string, schoolId: string, userId: string) {
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.firstName, u.lastName FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [userId, schoolId],
+    );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
-    if (membership.role === 'PRINCIPAL')
+      throw new NotFoundException('User not found in this school.');
+    if ((membership as any).role === 'PRINCIPAL')
       throw new BadRequestException('Cannot suspend the principal.');
     if (actorId === userId)
       throw new BadRequestException('Cannot suspend yourself.');
-    if (membership.status === 'SUSPENDED')
+    if ((membership as any).status === 'SUSPENDED')
       throw new BadRequestException('User is already suspended.');
 
-    await this.prisma.schoolMembership.update({
-      where: { id: membership.id },
-      data: { status: 'SUSPENDED' },
-    });
+    await this.db.execute(
+      'UPDATE "SchoolMembership" SET status = "SUSPENDED", updatedAt = ? WHERE id = ?',
+      [new Date().toISOString(), (membership as any).id],
+    );
 
     await this.audit(
       actorId,
       'SUSPEND_USER',
       'SchoolMembership',
-      membership.id,
-      {
-        userId,
-        newStatus: 'SUSPENDED',
-      },
-      { oldStatus: membership.status },
+      (membership as any).id,
+      { userId, newStatus: 'SUSPENDED' },
+      { oldStatus: (membership as any).status },
     );
 
     return {
-      message: `User ${membership.user.firstName} ${membership.user.lastName} has been suspended.`,
+      message: `User ${(membership as any).firstName} ${(membership as any).lastName} has been suspended.`,
     };
   }
 
   async reactivateUser(actorId: string, schoolId: string, userId: string) {
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.firstName, u.lastName FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [userId, schoolId],
+    );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
-    if (membership.status !== 'SUSPENDED')
+      throw new NotFoundException('User not found in this school.');
+    if ((membership as any).status !== 'SUSPENDED')
       throw new BadRequestException('User is not suspended.');
 
-    await this.prisma.schoolMembership.update({
-      where: { id: membership.id },
-      data: { status: 'ACTIVE' },
-    });
+    await this.db.execute(
+      'UPDATE "SchoolMembership" SET status = "ACTIVE", updatedAt = ? WHERE id = ?',
+      [new Date().toISOString(), (membership as any).id],
+    );
 
     await this.audit(
       actorId,
       'REACTIVATE_USER',
       'SchoolMembership',
-      membership.id,
-      {
-        userId,
-        newStatus: 'ACTIVE',
-      },
+      (membership as any).id,
+      { userId, newStatus: 'ACTIVE' },
       { oldStatus: 'SUSPENDED' },
     );
 
     return {
-      message: `User ${membership.user.firstName} ${membership.user.lastName} has been reactivated.`,
+      message: `User ${(membership as any).firstName} ${(membership as any).lastName} has been reactivated.`,
     };
   }
 
@@ -1364,55 +1656,62 @@ export class DeputyService {
     newRole: string,
   ) {
     const validRoles = ['TEACHER', 'STUDENT', 'DEPUTY', 'PARENT'];
-    if (!validRoles.includes(newRole)) {
+    if (!validRoles.includes(newRole))
       throw new BadRequestException(
         `Invalid role. Allowed: ${validRoles.join(', ')}`,
       );
-    }
 
-    const membership = await this.prisma.schoolMembership.findFirst({
-      where: { userId, schoolId },
-      include: { user: true },
-    });
+    const membership = await this.db.queryOne(
+      'SELECT m.*, u.firstName, u.lastName FROM "SchoolMembership" m JOIN "User" u ON m.userId = u.id WHERE m.userId = ? AND m.schoolId = ?',
+      [userId, schoolId],
+    );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
-    if (membership.role === 'PRINCIPAL')
+      throw new NotFoundException('User not found in this school.');
+    if ((membership as any).role === 'PRINCIPAL')
       throw new BadRequestException('Cannot change the principal role.');
     if (actorId === userId)
       throw new BadRequestException('Cannot change your own role.');
 
-    const oldRole = membership.role;
+    const oldRole = (membership as any).role;
+    await this.db.execute(
+      'UPDATE "SchoolMembership" SET role = ?, updatedAt = ? WHERE id = ?',
+      [newRole, new Date().toISOString(), (membership as any).id],
+    );
 
-    await this.prisma.schoolMembership.update({
-      where: { id: membership.id },
-      data: { role: newRole as any },
-    });
-
-    // Create profiles if needed
     if (newRole === 'TEACHER') {
-      await this.prisma.teacherProfile.upsert({
-        where: { userId },
-        create: { userId },
-        update: {},
-      });
+      const existing = await this.db.queryOne(
+        'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+        [userId],
+      );
+      if (!existing)
+        await this.db.execute(
+          'INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)',
+          [crypto.randomUUID(), userId],
+        );
     } else if (newRole === 'STUDENT') {
-      const user = membership.user;
-      await this.prisma.studentProfile.upsert({
-        where: { userId },
-        create: { userId, firstName: user.firstName, lastName: user.lastName },
-        update: {},
-      });
+      const existing = await this.db.queryOne(
+        'SELECT id FROM "StudentProfile" WHERE userId = ?',
+        [userId],
+      );
+      if (!existing) {
+        await this.db.execute(
+          'INSERT INTO "StudentProfile" (id, userId, firstName, lastName) VALUES (?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            userId,
+            (membership as any).firstName,
+            (membership as any).lastName,
+          ],
+        );
+      }
     }
 
     await this.audit(
       actorId,
       'CHANGE_USER_ROLE',
       'SchoolMembership',
-      membership.id,
-      {
-        userId,
-        newRole,
-      },
+      (membership as any).id,
+      { userId, newRole },
       { oldRole },
     );
 
@@ -1422,37 +1721,29 @@ export class DeputyService {
   // ─── EXPORT USERS CSV ────────────────────────────────────────────
 
   async exportUsersCSV(schoolId: string): Promise<string> {
-    const memberships = await this.prisma.schoolMembership.findMany({
-      where: { schoolId },
-      include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-            lastLogin: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const memberships = await this.db.query(
+      `SELECT m.role, m.status, m.workloadPercentage, u.firstName, u.lastName, u.email, u.lastLogin, u.createdAt 
+       FROM "SchoolMembership" m 
+       JOIN "User" u ON m.userId = u.id 
+       WHERE m.schoolId = ? 
+       ORDER BY u.createdAt DESC`,
+      [schoolId],
+    );
 
     const header =
       'Příjmení;Jméno;Email;Role;Status;Úvazek;Poslední přihlášení;Datum vytvoření';
-    const rows = memberships.map((m: any) => {
-      const u = m.user;
-      return [
-        u.lastName,
-        u.firstName,
-        u.email,
+    const rows = memberships.map((m: any) =>
+      [
+        m.lastName,
+        m.firstName,
+        m.email,
         m.role,
         m.status,
         m.workloadPercentage ?? '',
-        u.lastLogin ? new Date(u.lastLogin).toISOString() : '',
-        new Date(u.createdAt).toISOString(),
-      ].join(';');
-    });
+        m.lastLogin ? new Date(m.lastLogin).toISOString() : '',
+        new Date(m.createdAt).toISOString(),
+      ].join(';'),
+    );
 
     return [header, ...rows].join('\n');
   }
@@ -1460,32 +1751,78 @@ export class DeputyService {
   // ─── THEMATIC PLANS ──────────────────────────────────────────────
 
   async getThematicPlans(schoolId: string) {
-    return this.prisma.thematicPlan.findMany({
-      where: { schoolId },
-      include: {
-        subjectTemplate: { select: { id: true, name: true, code: true } },
-        academicYear: { select: { id: true, name: true } },
-        gradeLevel: { select: { id: true, name: true } },
-        teacher: { select: { id: true, firstName: true, lastName: true } },
-        _count: { select: { weeks: true } },
+    const plans = await this.db.query(
+      `SELECT tp.*, st.name as subjectName, st.code as subjectCode, ay.name as yearName, gl.name as gradeName, 
+              u.firstName, u.lastName, (SELECT COUNT(*) FROM "ThematicPlanWeek" WHERE planId = tp.id) as weekCount 
+       FROM "ThematicPlan" tp 
+       JOIN "SubjectTemplate" st ON tp.subjectTemplateId = st.id 
+       JOIN "AcademicYear" ay ON tp.academicYearId = ay.id 
+       JOIN "GradeLevel" gl ON tp.gradeLevelId = gl.id 
+       JOIN "User" u ON tp.teacherId = u.id 
+       WHERE tp.schoolId = ? 
+       ORDER BY tp.createdAt DESC`,
+      [schoolId],
+    );
+
+    return plans.map((p: any) => ({
+      ...p,
+      subjectTemplate: {
+        id: p.subjectTemplateId,
+        name: p.subjectName,
+        code: p.subjectCode,
       },
-      orderBy: { createdAt: 'desc' },
-    });
+      academicYear: { id: p.academicYearId, name: p.yearName },
+      gradeLevel: { id: p.gradeLevelId, name: p.gradeName },
+      teacher: {
+        id: p.teacherId,
+        firstName: p.firstName,
+        lastName: p.lastName,
+      },
+      _count: { weeks: p.weekCount },
+    }));
   }
 
   async getThematicPlan(schoolId: string, id: string) {
-    const plan = await this.prisma.thematicPlan.findFirst({
-      where: { id, schoolId },
-      include: {
-        subjectTemplate: { select: { id: true, name: true, code: true } },
-        academicYear: { select: { id: true, name: true } },
-        gradeLevel: { select: { id: true, name: true } },
-        teacher: { select: { id: true, firstName: true, lastName: true } },
-        weeks: { orderBy: { weekNumber: 'asc' } },
-      },
-    });
+    const plan = await this.db.queryOne(
+      `SELECT tp.*, st.name as subjectName, st.code as subjectCode, ay.name as yearName, gl.name as gradeName, 
+              u.firstName, u.lastName 
+       FROM "ThematicPlan" tp 
+       JOIN "SubjectTemplate" st ON tp.subjectTemplateId = st.id 
+       JOIN "AcademicYear" ay ON tp.academicYearId = ay.id 
+       JOIN "GradeLevel" gl ON tp.gradeLevelId = gl.id 
+       JOIN "User" u ON tp.teacherId = u.id 
+       WHERE tp.id = ? AND tp.schoolId = ?`,
+      [id, schoolId],
+    );
     if (!plan) throw new NotFoundException('Thematic plan not found');
-    return plan;
+
+    const weeks = await this.db.query(
+      'SELECT * FROM "ThematicPlanWeek" WHERE planId = ? ORDER BY weekNumber ASC',
+      [id],
+    );
+
+    return {
+      ...plan,
+      subjectTemplate: {
+        id: (plan as any).subjectTemplateId,
+        name: (plan as any).subjectName,
+        code: (plan as any).subjectCode,
+      },
+      academicYear: {
+        id: (plan as any).academicYearId,
+        name: (plan as any).yearName,
+      },
+      gradeLevel: {
+        id: (plan as any).gradeLevelId,
+        name: (plan as any).gradeName,
+      },
+      teacher: {
+        id: (plan as any).teacherId,
+        firstName: (plan as any).firstName,
+        lastName: (plan as any).lastName,
+      },
+      weeks,
+    };
   }
 
   async createThematicPlan(
@@ -1498,16 +1835,26 @@ export class DeputyService {
       gradeLevelId: string;
     },
   ) {
-    const plan = await this.prisma.thematicPlan.create({
-      data: { ...data, teacherId: actorId, schoolId },
-    });
-    await this.audit(
-      actorId,
-      'CREATE_THEMATIC_PLAN',
-      'ThematicPlan',
-      plan.id,
-      data,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "ThematicPlan" (id, title, subjectTemplateId, academicYearId, gradeLevelId, teacherId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.title,
+        data.subjectTemplateId,
+        data.academicYearId,
+        data.gradeLevelId,
+        actorId,
+        schoolId,
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
     );
+    const plan = (await this.db.queryOne<ThematicPlan>(
+      'SELECT * FROM "ThematicPlan" WHERE id = ?',
+      [id],
+    ))!;
+    await this.audit(actorId, 'CREATE_THEMATIC_PLAN', 'ThematicPlan', id, data);
     return plan;
   }
 
@@ -1517,14 +1864,20 @@ export class DeputyService {
     id: string,
     data: { title?: string },
   ) {
-    const existing = await this.prisma.thematicPlan.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "ThematicPlan" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Thematic plan not found');
-    const updated = await this.prisma.thematicPlan.update({
-      where: { id },
-      data,
-    });
+
+    await this.db.execute(
+      'UPDATE "ThematicPlan" SET title = ?, updatedAt = ? WHERE id = ?',
+      [data.title, new Date().toISOString(), id],
+    );
+    const updated = (await this.db.queryOne<ThematicPlan>(
+      'SELECT * FROM "ThematicPlan" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_THEMATIC_PLAN',
@@ -1537,11 +1890,12 @@ export class DeputyService {
   }
 
   async deleteThematicPlan(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.thematicPlan.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "ThematicPlan" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Thematic plan not found');
-    await this.prisma.thematicPlan.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "ThematicPlan" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_THEMATIC_PLAN',
@@ -1567,20 +1921,37 @@ export class DeputyService {
       notes?: string;
     }>,
   ) {
-    const plan = await this.prisma.thematicPlan.findFirst({
-      where: { id: planId, schoolId },
-    });
+    const plan = await this.db.queryOne(
+      'SELECT id FROM "ThematicPlan" WHERE id = ? AND schoolId = ?',
+      [planId, schoolId],
+    );
     if (!plan) throw new NotFoundException('Thematic plan not found');
 
-    // Delete existing weeks and recreate
-    await this.prisma.thematicPlanWeek.deleteMany({ where: { planId } });
-    const created = await this.prisma.thematicPlanWeek.createMany({
-      data: weeks.map((w: any) => ({ ...w, planId })),
+    return this.db.transaction(async (db) => {
+      await db.execute('DELETE FROM "ThematicPlanWeek" WHERE planId = ?', [
+        planId,
+      ]);
+      for (const w of weeks) {
+        await db.execute(
+          'INSERT INTO "ThematicPlanWeek" (id, weekNumber, topic, objectives, methods, resources, crossCurricular, notes, planId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            w.weekNumber,
+            w.topic,
+            w.objectives || null,
+            w.methods || null,
+            w.resources || null,
+            w.crossCurricular || null,
+            w.notes || null,
+            planId,
+          ],
+        );
+      }
+      await this.audit(actorId, 'SAVE_PLAN_WEEKS', 'ThematicPlan', planId, {
+        weekCount: weeks.length,
+      });
+      return { saved: weeks.length };
     });
-    await this.audit(actorId, 'SAVE_PLAN_WEEKS', 'ThematicPlan', planId, {
-      weekCount: weeks.length,
-    });
-    return { saved: created.count };
   }
 
   // ─── LESSON PREPARATIONS ─────────────────────────────────────────
@@ -1589,20 +1960,39 @@ export class DeputyService {
     schoolId: string,
     filters?: { subjectTemplateId?: string; teacherId?: string },
   ) {
-    return this.prisma.lessonPreparation.findMany({
-      where: {
-        schoolId,
-        ...(filters?.subjectTemplateId
-          ? { subjectTemplateId: filters.subjectTemplateId }
-          : {}),
-        ...(filters?.teacherId ? { teacherId: filters.teacherId } : {}),
+    let where = 'WHERE lp.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (filters?.subjectTemplateId) {
+      where += ' AND lp.subjectTemplateId = ?';
+      params.push(filters.subjectTemplateId);
+    }
+    if (filters?.teacherId) {
+      where += ' AND lp.teacherId = ?';
+      params.push(filters.teacherId);
+    }
+
+    const preps = await this.db.query(
+      `SELECT lp.*, st.name as subjectName, st.code as subjectCode, u.firstName, u.lastName 
+       FROM "LessonPreparation" lp 
+       JOIN "SubjectTemplate" st ON lp.subjectTemplateId = st.id 
+       JOIN "User" u ON lp.teacherId = u.id 
+       ${where} ORDER BY lp.date DESC`,
+      params,
+    );
+
+    return preps.map((p: any) => ({
+      ...p,
+      subjectTemplate: {
+        id: p.subjectTemplateId,
+        name: p.subjectName,
+        code: p.subjectCode,
       },
-      include: {
-        subjectTemplate: { select: { id: true, name: true, code: true } },
-        teacher: { select: { id: true, firstName: true, lastName: true } },
+      teacher: {
+        id: p.teacherId,
+        firstName: p.firstName,
+        lastName: p.lastName,
       },
-      orderBy: { date: 'desc' },
-    });
+    }));
   }
 
   async createLessonPreparation(
@@ -1621,27 +2011,36 @@ export class DeputyService {
       subjectTemplateId: string;
     },
   ) {
-    const prep = await this.prisma.lessonPreparation.create({
-      data: {
-        title: data.title,
-        date: new Date(data.date),
-        duration: data.duration ?? 45,
-        topic: data.topic,
-        objectives: data.objectives,
-        activities: data.activities,
-        materials: data.materials,
-        homework: data.homework,
-        evaluation: data.evaluation,
-        subjectTemplateId: data.subjectTemplateId,
-        teacherId: actorId,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "LessonPreparation" (id, title, date, duration, topic, objectives, activities, materials, homework, evaluation, subjectTemplateId, teacherId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.title,
+        new Date(data.date).toISOString(),
+        data.duration ?? 45,
+        data.topic,
+        data.objectives || null,
+        data.activities || null,
+        data.materials || null,
+        data.homework || null,
+        data.evaluation || null,
+        data.subjectTemplateId,
+        actorId,
         schoolId,
-      },
-    });
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
+    const prep = (await this.db.queryOne<LessonPreparation>(
+      'SELECT * FROM "LessonPreparation" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'CREATE_LESSON_PREPARATION',
       'LessonPreparation',
-      prep.id,
+      id,
       data,
     );
     return prep;
@@ -1663,16 +2062,43 @@ export class DeputyService {
       evaluation?: string;
     },
   ) {
-    const existing = await this.prisma.lessonPreparation.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "LessonPreparation" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Lesson preparation not found');
-    const updateData: any = { ...data };
-    if (data.date) updateData.date = new Date(data.date);
-    const updated = await this.prisma.lessonPreparation.update({
-      where: { id },
-      data: updateData,
+
+    const fields = ['updatedAt = ?'];
+    const values: any[] = [new Date().toISOString()];
+    const keys = [
+      'title',
+      'duration',
+      'topic',
+      'objectives',
+      'activities',
+      'materials',
+      'homework',
+      'evaluation',
+    ];
+    keys.forEach((k) => {
+      if ((data as any)[k] !== undefined) {
+        fields.push(`"${k}" = ?`);
+        values.push((data as any)[k]);
+      }
     });
+    if (data.date) {
+      fields.push('"date" = ?');
+      values.push(new Date(data.date).toISOString());
+    }
+
+    await this.db.execute(
+      `UPDATE "LessonPreparation" SET ${fields.join(', ')} WHERE id = ?`,
+      [...values, id],
+    );
+    const updated = (await this.db.queryOne<LessonPreparation>(
+      'SELECT * FROM "LessonPreparation" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_LESSON_PREPARATION',
@@ -1685,11 +2111,12 @@ export class DeputyService {
   }
 
   async deleteLessonPreparation(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.lessonPreparation.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "LessonPreparation" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Lesson preparation not found');
-    await this.prisma.lessonPreparation.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "LessonPreparation" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_LESSON_PREPARATION',
@@ -1707,21 +2134,41 @@ export class DeputyService {
     schoolId: string,
     filters?: { subjectTemplateId?: string; type?: string },
   ) {
-    return this.prisma.teachingMaterial.findMany({
-      where: {
-        schoolId,
-        ...(filters?.subjectTemplateId
-          ? { subjectTemplateId: filters.subjectTemplateId }
-          : {}),
-        ...(filters?.type ? { type: filters.type } : {}),
+    let where = 'WHERE tm.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (filters?.subjectTemplateId) {
+      where += ' AND tm.subjectTemplateId = ?';
+      params.push(filters.subjectTemplateId);
+    }
+    if (filters?.type) {
+      where += ' AND tm.type = ?';
+      params.push(filters.type);
+    }
+
+    const materials = await this.db.query(
+      `SELECT tm.*, st.name as subjectName, st.code as subjectCode, gl.name as gradeName, u.firstName, u.lastName 
+       FROM "TeachingMaterial" tm 
+       LEFT JOIN "SubjectTemplate" st ON tm.subjectTemplateId = st.id 
+       LEFT JOIN "GradeLevel" gl ON tm.gradeLevelId = gl.id 
+       JOIN "User" u ON tm.uploadedById = u.id 
+       ${where} ORDER BY tm.createdAt DESC`,
+      params,
+    );
+
+    return materials.map((m: any) => ({
+      ...m,
+      subjectTemplate: m.subjectTemplateId
+        ? { id: m.subjectTemplateId, name: m.subjectName, code: m.subjectCode }
+        : null,
+      gradeLevel: m.gradeLevelId
+        ? { id: m.gradeLevelId, name: m.gradeName }
+        : null,
+      uploadedBy: {
+        id: m.uploadedById,
+        firstName: m.firstName,
+        lastName: m.lastName,
       },
-      include: {
-        subjectTemplate: { select: { id: true, name: true, code: true } },
-        gradeLevel: { select: { id: true, name: true } },
-        uploadedBy: { select: { id: true, firstName: true, lastName: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    }));
   }
 
   async createTeachingMaterial(
@@ -1736,23 +2183,31 @@ export class DeputyService {
       gradeLevelId?: string;
     },
   ) {
-    const material = await this.prisma.teachingMaterial.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        url: data.url,
-        type: data.type ?? 'OTHER',
-        subjectTemplateId: data.subjectTemplateId || null,
-        gradeLevelId: data.gradeLevelId || null,
-        uploadedById: actorId,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "TeachingMaterial" (id, title, description, url, type, subjectTemplateId, gradeLevelId, uploadedById, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.title,
+        data.description || null,
+        data.url,
+        data.type ?? 'OTHER',
+        data.subjectTemplateId || null,
+        data.gradeLevelId || null,
+        actorId,
         schoolId,
-      },
-    });
+        new Date().toISOString(),
+      ],
+    );
+    const material = (await this.db.queryOne<TeachingMaterial>(
+      'SELECT * FROM "TeachingMaterial" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'CREATE_TEACHING_MATERIAL',
       'TeachingMaterial',
-      material.id,
+      id,
       data,
     );
     return material;
@@ -1771,14 +2226,39 @@ export class DeputyService {
       gradeLevelId?: string | null;
     },
   ) {
-    const existing = await this.prisma.teachingMaterial.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "TeachingMaterial" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Teaching material not found');
-    const updated = await this.prisma.teachingMaterial.update({
-      where: { id },
-      data,
+
+    const fields = [];
+    const values = [];
+    const keys = [
+      'title',
+      'description',
+      'url',
+      'type',
+      'subjectTemplateId',
+      'gradeLevelId',
+    ];
+    keys.forEach((k) => {
+      if ((data as any)[k] !== undefined) {
+        fields.push(`"${k}" = ?`);
+        values.push((data as any)[k]);
+      }
     });
+
+    if (fields.length > 0) {
+      await this.db.execute(
+        `UPDATE "TeachingMaterial" SET ${fields.join(', ')} WHERE id = ?`,
+        [...values, id],
+      );
+    }
+    const updated = (await this.db.queryOne<TeachingMaterial>(
+      'SELECT * FROM "TeachingMaterial" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_TEACHING_MATERIAL',
@@ -1791,11 +2271,12 @@ export class DeputyService {
   }
 
   async deleteTeachingMaterial(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.teachingMaterial.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "TeachingMaterial" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Teaching material not found');
-    await this.prisma.teachingMaterial.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "TeachingMaterial" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_TEACHING_MATERIAL',
@@ -1810,31 +2291,36 @@ export class DeputyService {
   // ─── RVP COMPETENCIES ────────────────────────────────────────────
 
   async getRvpCompetencies(schoolId: string) {
-    return this.prisma.rvpCompetency.findMany({
-      where: { schoolId },
-      include: { _count: { select: { mappings: true } } },
-      orderBy: [{ area: 'asc' }, { code: 'asc' }],
-    });
+    const comps = await this.db.query(
+      `SELECT c.*, (SELECT COUNT(*) FROM "CompetencyMapping" WHERE competencyId = c.id) as mappingCount 
+       FROM "RvpCompetency" c WHERE c.schoolId = ? ORDER BY c.area ASC, c.code ASC`,
+      [schoolId],
+    );
+    return comps.map((c: any) => ({
+      ...c,
+      _count: { mappings: c.mappingCount },
+    }));
   }
 
   async createRvpCompetency(
     actorId: string,
     schoolId: string,
-    data: {
-      code: string;
-      name: string;
-      area: string;
-      description?: string;
-    },
+    data: { code: string; name: string; area: string; description?: string },
   ) {
-    const comp = await this.prisma.rvpCompetency.create({
-      data: { ...data, schoolId },
-    });
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "RvpCompetency" (id, code, name, area, description, schoolId) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, data.code, data.name, data.area, data.description || null, schoolId],
+    );
+    const comp = (await this.db.queryOne<RvpCompetency>(
+      'SELECT * FROM "RvpCompetency" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'CREATE_RVP_COMPETENCY',
       'RvpCompetency',
-      comp.id,
+      id,
       data,
     );
     return comp;
@@ -1844,21 +2330,33 @@ export class DeputyService {
     actorId: string,
     schoolId: string,
     id: string,
-    data: {
-      code?: string;
-      name?: string;
-      area?: string;
-      description?: string;
-    },
+    data: { code?: string; name?: string; area?: string; description?: string },
   ) {
-    const existing = await this.prisma.rvpCompetency.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "RvpCompetency" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Competency not found');
-    const updated = await this.prisma.rvpCompetency.update({
-      where: { id },
-      data,
+
+    const fields = [];
+    const values = [];
+    ['code', 'name', 'area', 'description'].forEach((k) => {
+      if ((data as any)[k] !== undefined) {
+        fields.push(`"${k}" = ?`);
+        values.push((data as any)[k]);
+      }
     });
+
+    if (fields.length > 0) {
+      await this.db.execute(
+        `UPDATE "RvpCompetency" SET ${fields.join(', ')} WHERE id = ?`,
+        [...values, id],
+      );
+    }
+    const updated = (await this.db.queryOne<RvpCompetency>(
+      'SELECT * FROM "RvpCompetency" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPDATE_RVP_COMPETENCY',
@@ -1871,11 +2369,12 @@ export class DeputyService {
   }
 
   async deleteRvpCompetency(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.rvpCompetency.findFirst({
-      where: { id, schoolId },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT * FROM "RvpCompetency" WHERE id = ? AND schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Competency not found');
-    await this.prisma.rvpCompetency.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "RvpCompetency" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_RVP_COMPETENCY',
@@ -1893,26 +2392,43 @@ export class DeputyService {
     schoolId: string,
     filters?: { subjectTemplateId?: string; gradeLevelId?: string },
   ) {
-    // We fetch via competency → school to scope
-    return this.prisma.competencyMapping.findMany({
-      where: {
-        competency: { schoolId },
-        ...(filters?.subjectTemplateId
-          ? { subjectTemplateId: filters.subjectTemplateId }
-          : {}),
-        ...(filters?.gradeLevelId
-          ? { gradeLevelId: filters.gradeLevelId }
-          : {}),
+    let where = 'WHERE c.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (filters?.subjectTemplateId) {
+      where += ' AND cm.subjectTemplateId = ?';
+      params.push(filters.subjectTemplateId);
+    }
+    if (filters?.gradeLevelId) {
+      where += ' AND cm.gradeLevelId = ?';
+      params.push(filters.gradeLevelId);
+    }
+
+    const mappings = await this.db.query(
+      `SELECT cm.*, c.code as compCode, c.name as compName, c.area as compArea, 
+              st.name as subjectName, st.code as subjectCode, gl.name as gradeName 
+       FROM "CompetencyMapping" cm 
+       JOIN "RvpCompetency" c ON cm.competencyId = c.id 
+       JOIN "SubjectTemplate" st ON cm.subjectTemplateId = st.id 
+       JOIN "GradeLevel" gl ON cm.gradeLevelId = gl.id 
+       ${where} ORDER BY c.code ASC`,
+      params,
+    );
+
+    return mappings.map((m: any) => ({
+      ...m,
+      competency: {
+        id: m.competencyId,
+        code: m.compCode,
+        name: m.compName,
+        area: m.compArea,
       },
-      include: {
-        competency: {
-          select: { id: true, code: true, name: true, area: true },
-        },
-        subjectTemplate: { select: { id: true, name: true, code: true } },
-        gradeLevel: { select: { id: true, name: true } },
+      subjectTemplate: {
+        id: m.subjectTemplateId,
+        name: m.subjectName,
+        code: m.subjectCode,
       },
-      orderBy: { competency: { code: 'asc' } },
-    });
+      gradeLevel: { id: m.gradeLevelId, name: m.gradeName },
+    }));
   }
 
   async upsertCompetencyMapping(
@@ -1926,40 +2442,61 @@ export class DeputyService {
       note?: string;
     },
   ) {
-    // Verify competency belongs to school
-    const comp = await this.prisma.rvpCompetency.findFirst({
-      where: { id: data.competencyId, schoolId },
-    });
+    const comp = await this.db.queryOne(
+      'SELECT id FROM "RvpCompetency" WHERE id = ? AND schoolId = ?',
+      [data.competencyId, schoolId],
+    );
     if (!comp)
       throw new NotFoundException('Competency not found in this school');
 
-    const mapping = await this.prisma.competencyMapping.upsert({
-      where: {
-        competencyId_subjectTemplateId_gradeLevelId: {
-          competencyId: data.competencyId,
-          subjectTemplateId: data.subjectTemplateId,
-          gradeLevelId: data.gradeLevelId,
-        },
-      },
-      create: data,
-      update: { fulfilled: data.fulfilled, note: data.note },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT id FROM "CompetencyMapping" WHERE competencyId = ? AND subjectTemplateId = ? AND gradeLevelId = ?',
+      [data.competencyId, data.subjectTemplateId, data.gradeLevelId],
+    );
+
+    let id: string;
+    if (existing) {
+      id = (existing as any).id;
+      await this.db.execute(
+        'UPDATE "CompetencyMapping" SET fulfilled = ?, note = ? WHERE id = ?',
+        [data.fulfilled ? 1 : 0, data.note || null, id],
+      );
+    } else {
+      id = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "CompetencyMapping" (id, competencyId, subjectTemplateId, gradeLevelId, fulfilled, note) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          data.competencyId,
+          data.subjectTemplateId,
+          data.gradeLevelId,
+          data.fulfilled ? 1 : 0,
+          data.note || null,
+        ],
+      );
+    }
+
+    const mapping = (await this.db.queryOne<CompetencyMapping>(
+      'SELECT * FROM "CompetencyMapping" WHERE id = ?',
+      [id],
+    ))!;
     await this.audit(
       actorId,
       'UPSERT_COMPETENCY_MAPPING',
       'CompetencyMapping',
-      mapping.id,
+      id,
       data,
     );
     return mapping;
   }
 
   async deleteCompetencyMapping(actorId: string, schoolId: string, id: string) {
-    const existing = await this.prisma.competencyMapping.findFirst({
-      where: { id, competency: { schoolId } },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT cm.* FROM "CompetencyMapping" cm JOIN "RvpCompetency" c ON cm.competencyId = c.id WHERE cm.id = ? AND c.schoolId = ?',
+      [id, schoolId],
+    );
     if (!existing) throw new NotFoundException('Mapping not found');
-    await this.prisma.competencyMapping.delete({ where: { id } });
+    await this.db.execute('DELETE FROM "CompetencyMapping" WHERE id = ?', [id]);
     await this.audit(
       actorId,
       'DELETE_COMPETENCY_MAPPING',
@@ -1981,15 +2518,18 @@ export class DeputyService {
     newValues?: any,
     oldValues?: any,
   ) {
-    await this.prisma.auditLog.create({
-      data: {
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, oldValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
         actorId,
         action,
         entity,
         entityId,
-        newValues: newValues ?? undefined,
-        oldValues: oldValues ?? undefined,
-      },
-    });
+        newValues ? JSON.stringify(newValues) : null,
+        oldValues ? JSON.stringify(oldValues) : null,
+        new Date().toISOString(),
+      ],
+    );
   }
 }

@@ -359,7 +359,10 @@ async function bootstrap() {
 
         const adminResult = await initService.setup({
           adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@demo.test',
-          adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Heslo123!',
+          adminPassword:
+            process.env.SEED_ADMIN_PASSWORD ||
+            process.env.DEMO_PASSWORD ||
+            'Demo1234!',
           adminFirstName: process.env.SEED_ADMIN_FIRST_NAME || 'Admin',
           adminLastName: process.env.SEED_ADMIN_LAST_NAME || 'Demo',
         });

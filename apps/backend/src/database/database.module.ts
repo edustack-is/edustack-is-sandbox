@@ -1,19 +1,18 @@
 import { Global, Module } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { DatabaseService } from './database.service';
 
 @Global()
 @Module({
   providers: [
-    PrismaService,
+    DatabaseService,
     {
       provide: 'CLOUDFLARE_DB',
       useFactory: () => {
         // In Cloudflare Workers, the binding is often available on the global object or injected.
-        // When using a NestJS worker adapter, it might be passed via the request context.
         return (globalThis as any).DB || null;
       },
     },
   ],
-  exports: [PrismaService, 'CLOUDFLARE_DB'],
+  exports: [DatabaseService, 'CLOUDFLARE_DB'],
 })
-export class PrismaModule {}
+export class DatabaseModule {}

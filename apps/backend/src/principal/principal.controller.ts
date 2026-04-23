@@ -15,10 +15,11 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../database/types';
 import { PrincipalService } from './principal.service';
 
 import { AuditLogEntryDto } from '../common/dto/response.dto';
+
 @ApiTags('principal')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/principal')
@@ -27,11 +28,6 @@ import { AuditLogEntryDto } from '../common/dto/response.dto';
 export class PrincipalController {
   constructor(private readonly principalService: PrincipalService) {}
 
-  /**
-   * GET /api/principal/audit-logs?page=1&limit=20
-   * Returns paginated audit log entries for the current school.
-   * Accessible by Principal and System Admin (ADMIN role).
-   */
   @Get('audit-logs')
   async getAuditLogs(
     @Req() req: any,

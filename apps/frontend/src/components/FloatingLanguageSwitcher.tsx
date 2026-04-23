@@ -47,9 +47,7 @@ export const FloatingLanguageSwitcher: React.FC = () => {
                         >
                             <span className="text-base">{lang.flag}</span>
                             <span>{lang.label}</span>
-                            {lang.code === currentLang && (
-                                <span className="ml-auto text-primary text-xs">✓</span>
-                            )}
+                            {lang.code === currentLang && <span className="ml-auto text-primary text-xs">✓</span>}
                         </button>
                     ))}
                 </div>
@@ -73,7 +71,9 @@ export const FloatingLanguageSwitcher: React.FC = () => {
                 aria-label="Choose language"
             >
                 <Globe className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="text-xs uppercase tracking-wider">{current.flag} {current.code.toUpperCase()}</span>
+                <span className="text-xs uppercase tracking-wider">
+                    {current.flag} {current.code.toUpperCase()}
+                </span>
             </button>
         </div>
     );

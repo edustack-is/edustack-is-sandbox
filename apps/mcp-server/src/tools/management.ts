@@ -1,13 +1,13 @@
-import { server } from "../server.js";
-import { prisma } from "../db.js";
-import { z } from "zod";
+import { server } from '../server.js';
+import { prisma } from '../db.js';
+import { z } from 'zod';
 
 server.tool(
-    "create_school",
-    "Vytvoří novou školu v systému EduStack.",
+    'create_school',
+    'Vytvoří novou školu v systému EduStack.',
     {
-        name: z.string().describe("Název školy"),
-        address: z.string().optional().describe("Adresa školy"),
+        name: z.string().describe('Název školy'),
+        address: z.string().optional().describe('Adresa školy'),
     },
     async ({ name, address }: { name: string; address?: string }) => {
         try {
@@ -18,7 +18,7 @@ server.tool(
             if (existing) {
                 return {
                     isError: true,
-                    content: [{ type: "text", text: `Škola s názvem '${name}' již existuje.` }],
+                    content: [{ type: 'text', text: `Škola s názvem '${name}' již existuje.` }],
                 };
             }
 
@@ -29,35 +29,44 @@ server.tool(
                 },
             });
             return {
-                content: [{ type: "text", text: `Škola '${name}' byla úspěšně vytvořena s ID: ${school.id}` }],
+                content: [{ type: 'text', text: `Škola '${name}' byla úspěšně vytvořena s ID: ${school.id}` }],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při vytváření školy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při vytváření školy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 server.tool(
-    "create_student_and_parent",
-    "Vytvoří studenta a volitelně jeho rodiče v rámci jedné transakce.",
+    'create_student_and_parent',
+    'Vytvoří studenta a volitelně jeho rodiče v rámci jedné transakce.',
     {
-        schoolId: z.string().describe("ID školy"),
-        classroomId: z.string().describe("ID třídy"),
+        schoolId: z.string().describe('ID školy'),
+        classroomId: z.string().describe('ID třídy'),
         student: z.object({
             firstName: z.string(),
             lastName: z.string(),
             email: z.string(),
         }),
-        parents: z.array(z.object({
-            firstName: z.string(),
-            lastName: z.string(),
-            email: z.string(),
-        })).optional(),
+        parents: z
+            .array(
+                z.object({
+                    firstName: z.string(),
+                    lastName: z.string(),
+                    email: z.string(),
+                }),
+            )
+            .optional(),
     },
-    async ({ schoolId, classroomId, student, parents }: {
+    async ({
+        schoolId,
+        classroomId,
+        student,
+        parents,
+    }: {
         schoolId: string;
         classroomId: string;
         student: { firstName: string; lastName: string; email: string };
@@ -71,12 +80,12 @@ server.tool(
                         email: student.email,
                         firstName: student.firstName,
                         lastName: student.lastName,
-                        passwordHash: "awaiting_activation",
+                        passwordHash: 'awaiting_activation',
                         schoolMemberships: {
                             create: {
                                 schoolId,
-                                role: "STUDENT",
-                                status: "ACTIVE",
+                                role: 'STUDENT',
+                                status: 'ACTIVE',
                             },
                         },
                         studentProfile: {
@@ -97,12 +106,12 @@ server.tool(
                                 email: p.email,
                                 firstName: p.firstName,
                                 lastName: p.lastName,
-                                passwordHash: "awaiting_activation",
+                                passwordHash: 'awaiting_activation',
                                 schoolMemberships: {
                                     create: {
                                         schoolId,
-                                        role: "PARENT",
-                                        status: "ACTIVE",
+                                        role: 'PARENT',
+                                        status: 'ACTIVE',
                                     },
                                 },
                             },
@@ -123,15 +132,17 @@ server.tool(
             });
 
             return {
-                content: [{ type: "text", text: `Student i rodiče byli úspěšně vytvořeni. Student ID: ${result.studentId}` }],
+                content: [
+                    { type: 'text', text: `Student i rodiče byli úspěšně vytvořeni. Student ID: ${result.studentId}` },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při vytváření studenta/rodičů: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při vytváření studenta/rodičů: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ═══════════════════════════════════════════════════════════════
@@ -139,14 +150,17 @@ server.tool(
 // ═══════════════════════════════════════════════════════════════
 
 server.tool(
-    "create_room",
-    "Vytvoří novou učebnu/místnost v dané škole.",
+    'create_room',
+    'Vytvoří novou učebnu/místnost v dané škole.',
     {
-        schoolId: z.string().describe("ID školy"),
+        schoolId: z.string().describe('ID školy'),
         name: z.string().describe("Název učebny, např. 'A101', 'PC učebna'"),
-        capacity: z.number().int().optional().describe("Kapacita (výchozí: 30)"),
-        isComputerLab: z.boolean().optional().describe("Je to počítačová učebna?"),
-        specialEquipment: z.array(z.string()).optional().describe("Speciální vybavení, např. ['projektor', 'interaktivní tabule']"),
+        capacity: z.number().int().optional().describe('Kapacita (výchozí: 30)'),
+        isComputerLab: z.boolean().optional().describe('Je to počítačová učebna?'),
+        specialEquipment: z
+            .array(z.string())
+            .optional()
+            .describe("Speciální vybavení, např. ['projektor', 'interaktivní tabule']"),
     },
     async ({ schoolId, name, capacity, isComputerLab, specialEquipment }) => {
         try {
@@ -154,7 +168,12 @@ server.tool(
                 where: { name_schoolId: { name, schoolId } },
             });
             if (existing) {
-                return { isError: true, content: [{ type: "text", text: `Místnost '${name}' v této škole již existuje (ID: ${existing.id}).` }] };
+                return {
+                    isError: true,
+                    content: [
+                        { type: 'text', text: `Místnost '${name}' v této škole již existuje (ID: ${existing.id}).` },
+                    ],
+                };
             }
 
             const room = await prisma.room.create({
@@ -168,46 +187,52 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Učebna '${name}' vytvořena (kapacita: ${room.capacity}${room.isComputerLab ? ', PC učebna' : ''}). ID: ${room.id}`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Učebna '${name}' vytvořena (kapacita: ${room.capacity}${room.isComputerLab ? ', PC učebna' : ''}). ID: ${room.id}`,
+                    },
+                ],
             };
         } catch (error: any) {
-            return { isError: true, content: [{ type: "text", text: `Chyba: ${error.message}` }] };
+            return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }
-    }
+    },
 );
 
 server.tool(
-    "list_rooms",
-    "Vypíše všechny učebny/místnosti v dané škole.",
+    'list_rooms',
+    'Vypíše všechny učebny/místnosti v dané škole.',
     {
-        schoolId: z.string().describe("ID školy"),
+        schoolId: z.string().describe('ID školy'),
     },
     async ({ schoolId }) => {
         try {
             const rooms = await prisma.room.findMany({
                 where: { schoolId },
-                orderBy: { name: "asc" },
+                orderBy: { name: 'asc' },
             });
 
             if (rooms.length === 0) {
-                return { content: [{ type: "text", text: "Škola nemá žádné učebny." }] };
+                return { content: [{ type: 'text', text: 'Škola nemá žádné učebny.' }] };
             }
 
-            const lines = rooms.map(r => {
+            const lines = rooms.map((r) => {
                 const extras = [];
-                if (r.isComputerLab) extras.push("PC");
-                if (r.specialEquipment && Array.isArray(r.specialEquipment) && (r.specialEquipment as string[]).length > 0) {
-                    extras.push((r.specialEquipment as string[]).join(", "));
+                if (r.isComputerLab) extras.push('PC');
+                if (
+                    r.specialEquipment &&
+                    Array.isArray(r.specialEquipment) &&
+                    (r.specialEquipment as string[]).length > 0
+                ) {
+                    extras.push((r.specialEquipment as string[]).join(', '));
                 }
-                return `- ${r.name} (kapacita: ${r.capacity})${extras.length > 0 ? ` [${extras.join(", ")}]` : ''} | ID: ${r.id}`;
+                return `- ${r.name} (kapacita: ${r.capacity})${extras.length > 0 ? ` [${extras.join(', ')}]` : ''} | ID: ${r.id}`;
             });
 
-            return { content: [{ type: "text", text: `Učebny (${rooms.length}):\n${lines.join("\n")}` }] };
+            return { content: [{ type: 'text', text: `Učebny (${rooms.length}):\n${lines.join('\n')}` }] };
         } catch (error: any) {
-            return { isError: true, content: [{ type: "text", text: `Chyba: ${error.message}` }] };
+            return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }
-    }
+    },
 );

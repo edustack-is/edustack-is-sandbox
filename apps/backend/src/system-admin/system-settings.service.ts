@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
+import { GlobalConfig } from '../database/types';
 
 // Default settings values — used when a key is not yet in DB
 const DEFAULTS: Record<string, string> = {
@@ -11,11 +12,13 @@ const DEFAULTS: Record<string, string> = {
 
 @Injectable()
 export class SystemSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   /** Get all settings, merged with defaults */
   async getAll(): Promise<Record<string, string>> {
-    const rows = await this.prisma.globalConfig.findMany();
+    const rows = await this.db.query<GlobalConfig>(
+      'SELECT * FROM "GlobalConfig"',
+    );
     const result = { ...DEFAULTS };
     for (const row of rows) {
       result[row.key] = row.value;
@@ -25,7 +28,10 @@ export class SystemSettingsService {
 
   /** Get a single setting by key */
   async get(key: string): Promise<string> {
-    const row = await this.prisma.globalConfig.findUnique({ where: { key } });
+    const row = await this.db.queryOne<GlobalConfig>(
+      'SELECT value FROM "GlobalConfig" WHERE key = ?',
+      [key],
+    );
     return row?.value ?? DEFAULTS[key] ?? '';
   }
 
@@ -38,13 +44,24 @@ export class SystemSettingsService {
 
   /** Set one or more settings */
   async setMany(settings: Record<string, string>): Promise<void> {
-    const ops = Object.entries(settings).map(([key, value]) =>
-      this.prisma.globalConfig.upsert({
-        where: { key },
-        create: { key, value },
-        update: { value },
-      }),
-    );
-    await this.prisma.$transaction(ops);
+    await this.db.transaction(async (db) => {
+      for (const [key, value] of Object.entries(settings)) {
+        const existing = await db.queryOne(
+          'SELECT key FROM "GlobalConfig" WHERE key = ?',
+          [key],
+        );
+        if (existing) {
+          await db.execute(
+            'UPDATE "GlobalConfig" SET value = ?, updatedAt = ? WHERE key = ?',
+            [value, new Date().toISOString(), key],
+          );
+        } else {
+          await db.execute(
+            'INSERT INTO "GlobalConfig" (key, value, updatedAt) VALUES (?, ?, ?)',
+            [key, value, new Date().toISOString()],
+          );
+        }
+      }
+    });
   }
 }

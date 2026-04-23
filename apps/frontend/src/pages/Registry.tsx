@@ -16,7 +16,9 @@ export const Registry: React.FC = () => {
             <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 {classrooms.map((c) => (
                     <div key={c.id} style={{ padding: '1rem', border: '1px solid #ccc', borderRadius: '4px' }}>
-                        <h3>{c.name} (Grade {c.grade})</h3>
+                        <h3>
+                            {c.name} (Grade {c.grade})
+                        </h3>
                         <p>Students: {c.students?.length || 0}</p>
                     </div>
                 ))}

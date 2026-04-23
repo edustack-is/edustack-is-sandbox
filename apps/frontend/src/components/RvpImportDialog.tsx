@@ -1,8 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    Loader2, Upload, Link2, Sparkles, Check, ChevronRight,
-    AlertTriangle, GraduationCap, BookOpen, ArrowRight, X,
+    Loader2,
+    Upload,
+    Link2,
+    Sparkles,
+    Check,
+    ChevronRight,
+    AlertTriangle,
+    GraduationCap,
+    BookOpen,
+    ArrowRight,
+    X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,13 +67,7 @@ type Step = 'input' | 'analyzing' | 'preview' | 'confirming' | 'done';
 
 // ─── Component ──────────────────────────────────────────────────
 
-export function RvpImportDialog({
-    onClose,
-    onImported,
-}: {
-    onClose: () => void;
-    onImported: () => void;
-}) {
+export function RvpImportDialog({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
     const { t } = useTranslation();
     const [step, setStep] = useState<Step>('input');
     const [inputMode, setInputMode] = useState<'url' | 'pdf'>('url');
@@ -85,18 +88,21 @@ export function RvpImportDialog({
         setIsDragging(false);
     }, []);
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file && (file.type === 'application/pdf' || file.name.endsWith('.pdf'))) {
-            setSelectedFile(file);
-            setInputMode('pdf');
-        } else if (file) {
-            toast.error(t('rvp_import.pdf_only', 'Podporovány jsou pouze PDF soubory.'));
-        }
-    }, [t]);
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file && (file.type === 'application/pdf' || file.name.endsWith('.pdf'))) {
+                setSelectedFile(file);
+                setInputMode('pdf');
+            } else if (file) {
+                toast.error(t('rvp_import.pdf_only', 'Podporovány jsou pouze PDF soubory.'));
+            }
+        },
+        [t],
+    );
 
     const [preview, setPreview] = useState<RvpPreviewData | null>(null);
 
@@ -186,7 +192,15 @@ export function RvpImportDialog({
         setSubjectMappings((prev) =>
             prev.map((sm, i) =>
                 i === index
-                    ? { ...sm, action: sm.action === 'create' && !sm.existingId ? 'create' : sm.action === 'match' ? 'create' : 'match' }
+                    ? {
+                          ...sm,
+                          action:
+                              sm.action === 'create' && !sm.existingId
+                                  ? 'create'
+                                  : sm.action === 'match'
+                                    ? 'create'
+                                    : 'match',
+                      }
                     : sm,
             ),
         );
@@ -217,11 +231,23 @@ export function RvpImportDialog({
 
                 {/* Steps indicator */}
                 <div className="flex items-center gap-2 px-6 py-3 bg-muted/30 border-b text-sm">
-                    <StepDot active={step === 'input'} done={['analyzing', 'preview', 'confirming', 'done'].includes(step)} label={t('rvp_import.step_input')} />
+                    <StepDot
+                        active={step === 'input'}
+                        done={['analyzing', 'preview', 'confirming', 'done'].includes(step)}
+                        label={t('rvp_import.step_input')}
+                    />
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    <StepDot active={step === 'analyzing'} done={['preview', 'confirming', 'done'].includes(step)} label={t('rvp_import.step_analyze')} />
+                    <StepDot
+                        active={step === 'analyzing'}
+                        done={['preview', 'confirming', 'done'].includes(step)}
+                        label={t('rvp_import.step_analyze')}
+                    />
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    <StepDot active={step === 'preview'} done={['confirming', 'done'].includes(step)} label={t('rvp_import.step_preview')} />
+                    <StepDot
+                        active={step === 'preview'}
+                        done={['confirming', 'done'].includes(step)}
+                        label={t('rvp_import.step_preview')}
+                    />
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     <StepDot active={step === 'done'} done={step === 'done'} label={t('rvp_import.step_done')} />
                 </div>
@@ -272,10 +298,9 @@ export function RvpImportDialog({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">{t('rvp_import.pdf_label')}</label>
                                     <div
-                                        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging
-                                            ? 'border-primary bg-primary/5'
-                                            : 'hover:bg-muted/30'
-                                            }`}
+                                        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                                            isDragging ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'
+                                        }`}
                                         onClick={() => fileInputRef.current?.click()}
                                         onDragOver={handleDragOver}
                                         onDragLeave={handleDragLeave}
@@ -285,18 +310,27 @@ export function RvpImportDialog({
                                             <div className="flex items-center justify-center gap-3">
                                                 <Check className="h-5 w-5 text-green-500" />
                                                 <span className="font-medium">{selectedFile.name}</span>
-                                                <Badge variant="secondary">{(selectedFile.size / 1024 / 1024).toFixed(1)} MB</Badge>
+                                                <Badge variant="secondary">
+                                                    {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+                                                </Badge>
                                             </div>
                                         ) : isDragging ? (
                                             <div className="space-y-2 text-primary">
                                                 <Upload className="h-8 w-8 mx-auto" />
-                                                <p className="text-sm font-medium">{t('rvp_import.drop_here', 'Pusťte soubor zde')}</p>
+                                                <p className="text-sm font-medium">
+                                                    {t('rvp_import.drop_here', 'Pusťte soubor zde')}
+                                                </p>
                                             </div>
                                         ) : (
                                             <div className="space-y-2 text-muted-foreground">
                                                 <Upload className="h-8 w-8 mx-auto opacity-50" />
                                                 <p className="text-sm">{t('rvp_import.pdf_dropzone')}</p>
-                                                <p className="text-xs opacity-70">{t('rvp_import.drag_or_click', 'Přetáhněte PDF nebo klikněte pro výběr')}</p>
+                                                <p className="text-xs opacity-70">
+                                                    {t(
+                                                        'rvp_import.drag_or_click',
+                                                        'Přetáhněte PDF nebo klikněte pro výběr',
+                                                    )}
+                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -349,7 +383,9 @@ export function RvpImportDialog({
                                         {preview.extraction.documentTitle}
                                     </CardTitle>
                                     <CardDescription>
-                                        {preview.extraction.schoolType} • {preview.extraction.totalGrades} {t('rvp_import.grades')} • {preview.extraction.subjects.length} {t('rvp_import.subjects_found')}
+                                        {preview.extraction.schoolType} • {preview.extraction.totalGrades}{' '}
+                                        {t('rvp_import.grades')} • {preview.extraction.subjects.length}{' '}
+                                        {t('rvp_import.subjects_found')}
                                     </CardDescription>
                                 </CardHeader>
                                 {preview.extraction.notes && (
@@ -365,7 +401,9 @@ export function RvpImportDialog({
                             {/* Version metadata */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">{t('rvp_import.version_name_label')}</label>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        {t('rvp_import.version_name_label')}
+                                    </label>
                                     <input
                                         type="text"
                                         className="w-full mt-1 rounded-md border bg-background px-3 py-2 text-sm"
@@ -374,7 +412,9 @@ export function RvpImportDialog({
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">{t('rvp_import.valid_from_label')}</label>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        {t('rvp_import.valid_from_label')}
+                                    </label>
                                     <input
                                         type="date"
                                         className="w-full mt-1 rounded-md border bg-background px-3 py-2 text-sm"
@@ -399,7 +439,10 @@ export function RvpImportDialog({
                                                 key={i}
                                                 className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-muted/30 transition-colors text-sm"
                                             >
-                                                <Badge variant="outline" className="font-mono text-[10px] w-10 justify-center shrink-0">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="font-mono text-[10px] w-10 justify-center shrink-0"
+                                                >
                                                     {sm.extractedCode}
                                                 </Badge>
                                                 <span className="flex-1">{sm.extractedName}</span>
@@ -409,7 +452,11 @@ export function RvpImportDialog({
                                                         {t('rvp_import.matched')}
                                                     </Badge>
                                                 ) : (
-                                                    <Badge variant="secondary" className="text-[10px] text-blue-600 cursor-pointer" onClick={() => toggleSubjectSkip(i)}>
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="text-[10px] text-blue-600 cursor-pointer"
+                                                        onClick={() => toggleSubjectSkip(i)}
+                                                    >
                                                         <Sparkles className="h-3 w-3 mr-1" />
                                                         {t('rvp_import.will_create')}
                                                     </Badge>
@@ -453,31 +500,44 @@ export function RvpImportDialog({
                             <Card>
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm">{t('rvp_import.hours_matrix')}</CardTitle>
-                                    <CardDescription className="text-xs">{t('rvp_import.hours_editable')}</CardDescription>
+                                    <CardDescription className="text-xs">
+                                        {t('rvp_import.hours_editable')}
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-xs border-collapse">
                                             <thead>
                                                 <tr className="border-b bg-muted/50">
-                                                    <th className="text-left py-2 px-2 font-semibold">{t('rvp_import.subject')}</th>
+                                                    <th className="text-left py-2 px-2 font-semibold">
+                                                        {t('rvp_import.subject')}
+                                                    </th>
                                                     {gradeNumbers.map((g) => (
-                                                        <th key={g} className="text-center py-2 px-2 font-medium w-12">{g}.</th>
+                                                        <th key={g} className="text-center py-2 px-2 font-medium w-12">
+                                                            {g}.
+                                                        </th>
                                                     ))}
-                                                    <th className="text-center py-2 px-2 font-semibold bg-muted/70">Σ</th>
+                                                    <th className="text-center py-2 px-2 font-semibold bg-muted/70">
+                                                        Σ
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {subjectMappings.map((sm) => {
                                                     let total = 0;
                                                     return (
-                                                        <tr key={sm.extractedName} className="border-b hover:bg-muted/20">
+                                                        <tr
+                                                            key={sm.extractedName}
+                                                            className="border-b hover:bg-muted/20"
+                                                        >
                                                             <td className="py-1.5 px-2">
                                                                 <span className="font-medium">{sm.extractedName}</span>
                                                             </td>
                                                             {gradeNumbers.map((g) => {
                                                                 const alloc = allocations.find(
-                                                                    (a) => a.subjectName === sm.extractedName && a.gradeLevel === g,
+                                                                    (a) =>
+                                                                        a.subjectName === sm.extractedName &&
+                                                                        a.gradeLevel === g,
                                                                 );
                                                                 const hours = alloc?.hoursPerWeek || 0;
                                                                 total += hours;
@@ -491,24 +551,41 @@ export function RvpImportDialog({
                                                                             className="w-10 text-center rounded border bg-background px-0.5 py-0.5 text-xs"
                                                                             value={hours}
                                                                             onChange={(e) => {
-                                                                                const val = parseInt(e.target.value) || 0;
+                                                                                const val =
+                                                                                    parseInt(e.target.value) || 0;
                                                                                 setAllocations((prev) => {
                                                                                     const existing = prev.findIndex(
-                                                                                        (a) => a.subjectName === sm.extractedName && a.gradeLevel === g,
+                                                                                        (a) =>
+                                                                                            a.subjectName ===
+                                                                                                sm.extractedName &&
+                                                                                            a.gradeLevel === g,
                                                                                     );
                                                                                     if (existing >= 0) {
                                                                                         const copy = [...prev];
-                                                                                        copy[existing] = { ...copy[existing], hoursPerWeek: val };
+                                                                                        copy[existing] = {
+                                                                                            ...copy[existing],
+                                                                                            hoursPerWeek: val,
+                                                                                        };
                                                                                         return copy;
                                                                                     }
-                                                                                    return [...prev, { subjectName: sm.extractedName, gradeLevel: g, hoursPerWeek: val }];
+                                                                                    return [
+                                                                                        ...prev,
+                                                                                        {
+                                                                                            subjectName:
+                                                                                                sm.extractedName,
+                                                                                            gradeLevel: g,
+                                                                                            hoursPerWeek: val,
+                                                                                        },
+                                                                                    ];
                                                                                 });
                                                                             }}
                                                                         />
                                                                     </td>
                                                                 );
                                                             })}
-                                                            <td className="text-center py-1.5 px-2 bg-muted/30 font-semibold">{total}</td>
+                                                            <td className="text-center py-1.5 px-2 bg-muted/30 font-semibold">
+                                                                {total}
+                                                            </td>
                                                         </tr>
                                                     );
                                                 })}
@@ -519,7 +596,11 @@ export function RvpImportDialog({
                                                         const total = allocations
                                                             .filter((a) => a.gradeLevel === g)
                                                             .reduce((s, a) => s + a.hoursPerWeek, 0);
-                                                        return <td key={g} className="text-center py-2 px-2">{total || '—'}</td>;
+                                                        return (
+                                                            <td key={g} className="text-center py-2 px-2">
+                                                                {total || '—'}
+                                                            </td>
+                                                        );
                                                     })}
                                                     <td className="text-center py-2 px-2 bg-primary/10 text-primary">
                                                         {allocations.reduce((s, a) => s + a.hoursPerWeek, 0)}
@@ -566,7 +647,10 @@ export function RvpImportDialog({
                                 </Badge>
                             </div>
                             <button
-                                onClick={() => { onImported(); onClose(); }}
+                                onClick={() => {
+                                    onImported();
+                                    onClose();
+                                }}
                                 className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
                             >
                                 {t('rvp_import.close_btn')}
@@ -586,9 +670,9 @@ export function RvpImportDialog({
                         </button>
                         <div className="flex items-center gap-3">
                             <span className="text-xs text-muted-foreground">
-                                {subjectMappings.filter((s) => !s.existingId).length} {t('rvp_import.new_subjects')} •
-                                {' '}{gradeMappings.filter((g) => !g.existingId).length} {t('rvp_import.new_grades')} •
-                                {' '}{allocations.filter((a) => a.hoursPerWeek > 0).length} {t('rvp_import.entries_count')}
+                                {subjectMappings.filter((s) => !s.existingId).length} {t('rvp_import.new_subjects')} •{' '}
+                                {gradeMappings.filter((g) => !g.existingId).length} {t('rvp_import.new_grades')} •{' '}
+                                {allocations.filter((a) => a.hoursPerWeek > 0).length} {t('rvp_import.entries_count')}
                             </span>
                             <button
                                 onClick={handleConfirm}
@@ -609,8 +693,12 @@ export function RvpImportDialog({
 
 function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
     return (
-        <div className={`flex items-center gap-1.5 ${active ? 'text-primary font-medium' : done ? 'text-green-600' : 'text-muted-foreground'}`}>
-            <div className={`w-2 h-2 rounded-full ${active ? 'bg-primary' : done ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+        <div
+            className={`flex items-center gap-1.5 ${active ? 'text-primary font-medium' : done ? 'text-green-600' : 'text-muted-foreground'}`}
+        >
+            <div
+                className={`w-2 h-2 rounded-full ${active ? 'bg-primary' : done ? 'bg-green-500' : 'bg-muted-foreground/30'}`}
+            />
             <span>{label}</span>
         </div>
     );

@@ -1,19 +1,51 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-    Plus, Trash2, BookOpen, Save, Loader2, Check, Monitor, GraduationCap,
-    FileText, Wrench, CalendarDays, History, ChevronDown, ChevronRight, Layers, Pencil, Sparkles,
-    Copy, GitCompareArrows, ArrowUpDown, X, ArrowUp, ArrowDown, Minus, Equal
+    Plus,
+    Trash2,
+    BookOpen,
+    Save,
+    Loader2,
+    Check,
+    Monitor,
+    GraduationCap,
+    FileText,
+    Wrench,
+    CalendarDays,
+    History,
+    ChevronDown,
+    ChevronRight,
+    Layers,
+    Pencil,
+    Sparkles,
+    Copy,
+    GitCompareArrows,
+    ArrowUpDown,
+    X,
+    ArrowUp,
+    ArrowDown,
+    Minus,
+    Equal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 import {
-    getSubjectTemplates, createSubject, updateSubject, deleteSubject,
-    getGradeLevels, createGradeLevel, updateGradeLevel, deleteGradeLevel,
-    getCurriculumVersions, createCurriculumVersion, deleteCurriculumVersion,
-    duplicateCurriculumVersion, compareCurriculumVersions,
-    saveCurriculumEntry, deleteCurriculumEntry,
+    getSubjectTemplates,
+    createSubject,
+    updateSubject,
+    deleteSubject,
+    getGradeLevels,
+    createGradeLevel,
+    updateGradeLevel,
+    deleteGradeLevel,
+    getCurriculumVersions,
+    createCurriculumVersion,
+    deleteCurriculumVersion,
+    duplicateCurriculumVersion,
+    compareCurriculumVersions,
+    saveCurriculumEntry,
+    deleteCurriculumEntry,
 } from '../api/deputy';
 import { RvpImportDialog } from '../components/RvpImportDialog';
 
@@ -116,7 +148,9 @@ export default function CurriculumManagement() {
         }
     }, []);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     // ── Refresh just versions ──────────────────────────────
     const refreshVersions = useCallback(async () => {
@@ -144,12 +178,20 @@ export default function CurriculumManagement() {
     };
 
     const handleSubjectSubmit = subjectForm.handleSubmit(async (data) => {
-        if (!data.name.trim() || !data.code.trim()) { toast.error(t('curriculum.name_code_required')); return; }
+        if (!data.name.trim() || !data.code.trim()) {
+            toast.error(t('curriculum.name_code_required'));
+            return;
+        }
         try {
-            const payload = { name: data.name.trim(), code: data.code.trim().toUpperCase(), svpDescription: data.svpDescription.trim() || undefined };
+            const payload = {
+                name: data.name.trim(),
+                code: data.code.trim().toUpperCase(),
+                svpDescription: data.svpDescription.trim() || undefined,
+            };
             if (editingSubjectId) await updateSubject(editingSubjectId, payload);
             else await createSubject(payload);
-            setEditingSubjectId(null); setIsCreatingSubject(false);
+            setEditingSubjectId(null);
+            setIsCreatingSubject(false);
             await loadData();
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
@@ -159,17 +201,22 @@ export default function CurriculumManagement() {
     const handleDeleteSubject = async (id: string) => {
         const s = subjects.find((x) => x.id === id);
         if (!confirm(t('curriculum.delete_confirm', { name: s?.name }))) return;
-        try { await deleteSubject(id); await loadData(); } catch (error: any) { toast.error(error.response?.data?.message || t('common.error')); }
+        try {
+            await deleteSubject(id);
+            await loadData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || t('common.error'));
+        }
     };
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />{t('common.loading')}
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                {t('common.loading')}
             </div>
         );
     }
-
 
     return (
         <div className="space-y-6">
@@ -187,19 +234,9 @@ export default function CurriculumManagement() {
                 </button>
             </div>
 
-            {showRvpImport && (
-                <RvpImportDialog
-                    onClose={() => setShowRvpImport(false)}
-                    onImported={loadData}
-                />
-            )}
+            {showRvpImport && <RvpImportDialog onClose={() => setShowRvpImport(false)} onImported={loadData} />}
 
-            {showCompare && (
-                <VersionCompareDialog
-                    versions={versions}
-                    onClose={() => setShowCompare(false)}
-                />
-            )}
+            {showCompare && <VersionCompareDialog versions={versions} onClose={() => setShowCompare(false)} />}
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
                 <TabsList>
@@ -250,44 +287,72 @@ export default function CurriculumManagement() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {isCreatingSubject && (
-                                <SubjectFormInline form={subjectForm} onSubmit={handleSubjectSubmit} onCancel={() => setIsCreatingSubject(false)} isNew />
+                                <SubjectFormInline
+                                    form={subjectForm}
+                                    onSubmit={handleSubjectSubmit}
+                                    onCancel={() => setIsCreatingSubject(false)}
+                                    isNew
+                                />
                             )}
                             {subjects.length === 0 && !isCreatingSubject ? (
                                 <div className="py-8 text-center text-muted-foreground text-sm">
                                     <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
                                     {t('curriculum.no_subjects')}
                                 </div>
-                            ) : subjects.map((s) => (
-                                editingSubjectId === s.id ? (
-                                    <SubjectFormInline key={s.id} form={subjectForm} onSubmit={handleSubjectSubmit} onCancel={() => setEditingSubjectId(null)} />
-                                ) : (
-                                    <div key={s.id} className="flex items-center justify-between px-4 py-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <Badge variant="outline" className="font-mono text-xs">{s.code}</Badge>
-                                            <span className="font-medium text-sm">{s.name}</span>
-                                            {s.svpDescription && <span className="text-xs text-muted-foreground truncate max-w-xs">{s.svpDescription}</span>}
+                            ) : (
+                                subjects.map((s) =>
+                                    editingSubjectId === s.id ? (
+                                        <SubjectFormInline
+                                            key={s.id}
+                                            form={subjectForm}
+                                            onSubmit={handleSubjectSubmit}
+                                            onCancel={() => setEditingSubjectId(null)}
+                                        />
+                                    ) : (
+                                        <div
+                                            key={s.id}
+                                            className="flex items-center justify-between px-4 py-3 rounded-lg border hover:bg-muted/30 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Badge variant="outline" className="font-mono text-xs">
+                                                    {s.code}
+                                                </Badge>
+                                                <span className="font-medium text-sm">{s.name}</span>
+                                                {s.svpDescription && (
+                                                    <span className="text-xs text-muted-foreground truncate max-w-xs">
+                                                        {s.svpDescription}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 px-2"
+                                                    onClick={() => startEditSubject(s)}
+                                                >
+                                                    <FileText className="h-3 w-3" />
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 px-2 text-destructive hover:text-destructive"
+                                                    onClick={() => handleDeleteSubject(s.id)}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => startEditSubject(s)}>
-                                                <FileText className="h-3 w-3" />
-                                            </Button>
-                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive hover:text-destructive" onClick={() => handleDeleteSubject(s.id)}>
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
-                                    </div>
+                                    ),
                                 )
-                            ))}
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 {/* ══════════ GRADE LEVELS TAB ══════════ */}
                 <TabsContent value="grades" className="space-y-4 mt-4">
-                    <GradeLevelManager
-                        gradeLevels={sortedLevels}
-                        onRefresh={refreshGradeLevels}
-                    />
+                    <GradeLevelManager gradeLevels={sortedLevels} onRefresh={refreshGradeLevels} />
                 </TabsContent>
             </Tabs>
         </div>
@@ -298,7 +363,17 @@ export default function CurriculumManagement() {
 // Subject inline form
 // ═══════════════════════════════════════════════════════════════
 
-function SubjectFormInline({ form, onSubmit, onCancel, isNew }: { form: any; onSubmit: () => void; onCancel: () => void; isNew?: boolean }) {
+function SubjectFormInline({
+    form,
+    onSubmit,
+    onCancel,
+    isNew,
+}: {
+    form: any;
+    onSubmit: () => void;
+    onCancel: () => void;
+    isNew?: boolean;
+}) {
     const { t } = useTranslation();
     return (
         <form onSubmit={onSubmit} className="border rounded-lg p-4 bg-muted/20 space-y-3">
@@ -313,12 +388,21 @@ function SubjectFormInline({ form, onSubmit, onCancel, isNew }: { form: any; onS
                 </div>
                 <div className="space-y-1">
                     <Label className="text-xs">{t('curriculum.svp_description')}</Label>
-                    <Input placeholder={t('curriculum.svp_placeholder_short')} className="h-8" {...form.register('svpDescription')} />
+                    <Input
+                        placeholder={t('curriculum.svp_placeholder_short')}
+                        className="h-8"
+                        {...form.register('svpDescription')}
+                    />
                 </div>
             </div>
             <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={onCancel}>{t('common.cancel')}</Button>
-                <Button type="submit" size="sm"><Save className="h-3 w-3 mr-1" /> {isNew ? t('curriculum.create_subject') : t('curriculum.save_changes')}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+                    {t('common.cancel')}
+                </Button>
+                <Button type="submit" size="sm">
+                    <Save className="h-3 w-3 mr-1" />{' '}
+                    {isNew ? t('curriculum.create_subject') : t('curriculum.save_changes')}
+                </Button>
             </div>
         </form>
     );
@@ -328,12 +412,7 @@ function SubjectFormInline({ form, onSubmit, onCancel, isNew }: { form: any; onS
 // Grade Level Manager — global school-wide grade levels
 // ═══════════════════════════════════════════════════════════════
 
-function GradeLevelManager({
-    gradeLevels, onRefresh,
-}: {
-    gradeLevels: GradeLevel[];
-    onRefresh: () => Promise<void>;
-}) {
+function GradeLevelManager({ gradeLevels, onRefresh }: { gradeLevels: GradeLevel[]; onRefresh: () => Promise<void> }) {
     const { t } = useTranslation();
     const [showCreate, setShowCreate] = useState(false);
     const [newName, setNewName] = useState('');
@@ -344,16 +423,23 @@ function GradeLevelManager({
     const [editLevel, setEditLevel] = useState('');
 
     const handleCreate = async () => {
-        if (!newName.trim() || !newLevel) { toast.error(t('curriculum.grade_name_required')); return; }
+        if (!newName.trim() || !newLevel) {
+            toast.error(t('curriculum.grade_name_required'));
+            return;
+        }
         setCreating(true);
         try {
             await createGradeLevel({ name: newName.trim(), levelNumber: parseInt(newLevel) });
-            setShowCreate(false); setNewName(''); setNewLevel('');
+            setShowCreate(false);
+            setNewName('');
+            setNewLevel('');
             await onRefresh();
             toast.success(t('curriculum.grade_created'));
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
-        } finally { setCreating(false); }
+        } finally {
+            setCreating(false);
+        }
     };
 
     const handleUpdate = async (id: string) => {
@@ -404,20 +490,37 @@ function GradeLevelManager({
                         <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-1">
                                 <Label className="text-xs">{t('curriculum.grade_name')} *</Label>
-                                <Input value={newName} onChange={(e) => setNewName(e.target.value)}
-                                    placeholder={t('year_setup.level_name_placeholder')} className="h-8" />
+                                <Input
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    placeholder={t('year_setup.level_name_placeholder')}
+                                    className="h-8"
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs">{t('curriculum.grade_number')} *</Label>
-                                <Input type="number" min={1} max={13} value={newLevel} onChange={(e) => setNewLevel(e.target.value)}
-                                    placeholder={t('year_setup.level_number_placeholder')} className="h-8" />
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={13}
+                                    value={newLevel}
+                                    onChange={(e) => setNewLevel(e.target.value)}
+                                    placeholder={t('year_setup.level_number_placeholder')}
+                                    className="h-8"
+                                />
                             </div>
                             <div className="flex items-end gap-1">
                                 <Button size="sm" className="h-8" onClick={handleCreate} disabled={creating}>
-                                    {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                                    {creating ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <Plus className="h-3 w-3 mr-1" />
+                                    )}
                                     {t('common.create')}
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
+                                <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowCreate(false)}>
+                                    {t('common.cancel')}
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -428,43 +531,78 @@ function GradeLevelManager({
                         <Layers className="h-8 w-8 mx-auto mb-2 opacity-40" />
                         {t('year_setup.no_levels')}
                     </div>
-                ) : gradeLevels.map((gl) => (
-                    editingId === gl.id ? (
-                        <div key={gl.id} className="border rounded-lg p-3 bg-muted/20">
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                    <Label className="text-xs">{t('curriculum.grade_name')}</Label>
-                                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8" />
+                ) : (
+                    gradeLevels.map((gl) =>
+                        editingId === gl.id ? (
+                            <div key={gl.id} className="border rounded-lg p-3 bg-muted/20">
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">{t('curriculum.grade_name')}</Label>
+                                        <Input
+                                            value={editName}
+                                            onChange={(e) => setEditName(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">{t('curriculum.grade_number')}</Label>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            max={13}
+                                            value={editLevel}
+                                            onChange={(e) => setEditLevel(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                    <div className="flex items-end gap-1">
+                                        <Button size="sm" className="h-8" onClick={() => handleUpdate(gl.id)}>
+                                            <Save className="h-3 w-3 mr-1" /> {t('common.save')}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8"
+                                            onClick={() => setEditingId(null)}
+                                        >
+                                            {t('common.cancel')}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs">{t('curriculum.grade_number')}</Label>
-                                    <Input type="number" min={1} max={13} value={editLevel} onChange={(e) => setEditLevel(e.target.value)} className="h-8" />
+                            </div>
+                        ) : (
+                            <div
+                                key={gl.id}
+                                className="flex items-center justify-between px-4 py-3 rounded-lg border hover:bg-muted/30 transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Badge variant="outline" className="font-mono text-xs w-8 justify-center">
+                                        {gl.levelNumber}
+                                    </Badge>
+                                    <span className="font-medium text-sm">{gl.name}</span>
                                 </div>
-                                <div className="flex items-end gap-1">
-                                    <Button size="sm" className="h-8" onClick={() => handleUpdate(gl.id)}>
-                                        <Save className="h-3 w-3 mr-1" /> {t('common.save')}
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 px-2"
+                                        onClick={() => startEdit(gl)}
+                                    >
+                                        <Pencil className="h-3 w-3" />
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingId(null)}>{t('common.cancel')}</Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 px-2 text-destructive hover:text-destructive"
+                                        onClick={() => handleDelete(gl.id)}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div key={gl.id} className="flex items-center justify-between px-4 py-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <Badge variant="outline" className="font-mono text-xs w-8 justify-center">{gl.levelNumber}</Badge>
-                                <span className="font-medium text-sm">{gl.name}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => startEdit(gl)}>
-                                    <Pencil className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive hover:text-destructive" onClick={() => handleDelete(gl.id)}>
-                                    <Trash2 className="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
+                        ),
                     )
-                ))}
+                )}
             </CardContent>
         </Card>
     );
@@ -475,7 +613,11 @@ function GradeLevelManager({
 // ═══════════════════════════════════════════════════════════════
 
 function VersionManager({
-    versions, selectedVersionId, onSelect, onRefresh, onCompare,
+    versions,
+    selectedVersionId,
+    onSelect,
+    onRefresh,
+    onCompare,
 }: {
     versions: CurriculumVersion[];
     selectedVersionId: string | null;
@@ -498,7 +640,10 @@ function VersionManager({
     const [duplicating, setDuplicating] = useState(false);
 
     const handleCreate = async () => {
-        if (!name.trim() || !validFrom) { toast.error(t('curriculum.version_name_required')); return; }
+        if (!name.trim() || !validFrom) {
+            toast.error(t('curriculum.version_name_required'));
+            return;
+        }
         setCreating(true);
         try {
             const created = await createCurriculumVersion({
@@ -506,13 +651,18 @@ function VersionManager({
                 validFrom,
                 validTo: validTo || undefined,
             });
-            setShowCreate(false); setName(''); setValidFrom(''); setValidTo('');
+            setShowCreate(false);
+            setName('');
+            setValidFrom('');
+            setValidTo('');
             await onRefresh();
             onSelect(created.id);
             toast.success(t('curriculum.version_created'));
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
-        } finally { setCreating(false); }
+        } finally {
+            setCreating(false);
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -522,7 +672,9 @@ function VersionManager({
             if (selectedVersionId === id) onSelect(null);
             await onRefresh();
             toast.success(t('curriculum.version_deleted'));
-        } catch (error: any) { toast.error(error.response?.data?.message || t('common.error')); }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || t('common.error'));
+        }
     };
 
     const startDuplicate = (v: CurriculumVersion) => {
@@ -551,7 +703,9 @@ function VersionManager({
             toast.success(t('curriculum.version_duplicated', 'Verze byla úspěšně duplikována'));
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
-        } finally { setDuplicating(false); }
+        } finally {
+            setDuplicating(false);
+        }
     };
 
     const formatDate = (dateStr: string) => {
@@ -586,22 +740,43 @@ function VersionManager({
                         <div className="grid grid-cols-4 gap-3">
                             <div className="space-y-1">
                                 <Label className="text-xs">{t('curriculum.version_name')} *</Label>
-                                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. ŠVP v1.0" className="h-8" />
+                                <Input
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="e.g. ŠVP v1.0"
+                                    className="h-8"
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs">{t('curriculum.valid_from')} *</Label>
-                                <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} className="h-8" />
+                                <Input
+                                    type="date"
+                                    value={validFrom}
+                                    onChange={(e) => setValidFrom(e.target.value)}
+                                    className="h-8"
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs">{t('curriculum.valid_to')}</Label>
-                                <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} className="h-8" />
+                                <Input
+                                    type="date"
+                                    value={validTo}
+                                    onChange={(e) => setValidTo(e.target.value)}
+                                    className="h-8"
+                                />
                             </div>
                             <div className="flex items-end gap-1">
                                 <Button size="sm" className="h-8" onClick={handleCreate} disabled={creating}>
-                                    {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                                    {creating ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <Plus className="h-3 w-3 mr-1" />
+                                    )}
                                     {t('curriculum.create_version')}
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
+                                <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowCreate(false)}>
+                                    {t('common.cancel')}
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -612,75 +787,131 @@ function VersionManager({
                         <History className="h-8 w-8 mx-auto mb-2 opacity-40" />
                         {t('curriculum.no_versions')}
                     </div>
-                ) : versions.map((v) => (
-                    <div key={v.id}>
-                        <div onClick={() => onSelect(selectedVersionId === v.id ? null : v.id)}
-                            className={`w-full text-left px-4 py-3 rounded-lg transition-colors border cursor-pointer ${selectedVersionId === v.id ? 'bg-primary/5 border-primary/40' : 'border-transparent hover:bg-muted/50'}`}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    {selectedVersionId === v.id
-                                        ? <ChevronDown className="h-4 w-4 text-primary" />
-                                        : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                                    <div>
-                                        <span className="font-medium text-sm">{v.name}</span>
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                            <CalendarDays className="h-3 w-3" />
-                                            {formatDate(v.validFrom)}
-                                            {v.validTo ? ` → ${formatDate(v.validTo)}` : ` → ${t('curriculum.indefinite')}`}
+                ) : (
+                    versions.map((v) => (
+                        <div key={v.id}>
+                            <div
+                                onClick={() => onSelect(selectedVersionId === v.id ? null : v.id)}
+                                className={`w-full text-left px-4 py-3 rounded-lg transition-colors border cursor-pointer ${selectedVersionId === v.id ? 'bg-primary/5 border-primary/40' : 'border-transparent hover:bg-muted/50'}`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        {selectedVersionId === v.id ? (
+                                            <ChevronDown className="h-4 w-4 text-primary" />
+                                        ) : (
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <div>
+                                            <span className="font-medium text-sm">{v.name}</span>
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                <CalendarDays className="h-3 w-3" />
+                                                {formatDate(v.validFrom)}
+                                                {v.validTo
+                                                    ? ` → ${formatDate(v.validTo)}`
+                                                    : ` → ${t('curriculum.indefinite')}`}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="secondary" className="text-xs">{v.entries.length} {t('curriculum.entries_count')}</Badge>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" title={t('curriculum.duplicate_version', 'Duplikovat verzi')}
-                                        onClick={(e) => { e.stopPropagation(); startDuplicate(v); }}>
-                                        <Copy className="h-3 w-3" />
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(v.id); }}>
-                                        <Trash2 className="h-3 w-3" />
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="secondary" className="text-xs">
+                                            {v.entries.length} {t('curriculum.entries_count')}
+                                        </Badge>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0"
+                                            title={t('curriculum.duplicate_version', 'Duplikovat verzi')}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startDuplicate(v);
+                                            }}
+                                        >
+                                            <Copy className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDelete(v.id);
+                                            }}
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Duplicate form inline */}
-                        {duplicatingId === v.id && (
-                            <div className="ml-8 mt-2 border rounded-lg p-4 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 space-y-3">
-                                <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
-                                    <Copy className="h-4 w-4" />
-                                    {t('curriculum.duplicating_version', 'Duplikovat verzi')}: {v.name}
+                            {/* Duplicate form inline */}
+                            {duplicatingId === v.id && (
+                                <div className="ml-8 mt-2 border rounded-lg p-4 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 space-y-3">
+                                    <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+                                        <Copy className="h-4 w-4" />
+                                        {t('curriculum.duplicating_version', 'Duplikovat verzi')}: {v.name}
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">{t('curriculum.version_name')} *</Label>
+                                            <Input
+                                                value={dupName}
+                                                onChange={(e) => setDupName(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">{t('curriculum.valid_from')} *</Label>
+                                            <Input
+                                                type="date"
+                                                value={dupValidFrom}
+                                                onChange={(e) => setDupValidFrom(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">{t('curriculum.valid_to')}</Label>
+                                            <Input
+                                                type="date"
+                                                value={dupValidTo}
+                                                onChange={(e) => setDupValidTo(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="flex items-end gap-1">
+                                            <Button
+                                                size="sm"
+                                                className="h-8"
+                                                onClick={handleDuplicate}
+                                                disabled={duplicating}
+                                            >
+                                                {duplicating ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <Copy className="h-3 w-3 mr-1" />
+                                                )}
+                                                {t('curriculum.duplicate', 'Duplikovat')}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-8"
+                                                onClick={() => setDuplicatingId(null)}
+                                            >
+                                                {t('common.cancel')}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {t(
+                                            'curriculum.duplicate_hint',
+                                            'Bude vytvořena nová verze ŠVP se všemi záznamy z vybrané verze.',
+                                        )}
+                                    </p>
                                 </div>
-                                <div className="grid grid-cols-4 gap-3">
-                                    <div className="space-y-1">
-                                        <Label className="text-xs">{t('curriculum.version_name')} *</Label>
-                                        <Input value={dupName} onChange={(e) => setDupName(e.target.value)} className="h-8" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs">{t('curriculum.valid_from')} *</Label>
-                                        <Input type="date" value={dupValidFrom} onChange={(e) => setDupValidFrom(e.target.value)} className="h-8" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs">{t('curriculum.valid_to')}</Label>
-                                        <Input type="date" value={dupValidTo} onChange={(e) => setDupValidTo(e.target.value)} className="h-8" />
-                                    </div>
-                                    <div className="flex items-end gap-1">
-                                        <Button size="sm" className="h-8" onClick={handleDuplicate} disabled={duplicating}>
-                                            {duplicating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {t('curriculum.duplicate', 'Duplikovat')}
-                                        </Button>
-                                        <Button size="sm" variant="ghost" className="h-8" onClick={() => setDuplicatingId(null)}>
-                                            {t('common.cancel')}
-                                        </Button>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    {t('curriculum.duplicate_hint', 'Bude vytvořena nová verze ŠVP se všemi záznamy z vybrané verze.')}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                            )}
+                        </div>
+                    ))
+                )}
             </CardContent>
         </Card>
     );
@@ -691,7 +922,10 @@ function VersionManager({
 // ═══════════════════════════════════════════════════════════════
 
 function CurriculumEditor({
-    version, subjects, gradeLevels, onRefresh,
+    version,
+    subjects,
+    gradeLevels,
+    onRefresh,
 }: {
     version: CurriculumVersion;
     subjects: SubjectTemplate[];
@@ -718,7 +952,9 @@ function CurriculumEditor({
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <GraduationCap className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{t('curriculum.editor_title')}: {version.name}</CardTitle>
+                    <CardTitle className="text-lg">
+                        {t('curriculum.editor_title')}: {version.name}
+                    </CardTitle>
                 </div>
                 <CardDescription>{t('curriculum.editor_desc')}</CardDescription>
             </CardHeader>
@@ -753,7 +989,12 @@ function CurriculumEditor({
 // ═══════════════════════════════════════════════════════════════
 
 function SubjectRow({
-    subject, version, gradeLevels, hasEntries, getEntry, onRefresh,
+    subject,
+    version,
+    gradeLevels,
+    hasEntries,
+    getEntry,
+    onRefresh,
 }: {
     subject: SubjectTemplate;
     version: CurriculumVersion;
@@ -769,10 +1010,19 @@ function SubjectRow({
     return (
         <div className={`border rounded-lg transition-colors ${hasEntries ? 'border-primary/20' : ''}`}>
             {/* Subject header */}
-            <button onClick={() => setExpanded(!expanded)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-muted/30 rounded-lg transition-colors">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-muted/30 rounded-lg transition-colors"
+            >
                 <div className="flex items-center gap-3">
-                    {expanded ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                    <Badge variant="outline" className="font-mono text-xs">{subject.code}</Badge>
+                    {expanded ? (
+                        <ChevronDown className="h-4 w-4 text-primary" />
+                    ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <Badge variant="outline" className="font-mono text-xs">
+                        {subject.code}
+                    </Badge>
                     <span className="font-medium text-sm">{subject.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -788,7 +1038,9 @@ function SubjectRow({
                             })}
                         </div>
                     )}
-                    {!hasEntries && <span className="text-xs text-muted-foreground italic">{t('curriculum.not_in_plan')}</span>}
+                    {!hasEntries && (
+                        <span className="text-xs text-muted-foreground italic">{t('curriculum.not_in_plan')}</span>
+                    )}
                 </div>
             </button>
 
@@ -831,7 +1083,11 @@ function SubjectRow({
 // ═══════════════════════════════════════════════════════════════
 
 function EntryForm({
-    versionId, subjectId, gradeLevelId, existing, onRefresh,
+    versionId,
+    subjectId,
+    gradeLevelId,
+    existing,
+    onRefresh,
 }: {
     versionId: string;
     subjectId: string;
@@ -863,7 +1119,10 @@ function EntryForm({
     const handleSave = async () => {
         setSaving(true);
         try {
-            const equipment = equip.split(',').map((s) => s.trim()).filter(Boolean);
+            const equipment = equip
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
             await saveCurriculumEntry({
                 curriculumVersionId: versionId,
                 subjectTemplateId: subjectId,
@@ -881,7 +1140,9 @@ function EntryForm({
             toast.success(t('curriculum.instance_saved'));
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
-        } finally { setSaving(false); }
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleRemove = async () => {
@@ -901,11 +1162,23 @@ function EntryForm({
             {/* Hours + computer lab */}
             <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
                 <Label className="font-medium whitespace-nowrap">{t('curriculum.hours_per_week')}</Label>
-                <Input type="number" min={0} max={20} className="w-20 h-8" value={hours} onChange={(e) => setHours(parseInt(e.target.value) || 0)} />
+                <Input
+                    type="number"
+                    min={0}
+                    max={20}
+                    className="w-20 h-8"
+                    value={hours}
+                    onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+                />
                 <span className="text-sm text-muted-foreground">{t('curriculum.hours_unit')}</span>
                 <div className="ml-auto flex items-center gap-2">
                     <label className="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="checkbox" checked={computerLab} onChange={(e) => setComputerLab(e.target.checked)} className="rounded" />
+                        <input
+                            type="checkbox"
+                            checked={computerLab}
+                            onChange={(e) => setComputerLab(e.target.checked)}
+                            className="rounded"
+                        />
                         <Monitor className="h-4 w-4" /> {t('curriculum.needs_computer_lab')}
                     </label>
                 </div>
@@ -914,45 +1187,86 @@ function EntryForm({
             {/* RVP + ŠVP */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-blue-500" /><Label className="font-medium">{t('curriculum.rvp_label')}</Label></div>
+                    <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-500" />
+                        <Label className="font-medium">{t('curriculum.rvp_label')}</Label>
+                    </div>
                     <p className="text-xs text-muted-foreground">{t('curriculum.rvp_hint')}</p>
-                    <Textarea rows={5} placeholder={t('curriculum.rvp_placeholder')} value={rvp} onChange={(e) => setRvp(e.target.value)} className="text-sm" />
+                    <Textarea
+                        rows={5}
+                        placeholder={t('curriculum.rvp_placeholder')}
+                        value={rvp}
+                        onChange={(e) => setRvp(e.target.value)}
+                        className="text-sm"
+                    />
                 </div>
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-emerald-500" /><Label className="font-medium">{t('curriculum.svp_label')}</Label></div>
+                    <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-emerald-500" />
+                        <Label className="font-medium">{t('curriculum.svp_label')}</Label>
+                    </div>
                     <p className="text-xs text-muted-foreground">{t('curriculum.svp_hint')}</p>
-                    <Textarea rows={5} placeholder={t('curriculum.svp_approach_placeholder')} value={svp} onChange={(e) => setSvp(e.target.value)} className="text-sm" />
+                    <Textarea
+                        rows={5}
+                        placeholder={t('curriculum.svp_approach_placeholder')}
+                        value={svp}
+                        onChange={(e) => setSvp(e.target.value)}
+                        className="text-sm"
+                    />
                 </div>
             </div>
 
             {/* Equipment */}
             <div className="space-y-2">
-                <div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-orange-500" /><Label className="font-medium">{t('curriculum.equipment_label')}</Label></div>
+                <div className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-orange-500" />
+                    <Label className="font-medium">{t('curriculum.equipment_label')}</Label>
+                </div>
                 <p className="text-xs text-muted-foreground">{t('curriculum.equipment_hint')}</p>
-                <Input placeholder={t('curriculum.equipment_placeholder')} value={equip} onChange={(e) => setEquip(e.target.value)} />
+                <Input
+                    placeholder={t('curriculum.equipment_placeholder')}
+                    value={equip}
+                    onChange={(e) => setEquip(e.target.value)}
+                />
                 {equip && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                        {equip.split(',').map((item, i) => item.trim() && <Badge key={i} variant="secondary" className="text-xs">{item.trim()}</Badge>)}
+                        {equip.split(',').map(
+                            (item, i) =>
+                                item.trim() && (
+                                    <Badge key={i} variant="secondary" className="text-xs">
+                                        {item.trim()}
+                                    </Badge>
+                                ),
+                        )}
                     </div>
                 )}
             </div>
 
             {/* Grading Type */}
             <div className="space-y-2">
-                <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-purple-500" /><Label className="font-medium">{t('curriculum.grading_type', 'Typ hodnocení')}</Label></div>
-                <p className="text-xs text-muted-foreground">{t('curriculum.grading_type_hint', 'Jaký typ hodnocení je povolen pro tento předmět v tomto ročníku?')}</p>
+                <div className="flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-purple-500" />
+                    <Label className="font-medium">{t('curriculum.grading_type', 'Typ hodnocení')}</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    {t(
+                        'curriculum.grading_type_hint',
+                        'Jaký typ hodnocení je povolen pro tento předmět v tomto ročníku?',
+                    )}
+                </p>
                 <div className="flex gap-2">
                     {[
                         { value: 'NUMERIC_ONLY', label: 'Jen známky' },
                         { value: 'VERBAL_ONLY', label: 'Jen slovní' },
                         { value: 'BOTH', label: 'Obojí' },
-                    ].map(opt => (
+                    ].map((opt) => (
                         <button
                             key={opt.value}
-                            className={`px-3 py-1.5 rounded-md text-sm border transition-all ${gradingType === opt.value
+                            className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
+                                gradingType === opt.value
                                     ? 'bg-primary text-primary-foreground border-primary'
                                     : 'bg-muted/30 hover:bg-muted border-border text-muted-foreground'
-                                }`}
+                            }`}
                             onClick={() => setGradingType(opt.value)}
                             type="button"
                         >
@@ -965,12 +1279,25 @@ function EntryForm({
             {/* Actions */}
             <div className="flex justify-between pt-2 border-t">
                 {existing ? (
-                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleRemove}>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={handleRemove}
+                    >
                         <Trash2 className="h-3 w-3 mr-1" /> {t('curriculum.remove_from_plan')}
                     </Button>
-                ) : <div />}
+                ) : (
+                    <div />
+                )}
                 <Button onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : saved ? <Check className="h-4 w-4 text-emerald-500 mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                    {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : saved ? (
+                        <Check className="h-4 w-4 text-emerald-500 mr-1" />
+                    ) : (
+                        <Save className="h-4 w-4 mr-1" />
+                    )}
                     {existing ? t('curriculum.update_instance') : t('curriculum.create_instance')}
                 </Button>
             </div>
@@ -982,12 +1309,7 @@ function EntryForm({
 // Version Compare Dialog — diff between two ŠVP versions
 // ═══════════════════════════════════════════════════════════════
 
-function VersionCompareDialog({
-    versions, onClose,
-}: {
-    versions: CurriculumVersion[];
-    onClose: () => void;
-}) {
+function VersionCompareDialog({ versions, onClose }: { versions: CurriculumVersion[]; onClose: () => void }) {
     const { t } = useTranslation();
     const [versionAId, setVersionAId] = useState(versions[0]?.id || '');
     const [versionBId, setVersionBId] = useState(versions[1]?.id || '');
@@ -1030,8 +1352,12 @@ function VersionCompareDialog({
                             <GitCompareArrows className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold">{t('curriculum.compare_versions', 'Porovnání verzí ŠVP')}</h2>
-                            <p className="text-sm text-muted-foreground">{t('curriculum.compare_desc', 'Vyberte dvě verze pro porovnání rozdílů')}</p>
+                            <h2 className="text-lg font-semibold">
+                                {t('curriculum.compare_versions', 'Porovnání verzí ŠVP')}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                {t('curriculum.compare_desc', 'Vyberte dvě verze pro porovnání rozdílů')}
+                            </p>
                         </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
@@ -1043,14 +1369,18 @@ function VersionCompareDialog({
                 <div className="p-6 border-b">
                     <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-4 items-end">
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">{t('curriculum.version_a', 'Verze A (starší)')}</Label>
+                            <Label className="text-sm font-medium">
+                                {t('curriculum.version_a', 'Verze A (starší)')}
+                            </Label>
                             <select
                                 value={versionAId}
                                 onChange={(e) => setVersionAId(e.target.value)}
                                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                                 {versions.map((v) => (
-                                    <option key={v.id} value={v.id}>{v.name} ({formatDate(v.validFrom)})</option>
+                                    <option key={v.id} value={v.id}>
+                                        {v.name} ({formatDate(v.validFrom)})
+                                    </option>
                                 ))}
                             </select>
                         </div>
@@ -1060,20 +1390,28 @@ function VersionCompareDialog({
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">{t('curriculum.version_b', 'Verze B (novější)')}</Label>
+                            <Label className="text-sm font-medium">
+                                {t('curriculum.version_b', 'Verze B (novější)')}
+                            </Label>
                             <select
                                 value={versionBId}
                                 onChange={(e) => setVersionBId(e.target.value)}
                                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                                 {versions.map((v) => (
-                                    <option key={v.id} value={v.id}>{v.name} ({formatDate(v.validFrom)})</option>
+                                    <option key={v.id} value={v.id}>
+                                        {v.name} ({formatDate(v.validFrom)})
+                                    </option>
                                 ))}
                             </select>
                         </div>
 
                         <Button onClick={handleCompare} disabled={loading} className="gap-1.5">
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitCompareArrows className="h-4 w-4" />}
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <GitCompareArrows className="h-4 w-4" />
+                            )}
                             {t('curriculum.compare', 'Porovnat')}
                         </Button>
                     </div>
@@ -1081,9 +1419,7 @@ function VersionCompareDialog({
 
                 {/* Results */}
                 <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-                    {error && (
-                        <div className="rounded-lg bg-destructive/10 text-destructive p-4 text-sm">{error}</div>
-                    )}
+                    {error && <div className="rounded-lg bg-destructive/10 text-destructive p-4 text-sm">{error}</div>}
 
                     {loading && (
                         <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -1161,24 +1497,34 @@ function VersionCompareDialog({
                                     <h3 className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
                                         <ArrowUpDown className="h-4 w-4" />
                                         {t('curriculum.changed_subjects', 'Změněné předměty')}
-                                        <Badge variant="outline" className="text-xs">{result.changed.length}</Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                            {result.changed.length}
+                                        </Badge>
                                     </h3>
                                     <div className="space-y-2">
                                         {result.changed.map((item: any) => (
-                                            <div key={item.subjectId} className="border rounded-lg p-3 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                                            <div
+                                                key={item.subjectId}
+                                                className="border rounded-lg p-3 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+                                            >
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="font-mono text-xs">{item.code}</Badge>
+                                                        <Badge variant="outline" className="font-mono text-xs">
+                                                            {item.code}
+                                                        </Badge>
                                                         <span className="font-medium text-sm">{item.name}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-muted-foreground">{item.totalHoursA}h →</span>
+                                                        <span className="text-muted-foreground">
+                                                            {item.totalHoursA}h →
+                                                        </span>
                                                         <span className="font-semibold">{item.totalHoursB}h</span>
                                                         <Badge
                                                             variant="outline"
                                                             className={`text-xs ${item.totalDiff > 0 ? 'text-emerald-600 border-emerald-300' : item.totalDiff < 0 ? 'text-red-600 border-red-300' : ''}`}
                                                         >
-                                                            {item.totalDiff > 0 ? '+' : ''}{item.totalDiff}h
+                                                            {item.totalDiff > 0 ? '+' : ''}
+                                                            {item.totalDiff}h
                                                         </Badge>
                                                     </div>
                                                 </div>
@@ -1186,23 +1532,33 @@ function VersionCompareDialog({
                                                     {item.grades.map((g: any) => (
                                                         <div
                                                             key={g.gradeLevelId}
-                                                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs border ${g.status === 'added' ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300' :
-                                                                g.status === 'removed' ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300' :
-                                                                    g.status === 'changed' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300' :
-                                                                        'bg-muted/50 border-muted-foreground/20'
-                                                                }`}
+                                                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs border ${
+                                                                g.status === 'added'
+                                                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                                                                    : g.status === 'removed'
+                                                                      ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300'
+                                                                      : g.status === 'changed'
+                                                                        ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
+                                                                        : 'bg-muted/50 border-muted-foreground/20'
+                                                            }`}
                                                         >
                                                             <span className="font-medium">{g.name}:</span>
                                                             {g.status === 'same' ? (
                                                                 <span>{g.hoursA}h</span>
                                                             ) : (
                                                                 <>
-                                                                    <span className="line-through opacity-60">{g.hoursA}h</span>
+                                                                    <span className="line-through opacity-60">
+                                                                        {g.hoursA}h
+                                                                    </span>
                                                                     <span>→</span>
                                                                     <span className="font-semibold">{g.hoursB}h</span>
                                                                     {g.diff !== 0 && (
                                                                         <span className="ml-0.5">
-                                                                            {g.diff > 0 ? <ArrowUp className="h-3 w-3 inline" /> : <ArrowDown className="h-3 w-3 inline" />}
+                                                                            {g.diff > 0 ? (
+                                                                                <ArrowUp className="h-3 w-3 inline" />
+                                                                            ) : (
+                                                                                <ArrowDown className="h-3 w-3 inline" />
+                                                                            )}
                                                                         </span>
                                                                     )}
                                                                 </>
@@ -1222,14 +1578,24 @@ function VersionCompareDialog({
                                     <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
                                         <Equal className="h-4 w-4" />
                                         {t('curriculum.unchanged_subjects', 'Předměty beze změny')}
-                                        <Badge variant="outline" className="text-xs">{result.unchanged.length}</Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                            {result.unchanged.length}
+                                        </Badge>
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
                                         {result.unchanged.map((item: any) => (
-                                            <div key={item.subjectId} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/30 text-sm">
-                                                <Badge variant="outline" className="font-mono text-[10px]">{item.code}</Badge>
+                                            <div
+                                                key={item.subjectId}
+                                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/30 text-sm"
+                                            >
+                                                <Badge variant="outline" className="font-mono text-[10px]">
+                                                    {item.code}
+                                                </Badge>
                                                 <span>{item.name}</span>
-                                                <span className="text-xs text-muted-foreground">({item.totalHours}h, {item.gradeCount} {t('curriculum.grades_short', 'roč.')})</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    ({item.totalHours}h, {item.gradeCount}{' '}
+                                                    {t('curriculum.grades_short', 'roč.')})
+                                                </span>
                                             </div>
                                         ))}
                                     </div>
@@ -1237,27 +1603,43 @@ function VersionCompareDialog({
                             )}
 
                             {/* No differences */}
-                            {result.added.length === 0 && result.removed.length === 0 && result.changed.length === 0 && (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <Check className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
-                                    <p className="text-sm font-medium">{t('curriculum.no_differences', 'Verze jsou totožné')}</p>
-                                    <p className="text-xs">{t('curriculum.no_differences_desc', 'Nebyl nalezen žádný rozdíl mezi vybranými verzemi.')}</p>
-                                </div>
-                            )}
+                            {result.added.length === 0 &&
+                                result.removed.length === 0 &&
+                                result.changed.length === 0 && (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Check className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
+                                        <p className="text-sm font-medium">
+                                            {t('curriculum.no_differences', 'Verze jsou totožné')}
+                                        </p>
+                                        <p className="text-xs">
+                                            {t(
+                                                'curriculum.no_differences_desc',
+                                                'Nebyl nalezen žádný rozdíl mezi vybranými verzemi.',
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
                         </>
                     )}
 
                     {!result && !loading && !error && (
                         <div className="text-center py-12 text-muted-foreground">
                             <GitCompareArrows className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                            <p className="text-sm">{t('curriculum.compare_prompt', 'Vyberte dva ŠVP a klikněte na „Porovnat" pro zobrazení rozdílů.')}</p>
+                            <p className="text-sm">
+                                {t(
+                                    'curriculum.compare_prompt',
+                                    'Vyberte dva ŠVP a klikněte na „Porovnat" pro zobrazení rozdílů.',
+                                )}
+                            </p>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
                 <div className="p-4 border-t flex justify-end">
-                    <Button variant="outline" onClick={onClose}>{t('common.close', 'Zavřít')}</Button>
+                    <Button variant="outline" onClick={onClose}>
+                        {t('common.close', 'Zavřít')}
+                    </Button>
                 </div>
             </div>
         </div>
@@ -1266,9 +1648,20 @@ function VersionCompareDialog({
 
 // ─── Summary Card helper ────────────────────────────────────────
 
-function SummaryCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
+function SummaryCard({
+    label,
+    value,
+    icon,
+    color,
+}: {
+    label: string;
+    value: number;
+    icon: React.ReactNode;
+    color: string;
+}) {
     const colorClasses: Record<string, string> = {
-        emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800',
+        emerald:
+            'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800',
         red: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
         amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
         slate: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800',
@@ -1277,7 +1670,10 @@ function SummaryCard({ label, value, icon, color }: { label: string; value: numb
 
     return (
         <div className={`rounded-lg border p-3 text-center ${colorClasses[color] || colorClasses.slate}`}>
-            <div className="flex items-center justify-center gap-1.5 mb-1">{icon}<span className="text-xs font-medium">{label}</span></div>
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+                {icon}
+                <span className="text-xs font-medium">{label}</span>
+            </div>
             <div className="text-2xl font-bold">{value}</div>
         </div>
     );
@@ -1285,7 +1681,12 @@ function SummaryCard({ label, value, icon, color }: { label: string; value: numb
 
 // ─── Compare Section helper ─────────────────────────────────────
 
-function CompareSection({ title, icon, color, items }: {
+function CompareSection({
+    title,
+    icon,
+    color,
+    items,
+}: {
     title: string;
     icon: React.ReactNode;
     color: string;
@@ -1308,17 +1709,23 @@ function CompareSection({ title, icon, color, items }: {
         <div className="space-y-3">
             <h3 className={`text-sm font-semibold flex items-center gap-2 ${cls.header}`}>
                 {icon} {title}
-                <Badge variant="outline" className="text-xs">{items.length}</Badge>
+                <Badge variant="outline" className="text-xs">
+                    {items.length}
+                </Badge>
             </h3>
             <div className="space-y-2">
                 {items.map((item: any) => (
                     <div key={item.subjectId} className={`border rounded-lg p-3 ${cls.row}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="font-mono text-xs">{item.code}</Badge>
+                                <Badge variant="outline" className="font-mono text-xs">
+                                    {item.code}
+                                </Badge>
                                 <span className="font-medium text-sm">{item.name}</span>
                             </div>
-                            <Badge variant="secondary" className="text-xs">{item.totalHours}h celkem</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                                {item.totalHours}h celkem
+                            </Badge>
                         </div>
                         {item.grades && item.grades.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">

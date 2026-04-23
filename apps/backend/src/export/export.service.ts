@@ -1,62 +1,61 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class ExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   // ─── DATA LOADERS ───────────────────────────────────────
 
   async getStudentsData(schoolId: string) {
-    const students = await this.prisma.studentProfile.findMany({
-      where: { classroom: { schoolId } },
-      include: {
-        classroom: { select: { name: true } },
-        user: { select: { email: true, firstName: true, lastName: true } },
-      },
-      orderBy: [{ classroom: { name: 'asc' } }, { lastName: 'asc' }],
-    });
+    const students = await this.db.query(
+      `SELECT sp.*, c.name as cName, u.email 
+       FROM "StudentProfile" sp 
+       JOIN "Classroom" c ON sp.classroomId = c.id 
+       JOIN "User" u ON sp.userId = u.id 
+       WHERE c.schoolId = ? 
+       ORDER BY c.name ASC, sp.lastName ASC`,
+      [schoolId],
+    );
     return students.map((s: any) => ({
       id: s.id,
       firstName: s.firstName,
       lastName: s.lastName,
-      email: s.user?.email || '',
-      classroom: s.classroom?.name || '',
+      email: s.email || '',
+      classroom: s.cName || '',
     }));
   }
 
   async getGradesData(schoolId: string, classroomId?: string) {
-    const where: any = { schoolId };
-    if (classroomId) where.studentProfile = { classroomId };
-    const grades = await this.prisma.grade.findMany({
-      where,
-      include: {
-        studentProfile: {
-          select: {
-            firstName: true,
-            lastName: true,
-            classroom: { select: { name: true } },
-          },
-        },
-        subjectInstance: { include: { template: { select: { name: true } } } },
-        teacherProfile: {
-          select: { user: { select: { firstName: true, lastName: true } } },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5000,
-    });
+    let where = 'WHERE g.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (classroomId) {
+      where += ' AND sp.classroomId = ?';
+      params.push(classroomId);
+    }
+
+    const grades = await this.db.query(
+      `SELECT g.*, sp.firstName, sp.lastName, c.name as cName, st.name as subName, u.firstName as tFN, u.lastName as tLN 
+       FROM "Grade" g 
+       JOIN "StudentProfile" sp ON g.studentId = sp.id 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id 
+       JOIN "SubjectTemplate" st ON si.templateId = st.id 
+       JOIN "TeacherProfile" tp ON g.teacherId = tp.id 
+       JOIN "User" u ON tp.userId = u.id 
+       ${where} ORDER BY g.createdAt DESC LIMIT 5000`,
+      params,
+    );
+
     return grades.map((g: any) => ({
-      student: `${g.studentProfile.lastName} ${g.studentProfile.firstName}`,
-      classroom: g.studentProfile.classroom?.name || '',
-      subject: g.subjectInstance?.template?.name || '',
+      student: `${g.lastName} ${g.firstName}`,
+      classroom: g.cName || '',
+      subject: g.subName || '',
       value: g.value,
       weight: g.weight,
       description: g.description || '',
-      teacher: g.teacherProfile
-        ? `${g.teacherProfile.user.lastName} ${g.teacherProfile.user.firstName}`
-        : '',
-      date: g.createdAt.toISOString().slice(0, 10),
+      teacher: `${g.tLN} ${g.tFN}`,
+      date: new Date(g.createdAt).toISOString().slice(0, 10),
     }));
   }
 
@@ -66,50 +65,59 @@ export class ExportService {
     dateFrom?: string,
     dateTo?: string,
   ) {
-    const where: any = { schoolId };
-    if (classroomId) where.studentProfile = { classroomId };
-    if (dateFrom || dateTo) {
-      where.date = {};
-      if (dateFrom) where.date.gte = new Date(dateFrom);
-      if (dateTo) where.date.lte = new Date(dateTo);
+    let where = 'WHERE a.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (classroomId) {
+      where += ' AND sp.classroomId = ?';
+      params.push(classroomId);
     }
-    const records = await this.prisma.attendance.findMany({
-      where,
-      include: {
-        studentProfile: {
-          select: {
-            firstName: true,
-            lastName: true,
-            classroom: { select: { name: true } },
-          },
-        },
-      },
-      orderBy: { date: 'desc' },
-      take: 10000,
-    });
+    if (dateFrom) {
+      where += ' AND a.date >= ?';
+      params.push(new Date(dateFrom).toISOString());
+    }
+    if (dateTo) {
+      where += ' AND a.date <= ?';
+      params.push(new Date(dateTo).toISOString());
+    }
+
+    const records = await this.db.query(
+      `SELECT a.*, sp.firstName, sp.lastName, c.name as cName 
+       FROM "Attendance" a 
+       JOIN "StudentProfile" sp ON a.studentId = sp.id 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       ${where} ORDER BY a.date DESC LIMIT 10000`,
+      params,
+    );
+
     return records.map((r: any) => ({
-      student: `${r.studentProfile.lastName} ${r.studentProfile.firstName}`,
-      classroom: r.studentProfile.classroom?.name || '',
-      date: r.date.toISOString().slice(0, 10),
+      student: `${r.lastName} ${r.firstName}`,
+      classroom: r.cName || '',
+      date: new Date(r.date).toISOString().slice(0, 10),
       status: r.status,
       note: r.note || '',
     }));
   }
 
   async getScheduleData(schoolId: string, classroomId?: string) {
-    const where: any = { schoolId };
-    if (classroomId) where.classroomId = classroomId;
-    const events = await this.prisma.scheduleEvent.findMany({
-      where,
-      include: {
-        classroom: { select: { name: true } },
-        teacherProfile: {
-          select: { user: { select: { firstName: true, lastName: true } } },
-        },
-        subject: { include: { template: { select: { name: true } } } },
-      },
-      orderBy: [{ dayOfWeek: 'asc' }, { lessonNumber: 'asc' }],
-    });
+    let where = 'WHERE se.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (classroomId) {
+      where += ' AND se.classroomId = ?';
+      params.push(classroomId);
+    }
+
+    const events = await this.db.query(
+      `SELECT se.*, c.name as cName, u.firstName, u.lastName, st.name as subName 
+       FROM "ScheduleEvent" se 
+       JOIN "Classroom" c ON se.classroomId = c.id 
+       JOIN "TeacherProfile" tp ON se.teacherId = tp.id 
+       JOIN "User" u ON tp.userId = u.id 
+       JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id 
+       JOIN "SubjectTemplate" st ON si.templateId = st.id 
+       ${where} ORDER BY se.dayOfWeek ASC, se.lessonNumber ASC`,
+      params,
+    );
+
     const dayNames = [
       '',
       'Pondělí',
@@ -123,11 +131,9 @@ export class ExportService {
     return events.map((e: any) => ({
       day: dayNames[e.dayOfWeek] || String(e.dayOfWeek),
       lessonNumber: e.lessonNumber,
-      subject: e.subject?.template?.name || '',
-      teacher: e.teacherProfile
-        ? `${e.teacherProfile.user.lastName} ${e.teacherProfile.user.firstName}`
-        : '',
-      classroom: e.classroom?.name || '',
+      subject: e.subName || '',
+      teacher: `${e.lastName} ${e.firstName}`,
+      classroom: e.cName || '',
     }));
   }
 
@@ -137,28 +143,34 @@ export class ExportService {
     dateFrom?: string,
     dateTo?: string,
   ) {
-    const where: any = { classroomId, classroom: { schoolId } };
-    if (dateFrom || dateTo) {
-      where.date = {};
-      if (dateFrom) where.date.gte = new Date(dateFrom);
-      if (dateTo) where.date.lte = new Date(dateTo);
+    let where = 'WHERE cbe.classroomId = ? AND c.schoolId = ?';
+    const params: any[] = [classroomId, schoolId];
+    if (dateFrom) {
+      where += ' AND cbe.date >= ?';
+      params.push(new Date(dateFrom).toISOString());
     }
-    const entries = await this.prisma.classBookEntry.findMany({
-      where,
-      include: {
-        teacher: { select: { firstName: true, lastName: true } },
-      },
-      orderBy: [{ date: 'desc' }, { lessonNumber: 'asc' }],
-      take: 5000,
-    });
+    if (dateTo) {
+      where += ' AND cbe.date <= ?';
+      params.push(new Date(dateTo).toISOString());
+    }
+
+    const entries = await this.db.query(
+      `SELECT cbe.*, u.firstName, u.lastName, c.name as cName 
+       FROM "ClassBookEntry" cbe 
+       JOIN "Classroom" c ON cbe.classroomId = c.id 
+       JOIN "User" u ON cbe.teacherId = u.id 
+       ${where} ORDER BY cbe.date DESC, cbe.lessonNumber ASC LIMIT 5000`,
+      params,
+    );
+
     return entries.map((e: any) => ({
-      date: e.date.toISOString().slice(0, 10),
+      date: new Date(e.date).toISOString().slice(0, 10),
       lessonNumber: e.lessonNumber,
       subject: e.subjectName || '',
       topic: e.topic || '',
       notes: e.notes || '',
       absentCount: e.absentCount ?? '',
-      teacher: e.teacher ? `${e.teacher.lastName} ${e.teacher.firstName}` : '',
+      teacher: `${e.lastName} ${e.firstName}`,
     }));
   }
 
@@ -177,7 +189,7 @@ export class ExportService {
       headers.join(','),
       ...data.map((row) => headers.map((h) => escape(row[h])).join(',')),
     ];
-    return '\ufeff' + lines.join('\n'); // BOM for Excel
+    return '\ufeff' + lines.join('\n');
   }
 
   toXml(

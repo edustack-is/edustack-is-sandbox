@@ -15,7 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserRole, UserStatus } from '../database/types';
 import { LogSensitiveRead } from '../auth/log-sensitive-read.decorator';
 import { LogSensitiveReadInterceptor } from '../auth/log-sensitive-read.interceptor';
 

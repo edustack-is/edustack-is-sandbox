@@ -11,7 +11,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function ThematicPlans() {
     const { t } = useTranslation();
@@ -30,20 +39,30 @@ export default function ThematicPlans() {
         try {
             const data = await getThematicPlans();
             setPlans(data);
-        } catch { toast.error('Nepodařilo se načíst tematické plány'); }
-        finally { setLoading(false); }
+        } catch {
+            toast.error('Nepodařilo se načíst tematické plány');
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         load();
-        getSubjectTemplates().then(setSubjects).catch(() => { });
-        api.get('/api/deputy/academic-years').then(r => setYears(r.data)).catch(() => { });
-        api.get('/api/deputy/grade-levels').then(r => setGrades(r.data)).catch(() => { });
+        getSubjectTemplates()
+            .then(setSubjects)
+            .catch(() => {});
+        api.get('/api/deputy/academic-years')
+            .then((r) => setYears(r.data))
+            .catch(() => {});
+        api.get('/api/deputy/grade-levels')
+            .then((r) => setGrades(r.data))
+            .catch(() => {});
     }, []);
 
     const handleCreate = async () => {
         if (!form.title || !form.subjectTemplateId || !form.academicYearId || !form.gradeLevelId) {
-            toast.error('Vyplňte všechna pole'); return;
+            toast.error('Vyplňte všechna pole');
+            return;
         }
         try {
             await createThematicPlan(form);
@@ -51,7 +70,9 @@ export default function ThematicPlans() {
             setDialogOpen(false);
             setForm({ title: '', subjectTemplateId: '', academicYearId: '', gradeLevelId: '' });
             load();
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba'); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba');
+        }
     };
 
     const handleDelete = async () => {
@@ -61,7 +82,9 @@ export default function ThematicPlans() {
             toast.success('Smazáno');
             setDeleteTarget(null);
             load();
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba'); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba');
+        }
     };
 
     return (
@@ -72,20 +95,25 @@ export default function ThematicPlans() {
                     <p className="text-muted-foreground">Rozpis učiva po týdnech pro jednotlivé předměty a ročníky</p>
                 </div>
                 <Button onClick={() => setDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />Nový plán
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nový plán
                 </Button>
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    {t('common.loading')}
+                </div>
             ) : plans.length === 0 ? (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">
-                    <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    Zatím nejsou žádné tematické plány
-                </CardContent></Card>
+                <Card>
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                        <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        Zatím nejsou žádné tematické plány
+                    </CardContent>
+                </Card>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {plans.map(plan => (
+                    {plans.map((plan) => (
                         <Card key={plan.id} className="hover:shadow-md transition-shadow">
                             <CardHeader className="pb-2">
                                 <div className="flex items-start justify-between">
@@ -100,7 +128,8 @@ export default function ThematicPlans() {
                                     <Badge variant="outline">{plan.subjectTemplate?.name}</Badge>
                                     <Badge variant="secondary">{plan.gradeLevel?.name}</Badge>
                                     <Badge variant="secondary">
-                                        <CalendarDays className="h-3 w-3 mr-1" />{plan.academicYear?.name}
+                                        <CalendarDays className="h-3 w-3 mr-1" />
+                                        {plan.academicYear?.name}
                                     </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
@@ -114,52 +143,100 @@ export default function ThematicPlans() {
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Nový tematický plán</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Nový tematický plán</DialogTitle>
+                    </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
                             <Label>Název</Label>
-                            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Informatika 7.ročník 2024/25" />
+                            <Input
+                                value={form.title}
+                                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                                placeholder="Informatika 7.ročník 2024/25"
+                            />
                         </div>
                         <div className="space-y-1">
                             <Label>Předmět</Label>
-                            <Select value={form.subjectTemplateId} onValueChange={v => setForm(f => ({ ...f, subjectTemplateId: v }))}>
-                                <SelectTrigger><SelectValue placeholder="Vyberte předmět" /></SelectTrigger>
-                                <SelectContent>{subjects.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                            <Select
+                                value={form.subjectTemplateId}
+                                onValueChange={(v) => setForm((f) => ({ ...f, subjectTemplateId: v }))}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Vyberte předmět" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {subjects.map((s: any) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <Label>Školní rok</Label>
-                                <Select value={form.academicYearId} onValueChange={v => setForm(f => ({ ...f, academicYearId: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Rok" /></SelectTrigger>
-                                    <SelectContent>{years.map((y: any) => <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>)}</SelectContent>
+                                <Select
+                                    value={form.academicYearId}
+                                    onValueChange={(v) => setForm((f) => ({ ...f, academicYearId: v }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Rok" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {years.map((y: any) => (
+                                            <SelectItem key={y.id} value={y.id}>
+                                                {y.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1">
                                 <Label>Ročník</Label>
-                                <Select value={form.gradeLevelId} onValueChange={v => setForm(f => ({ ...f, gradeLevelId: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Ročník" /></SelectTrigger>
-                                    <SelectContent>{grades.map((g: any) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
+                                <Select
+                                    value={form.gradeLevelId}
+                                    onValueChange={(v) => setForm((f) => ({ ...f, gradeLevelId: v }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Ročník" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {grades.map((g: any) => (
+                                            <SelectItem key={g.id} value={g.id}>
+                                                {g.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
                                 </Select>
                             </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)}>Zrušit</Button>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                            Zrušit
+                        </Button>
                         <Button onClick={handleCreate}>Vytvořit</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={!!deleteTarget} onOpenChange={o => !o && setDeleteTarget(null)}>
+            <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Smazat tematický plán?</AlertDialogTitle>
-                        <AlertDialogDescription>Tato akce je nevratná. Budou smazány i všechny týdny.</AlertDialogDescription>
+                        <AlertDialogDescription>
+                            Tato akce je nevratná. Budou smazány i všechny týdny.
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Smazat</AlertDialogAction>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground"
+                        >
+                            Smazat
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

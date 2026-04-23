@@ -1,19 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { MailService } from '../mail/mail.service';
+import { User, Notification } from '../database/types';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
   constructor(
-    private prisma: PrismaService,
-    private mailService: MailService,
+    private readonly db: DatabaseService,
+    private readonly mailService: MailService,
   ) {}
 
-  /**
-   * Create an in-app notification and optionally send email.
-   */
   async createNotification(
     userId: string,
     type: string,
@@ -21,21 +20,25 @@ export class NotificationService {
     body?: string,
     linkUrl?: string,
   ) {
-    const notification = await this.prisma.notification.create({
-      data: { userId, type, title, body, linkUrl },
-    });
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Notification" (id, userId, type, title, body, linkUrl, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        userId,
+        type,
+        title,
+        body || null,
+        linkUrl || null,
+        new Date().toISOString(),
+      ],
+    );
 
-    // Send email if user has it enabled
     try {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          email: true,
-          emailNotificationsEnabled: true,
-          firstName: true,
-        },
-      });
-
+      const user = await this.db.queryOne<User>(
+        'SELECT email, emailNotificationsEnabled FROM "User" WHERE id = ?',
+        [userId],
+      );
       if (user?.emailNotificationsEnabled && user.email) {
         await this.mailService.sendNotificationEmail(
           user.email,
@@ -45,18 +48,14 @@ export class NotificationService {
         );
       }
     } catch (err) {
-      this.logger.warn(
-        `Failed to send email notification to user ${userId}`,
-        err,
-      );
+      this.logger.warn(`Failed to send email notification to user ${userId}`);
     }
 
-    return notification;
+    return await this.db.queryOne('SELECT * FROM "Notification" WHERE id = ?', [
+      id,
+    ]);
   }
 
-  /**
-   * Notify multiple users (batch).
-   */
   async notifyMany(
     userIds: string[],
     type: string,
@@ -64,17 +63,26 @@ export class NotificationService {
     body?: string,
     linkUrl?: string,
   ) {
-    // Create all notifications in a transaction
-    const notifications = await this.prisma.notification.createMany({
-      data: userIds.map((userId) => ({ userId, type, title, body, linkUrl })),
+    await this.db.transaction(async (db) => {
+      for (const userId of userIds) {
+        await db.execute(
+          'INSERT INTO "Notification" (id, userId, type, title, body, linkUrl, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            userId,
+            type,
+            title,
+            body || null,
+            linkUrl || null,
+            new Date().toISOString(),
+          ],
+        );
+      }
     });
 
-    // Send emails in background (don't block)
     for (const userId of userIds) {
       this.createEmailIfEnabled(userId, title, body, linkUrl).catch(() => {});
     }
-
-    return notifications;
   }
 
   private async createEmailIfEnabled(
@@ -83,12 +91,11 @@ export class NotificationService {
     body?: string,
     linkUrl?: string,
   ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, emailNotificationsEnabled: true },
-    });
+    const user = await this.db.queryOne<User>(
+      'SELECT email, emailNotificationsEnabled FROM "User" WHERE id = ?',
+      [userId],
+    );
     if (!user?.emailNotificationsEnabled || !user.email) return;
-
     await this.mailService.sendNotificationEmail(
       user.email,
       title,
@@ -97,38 +104,47 @@ export class NotificationService {
     );
   }
 
-  /**
-   * Get notifications for a user (paginated).
-   */
   async getNotifications(userId: string, limit = 20, offset = 0) {
-    const [notifications, total, unreadCount] = await Promise.all([
-      this.prisma.notification.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      this.prisma.notification.count({ where: { userId } }),
-      this.prisma.notification.count({ where: { userId, read: false } }),
+    const [notifications, totalResult, unreadResult] = await Promise.all([
+      this.db.query(
+        'SELECT * FROM "Notification" WHERE userId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?',
+        [userId, limit, offset],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "Notification" WHERE userId = ?',
+        [userId],
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "Notification" WHERE userId = ? AND read = 0',
+        [userId],
+      ),
     ]);
-    return { notifications, total, unreadCount };
+    return {
+      notifications,
+      total: totalResult?.count || 0,
+      unreadCount: unreadResult?.count || 0,
+    };
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.prisma.notification.count({ where: { userId, read: false } });
+    const result = await this.db.queryOne<{ count: number }>(
+      'SELECT COUNT(*) as count FROM "Notification" WHERE userId = ? AND read = 0',
+      [userId],
+    );
+    return result?.count || 0;
   }
 
   async markAsRead(notificationId: string, userId: string) {
-    return this.prisma.notification.updateMany({
-      where: { id: notificationId, userId },
-      data: { read: true },
-    });
+    return this.db.execute(
+      'UPDATE "Notification" SET read = 1 WHERE id = ? AND userId = ?',
+      [notificationId, userId],
+    );
   }
 
   async markAllRead(userId: string) {
-    return this.prisma.notification.updateMany({
-      where: { userId, read: false },
-      data: { read: true },
-    });
+    return this.db.execute(
+      'UPDATE "Notification" SET read = 1 WHERE userId = ? AND read = 0',
+      [userId],
+    );
   }
 }

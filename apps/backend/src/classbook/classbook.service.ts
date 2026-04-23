@@ -3,62 +3,62 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
+import {
+  ClassBookEntry,
+  TeacherSignature,
+  ScheduleEvent,
+  User,
+  Attendance,
+} from '../database/types';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ClassBookService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   // ─── GET ENTRIES FOR A DATE ─────────────────────────────
 
-  /**
-   * Returns class book entries for a classroom on a given date.
-   * Pre-fills from schedule if entries don't exist yet.
-   */
   async getEntriesForDate(schoolId: string, classroomId: string, date: string) {
     const d = new Date(date);
-    const dayOfWeek = d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon...7=Sun
+    const dayOfWeek = d.getDay() === 0 ? 7 : d.getDay();
 
-    // Get schedule events for this day
-    const scheduleEvents = await this.prisma.scheduleEvent.findMany({
-      where: { schoolId, classroomId, dayOfWeek },
-      include: {
-        subject: { include: { template: true } },
-        teacherProfile: {
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true } },
-          },
-        },
-      },
-      orderBy: { lessonNumber: 'asc' },
-    });
+    const scheduleEvents = await this.db.query(
+      `SELECT se.*, st.name as subjectName, u.id as userId, u.firstName, u.lastName 
+       FROM "ScheduleEvent" se 
+       JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id 
+       JOIN "SubjectTemplate" st ON si.templateId = st.id 
+       JOIN "TeacherProfile" tp ON se.teacherId = tp.id 
+       JOIN "User" u ON tp.userId = u.id 
+       WHERE se.schoolId = ? AND se.classroomId = ? AND se.dayOfWeek = ? 
+       ORDER BY se.lessonNumber ASC`,
+      [schoolId, classroomId, dayOfWeek],
+    );
 
-    // Get existing entries
-    const existing = await this.prisma.classBookEntry.findMany({
-      where: {
-        schoolId,
-        classroomId,
-        date: {
-          gte: new Date(d.toISOString().slice(0, 10) + 'T00:00:00Z'),
-          lt: new Date(d.toISOString().slice(0, 10) + 'T23:59:59Z'),
-        },
-      },
-      include: {
-        teacher: { select: { id: true, firstName: true, lastName: true } },
-        signature: true,
-      },
-      orderBy: { lessonNumber: 'asc' },
-    });
+    const existing = await this.db.query(
+      `SELECT cbe.*, u.firstName, u.lastName, ts.signedAt 
+       FROM "ClassBookEntry" cbe 
+       LEFT JOIN "User" u ON cbe.teacherId = u.id 
+       LEFT JOIN "TeacherSignature" ts ON cbe.id = ts.classBookEntryId 
+       WHERE cbe.schoolId = ? AND cbe.classroomId = ? AND date(cbe.date) = date(?) 
+       ORDER BY cbe.lessonNumber ASC`,
+      [schoolId, classroomId, d.toISOString()],
+    );
 
     const existingMap = new Map(existing.map((e: any) => [e.lessonNumber, e]));
 
-    // Merge: for each schedule event, return existing entry or a "template"
-    return scheduleEvents.map((se: any) => {
-      const entry = existingMap.get(se.lessonNumber) as any;
+    return (scheduleEvents as any[]).map((se) => {
+      const entry = existingMap.get(se.lessonNumber);
       if (entry) {
         return {
           ...entry,
-          subjectName: entry.subjectName || se.subject?.template?.name,
+          subjectName: entry.subjectName || se.subjectName,
+          teacher: {
+            id: entry.teacherId,
+            firstName: entry.firstName,
+            lastName: entry.lastName,
+          },
+          signature: entry.signedAt ? { signedAt: entry.signedAt } : null,
           fromSchedule: true,
         };
       }
@@ -71,10 +71,14 @@ export class ClassBookService {
         absentCount: null,
         schoolId,
         classroomId,
-        teacherId: se.teacherProfile?.user?.id,
-        teacher: se.teacherProfile?.user,
+        teacherId: se.userId,
+        teacher: {
+          id: se.userId,
+          firstName: se.firstName,
+          lastName: se.lastName,
+        },
         scheduleEventId: se.id,
-        subjectName: se.subject?.template?.name,
+        subjectName: se.subjectName,
         signature: null,
         fromSchedule: true,
       };
@@ -83,76 +87,94 @@ export class ClassBookService {
 
   // ─── UPSERT ENTRY ───────────────────────────────────────
 
-  async upsertEntry(
-    userId: string,
-    schoolId: string,
-    data: {
-      classroomId: string;
-      date: string;
-      lessonNumber: number;
-      topic?: string;
-      notes?: string;
-      absentCount?: number;
-      scheduleEventId?: string;
-      subjectName?: string;
-    },
-  ) {
-    const d = new Date(data.date);
-    return this.prisma.classBookEntry.upsert({
-      where: {
-        schoolId_classroomId_date_lessonNumber: {
+  async upsertEntry(userId: string, schoolId: string, data: any) {
+    const d = new Date(data.date).toISOString();
+    const existing = await this.db.queryOne(
+      'SELECT id FROM "ClassBookEntry" WHERE schoolId = ? AND classroomId = ? AND date(date) = date(?) AND lessonNumber = ?',
+      [schoolId, data.classroomId, d, data.lessonNumber],
+    );
+
+    let id: string;
+    if (existing) {
+      id = (existing as any).id;
+      await this.db.execute(
+        'UPDATE "ClassBookEntry" SET topic = ?, notes = ?, absentCount = ?, updatedAt = ? WHERE id = ?',
+        [
+          data.topic || null,
+          data.notes || null,
+          data.absentCount ?? null,
+          new Date().toISOString(),
+          id,
+        ],
+      );
+    } else {
+      id = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "ClassBookEntry" (id, date, lessonNumber, topic, notes, absentCount, schoolId, classroomId, teacherId, scheduleEventId, subjectName, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          d,
+          data.lessonNumber,
+          data.topic || null,
+          data.notes || null,
+          data.absentCount ?? null,
           schoolId,
-          classroomId: data.classroomId,
-          date: d,
-          lessonNumber: data.lessonNumber,
-        },
-      },
-      update: {
-        topic: data.topic,
-        notes: data.notes,
-        absentCount: data.absentCount,
-      },
-      create: {
-        date: d,
-        lessonNumber: data.lessonNumber,
-        topic: data.topic,
-        notes: data.notes,
-        absentCount: data.absentCount,
-        schoolId,
-        classroomId: data.classroomId,
-        teacherId: userId,
-        scheduleEventId: data.scheduleEventId,
-        subjectName: data.subjectName,
-      },
-      include: {
-        teacher: { select: { id: true, firstName: true, lastName: true } },
-        signature: true,
-      },
-    });
+          data.classroomId,
+          userId,
+          data.scheduleEventId || null,
+          data.subjectName || null,
+          new Date().toISOString(),
+          new Date().toISOString(),
+        ],
+      );
+    }
+
+    return await this.db.queryOne(
+      `SELECT cbe.*, u.firstName, u.lastName, ts.signedAt 
+       FROM "ClassBookEntry" cbe 
+       JOIN "User" u ON cbe.teacherId = u.id 
+       LEFT JOIN "TeacherSignature" ts ON cbe.id = ts.classBookEntryId 
+       WHERE cbe.id = ?`,
+      [id],
+    );
   }
 
   // ─── SIGN ENTRY ─────────────────────────────────────────
 
   async signEntry(userId: string, entryId: string, ipAddress?: string) {
-    const entry = await this.prisma.classBookEntry.findUnique({
-      where: { id: entryId },
-    });
+    const entry = await this.db.queryOne<ClassBookEntry>(
+      'SELECT * FROM "ClassBookEntry" WHERE id = ?',
+      [entryId],
+    );
     if (!entry) throw new NotFoundException('Záznam nenalezen');
     if (entry.teacherId !== userId)
       throw new ForbiddenException('Můžete podepsat pouze své záznamy');
 
-    return this.prisma.teacherSignature.upsert({
-      where: { classBookEntryId: entryId },
-      update: { signedAt: new Date(), ipAddress },
-      create: {
-        classBookEntryId: entryId,
-        teacherId: userId,
-        ipAddress,
-      },
-    });
+    const existing = await this.db.queryOne(
+      'SELECT id FROM "TeacherSignature" WHERE classBookEntryId = ?',
+      [entryId],
+    );
+    if (existing) {
+      await this.db.execute(
+        'UPDATE "TeacherSignature" SET signedAt = ?, ipAddress = ? WHERE id = ?',
+        [new Date().toISOString(), ipAddress || null, (existing as any).id],
+      );
+    } else {
+      await this.db.execute(
+        'INSERT INTO "TeacherSignature" (id, classBookEntryId, teacherId, signedAt, ipAddress) VALUES (?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          entryId,
+          userId,
+          new Date().toISOString(),
+          ipAddress || null,
+        ],
+      );
+    }
+    return { success: true };
   }
 
-  // ─── GET ENTRIES FOR RANGE (for print) ──────────────────
+  // ─── GET ENTRIES FOR RANGE ──────────────────────────────
 
   async getEntriesForRange(
     schoolId: string,
@@ -160,99 +182,21 @@ export class ClassBookService {
     dateFrom: string,
     dateTo: string,
   ) {
-    return this.prisma.classBookEntry.findMany({
-      where: {
+    return this.db.query(
+      `SELECT cbe.*, u.firstName, u.lastName, ts.signedAt 
+       FROM "ClassBookEntry" cbe 
+       JOIN "User" u ON cbe.teacherId = u.id 
+       LEFT JOIN "TeacherSignature" ts ON cbe.id = ts.classBookEntryId 
+       WHERE cbe.schoolId = ? AND cbe.classroomId = ? AND cbe.date >= ? AND cbe.date <= ? 
+       ORDER BY cbe.date ASC, cbe.lessonNumber ASC`,
+      [
         schoolId,
         classroomId,
-        date: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo),
-        },
-      },
-      include: {
-        teacher: { select: { firstName: true, lastName: true } },
-        signature: true,
-      },
-      orderBy: [{ date: 'asc' }, { lessonNumber: 'asc' }],
-    });
-  }
-
-  // ─── PRINT (HTML export) ────────────────────────────────
-
-  async generatePrintHtml(
-    schoolId: string,
-    classroomId: string,
-    dateFrom: string,
-    dateTo: string,
-  ) {
-    const entries = await this.getEntriesForRange(
-      schoolId,
-      classroomId,
-      dateFrom,
-      dateTo,
+        new Date(dateFrom).toISOString(),
+        new Date(dateTo).toISOString(),
+      ],
     );
-
-    const classroom = await this.prisma.classroom.findUnique({
-      where: { id: classroomId },
-      select: { name: true, grade: true },
-    });
-
-    // Group by date
-    const byDate = new Map<string, typeof entries>();
-    for (const e of entries) {
-      const key = e.date.toISOString().slice(0, 10);
-      if (!byDate.has(key)) byDate.set(key, []);
-      byDate.get(key)!.push(e);
-    }
-
-    let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Třídní kniha – ${classroom?.name || ''}</title>
-<style>
-body{font-family:Arial,sans-serif;margin:20px}
-h1{font-size:18px}h2{font-size:14px;margin-top:20px;border-bottom:1px solid #ccc}
-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
-th,td{border:1px solid #999;padding:4px 8px;text-align:left}
-th{background:#f0f0f0}
-.sig{color:green;font-size:10px}
-@media print{body{margin:0}}
-</style></head><body>
-<h1>Třídní kniha – ${classroom?.name || ''} (${classroom?.grade || ''})</h1>
-<p>Období: ${dateFrom} – ${dateTo}</p>`;
-
-    for (const [dateKey, dayEntries] of byDate) {
-      const d = new Date(dateKey);
-      const dayLabel = d.toLocaleDateString('cs-CZ', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      html += `<h2>${dayLabel}</h2><table>
-<tr><th>Hod.</th><th>Předmět</th><th>Učitel</th><th>Probírané učivo</th><th>Poznámky</th><th>Nepřítomnos</th><th>Podpis</th></tr>`;
-      for (const e of dayEntries) {
-        const teacherName = e.teacher
-          ? `${e.teacher.lastName} ${e.teacher.firstName}`
-          : '-';
-        const sig = e.signature
-          ? `<span class="sig">✓ ${e.signature.signedAt.toISOString().slice(0, 16)}</span>`
-          : '-';
-        html += `<tr>
-<td>${e.lessonNumber}</td>
-<td>${e.subjectName || '-'}</td>
-<td>${teacherName}</td>
-<td>${e.topic || ''}</td>
-<td>${e.notes || ''}</td>
-<td>${e.absentCount ?? ''}</td>
-<td>${sig}</td>
-</tr>`;
-      }
-      html += '</table>';
-    }
-
-    html += '</body></html>';
-    return html;
   }
-
-  // ─── GET ATTENDANCE LINK ────────────────────────────────
 
   async getAttendanceForLesson(
     schoolId: string,
@@ -260,23 +204,14 @@ th{background:#f0f0f0}
     date: string,
     lessonNumber: number,
   ) {
-    const d = new Date(date);
-    return this.prisma.attendance.findMany({
-      where: {
-        schoolId,
-        studentProfile: { classroomId },
-        date: {
-          gte: new Date(d.toISOString().slice(0, 10) + 'T00:00:00Z'),
-          lt: new Date(d.toISOString().slice(0, 10) + 'T23:59:59Z'),
-        },
-        lessonNumber,
-      },
-      include: {
-        studentProfile: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-      },
-      orderBy: { studentProfile: { user: { lastName: 'asc' } } },
-    });
+    const d = new Date(date).toISOString();
+    return this.db.query(
+      `SELECT a.*, sp.firstName, sp.lastName FROM "Attendance" a 
+       JOIN "StudentProfile" sp ON a.studentId = sp.id 
+       JOIN "User" u ON sp.userId = u.id 
+       WHERE a.schoolId = ? AND sp.classroomId = ? AND date(a.date) = date(?) AND a.lessonNumber = ? 
+       ORDER BY sp.lastName ASC`,
+      [schoolId, classroomId, d, lessonNumber],
+    );
   }
 }

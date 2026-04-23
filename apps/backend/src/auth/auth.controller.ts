@@ -82,7 +82,7 @@ export class AuthController {
   @Get('login-helper-config')
   @ApiOperation({ summary: 'Konfigurace login helperu' })
   @ApiResponse({ status: 200, type: LoginHelperConfigDto })
-  async getLoginHelperConfig() {
+  getLoginHelperConfig() {
     return this.authService.getLoginHelperConfig();
   }
 
@@ -96,7 +96,7 @@ export class AuthController {
 
   @Public()
   @Get('sso/:provider')
-  async ssoAuth(
+  ssoAuth(
     @Param('provider') provider: string,
     @Query('invitationToken') invitationToken: string | undefined,
     @Query('token') linkToken: string | undefined,
@@ -144,7 +144,7 @@ export class AuthController {
     description: 'Záznam nebyl nalezen.',
     type: ErrorResponseDto,
   })
-  async ssoCallback(
+  ssoCallback(
     @Param('provider') provider: string,
     @Req() req: Request,
     @Res() res: Response,
@@ -248,7 +248,7 @@ export class AuthController {
     description: 'JWT token po SSO přihlášení.',
     type: LoginResponseDto,
   })
-  async exchangeSsoToken(@Req() req: Request, @Res() res: Response) {
+  exchangeSsoToken(@Req() req: Request, @Res() res: Response) {
     const cookies = this.parseCookies(req);
     const token = cookies['__edu_sso_token'];
 

@@ -21,12 +21,12 @@ Swagger UI je dostupný na `/api/docs` (pouze v non-production režimu).
 
 ## Hlavní příkazy
 
-| Příkaz | Popis |
-|--------|-------|
-| `npm run start:dev` | Vývoj s hot reload |
-| `npm run build` | Produkční build |
-| `npm run start:prod` | Produkční spuštění |
-| `npx prisma studio` | GUI pro databázi |
+| Příkaz               | Popis                  |
+| -------------------- | ---------------------- |
+| `npm run start:dev`  | Vývoj s hot reload     |
+| `npm run build`      | Produkční build        |
+| `npm run start:prod` | Produkční spuštění     |
+| `npx prisma studio`  | GUI pro databázi       |
 | `npx prisma db push` | Synchronizace schématu |
 
 ## Adresářová struktura

@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Printer, Save, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-    getClassBookEntries, upsertClassBookEntry, signClassBookEntry,
-    getClassBookPrintUrl, api,
-} from '../api';
+import { getClassBookEntries, upsertClassBookEntry, signClassBookEntry, getClassBookPrintUrl, api } from '../api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +25,9 @@ export default function ClassBook() {
     const [printTo, setPrintTo] = useState(new Date().toISOString().slice(0, 10));
 
     useEffect(() => {
-        api.get('/api/deputy/classrooms').then(r => setClassrooms(r.data)).catch(() => { });
+        api.get('/api/deputy/classrooms')
+            .then((r) => setClassrooms(r.data))
+            .catch(() => {});
     }, []);
 
     const loadEntries = async () => {
@@ -36,11 +35,16 @@ export default function ClassBook() {
         setLoading(true);
         try {
             setEntries(await getClassBookEntries(selectedClassroom, date));
-        } catch { toast.error('Chyba načítání'); }
-        finally { setLoading(false); }
+        } catch {
+            toast.error('Chyba načítání');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { loadEntries(); }, [selectedClassroom, date]);
+    useEffect(() => {
+        loadEntries();
+    }, [selectedClassroom, date]);
 
     const handleEdit = (index: number) => {
         const e = entries[index];
@@ -67,16 +71,23 @@ export default function ClassBook() {
             toast.success('Uloženo');
             setEditingId(null);
             loadEntries();
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba'); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba');
+        }
     };
 
     const handleSign = async (entry: any) => {
-        if (!entry.id) { toast.error('Nejdřív uložte záznam'); return; }
+        if (!entry.id) {
+            toast.error('Nejdřív uložte záznam');
+            return;
+        }
         try {
             await signClassBookEntry(entry.id);
             toast.success('Podepsáno');
             loadEntries();
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba'); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba');
+        }
     };
 
     const handlePrint = () => {
@@ -90,14 +101,21 @@ export default function ClassBook() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <BookOpen className="h-6 w-6" />Třídní kniha
+                        <BookOpen className="h-6 w-6" />
+                        Třídní kniha
                     </h1>
                     <p className="text-muted-foreground">Elektronická třídní kniha s propojením na rozvrh</p>
                 </div>
                 <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
-                    <SelectTrigger className="w-44"><SelectValue placeholder="Vyberte třídu" /></SelectTrigger>
+                    <SelectTrigger className="w-44">
+                        <SelectValue placeholder="Vyberte třídu" />
+                    </SelectTrigger>
                     <SelectContent>
-                        {classrooms.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {classrooms.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -105,17 +123,41 @@ export default function ClassBook() {
             <div className="flex items-center gap-4">
                 <div className="space-y-1">
                     <Label>Datum</Label>
-                    <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-40" />
+                    <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
                 </div>
                 <div className="flex items-end gap-2 ml-auto">
-                    <div className="space-y-1"><Label>Tisk od</Label><Input type="date" value={printFrom} onChange={e => setPrintFrom(e.target.value)} className="w-36" /></div>
-                    <div className="space-y-1"><Label>do</Label><Input type="date" value={printTo} onChange={e => setPrintTo(e.target.value)} className="w-36" /></div>
-                    <Button variant="outline" onClick={handlePrint}><Printer className="h-4 w-4 mr-1" />Tisk</Button>
+                    <div className="space-y-1">
+                        <Label>Tisk od</Label>
+                        <Input
+                            type="date"
+                            value={printFrom}
+                            onChange={(e) => setPrintFrom(e.target.value)}
+                            className="w-36"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label>do</Label>
+                        <Input
+                            type="date"
+                            value={printTo}
+                            onChange={(e) => setPrintTo(e.target.value)}
+                            className="w-36"
+                        />
+                    </div>
+                    <Button variant="outline" onClick={handlePrint}>
+                        <Printer className="h-4 w-4 mr-1" />
+                        Tisk
+                    </Button>
                 </div>
             </div>
 
             <Card>
-                <CardHeader><CardTitle>Záznamy – {new Date(date).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}</CardTitle></CardHeader>
+                <CardHeader>
+                    <CardTitle>
+                        Záznamy –{' '}
+                        {new Date(date).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </CardTitle>
+                </CardHeader>
                 <CardContent>
                     {loading ? (
                         <p className="text-muted-foreground text-center py-8">Načítání…</p>
@@ -144,40 +186,86 @@ export default function ClassBook() {
                                         <TableCell>
                                             <Badge variant="outline">{e.subjectName || '-'}</Badge>
                                         </TableCell>
-                                        <TableCell className="text-sm">{e.teacher ? `${e.teacher.lastName} ${e.teacher.firstName}` : '-'}</TableCell>
+                                        <TableCell className="text-sm">
+                                            {e.teacher ? `${e.teacher.lastName} ${e.teacher.firstName}` : '-'}
+                                        </TableCell>
                                         <TableCell>
                                             {editingId === i ? (
-                                                <Textarea value={editForm.topic} onChange={ev => setEditForm(f => ({ ...f, topic: ev.target.value }))} rows={2} className="text-xs" />
+                                                <Textarea
+                                                    value={editForm.topic}
+                                                    onChange={(ev) =>
+                                                        setEditForm((f) => ({ ...f, topic: ev.target.value }))
+                                                    }
+                                                    rows={2}
+                                                    className="text-xs"
+                                                />
                                             ) : (
-                                                <span className="text-sm">{e.topic || <span className="text-muted-foreground italic">–</span>}</span>
+                                                <span className="text-sm">
+                                                    {e.topic || <span className="text-muted-foreground italic">–</span>}
+                                                </span>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {editingId === i ? (
-                                                <Textarea value={editForm.notes} onChange={ev => setEditForm(f => ({ ...f, notes: ev.target.value }))} rows={2} className="text-xs" />
+                                                <Textarea
+                                                    value={editForm.notes}
+                                                    onChange={(ev) =>
+                                                        setEditForm((f) => ({ ...f, notes: ev.target.value }))
+                                                    }
+                                                    rows={2}
+                                                    className="text-xs"
+                                                />
                                             ) : (
-                                                <span className="text-sm">{e.notes || <span className="text-muted-foreground italic">–</span>}</span>
+                                                <span className="text-sm">
+                                                    {e.notes || <span className="text-muted-foreground italic">–</span>}
+                                                </span>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {editingId === i ? (
-                                                <Input type="number" value={editForm.absentCount} onChange={ev => setEditForm(f => ({ ...f, absentCount: ev.target.value }))} className="w-14 text-xs" />
+                                                <Input
+                                                    type="number"
+                                                    value={editForm.absentCount}
+                                                    onChange={(ev) =>
+                                                        setEditForm((f) => ({ ...f, absentCount: ev.target.value }))
+                                                    }
+                                                    className="w-14 text-xs"
+                                                />
                                             ) : (
                                                 <span className="text-sm">{e.absentCount ?? '-'}</span>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {e.signature ? (
-                                                <Badge className="text-xs gap-1"><Check className="h-3 w-3" />Podepsáno</Badge>
+                                                <Badge className="text-xs gap-1">
+                                                    <Check className="h-3 w-3" />
+                                                    Podepsáno
+                                                </Badge>
                                             ) : (
-                                                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => handleSign(e)}>Podepsat</Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-6 text-xs"
+                                                    onClick={() => handleSign(e)}
+                                                >
+                                                    Podepsat
+                                                </Button>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {editingId === i ? (
-                                                <Button size="sm" className="h-6 text-xs" onClick={() => handleSave(e)}><Save className="h-3 w-3" /></Button>
+                                                <Button size="sm" className="h-6 text-xs" onClick={() => handleSave(e)}>
+                                                    <Save className="h-3 w-3" />
+                                                </Button>
                                             ) : (
-                                                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => handleEdit(i)}>Upravit</Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-6 text-xs"
+                                                    onClick={() => handleEdit(i)}
+                                                >
+                                                    Upravit
+                                                </Button>
                                             )}
                                         </TableCell>
                                     </TableRow>

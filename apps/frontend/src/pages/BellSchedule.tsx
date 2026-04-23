@@ -23,8 +23,8 @@ export default function BellSchedule() {
                 // Create default 8 slots
                 const defaults = Array.from({ length: 8 }, (_, i) => ({
                     lessonNumber: i + 1,
-                    startTime: `${String(8 + Math.floor(i * 55 / 60)).padStart(2, '0')}:${String((i * 55) % 60).padStart(2, '0')}`,
-                    endTime: `${String(8 + Math.floor((i * 55 + 45) / 60)).padStart(2, '0')}:${String(((i * 55 + 45)) % 60).padStart(2, '0')}`,
+                    startTime: `${String(8 + Math.floor((i * 55) / 60)).padStart(2, '0')}:${String((i * 55) % 60).padStart(2, '0')}`,
+                    endTime: `${String(8 + Math.floor((i * 55 + 45) / 60)).padStart(2, '0')}:${String((i * 55 + 45) % 60).padStart(2, '0')}`,
                     label: `${i + 1}. hodina`,
                     breakAfter: i === 1 ? 20 : 10,
                 }));
@@ -32,41 +32,54 @@ export default function BellSchedule() {
             } else {
                 setSlots(data);
             }
-        } catch { toast.error('Nepodařilo se načíst zvonění'); }
-        finally { setLoading(false); }
+        } catch {
+            toast.error('Nepodařilo se načíst zvonění');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        load();
+    }, []);
 
     const updateSlot = (index: number, field: string, value: string | number) => {
-        setSlots(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+        setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await upsertTimeSlots(slots.map(s => ({
-                lessonNumber: s.lessonNumber,
-                startTime: s.startTime,
-                endTime: s.endTime,
-                label: s.label || undefined,
-                breakAfter: s.breakAfter ?? 10,
-            })));
+            await upsertTimeSlots(
+                slots.map((s) => ({
+                    lessonNumber: s.lessonNumber,
+                    startTime: s.startTime,
+                    endTime: s.endTime,
+                    label: s.label || undefined,
+                    breakAfter: s.breakAfter ?? 10,
+                })),
+            );
             toast.success('Zvonění uloženo');
             load();
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba při ukládání'); }
-        finally { setSaving(false); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba při ukládání');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const addSlot = () => {
         const next = slots.length + 1;
-        setSlots(prev => [...prev, {
-            lessonNumber: next,
-            startTime: '14:00',
-            endTime: '14:45',
-            label: `${next}. hodina`,
-            breakAfter: 10,
-        }]);
+        setSlots((prev) => [
+            ...prev,
+            {
+                lessonNumber: next,
+                startTime: '14:00',
+                endTime: '14:45',
+                label: `${next}. hodina`,
+                breakAfter: 10,
+            },
+        ]);
     };
 
     return (
@@ -77,20 +90,26 @@ export default function BellSchedule() {
                     <p className="text-muted-foreground">Nastavení časů vyučovacích hodin a přestávek</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={addSlot}>+ Hodina</Button>
+                    <Button variant="outline" onClick={addSlot}>
+                        + Hodina
+                    </Button>
                     <Button onClick={handleSave} disabled={saving}>
-                        <Save className="h-4 w-4 mr-2" />{saving ? 'Ukládám...' : 'Uložit'}
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Ukládám...' : 'Uložit'}
                     </Button>
                 </div>
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    {t('common.loading')}
+                </div>
             ) : (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Clock className="h-5 w-5" />Přehled zvonění
+                            <Clock className="h-5 w-5" />
+                            Přehled zvonění
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -111,7 +130,7 @@ export default function BellSchedule() {
                                         <TableCell>
                                             <Input
                                                 value={slot.label || ''}
-                                                onChange={e => updateSlot(i, 'label', e.target.value)}
+                                                onChange={(e) => updateSlot(i, 'label', e.target.value)}
                                                 placeholder={`${slot.lessonNumber}. hodina`}
                                                 className="w-40"
                                             />
@@ -120,7 +139,7 @@ export default function BellSchedule() {
                                             <Input
                                                 type="time"
                                                 value={slot.startTime}
-                                                onChange={e => updateSlot(i, 'startTime', e.target.value)}
+                                                onChange={(e) => updateSlot(i, 'startTime', e.target.value)}
                                                 className="w-28"
                                             />
                                         </TableCell>
@@ -128,7 +147,7 @@ export default function BellSchedule() {
                                             <Input
                                                 type="time"
                                                 value={slot.endTime}
-                                                onChange={e => updateSlot(i, 'endTime', e.target.value)}
+                                                onChange={(e) => updateSlot(i, 'endTime', e.target.value)}
                                                 className="w-28"
                                             />
                                         </TableCell>
@@ -136,7 +155,9 @@ export default function BellSchedule() {
                                             <Input
                                                 type="number"
                                                 value={slot.breakAfter ?? 10}
-                                                onChange={e => updateSlot(i, 'breakAfter', parseInt(e.target.value) || 0)}
+                                                onChange={(e) =>
+                                                    updateSlot(i, 'breakAfter', parseInt(e.target.value) || 0)
+                                                }
                                                 className="w-20"
                                                 min={0}
                                                 max={60}
@@ -154,8 +175,12 @@ export default function BellSchedule() {
                                 {slots.map((slot, i) => (
                                     <div key={i} className="flex items-center gap-1">
                                         <div className="bg-primary/10 border border-primary/30 rounded px-3 py-2 text-xs text-center">
-                                            <div className="font-semibold">{slot.label || `${slot.lessonNumber}. hod`}</div>
-                                            <div className="text-muted-foreground">{slot.startTime}–{slot.endTime}</div>
+                                            <div className="font-semibold">
+                                                {slot.label || `${slot.lessonNumber}. hod`}
+                                            </div>
+                                            <div className="text-muted-foreground">
+                                                {slot.startTime}–{slot.endTime}
+                                            </div>
                                         </div>
                                         {i < slots.length - 1 && (
                                             <div className="text-xs text-muted-foreground px-1">

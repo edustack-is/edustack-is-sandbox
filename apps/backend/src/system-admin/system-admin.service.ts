@@ -3,26 +3,39 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { UserRole, UserStatus } from '@prisma/client';
+import { DatabaseService } from '../database/database.service';
+import {
+  UserRole,
+  UserStatus,
+  School,
+  AuditLog,
+  User,
+} from '../database/types';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import * as crypto from 'crypto';
 import { MailService } from '../mail/mail.service';
 
+export interface DashboardStats {
+  schoolCount: number;
+  userCount: number;
+  activeUserCount: number;
+  recentLogins: Array<AuditLog & { actor: Partial<User> }>;
+}
+
 @Injectable()
 export class SystemAdminService {
   constructor(
-    private prisma: PrismaService,
+    private db: DatabaseService,
     private mailService: MailService,
   ) {}
 
   async createSchool(dto: CreateSchoolDto) {
     const { schoolName, address, admin } = dto;
 
-    // Check name uniqueness among non-deleted schools
-    const existing = await this.prisma.school.findFirst({
-      where: { name: schoolName, deletedAt: null },
-    });
+    const existing = await this.db.queryOne<School>(
+      'SELECT id FROM "School" WHERE name = ? AND deletedAt IS NULL',
+      [schoolName],
+    );
     if (existing) {
       throw new BadRequestException(
         `Škola s názvem '${schoolName}' již existuje.`,
@@ -30,38 +43,44 @@ export class SystemAdminService {
     }
 
     if (admin.type === 'EXISTING') {
-      // Verify user exists
-      const user = await this.prisma.user.findUnique({
-        where: { id: admin.userId },
-      });
-      if (!user) {
+      const user = await this.db.queryOne<User>(
+        'SELECT id FROM "User" WHERE id = ?',
+        [admin.userId],
+      );
+      if (!user)
         throw new NotFoundException(`User with id ${admin.userId} not found`);
-      }
 
-      // Create school and membership in a transaction
-      return this.prisma.$transaction(async (tx: any) => {
-        const school = await tx.school.create({
-          data: { name: schoolName, address },
-        });
+      return this.db.transaction(async (db) => {
+        const schoolId = crypto.randomUUID();
+        await db.execute(
+          'INSERT INTO "School" (id, name, address, updatedAt) VALUES (?, ?, ?, ?)',
+          [schoolId, schoolName, address || null, new Date().toISOString()],
+        );
 
-        await tx.schoolMembership.create({
-          data: {
-            userId: user.id,
-            schoolId: school.id,
-            role: UserRole.PRINCIPAL,
-            status: UserStatus.ACTIVE,
-          },
-        });
+        await db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            user.id,
+            schoolId,
+            UserRole.PRINCIPAL,
+            UserStatus.ACTIVE,
+            new Date().toISOString(),
+          ],
+        );
 
-        return school;
+        return await db.queryOne<School>(
+          'SELECT * FROM "School" WHERE id = ?',
+          [schoolId],
+        );
       });
     }
 
     if (admin.type === 'NEW') {
-      // Check if email is already taken
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: admin.email },
-      });
+      const existingUser = await this.db.queryOne(
+        'SELECT id FROM "User" WHERE email = ?',
+        [admin.email],
+      );
       if (existingUser) {
         throw new BadRequestException(
           `User with email ${admin.email} already exists. Use type EXISTING instead.`,
@@ -69,42 +88,56 @@ export class SystemAdminService {
       }
 
       const invitationToken = crypto.randomBytes(32).toString('hex');
-      const invitationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const invitationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      return this.prisma.$transaction(async (tx: any) => {
-        const user = await tx.user.create({
-          data: {
-            email: admin.email,
-            firstName: admin.firstName,
-            lastName: admin.lastName,
+      return this.db.transaction(async (db) => {
+        const userId = crypto.randomUUID();
+        await db.execute(
+          'INSERT INTO "User" (id, email, firstName, lastName, invitationToken, invitationExpires, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            userId,
+            admin.email,
+            admin.firstName,
+            admin.lastName,
             invitationToken,
-            invitationExpires,
-          },
-        });
+            invitationExpires.toISOString(),
+            new Date().toISOString(),
+          ],
+        );
 
-        const school = await tx.school.create({
-          data: { name: schoolName, address },
-        });
+        const schoolId = crypto.randomUUID();
+        await db.execute(
+          'INSERT INTO "School" (id, name, address, updatedAt) VALUES (?, ?, ?, ?)',
+          [schoolId, schoolName, address || null, new Date().toISOString()],
+        );
 
-        await tx.schoolMembership.create({
-          data: {
-            userId: user.id,
-            schoolId: school.id,
-            role: UserRole.PRINCIPAL,
-            status: UserStatus.PENDING,
-          },
-        });
+        await db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            userId,
+            schoolId,
+            UserRole.PRINCIPAL,
+            UserStatus.PENDING,
+            new Date().toISOString(),
+          ],
+        );
 
-        // Send invitation email in background (don't await to avoid blocking transaction/response)
         this.mailService
           .sendInvitation(
-            user.email,
-            `${user.firstName} ${user.lastName}`,
+            admin.email,
+            `${admin.firstName} ${admin.lastName}`,
             invitationToken,
           )
           .catch((e) => console.error('Failed to send invitation email', e));
 
-        return { school, invitationToken };
+        return {
+          school: await db.queryOne<School>(
+            'SELECT * FROM "School" WHERE id = ?',
+            [schoolId],
+          ),
+          invitationToken,
+        };
       });
     }
 
@@ -112,59 +145,78 @@ export class SystemAdminService {
   }
 
   async getSchools() {
-    return this.prisma.school.findMany({
-      where: { deletedAt: null },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
+    // Get schools with their principals/deputies
+    const schools = await this.db.query<School>(
+      'SELECT * FROM "School" WHERE deletedAt IS NULL',
+    );
+    const result = [];
+
+    for (const school of schools) {
+      const members = await this.db.query(
+        `SELECT m.*, u.email, u.firstName, u.lastName 
+         FROM "SchoolMembership" m 
+         JOIN "User" u ON m.userId = u.id 
+         WHERE m.schoolId = ? AND m.role IN (?, ?)`,
+        [school.id, UserRole.PRINCIPAL, UserRole.DEPUTY],
+      );
+
+      result.push({
+        ...school,
+        members: members.map((m: any) => ({
+          ...m,
+          user: {
+            id: m.userId,
+            email: m.email,
+            firstName: m.firstName,
+            lastName: m.lastName,
           },
-          where: { role: { in: [UserRole.PRINCIPAL, UserRole.DEPUTY] } },
-        },
-      },
-    });
+        })),
+      });
+    }
+    return result;
   }
 
-  async getDashboardStats() {
-    const [schoolCount, userCount, activeUserCount, recentLogins] =
-      await Promise.all([
-        this.prisma.school.count({ where: { deletedAt: null } }),
-        this.prisma.user.count({ where: { deletedAt: null } }),
-        this.prisma.schoolMembership.count({
-          where: { status: UserStatus.ACTIVE },
-        }),
-        this.prisma.auditLog.findMany({
-          where: { action: 'LOGIN_SUCCESS' },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          select: {
-            id: true,
-            createdAt: true,
-            newValues: true,
-            actor: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        }),
-      ]);
+  async getDashboardStats(): Promise<DashboardStats> {
+    const [
+      schoolCountResult,
+      userCountResult,
+      activeMemberCountResult,
+      recentLogins,
+    ] = await Promise.all([
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "School" WHERE deletedAt IS NULL',
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "User" WHERE deletedAt IS NULL',
+      ),
+      this.db.queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE status = ?',
+        [UserStatus.ACTIVE],
+      ),
+      this.db.query<
+        AuditLog & { email: string; firstName: string; lastName: string }
+      >(
+        `SELECT a.*, u.email, u.firstName, u.lastName 
+         FROM "AuditLog" a 
+         JOIN "User" u ON a.actorId = u.id 
+         WHERE a.action = 'LOGIN_SUCCESS' 
+         ORDER BY a.createdAt DESC LIMIT 10`,
+      ),
+    ]);
 
     return {
-      schoolCount,
-      userCount,
-      activeUserCount,
-      recentLogins,
+      schoolCount: schoolCountResult?.count || 0,
+      userCount: userCountResult?.count || 0,
+      activeUserCount: activeMemberCountResult?.count || 0,
+      recentLogins: recentLogins.map((l) => ({
+        ...l,
+        actor: {
+          id: l.actorId,
+          email: l.email,
+          firstName: l.firstName,
+          lastName: l.lastName,
+        },
+      })),
     };
   }
 
@@ -180,19 +232,24 @@ export class SystemAdminService {
     },
     actorId: string,
   ) {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      include: {
-        members: { where: { role: UserRole.ADMIN }, include: { user: true } },
-      },
-    });
+    const school = await this.db.queryOne<School>(
+      'SELECT * FROM "School" WHERE id = ?',
+      [schoolId],
+    );
     if (!school) throw new NotFoundException('School not found');
 
-    const oldValues: any = {
+    const primaryAdminRow = await this.db.queryOne<{ email: string }>(
+      `SELECT u.email FROM "User" u 
+       JOIN "SchoolMembership" m ON u.id = m.userId 
+       WHERE m.schoolId = ? AND m.role = ? LIMIT 1`,
+      [schoolId, UserRole.ADMIN],
+    );
+
+    const oldValues = {
       name: school.name,
       address: school.address,
       requireSsoEmailMatch: school.requireSsoEmailMatch,
-      primaryAdmin: school.members[0]?.user?.email || null,
+      primaryAdmin: primaryAdminRow?.email || null,
     };
 
     const newValues: any = {};
@@ -206,28 +263,30 @@ export class SystemAdminService {
     )
       newValues.requireSsoEmailMatch = data.requireSsoEmailMatch;
 
-    return this.prisma.$transaction(async (tx: any) => {
-      // Update basic info
+    return this.db.transaction(async (db) => {
       if (Object.keys(newValues).length > 0) {
-        await tx.school.update({
-          where: { id: schoolId },
-          data: newValues,
-        });
+        const sets = Object.keys(newValues)
+          .map((k) => `"${k}" = ?`)
+          .join(', ');
+        await db.execute(
+          `UPDATE "School" SET ${sets}, updatedAt = ? WHERE id = ?`,
+          [...Object.values(newValues), new Date().toISOString(), schoolId],
+        );
       }
 
-      // Handle Admin Update
       if (data.admin) {
         let adminUser;
         if (data.admin.type === 'EXISTING') {
-          adminUser = await tx.user.findUnique({
-            where: { id: data.admin.userId },
-          });
+          adminUser = await db.queryOne<User>(
+            'SELECT * FROM "User" WHERE id = ?',
+            [data.admin.userId],
+          );
           if (!adminUser) throw new NotFoundException('Admin user not found');
         } else {
-          // Create new user (similar to createSchool)
-          const existing = await tx.user.findUnique({
-            where: { email: data.admin.email },
-          });
+          const existing = await db.queryOne<User>(
+            'SELECT * FROM "User" WHERE email = ?',
+            [data.admin.email],
+          );
           if (existing) {
             adminUser = existing;
           } else {
@@ -235,21 +294,28 @@ export class SystemAdminService {
             const invitationExpires = new Date(
               Date.now() + 7 * 24 * 60 * 60 * 1000,
             );
-            adminUser = await tx.user.create({
-              data: {
-                email: data.admin.email,
-                firstName: data.admin.firstName,
-                lastName: data.admin.lastName,
+            const userId = crypto.randomUUID();
+            await db.execute(
+              'INSERT INTO "User" (id, email, firstName, lastName, invitationToken, invitationExpires, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [
+                userId,
+                data.admin.email,
+                data.admin.firstName,
+                data.admin.lastName,
                 invitationToken,
-                invitationExpires,
-              },
-            });
+                invitationExpires.toISOString(),
+                new Date().toISOString(),
+              ],
+            );
+            adminUser = await db.queryOne<User>(
+              'SELECT * FROM "User" WHERE id = ?',
+              [userId],
+            );
 
-            // Send invitation email
             this.mailService
               .sendInvitation(
-                adminUser.email,
-                `${adminUser.firstName} ${adminUser.lastName}`,
+                adminUser!.email,
+                `${adminUser!.firstName} ${adminUser!.lastName}`,
                 invitationToken,
               )
               .catch((e) =>
@@ -258,60 +324,55 @@ export class SystemAdminService {
           }
         }
 
-        // Assign role (ensure it's the only ADMIN if we want a single primary, or just add him)
-        // For simplicity, we make this user an ADMIN.
-        await tx.schoolMembership.upsert({
-          where: { userId_schoolId: { userId: adminUser.id, schoolId } },
-          create: {
-            userId: adminUser.id,
-            schoolId,
-            role: UserRole.ADMIN,
-            status: adminUser.passwordHash
-              ? UserStatus.ACTIVE
-              : UserStatus.PENDING,
-          },
-          update: {
-            role: UserRole.ADMIN,
-            status: adminUser.passwordHash
-              ? UserStatus.ACTIVE
-              : UserStatus.PENDING,
-          },
-        });
-
-        newValues.primaryAdmin = adminUser.email;
+        const existingMembership = await db.queryOne(
+          'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?',
+          [adminUser!.id, schoolId],
+        );
+        if (existingMembership) {
+          await db.execute(
+            'UPDATE "SchoolMembership" SET role = ?, status = ?, updatedAt = ? WHERE id = ?',
+            [
+              UserRole.ADMIN,
+              adminUser!.passwordHash ? UserStatus.ACTIVE : UserStatus.PENDING,
+              new Date().toISOString(),
+              existingMembership.id,
+            ],
+          );
+        } else {
+          await db.execute(
+            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              adminUser!.id,
+              schoolId,
+              UserRole.ADMIN,
+              adminUser!.passwordHash ? UserStatus.ACTIVE : UserStatus.PENDING,
+              new Date().toISOString(),
+            ],
+          );
+        }
+        newValues.primaryAdmin = adminUser!.email;
       }
 
-      if (Object.keys(newValues).length === 0) return school;
+      if (Object.keys(newValues).length > 0) {
+        await db.execute(
+          'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, oldValues, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            actorId,
+            'UPDATE_SCHOOL_INFO',
+            'School',
+            schoolId,
+            JSON.stringify(oldValues),
+            JSON.stringify(newValues),
+            new Date().toISOString(),
+          ],
+        );
+      }
 
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          action: 'UPDATE_SCHOOL_INFO',
-          entity: 'School',
-          entityId: schoolId,
-          oldValues,
-          newValues,
-        },
-      });
-
-      return tx.school.findUnique({
-        where: { id: schoolId },
-        include: {
-          members: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-            where: { role: UserRole.ADMIN },
-          },
-        },
-      });
+      return await db.queryOne<School>('SELECT * FROM "School" WHERE id = ?', [
+        schoolId,
+      ]);
     });
   }
 
@@ -320,92 +381,46 @@ export class SystemAdminService {
     aiConfig?: any,
     ssoConfig?: any,
   ) {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-    });
+    const school = await this.db.queryOne(
+      'SELECT id FROM "School" WHERE id = ?',
+      [schoolId],
+    );
     if (!school) throw new NotFoundException('School not found');
 
-    return this.prisma.school.update({
-      where: { id: schoolId },
-      data: {
-        aiConfig: aiConfig ?? undefined,
-        ssoConfig: ssoConfig ?? undefined,
-      },
-    });
-  }
-
-  async assignSchoolAdmin(
-    schoolId: string,
-    email: string,
-    firstName: string,
-    lastName: string,
-  ) {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-    });
-    if (!school) throw new NotFoundException('School not found');
-
-    let user = await this.prisma.user.findUnique({ where: { email } });
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: { email, firstName, lastName },
-      });
-    }
-
-    const membership = await this.prisma.schoolMembership.findUnique({
-      where: { userId_schoolId: { userId: user.id, schoolId } },
-    });
-
-    if (membership) {
-      return this.prisma.schoolMembership.update({
-        where: { id: membership.id },
-        data: { role: UserRole.ADMIN, status: UserStatus.ACTIVE },
-      });
-    } else {
-      return this.prisma.schoolMembership.create({
-        data: {
-          userId: user.id,
-          schoolId,
-          role: UserRole.ADMIN,
-          status: UserStatus.ACTIVE,
-        },
-      });
-    }
+    await this.db.execute(
+      'UPDATE "School" SET aiConfig = ?, ssoConfig = ?, updatedAt = ? WHERE id = ?',
+      [
+        aiConfig ? JSON.stringify(aiConfig) : null,
+        ssoConfig ? JSON.stringify(ssoConfig) : null,
+        new Date().toISOString(),
+        schoolId,
+      ],
+    );
+    return await this.db.queryOne('SELECT * FROM "School" WHERE id = ?', [
+      schoolId,
+    ]);
   }
 
   async deleteSchool(schoolId: string) {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-    });
+    const school = await this.db.queryOne<School>(
+      'SELECT id, name FROM "School" WHERE id = ?',
+      [schoolId],
+    );
     if (!school) throw new NotFoundException('School not found');
     if (school.deletedAt)
       throw new BadRequestException('School is already deleted');
 
-    // Soft delete – just mark as deleted
-    await this.prisma.school.update({
-      where: { id: schoolId },
-      data: { deletedAt: new Date() },
-    });
-
+    await this.db.execute('UPDATE "School" SET deletedAt = ? WHERE id = ?', [
+      new Date().toISOString(),
+      schoolId,
+    ]);
     return { message: `Škola '${school.name}' byla úspěšně smazána.` };
   }
 
-  // ─── SYSTEM ADMIN MANAGEMENT ─────────────────────────────────────
-
   async getSystemAdmins() {
-    return this.prisma.user.findMany({
-      where: { isSystemAdmin: true, deletedAt: null },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        lastLogin: true,
-        createdAt: true,
-      },
-      orderBy: { lastName: 'asc' },
-    });
+    return this.db.query(
+      'SELECT id, email, firstName, lastName, lastLogin, createdAt FROM "User" WHERE isSystemAdmin = 1 AND deletedAt IS NULL ORDER BY lastName ASC',
+    );
   }
 
   async promoteToSysAdmin(
@@ -414,81 +429,85 @@ export class SystemAdminService {
     firstName?: string,
     lastName?: string,
   ) {
-    let user = await this.prisma.user.findUnique({ where: { email } });
+    let user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE email = ?',
+      [email],
+    );
 
     if (user && user.isSystemAdmin) {
       throw new BadRequestException('User is already a system admin.');
     }
 
     if (!user) {
-      // Create new user
-      if (!firstName || !lastName) {
+      if (!firstName || !lastName)
         throw new BadRequestException(
           'firstName and lastName are required for new users.',
         );
-      }
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          firstName,
-          lastName,
-          isSystemAdmin: true,
-        },
-      });
+      const id = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "User" (id, email, firstName, lastName, isSystemAdmin, createdAt) VALUES (?, ?, ?, ?, 1, ?)',
+        [id, email, firstName, lastName, new Date().toISOString()],
+      );
+      user = await this.db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [
+        id,
+      ]);
     } else {
-      // Promote existing user
-      user = await this.prisma.user.update({
-        where: { id: user.id },
-        data: { isSystemAdmin: true },
-      });
+      await this.db.execute(
+        'UPDATE "User" SET isSystemAdmin = 1 WHERE id = ?',
+        [user.id],
+      );
+      user.isSystemAdmin = true;
     }
 
-    // Audit
-    await this.prisma.auditLog.create({
-      data: {
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
         actorId,
-        action: 'PROMOTE_SYS_ADMIN',
-        entity: 'User',
-        entityId: user.id,
-        newValues: { email: user.email, isSystemAdmin: true },
-      },
-    });
+        'PROMOTE_SYS_ADMIN',
+        'User',
+        user!.id,
+        JSON.stringify({ email: user!.email, isSystemAdmin: true }),
+        new Date().toISOString(),
+      ],
+    );
 
     return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      id: user!.id,
+      email: user!.email,
+      firstName: user!.firstName,
+      lastName: user!.lastName,
     };
   }
 
   async removeSystemAdmin(actorId: string, targetUserId: string) {
-    if (actorId === targetUserId) {
+    if (actorId === targetUserId)
       throw new BadRequestException('Cannot remove yourself.');
-    }
-
-    const target = await this.prisma.user.findUnique({
-      where: { id: targetUserId },
-    });
+    const target = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE id = ?',
+      [targetUserId],
+    );
     if (!target) throw new NotFoundException('User not found.');
     if (target.deletedAt)
       throw new BadRequestException('User is already removed.');
 
-    await this.prisma.user.update({
-      where: { id: targetUserId },
-      data: { deletedAt: new Date() },
-    });
+    await this.db.execute('UPDATE "User" SET deletedAt = ? WHERE id = ?', [
+      new Date().toISOString(),
+      targetUserId,
+    ]);
 
-    // Audit
-    await this.prisma.auditLog.create({
-      data: {
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
         actorId,
-        action: 'REMOVE_SYS_ADMIN',
-        entity: 'User',
-        entityId: targetUserId,
-        newValues: { email: target.email, deletedAt: true },
-      },
-    });
+        'REMOVE_SYS_ADMIN',
+        'User',
+        targetUserId,
+        JSON.stringify({ email: target.email, deletedAt: true }),
+        new Date().toISOString(),
+      ],
+    );
 
     return { message: `User ${target.email} has been removed.` };
   }

@@ -1,55 +1,50 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class PrincipalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   /**
    * Returns paginated audit log entries for the given school.
-   * Accessible only by Principal and System Admin.
    */
   async getAuditLogs(schoolId: string, page: number = 1, limit: number = 20) {
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
 
-    // Get audit logs for entities within this school or global actions
-    // We filter by actorId being a member of this school
-    const [logs, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where: {
-          actor: {
-            schoolMemberships: {
-              some: { schoolId },
-            },
-          },
-        },
-        include: {
-          actor: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          actor: {
-            schoolMemberships: {
-              some: { schoolId },
-            },
-          },
-        },
-      }),
+    const sql = `
+      SELECT al.*, u.email, u.firstName, u.lastName 
+      FROM "AuditLog" al 
+      JOIN "User" u ON al.actorId = u.id 
+      JOIN "SchoolMembership" m ON u.id = m.userId 
+      WHERE m.schoolId = ? 
+      ORDER BY al.createdAt DESC LIMIT ? OFFSET ?
+    `;
+
+    const countSql = `
+      SELECT COUNT(*) as count 
+      FROM "AuditLog" al 
+      JOIN "User" u ON al.actorId = u.id 
+      JOIN "SchoolMembership" m ON u.id = m.userId 
+      WHERE m.schoolId = ?
+    `;
+
+    const [logs, countResult] = await Promise.all([
+      this.db.query(sql, [schoolId, limit, offset]),
+      this.db.queryOne<{ count: number }>(countSql, [schoolId]),
     ]);
 
+    const total = countResult?.count || 0;
+
     return {
-      data: logs,
+      data: (logs as any[]).map((l) => ({
+        ...l,
+        actor: {
+          id: l.actorId,
+          email: l.email,
+          firstName: l.firstName,
+          lastName: l.lastName,
+        },
+      })),
       total,
       page,
       limit,

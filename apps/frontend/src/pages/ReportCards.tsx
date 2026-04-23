@@ -1,39 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
-import {
-    getReportCards,
-    upsertReportCard,
-    polishVerbalEvaluation,
-    api,
-} from '@/api';
+import { getReportCards, upsertReportCard, polishVerbalEvaluation, api } from '@/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import {
-    FileText, Sparkles, CheckCircle, AlertCircle, Printer,
-} from 'lucide-react';
+import { FileText, Sparkles, CheckCircle, AlertCircle, Printer } from 'lucide-react';
 
-interface ClassroomOption { id: string; name: string; grade: number; }
-interface SemesterOption { id: string; name: string; number: number; }
+interface ClassroomOption {
+    id: string;
+    name: string;
+    grade: number;
+}
+interface SemesterOption {
+    id: string;
+    name: string;
+    number: number;
+}
 
-interface SubjectBrief { id: string; name: string; code: string; }
+interface SubjectBrief {
+    id: string;
+    name: string;
+    code: string;
+}
 
 interface ReportCardEntry {
     id?: string;
@@ -93,7 +86,7 @@ export const ReportCards: React.FC = () => {
         if (!schoolId) return;
 
         api.get('/api/deputy/classrooms')
-            .then(res => {
+            .then((res) => {
                 const data = Array.isArray(res.data) ? res.data : [];
                 setClassrooms(data);
                 if (data.length > 0 && !selectedClassroomId) setSelectedClassroomId(data[0].id);
@@ -101,12 +94,12 @@ export const ReportCards: React.FC = () => {
             .catch(() => setClassrooms([]));
 
         api.get('/api/deputy/academic-years')
-            .then(res => {
+            .then((res) => {
                 const years = Array.isArray(res.data) ? res.data : [];
                 const current = years.find((y: any) => y.isCurrent);
                 if (current?.id) {
                     api.get(`/api/deputy/semesters`, { params: { academicYearId: current.id } })
-                        .then(semRes => {
+                        .then((semRes) => {
                             const sems = Array.isArray(semRes.data) ? semRes.data : [];
                             setSemesters(sems);
                             if (sems.length > 0 && !selectedSemesterId) setSelectedSemesterId(sems[0].id);
@@ -141,7 +134,7 @@ export const ReportCards: React.FC = () => {
     // ─── Handlers ───────────────────────────────────────────
 
     const openEditDialog = (student: StudentReportData, subjectInstanceId: string, subjectName: string) => {
-        const subEntry = student.subjects.find(s => s.subjectInstanceId === subjectInstanceId);
+        const subEntry = student.subjects.find((s) => s.subjectInstanceId === subjectInstanceId);
         setEditGrade(subEntry?.reportCard?.finalGrade || '');
         setEditVerbal(subEntry?.reportCard?.verbalEvaluation || '');
         setEditDialog({ student, subjectInstanceId, subjectName });
@@ -198,7 +191,7 @@ export const ReportCards: React.FC = () => {
 
     const getCompleteness = (student: StudentReportData) => {
         const total = subjects.length;
-        const filled = student.subjects.filter(s => s.reportCard?.finalGrade).length;
+        const filled = student.subjects.filter((s) => s.reportCard?.finalGrade).length;
         return { filled, total, complete: filled === total };
     };
 
@@ -219,8 +212,10 @@ export const ReportCards: React.FC = () => {
                             <SelectValue placeholder="Třída..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {classrooms.map(c => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            {classrooms.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -230,8 +225,10 @@ export const ReportCards: React.FC = () => {
                             <SelectValue placeholder="Pololetí..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {semesters.map(s => (
-                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            {semesters.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                    {s.name}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -251,9 +248,7 @@ export const ReportCards: React.FC = () => {
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <FileText className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                        <p className="text-lg font-medium">
-                            Vyberte třídu a pololetí pro přípravu vysvědčení.
-                        </p>
+                        <p className="text-lg font-medium">Vyberte třídu a pololetí pro přípravu vysvědčení.</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -265,7 +260,7 @@ export const ReportCards: React.FC = () => {
                                     <th className="text-left p-2 font-medium sticky left-0 bg-muted/50 z-10 min-w-[160px]">
                                         Student
                                     </th>
-                                    {subjects.map(sub => (
+                                    {subjects.map((sub) => (
                                         <th key={sub.id} className="text-center p-2 font-medium min-w-[70px] text-xs">
                                             {sub.code}
                                         </th>
@@ -279,24 +274,34 @@ export const ReportCards: React.FC = () => {
                                     .map((student, idx) => {
                                         const { filled, total, complete } = getCompleteness(student);
                                         return (
-                                            <tr key={student.id} className={`border-t ${idx % 2 === 0 ? '' : 'bg-muted/20'} hover:bg-muted/30`}>
+                                            <tr
+                                                key={student.id}
+                                                className={`border-t ${idx % 2 === 0 ? '' : 'bg-muted/20'} hover:bg-muted/30`}
+                                            >
                                                 <td className="p-2 font-medium sticky left-0 bg-background z-10">
                                                     {student.lastName} {student.firstName}
                                                 </td>
-                                                {subjects.map(sub => {
-                                                    const entry = student.subjects.find(s => s.subjectInstanceId === sub.id);
+                                                {subjects.map((sub) => {
+                                                    const entry = student.subjects.find(
+                                                        (s) => s.subjectInstanceId === sub.id,
+                                                    );
                                                     const finalGrade = entry?.reportCard?.finalGrade;
                                                     const hasVerbal = !!entry?.reportCard?.verbalEvaluation;
-                                                    const gradeInfo = FINAL_GRADES.find(g => g.value === finalGrade);
+                                                    const gradeInfo = FINAL_GRADES.find((g) => g.value === finalGrade);
 
                                                     return (
                                                         <td key={sub.id} className="p-1 text-center">
                                                             <button
                                                                 className="w-full p-1 rounded hover:bg-muted/40 transition-colors"
-                                                                onClick={() => openEditDialog(student, sub.id, sub.name)}
+                                                                onClick={() =>
+                                                                    openEditDialog(student, sub.id, sub.name)
+                                                                }
                                                             >
                                                                 {finalGrade ? (
-                                                                    <Badge variant="outline" className={`${gradeInfo?.color || ''} text-xs`}>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={`${gradeInfo?.color || ''} text-xs`}
+                                                                    >
                                                                         {finalGrade}
                                                                     </Badge>
                                                                 ) : (
@@ -306,7 +311,12 @@ export const ReportCards: React.FC = () => {
                                                                 )}
                                                                 {hasVerbal && (
                                                                     <div className="mt-0.5">
-                                                                        <Badge variant="secondary" className="text-[9px] px-1 py-0">S</Badge>
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="text-[9px] px-1 py-0"
+                                                                        >
+                                                                            S
+                                                                        </Badge>
                                                                     </div>
                                                                 )}
                                                             </button>
@@ -315,11 +325,17 @@ export const ReportCards: React.FC = () => {
                                                 })}
                                                 <td className="p-2 text-center">
                                                     {complete ? (
-                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="bg-green-50 text-green-700 border-green-300"
+                                                        >
                                                             <CheckCircle className="h-3 w-3 mr-1" /> Hotovo
                                                         </Badge>
                                                     ) : (
-                                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="bg-amber-50 text-amber-700 border-amber-300"
+                                                        >
                                                             <AlertCircle className="h-3 w-3 mr-1" /> {filled}/{total}
                                                         </Badge>
                                                     )}
@@ -336,7 +352,9 @@ export const ReportCards: React.FC = () => {
             {/* ─── Edit Report Card Dialog ───────────────── */}
             <Dialog
                 open={!!editDialog}
-                onOpenChange={(open) => { if (!open) setEditDialog(null); }}
+                onOpenChange={(open) => {
+                    if (!open) setEditDialog(null);
+                }}
             >
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
@@ -347,36 +365,40 @@ export const ReportCards: React.FC = () => {
 
                     <div className="space-y-4">
                         {/* Weighted average hint */}
-                        {editDialog && (() => {
-                            const entry = editDialog.student.subjects.find(s => s.subjectInstanceId === editDialog.subjectInstanceId);
-                            return entry?.average ? (
-                                <div className="text-sm text-muted-foreground bg-muted/30 rounded p-2">
-                                    Vážený průměr známek: <strong>{entry.average}</strong>
-                                    {!editGrade && (
-                                        <Button
-                                            variant="link"
-                                            size="sm"
-                                            className="ml-2 h-auto p-0"
-                                            onClick={() => setEditGrade(String(Math.round(entry.average)))}
-                                        >
-                                            Použít jako návrh
-                                        </Button>
-                                    )}
-                                </div>
-                            ) : null;
-                        })()}
+                        {editDialog &&
+                            (() => {
+                                const entry = editDialog.student.subjects.find(
+                                    (s) => s.subjectInstanceId === editDialog.subjectInstanceId,
+                                );
+                                return entry?.average ? (
+                                    <div className="text-sm text-muted-foreground bg-muted/30 rounded p-2">
+                                        Vážený průměr známek: <strong>{entry.average}</strong>
+                                        {!editGrade && (
+                                            <Button
+                                                variant="link"
+                                                size="sm"
+                                                className="ml-2 h-auto p-0"
+                                                onClick={() => setEditGrade(String(Math.round(entry.average)))}
+                                            >
+                                                Použít jako návrh
+                                            </Button>
+                                        )}
+                                    </div>
+                                ) : null;
+                            })()}
 
                         {/* Final grade */}
                         <div>
                             <label className="text-sm font-medium">Závěrečná známka</label>
                             <div className="flex gap-2 mt-1">
-                                {FINAL_GRADES.map(g => (
+                                {FINAL_GRADES.map((g) => (
                                     <button
                                         key={g.value}
-                                        className={`w-9 h-9 rounded-lg border text-sm font-bold transition-all ${editGrade === g.value
-                                            ? `${g.color} ring-2 ring-primary scale-110`
-                                            : 'bg-muted/30 hover:bg-muted text-muted-foreground'
-                                            }`}
+                                        className={`w-9 h-9 rounded-lg border text-sm font-bold transition-all ${
+                                            editGrade === g.value
+                                                ? `${g.color} ring-2 ring-primary scale-110`
+                                                : 'bg-muted/30 hover:bg-muted text-muted-foreground'
+                                        }`}
                                         onClick={() => setEditGrade(g.value)}
                                     >
                                         {g.value}
@@ -398,7 +420,7 @@ export const ReportCards: React.FC = () => {
                             <label className="text-sm font-medium">Slovní hodnocení na vysvědčení</label>
                             <Textarea
                                 value={editVerbal}
-                                onChange={e => setEditVerbal(e.target.value)}
+                                onChange={(e) => setEditVerbal(e.target.value)}
                                 placeholder="Napište slovní hodnocení pro vysvědčení..."
                                 rows={4}
                                 className="mt-1"
@@ -417,7 +439,9 @@ export const ReportCards: React.FC = () => {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditDialog(null)}>Zrušit</Button>
+                        <Button variant="outline" onClick={() => setEditDialog(null)}>
+                            Zrušit
+                        </Button>
                         <Button onClick={handleSave} disabled={saving}>
                             {saving ? 'Ukládám...' : 'Uložit'}
                         </Button>

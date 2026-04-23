@@ -9,8 +9,12 @@ test.describe('Navigation & Dashboard', () => {
 
     test('F008, F067 - Role-based permissions: admin sees expected side-menu', async ({ page }) => {
         // F008: Role-based přístup | F067: Dashboard systému
-        await expect(page.getByText('Schools', { exact: true }).or(page.getByText('Školy', { exact: true }))).toBeVisible();
-        await expect(page.getByText('Users', { exact: true }).or(page.getByText('Uživatelé', { exact: true }))).toBeVisible();
+        await expect(
+            page.getByText('Schools', { exact: true }).or(page.getByText('Školy', { exact: true })),
+        ).toBeVisible();
+        await expect(
+            page.getByText('Users', { exact: true }).or(page.getByText('Uživatelé', { exact: true })),
+        ).toBeVisible();
 
         // Na rozdíl od učitele admin typicky nevidí klasifikaci na globální úrovni (pokud není ve škole)
         await expect(page.getByText('Klasifikace')).toBeHidden();
@@ -35,7 +39,7 @@ test.describe('Navigation & Dashboard', () => {
         // F005: Výběr školy po přihlášení
         const schoolSelector = page.getByRole('button').filter({ hasText: /Select School|Vyberte školu/i });
         // Jen pokud Selector existuje u daného uživatele (má víc škol)
-        if (await schoolSelector.isVisible() && await schoolSelector.isEnabled()) {
+        if ((await schoolSelector.isVisible()) && (await schoolSelector.isEnabled())) {
             await schoolSelector.click();
             // Očekává dropdown
             await expect(page.getByRole('dialog')).toBeVisible();

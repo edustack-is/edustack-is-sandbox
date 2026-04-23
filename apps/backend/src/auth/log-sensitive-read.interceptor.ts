@@ -6,14 +6,15 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, tap } from 'rxjs';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { LOG_SENSITIVE_READ_KEY } from './log-sensitive-read.decorator';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class LogSensitiveReadInterceptor implements NestInterceptor {
   constructor(
     private reflector: Reflector,
-    private prisma: PrismaService,
+    private db: DatabaseService,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -28,8 +29,7 @@ export class LogSensitiveReadInterceptor implements NestInterceptor {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    const ip =
-      request.headers['x-forwarded-for'] || request.connection.remoteAddress;
+    const ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
     const userAgent = request.headers['user-agent'];
     const method = request.method;
     const url = request.url;
@@ -38,17 +38,21 @@ export class LogSensitiveReadInterceptor implements NestInterceptor {
       tap(async () => {
         if (user) {
           try {
-            await this.prisma.auditLog.create({
-              data: {
-                action: 'READ_SENSITIVE',
-                actorId: user.id || user.sub, // user object from JWT strategy usually has id (if sub is mapped) or sub
-                entity: 'Endpoint',
-                entityId: `${method} ${url}`,
-                ipAddress: ip as string,
-                userAgent: userAgent,
-                newValues: { userAccessed: user.email },
-              },
-            });
+            const actorId = user.id || user.sub;
+            await this.db.execute(
+              'INSERT INTO "AuditLog" (id, action, actorId, entity, entityId, ipAddress, userAgent, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [
+                crypto.randomUUID(),
+                'READ_SENSITIVE',
+                actorId,
+                'Endpoint',
+                `${method} ${url}`,
+                (ip as string) || null,
+                userAgent || null,
+                JSON.stringify({ userAccessed: user.email }),
+                new Date().toISOString(),
+              ],
+            );
           } catch (e) {
             console.error('Failed to log sensitive read', e);
           }

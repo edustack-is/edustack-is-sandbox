@@ -13,10 +13,10 @@ Aplikace: http://localhost:5173 (proxy na backend http://localhost:3000)
 
 ## Hlavní příkazy
 
-| Příkaz | Popis |
-|--------|-------|
-| `npm run dev` | Vývoj s HMR |
-| `npm run build` | Produkční build |
+| Příkaz            | Popis                     |
+| ----------------- | ------------------------- |
+| `npm run dev`     | Vývoj s HMR               |
+| `npm run build`   | Produkční build           |
 | `npm run preview` | Náhled produkčního buildu |
 
 ## Technologie

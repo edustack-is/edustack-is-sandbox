@@ -20,9 +20,10 @@ export const InlineLanguageSwitcher: React.FC = () => {
                     onClick={() => i18n.changeLanguage(lang.code)}
                     className={`
                         flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors
-                        ${currentLang === lang.code
-                            ? 'bg-primary/10 text-primary'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                        ${
+                            currentLang === lang.code
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                         }
                     `}
                 >

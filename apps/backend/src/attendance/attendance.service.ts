@@ -3,11 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
+import {
+  Attendance,
+  StudentProfile,
+  User,
+  Classroom,
+  AbsenceExcuse,
+  ParentStudent,
+} from '../database/types';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AttendanceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   // ─── RECORD ATTENDANCE (per lesson) ─────────────────────────
 
@@ -21,44 +30,59 @@ export class AttendanceService {
       records: Array<{ studentId: string; status: string; note?: string }>;
     },
   ) {
-    const teacherProfile = await this.prisma.teacherProfile.findUnique({
-      where: { userId },
-    });
-    if (!teacherProfile)
-      throw new NotFoundException('Teacher profile not found');
+    const teacher = await this.db.queryOne(
+      'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+      [userId],
+    );
+    if (!teacher) throw new NotFoundException('Teacher profile not found');
 
-    const classroom = await this.prisma.classroom.findUnique({
-      where: { id: data.classroomId },
-      include: { students: { select: { id: true } } },
-    });
-    if (!classroom || classroom.schoolId !== schoolId)
+    const classroom = await this.db.queryOne(
+      'SELECT id, schoolId FROM "Classroom" WHERE id = ?',
+      [data.classroomId],
+    );
+    if (!classroom || (classroom as any).schoolId !== schoolId)
       throw new NotFoundException('Classroom not found');
 
     const results = [];
     for (const rec of data.records) {
-      const result = await this.prisma.attendance.upsert({
-        where: {
-          studentId_date_lessonNumber_schoolId: {
-            studentId: rec.studentId,
-            date: new Date(data.date),
-            lessonNumber: data.lessonNumber,
-            schoolId,
-          },
-        },
-        update: { status: rec.status as any, note: rec.note },
-        create: {
-          date: new Date(data.date),
-          lessonNumber: data.lessonNumber,
-          status: rec.status as any,
-          note: rec.note,
-          studentId: rec.studentId,
-          teacherId: teacherProfile.id,
+      const existing = await this.db.queryOne(
+        'SELECT id FROM "Attendance" WHERE studentId = ? AND date = ? AND lessonNumber = ? AND schoolId = ?',
+        [
+          rec.studentId,
+          new Date(data.date).toISOString(),
+          data.lessonNumber,
           schoolId,
-        },
-      });
-      results.push(result);
+        ],
+      );
 
-      // Auto-notify parents on ABSENT
+      let id: string;
+      if (existing) {
+        id = (existing as any).id;
+        await this.db.execute(
+          'UPDATE "Attendance" SET status = ?, note = ? WHERE id = ?',
+          [rec.status, rec.note || null, id],
+        );
+      } else {
+        id = crypto.randomUUID();
+        await this.db.execute(
+          'INSERT INTO "Attendance" (id, date, lessonNumber, status, note, studentId, teacherId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            id,
+            new Date(data.date).toISOString(),
+            data.lessonNumber,
+            rec.status,
+            rec.note || null,
+            rec.studentId,
+            (teacher as any).id,
+            schoolId,
+            new Date().toISOString(),
+          ],
+        );
+      }
+      results.push(
+        await this.db.queryOne('SELECT * FROM "Attendance" WHERE id = ?', [id]),
+      );
+
       if (rec.status === 'ABSENT') {
         await this.notifyParentsAboutAbsence(
           rec.studentId,
@@ -77,29 +101,36 @@ export class AttendanceService {
     classroomId: string,
     date: string,
   ) {
-    const classroom = await this.prisma.classroom.findUnique({
-      where: { id: classroomId },
-      include: {
-        students: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-      },
-    });
-    if (!classroom || classroom.schoolId !== schoolId)
+    const classroom = await this.db.queryOne(
+      'SELECT id, name, schoolId FROM "Classroom" WHERE id = ?',
+      [classroomId],
+    );
+    if (!classroom || (classroom as any).schoolId !== schoolId)
       throw new NotFoundException('Classroom not found');
 
-    const records = await this.prisma.attendance.findMany({
-      where: {
+    const students = await this.db.query(
+      `SELECT sp.*, u.firstName as uFN, u.lastName as uLN FROM "StudentProfile" sp 
+       JOIN "User" u ON sp.userId = u.id WHERE sp.classroomId = ?`,
+      [classroomId],
+    );
+
+    const records = await this.db.query(
+      'SELECT * FROM "Attendance" WHERE schoolId = ? AND date = ? AND studentId IN (' +
+        students.map(() => '?').join(',') +
+        ') ORDER BY lessonNumber ASC',
+      [
         schoolId,
-        studentId: { in: classroom.students.map((s: any) => s.id) },
-        date: new Date(date),
-      },
-      orderBy: [{ lessonNumber: 'asc' }],
-    });
+        new Date(date).toISOString(),
+        ...students.map((s) => (s as any).id),
+      ],
+    );
 
     return {
-      classroom: { id: classroom.id, name: classroom.name },
-      students: classroom.students,
+      classroom: { id: (classroom as any).id, name: (classroom as any).name },
+      students: students.map((s: any) => ({
+        ...s,
+        user: { firstName: s.uFN, lastName: s.uLN },
+      })),
       records,
     };
   }
@@ -116,61 +147,80 @@ export class AttendanceService {
       dateTo: string;
     },
   ) {
-    // Verify parent-student relationship
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: data.studentId },
-    });
+    const student = await this.db.queryOne<StudentProfile>(
+      'SELECT * FROM "StudentProfile" WHERE id = ?',
+      [data.studentId],
+    );
     if (!student) throw new NotFoundException('Student not found');
 
-    const relation = await this.prisma.parentStudent.findFirst({
-      where: { parentId, studentId: student.userId },
-    });
+    const relation = await this.db.queryOne(
+      'SELECT id FROM "ParentStudent" WHERE parentId = ? AND studentId = ?',
+      [parentId, student.userId],
+    );
     if (!relation)
       throw new BadRequestException('You are not a parent of this student');
 
-    return this.prisma.absenceExcuse.create({
-      data: {
-        reason: data.reason,
-        dateFrom: new Date(data.dateFrom),
-        dateTo: new Date(data.dateTo),
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "AbsenceExcuse" (id, reason, dateFrom, dateTo, status, parentId, studentId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.reason,
+        new Date(data.dateFrom).toISOString(),
+        new Date(data.dateTo).toISOString(),
+        'PENDING',
         parentId,
-        studentId: data.studentId,
+        data.studentId,
         schoolId,
-      },
-      include: {
-        student: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-        parent: { select: { firstName: true, lastName: true } },
-      },
-    });
+        new Date().toISOString(),
+      ],
+    );
+
+    return await this.db.queryOne(
+      `SELECT ae.*, u.firstName as sFN, u.lastName as sLN, p.firstName as pFN, p.lastName as pLN 
+       FROM "AbsenceExcuse" ae 
+       JOIN "StudentProfile" sp ON ae.studentId = sp.id 
+       JOIN "User" u ON sp.userId = u.id 
+       JOIN "User" p ON ae.parentId = p.id 
+       WHERE ae.id = ?`,
+      [id],
+    );
   }
 
   async getExcuses(
     schoolId: string,
     filters?: { classroomId?: string; status?: string },
   ) {
-    const where: any = { schoolId };
-    if (filters?.status) where.status = filters.status;
-    if (filters?.classroomId) {
-      const classroom = await this.prisma.classroom.findUnique({
-        where: { id: filters.classroomId },
-        select: { students: { select: { id: true } } },
-      });
-      if (classroom)
-        where.studentId = { in: classroom.students.map((s: any) => s.id) };
+    let where = 'WHERE ae.schoolId = ?';
+    const params: any[] = [schoolId];
+    if (filters?.status) {
+      where += ' AND ae.status = ?';
+      params.push(filters.status);
     }
-    return this.prisma.absenceExcuse.findMany({
-      where,
-      include: {
-        student: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-        parent: { select: { firstName: true, lastName: true } },
-        reviewedBy: { select: { firstName: true, lastName: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    if (filters?.classroomId) {
+      where += ' AND sp.classroomId = ?';
+      params.push(filters.classroomId);
+    }
+
+    const excuses = await this.db.query(
+      `SELECT ae.*, u.firstName as sFN, u.lastName as sLN, p.firstName as pFN, p.lastName as pLN, r.firstName as rFN, r.lastName as rLN 
+       FROM "AbsenceExcuse" ae 
+       JOIN "StudentProfile" sp ON ae.studentId = sp.id 
+       JOIN "User" u ON sp.userId = u.id 
+       JOIN "User" p ON ae.parentId = p.id 
+       LEFT JOIN "User" r ON ae.reviewedById = r.id 
+       ${where} ORDER BY ae.createdAt DESC`,
+      params,
+    );
+
+    return excuses.map((ae: any) => ({
+      ...ae,
+      student: { user: { firstName: ae.sFN, lastName: ae.sLN } },
+      parent: { firstName: ae.pFN, lastName: ae.pLN },
+      reviewedBy: ae.reviewedById
+        ? { firstName: ae.rFN, lastName: ae.rLN }
+        : null,
+    }));
   }
 
   async reviewExcuse(
@@ -179,35 +229,28 @@ export class AttendanceService {
     excuseId: string,
     status: 'APPROVED' | 'REJECTED',
   ) {
-    const excuse = await this.prisma.absenceExcuse.findFirst({
-      where: { id: excuseId, schoolId },
-    });
+    const excuse = await this.db.queryOne<AbsenceExcuse>(
+      'SELECT * FROM "AbsenceExcuse" WHERE id = ? AND schoolId = ?',
+      [excuseId, schoolId],
+    );
     if (!excuse) throw new NotFoundException('Excuse not found');
 
-    const updated = await this.prisma.absenceExcuse.update({
-      where: { id: excuseId },
-      data: { status, reviewedById: userId },
-      include: {
-        student: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-      },
-    });
+    await this.db.execute(
+      'UPDATE "AbsenceExcuse" SET status = ?, reviewedById = ? WHERE id = ?',
+      [status, userId, excuseId],
+    );
 
-    // If approved, auto-update attendance records to EXCUSED
     if (status === 'APPROVED') {
-      await this.prisma.attendance.updateMany({
-        where: {
-          studentId: excuse.studentId,
-          schoolId,
-          status: 'ABSENT',
-          date: { gte: excuse.dateFrom, lte: excuse.dateTo },
-        },
-        data: { status: 'EXCUSED' },
-      });
+      await this.db.execute(
+        'UPDATE "Attendance" SET status = "EXCUSED" WHERE studentId = ? AND schoolId = ? AND status = "ABSENT" AND date >= ? AND date <= ?',
+        [excuse.studentId, schoolId, excuse.dateFrom, excuse.dateTo],
+      );
     }
 
-    return updated;
+    return await this.db.queryOne(
+      'SELECT * FROM "AbsenceExcuse" WHERE id = ?',
+      [excuseId],
+    );
   }
 
   // ─── STATISTICS ─────────────────────────────────────────────
@@ -218,31 +261,38 @@ export class AttendanceService {
     dateFrom?: string,
     dateTo?: string,
   ) {
-    const classroom = await this.prisma.classroom.findUnique({
-      where: { id: classroomId },
-      include: {
-        students: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-      },
-    });
-    if (!classroom || classroom.schoolId !== schoolId)
-      throw new NotFoundException('Classroom not found');
+    const classroom = await this.db.queryOne(
+      'SELECT id, name FROM "Classroom" WHERE id = ? AND schoolId = ?',
+      [classroomId, schoolId],
+    );
+    if (!classroom) throw new NotFoundException('Classroom not found');
 
-    const where: any = {
-      schoolId,
-      studentId: { in: classroom.students.map((s: any) => s.id) },
-    };
-    if (dateFrom || dateTo) {
-      where.date = {};
-      if (dateFrom) where.date.gte = new Date(dateFrom);
-      if (dateTo) where.date.lte = new Date(dateTo);
+    const students = await this.db.query(
+      `SELECT sp.*, u.firstName, u.lastName FROM "StudentProfile" sp 
+       JOIN "User" u ON sp.userId = u.id WHERE sp.classroomId = ?`,
+      [classroomId],
+    );
+
+    let where =
+      'WHERE schoolId = ? AND studentId IN (' +
+      students.map(() => '?').join(',') +
+      ')';
+    const params: any[] = [schoolId, ...students.map((s) => (s as any).id)];
+    if (dateFrom) {
+      where += ' AND date >= ?';
+      params.push(new Date(dateFrom).toISOString());
+    }
+    if (dateTo) {
+      where += ' AND date <= ?';
+      params.push(new Date(dateTo).toISOString());
     }
 
-    const records = await this.prisma.attendance.findMany({ where });
+    const records = await this.db.query<Attendance>(
+      `SELECT * FROM "Attendance" ${where}`,
+      params,
+    );
 
-    // Aggregate per student
-    const stats = classroom.students.map((student: any) => {
+    const stats = students.map((student: any) => {
       const studentRecords = records.filter((r) => r.studentId === student.id);
       const total = studentRecords.length;
       const present = studentRecords.filter(
@@ -267,15 +317,8 @@ export class AttendanceService {
       };
     });
 
-    return {
-      classroom: { id: classroom.id, name: classroom.name },
-      stats,
-      dateFrom,
-      dateTo,
-    };
+    return { classroom, stats, dateFrom, dateTo };
   }
-
-  // ─── EXPORT CSV ─────────────────────────────────────────────
 
   async exportAttendanceCsv(
     schoolId: string,
@@ -298,80 +341,71 @@ export class AttendanceService {
     return csv;
   }
 
-  // ─── UNEXCUSED ALERTS ───────────────────────────────────────
-
   async getUnexcusedAlerts(schoolId: string, threshold = 5) {
-    // Get all unexcused absences in the current month
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+    ).toISOString();
 
-    const absences = await this.prisma.attendance.findMany({
-      where: {
-        schoolId,
-        status: 'ABSENT',
-        date: { gte: monthStart },
-      },
-      include: {
-        studentProfile: {
-          include: {
-            user: { select: { firstName: true, lastName: true } },
-            classroom: { select: { id: true, name: true } },
-          },
+    const absences = await this.db.query(
+      `SELECT a.*, sp.firstName, sp.lastName, c.id as cId, c.name as cName 
+       FROM "Attendance" a 
+       JOIN "StudentProfile" sp ON a.studentId = sp.id 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       WHERE a.schoolId = ? AND a.status = "ABSENT" AND a.date >= ?`,
+      [schoolId, monthStart],
+    );
+
+    const byStudent = new Map<string, any>();
+    for (const a of absences as any[]) {
+      const current = byStudent.get(a.studentId) || {
+        student: {
+          id: a.studentId,
+          firstName: a.firstName,
+          lastName: a.lastName,
+          classroom: { id: a.cId, name: a.cName },
         },
-      },
-    });
-
-    // Group by student
-    const byStudent = new Map<string, { student: any; count: number }>();
-    for (const a of absences) {
-      const key = a.studentId;
-      if (!byStudent.has(key)) {
-        byStudent.set(key, {
-          student: {
-            id: a.studentProfile.id,
-            firstName: a.studentProfile.firstName,
-            lastName: a.studentProfile.lastName,
-            classroom: a.studentProfile.classroom,
-          },
-          count: 0,
-        });
-      }
-      byStudent.get(key)!.count++;
+        count: 0,
+      };
+      current.count++;
+      byStudent.set(a.studentId, current);
     }
 
-    // Filter above threshold
     return Array.from(byStudent.values())
       .filter((v) => v.count >= threshold)
       .sort((a, b) => b.count - a.count);
   }
-
-  // ─── NOTIFY PARENTS ─────────────────────────────────────────
 
   private async notifyParentsAboutAbsence(
     studentId: string,
     date: string,
     lessonNumber: number,
   ) {
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: studentId },
-      include: { user: true },
-    });
+    const student = await this.db.queryOne<
+      StudentProfile & { firstName: string; lastName: string; userId: string }
+    >('SELECT * FROM "StudentProfile" WHERE id = ?', [studentId]);
     if (!student) return;
 
-    const parentRelations = await this.prisma.parentStudent.findMany({
-      where: { studentId: student.userId },
-    });
+    const parents = await this.db.query<ParentStudent>(
+      'SELECT parentId FROM "ParentStudent" WHERE studentId = ?',
+      [student.userId],
+    );
 
-    for (const rel of parentRelations) {
-      await this.prisma.notification.create({
-        data: {
-          userId: rel.parentId,
-          type: 'ATTENDANCE',
-          title: `Absence: ${student.firstName} ${student.lastName}`,
-          body: `Váš žák ${student.firstName} ${student.lastName} byl zaznamenán jako nepřítomný dne ${date}, ${lessonNumber}. hodina.`,
-          linkUrl: '/attendance',
-        },
-      });
+    for (const p of parents) {
+      await this.db.execute(
+        'INSERT INTO "Notification" (id, userId, type, title, body, linkUrl, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          p.parentId,
+          'ATTENDANCE',
+          `Absence: ${student.firstName} ${student.lastName}`,
+          `Váš žák ${student.firstName} ${student.lastName} byl zaznamenán jako nepřítomný dne ${date}, ${lessonNumber}. hodina.`,
+          '/attendance',
+          new Date().toISOString(),
+        ],
+      );
     }
   }
 }

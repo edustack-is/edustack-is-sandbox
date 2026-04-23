@@ -27,7 +27,12 @@ export class ClassroomResponseDto {
       },
     ],
   })
-  students?: any[];
+  students?: Array<{
+    id: string;
+    userId: string;
+    classroomId: string;
+    user: { firstName: string; lastName: string };
+  }>;
   @ApiPropertyOptional({
     description: 'Třídní učitel (include)',
     example: {
@@ -36,7 +41,11 @@ export class ClassroomResponseDto {
       user: { firstName: 'Marie', lastName: 'Svobodová' },
     },
   })
-  homeroomTeacher?: any;
+  homeroomTeacher?: {
+    id: string;
+    userId: string;
+    user: { firstName: string; lastName: string };
+  };
 }
 
 // ─── SUBJECT TEMPLATE ───────────────────────────────────
@@ -115,7 +124,12 @@ export class StudentFamilyResponseDto {
       lastName: 'Novák',
     },
   })
-  student: any;
+  student: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
   @ApiPropertyOptional({
     description: 'Vytvořený rodič',
     example: {
@@ -125,7 +139,12 @@ export class StudentFamilyResponseDto {
       lastName: 'Nováková',
     },
   })
-  parent?: any;
+  parent?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 // ─── AUDIT LOG ENTRY ────────────────────────────────────
@@ -318,7 +337,11 @@ export class ScheduleMatrixResponseDto {
     description: 'Časové sloty (zvonění)',
     example: [{ lessonNumber: 1, startTime: '08:00', endTime: '08:45' }],
   })
-  timeSlots: any[];
+  timeSlots: Array<{
+    lessonNumber: number;
+    startTime: string;
+    endTime: string;
+  }>;
 }
 
 // ─── SUBSTITUTION ───────────────────────────────────────
@@ -411,7 +434,15 @@ export class AttendanceStatsResponseDto {
       },
     ],
   })
-  students: any[];
+  students: Array<{
+    studentId: string;
+    name: string;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    unexcused: number;
+  }>;
 }
 
 // ─── UNEXCUSED ALERT ────────────────────────────────────
@@ -434,7 +465,12 @@ export class ConversationResponseDto {
     description: 'Účastníci',
     example: [{ id: 'p-uuid', userId: 'u-uuid', conversationId: 'c-uuid' }],
   })
-  participants: any[];
+  participants: Array<{
+    id: string;
+    userId: string;
+    conversationId: string;
+    user?: { firstName: string; lastName: string };
+  }>;
   @ApiPropertyOptional({
     description: 'Zprávy (include)',
     example: [
@@ -446,7 +482,12 @@ export class ConversationResponseDto {
       },
     ],
   })
-  messages?: any[];
+  messages?: Array<{
+    id: string;
+    content: string;
+    senderId: string;
+    createdAt: string;
+  }>;
 }
 
 // ─── MESSAGE ────────────────────────────────────────────
@@ -702,7 +743,12 @@ export class StudentDataResponseDto {
       lastName: 'Novák',
     },
   })
-  profile: any;
+  profile: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
   @ApiProperty({ description: 'Známky studenta' }) grades: any[];
   @ApiProperty({ description: 'Rozvrh studenta' }) schedule: any[];
   @ApiProperty({ description: 'Docházka studenta' }) attendance: any[];
@@ -719,7 +765,12 @@ export class ChildDashboardResponseDto {
       lastName: 'Novák',
     },
   })
-  profile: any;
+  profile: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
   @ApiProperty({ description: 'Známky' }) grades: any[];
   @ApiProperty({ description: 'Rozvrh' }) schedule: any[];
 }
@@ -739,12 +790,12 @@ export class ParentChildResponseDto {
     description: 'User relation',
     example: { firstName: 'Jan', lastName: 'Novák', email: 'jan@example.com' },
   })
-  user?: any;
+  user?: { firstName: string; lastName: string; email: string };
   @ApiPropertyOptional({
     description: 'Třída',
     example: { id: 'cr-uuid', name: '5.A', grade: 5 },
   })
-  classroom?: any;
+  classroom?: { id: string; name: string; grade: number };
 }
 
 // ─── TEACHER CLASSES ────────────────────────────────────
@@ -755,7 +806,11 @@ export class TeacherClassResponseDto {
   })
   classroomId: string;
   @ApiProperty({ example: '5.A' }) classroomName: string;
-  @ApiProperty({ description: 'Studenti ve třídě' }) students: any[];
+  @ApiProperty({ description: 'Studenti ve třídě' }) students: Array<{
+    id: string;
+    userId: string;
+    user: { firstName: string; lastName: string; email: string };
+  }>;
 }
 
 // ─── SYSTEM DASHBOARD ───────────────────────────────────
@@ -800,7 +855,11 @@ export class AiUsageResponseDto {
     description: 'Denní breakdown',
     example: [{ date: '2024-03-15', requests: 45, tokens: 12000 }],
   })
-  daily: any[];
+  daily: Array<{
+    date: string;
+    requests: number;
+    tokens: number;
+  }>;
 }
 
 // ─── AI TEXT RESULT ─────────────────────────────────────
@@ -846,7 +905,12 @@ export class RvpUploadResponseDto {
       ],
     },
   })
-  preview: any;
+  preview: {
+    areas: Array<{
+      name: string;
+      subjects: string[];
+    }>;
+  };
   @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' })
   uploadId: string;
 }
@@ -859,20 +923,44 @@ export class CompetencyMatrixResponseDto {
       'Kompetence k učení': { Matematika: true, 'Český jazyk': false },
     },
   })
-  matrix: any;
+  matrix: Record<string, Record<string, boolean>>;
 }
 
 // ─── COMPARISONS / DIFFS ────────────────────────────────
 export class CurriculumDiffResponseDto {
-  @ApiProperty({ description: 'Přidané záznamy' }) added: any[];
-  @ApiProperty({ description: 'Odebrané záznamy' }) removed: any[];
-  @ApiProperty({ description: 'Změněné záznamy' }) changed: any[];
+  @ApiProperty({ description: 'Přidané záznamy' }) added: Array<{
+    subjectTemplateId: string;
+    gradeLevelId: string;
+    hoursPerWeek: number;
+  }>;
+  @ApiProperty({ description: 'Odebrané záznamy' }) removed: Array<{
+    id: string;
+    subjectName: string;
+  }>;
+  @ApiProperty({ description: 'Změněné záznamy' }) changed: Array<{
+    id: string;
+    oldHours: number;
+    newHours: number;
+    subjectName: string;
+  }>;
 }
 
 export class ScheduleDiffResponseDto {
-  @ApiProperty({ description: 'Přidané události' }) added: any[];
-  @ApiProperty({ description: 'Odebrané události' }) removed: any[];
-  @ApiProperty({ description: 'Změněné události' }) changed: any[];
+  @ApiProperty({ description: 'Přidané události' }) added: Array<{
+    dayOfWeek: number;
+    lessonNumber: number;
+    subjectInstanceId: string;
+  }>;
+  @ApiProperty({ description: 'Odebrané události' }) removed: Array<{
+    id: string;
+    dayOfWeek: number;
+    lessonNumber: number;
+  }>;
+  @ApiProperty({ description: 'Změněné události' }) changed: Array<{
+    id: string;
+    oldLessonNumber: number;
+    newLessonNumber: number;
+  }>;
 }
 
 // ─── GENERATE SCHEDULE RESULT ───────────────────────────
@@ -885,7 +973,12 @@ export class GenerateScheduleResultDto {
 
 // ─── GDPR DATA EXPORT ──────────────────────────────────
 export class GdprDataResponseDto {
-  @ApiProperty({ description: 'Profil uživatele' }) profile: any;
+  @ApiProperty({ description: 'Profil uživatele' }) profile: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
   @ApiProperty({ description: 'Známky' }) grades: any[];
   @ApiProperty({ description: 'Docházka' }) attendance: any[];
   @ApiProperty({ description: 'Zprávy' }) messages: any[];
@@ -917,12 +1010,21 @@ export class ReportStatsResponseDto {
       distribution: { '1': 5, '2': 12, '3': 7, '4': 2, '5': 1 },
     },
   })
-  data: any;
+  data: {
+    average: number;
+    median: number;
+    stdDev: number;
+    distribution: Record<string, number>;
+  };
   @ApiPropertyOptional({
     description: 'Metadata',
     example: { period: '2024/2025 1. pololetí', classroomName: '5.A' },
   })
-  meta?: any;
+  meta?: {
+    period: string;
+    classroomName: string;
+    [key: string]: string;
+  };
 }
 
 // ─── CLASSROOM FOR REGISTRY ─────────────────────────────
@@ -940,7 +1042,11 @@ export class RegistryClassroomResponseDto {
       },
     ],
   })
-  students: any[];
+  students: Array<{
+    id: string;
+    userId: string;
+    user: { firstName: string; lastName: string };
+  }>;
 }
 
 // ─── SETTINGS ───────────────────────────────────────────

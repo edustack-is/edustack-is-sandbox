@@ -13,24 +13,52 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-    Key, Save, Check, Loader2, AlertCircle, Zap, TrendingUp, BarChart3, Shield, Settings,
-    Globe, Github, Apple, Mail, Database, Activity, HardDrive, Download, Trash2, RotateCcw,
-    Plus, ExternalLink, Clock, Server, MemoryStick, Upload
+    Key,
+    Save,
+    Check,
+    Loader2,
+    AlertCircle,
+    Zap,
+    TrendingUp,
+    BarChart3,
+    Shield,
+    Settings,
+    Globe,
+    Github,
+    Apple,
+    Mail,
+    Database,
+    Activity,
+    HardDrive,
+    Download,
+    Trash2,
+    RotateCcw,
+    Plus,
+    ExternalLink,
+    Clock,
+    Server,
+    MemoryStick,
+    Upload,
 } from 'lucide-react';
 import { TestDataGenerator } from './TestDataGenerator';
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
 import { getSsoSettings, updateSsoProvider } from '@/api/system-sso';
 import {
-    getSystemSettings, updateSystemSettings,
-    getHealth, getSystemAuditLog,
-    createBackup, listBackups, downloadBackup, restoreBackup, deleteBackup, uploadBackup,
+    getSystemSettings,
+    updateSystemSettings,
+    getHealth,
+    getSystemAuditLog,
+    createBackup,
+    listBackups,
+    downloadBackup,
+    restoreBackup,
+    deleteBackup,
+    uploadBackup,
     type HealthStatus,
 } from '@/api/system-admin';
 import { toast } from 'sonner';
@@ -120,7 +148,9 @@ export function SystemAdminSettings() {
         }
     }, []);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     if (loading) {
         return (
@@ -138,9 +168,7 @@ export function SystemAdminSettings() {
                         <Settings className="h-6 w-6 text-primary" />
                         {t('system_settings.title')}
                     </h1>
-                    <p className="text-muted-foreground mt-1">
-                        {t('system_settings.description')}
-                    </p>
+                    <p className="text-muted-foreground mt-1">{t('system_settings.description')}</p>
                 </div>
             </div>
 
@@ -272,7 +300,11 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
                 {providers.map((p) => {
                     const config = settings?.[p.id as keyof SsoSettings];
                     return (
-                        <Card key={p.id} className="cursor-pointer hover:border-primary transition-colors" onClick={() => setSelectedProvider(p.id)}>
+                        <Card
+                            key={p.id}
+                            className="cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => setSelectedProvider(p.id)}
+                        >
                             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                                 <CardTitle className="text-sm font-medium">{p.name}</CardTitle>
                                 <div className={`p-2 rounded-lg ${p.color} text-white`}>
@@ -281,10 +313,17 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
                             </CardHeader>
                             <CardContent>
                                 <div className="flex items-center justify-between mt-2">
-                                    <Badge variant={config?.isActive ? "default" : "secondary"} className={config?.isActive ? "bg-emerald-500" : ""}>
+                                    <Badge
+                                        variant={config?.isActive ? 'default' : 'secondary'}
+                                        className={config?.isActive ? 'bg-emerald-500' : ''}
+                                    >
                                         {config?.isActive ? t('system_settings.active') : t('system_settings.inactive')}
                                     </Badge>
-                                    {!config?.isConfigured && <span className="text-[10px] text-muted-foreground italic">{t('system_settings.not_configured')}</span>}
+                                    {!config?.isConfigured && (
+                                        <span className="text-[10px] text-muted-foreground italic">
+                                            {t('system_settings.not_configured')}
+                                        </span>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -295,9 +334,7 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg">{t('system_settings.sso_config_guide')}</CardTitle>
-                    <CardDescription>
-                        {t('system_settings.sso_config_guide_description')}
-                    </CardDescription>
+                    <CardDescription>{t('system_settings.sso_config_guide_description')}</CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground leading-relaxed">
                     {t('system_settings.sso_callback_url_hint')}
@@ -319,11 +356,16 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
     );
 }
 
-function SsoConfigDialog({ provider, config, onClose, onSaved }: {
+function SsoConfigDialog({
+    provider,
+    config,
+    onClose,
+    onSaved,
+}: {
     provider: string;
     config: SsoProviderSettings | undefined;
     onClose: () => void;
-    onSaved: () => void
+    onSaved: () => void;
 }) {
     const { t } = useTranslation();
     const [formData, setFormData] = useState({
@@ -353,10 +395,10 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle className="capitalize">{provider} {t('system_settings.integration')}</DialogTitle>
-                    <DialogDescription>
-                        {t('system_settings.configure_oauth', { provider })}
-                    </DialogDescription>
+                    <DialogTitle className="capitalize">
+                        {provider} {t('system_settings.integration')}
+                    </DialogTitle>
+                    <DialogDescription>{t('system_settings.configure_oauth', { provider })}</DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
@@ -371,7 +413,9 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
 
                     <div className="grid gap-2">
                         <Label htmlFor="clientSecret">
-                            {provider === 'apple' ? t('system_settings.private_key') : t('system_settings.client_secret')}
+                            {provider === 'apple'
+                                ? t('system_settings.private_key')
+                                : t('system_settings.client_secret')}
                         </Label>
                         {provider === 'apple' ? (
                             <Textarea
@@ -385,7 +429,11 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
                             <Input
                                 id="clientSecret"
                                 type="password"
-                                placeholder={config?.isConfigured ? t('system_settings.keep_current_secret') : t('system_settings.enter_new_secret')}
+                                placeholder={
+                                    config?.isConfigured
+                                        ? t('system_settings.keep_current_secret')
+                                        : t('system_settings.enter_new_secret')
+                                }
                                 value={formData.clientSecret}
                                 onChange={(e) => setFormData({ ...formData, clientSecret: e.target.value })}
                             />
@@ -429,7 +477,9 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+                    <Button variant="outline" onClick={onClose}>
+                        {t('common.cancel')}
+                    </Button>
                     <Button onClick={handleSave} disabled={saving}>
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {t('common.save_changes')}
@@ -444,7 +494,10 @@ function SsoConfigDialog({ provider, config, onClose, onSaved }: {
 // AI Charts & Tables (kept from old implementation)
 // ═══════════════════════════════════════════════════════════════
 
-function DailyChart({ daily, month }: {
+function DailyChart({
+    daily,
+    month,
+}: {
     daily: Array<{ date: string; totalTokens: number; requestCount: number }>;
     month: string;
 }) {
@@ -459,7 +512,9 @@ function DailyChart({ daily, month }: {
         <Card>
             <CardHeader>
                 <CardTitle className="text-lg">{t('system_settings.daily_usage')}</CardTitle>
-                <CardDescription>{t('system_settings.month')}: {month || '—'}</CardDescription>
+                <CardDescription>
+                    {t('system_settings.month')}: {month || '—'}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 {data.length === 0 ? (
@@ -494,9 +549,20 @@ function DailyChart({ daily, month }: {
     );
 }
 
-function KpiCard({ title, value, subtitle, icon, color, bg }: {
-    title: string; value: string; subtitle: string;
-    icon: React.ReactNode; color: string; bg: string;
+function KpiCard({
+    title,
+    value,
+    subtitle,
+    icon,
+    color,
+    bg,
+}: {
+    title: string;
+    value: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    color: string;
+    bg: string;
 }) {
     return (
         <Card>
@@ -507,9 +573,7 @@ function KpiCard({ title, value, subtitle, icon, color, bg }: {
                         <p className="text-2xl font-bold mt-1">{value}</p>
                         <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
                     </div>
-                    <div className={`p-3 rounded-xl ${bg} ${color}`}>
-                        {icon}
-                    </div>
+                    <div className={`p-3 rounded-xl ${bg} ${color}`}>{icon}</div>
                 </div>
             </CardContent>
         </Card>
@@ -554,9 +618,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                     <Key className="h-5 w-5 text-muted-foreground" />
                     {t('system_settings.ai_provider_config')}
                 </CardTitle>
-                <CardDescription>
-                    {t('system_settings.keys_encrypted')}
-                </CardDescription>
+                <CardDescription>{t('system_settings.keys_encrypted')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {settings?.updatedAt && (
@@ -577,7 +639,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         placeholder={t('system_settings.gemini_placeholder')}
                         config={settings?.gemini}
                         value={keys.gemini}
-                        onChange={(v: string) => setKeys(p => ({ ...p, gemini: v }))}
+                        onChange={(v: string) => setKeys((p) => ({ ...p, gemini: v }))}
                         link="https://aistudio.google.com/app/apikey"
                     />
                     <ProviderInput
@@ -585,7 +647,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         placeholder="sk-..."
                         config={settings?.openai}
                         value={keys.openai}
-                        onChange={(v: string) => setKeys(p => ({ ...p, openai: v }))}
+                        onChange={(v: string) => setKeys((p) => ({ ...p, openai: v }))}
                         link="https://platform.openai.com/api-keys"
                     />
                     <ProviderInput
@@ -593,18 +655,24 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         placeholder="sk-ant-..."
                         config={settings?.anthropic}
                         value={keys.anthropic}
-                        onChange={(v: string) => setKeys(p => ({ ...p, anthropic: v }))}
+                        onChange={(v: string) => setKeys((p) => ({ ...p, anthropic: v }))}
                         link="https://console.anthropic.com/settings/keys"
                     />
                 </div>
 
                 <Button onClick={handleSave} disabled={saving} className="w-full">
                     {saving ? (
-                        <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('system_settings.saving')}</>
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('system_settings.saving')}
+                        </>
                     ) : saved ? (
-                        <><Check className="h-4 w-4 mr-2" /> {t('system_settings.saved')}</>
+                        <>
+                            <Check className="h-4 w-4 mr-2" /> {t('system_settings.saved')}
+                        </>
                     ) : (
-                        <><Save className="h-4 w-4 mr-2" /> {t('system_settings.save_keys')}</>
+                        <>
+                            <Save className="h-4 w-4 mr-2" /> {t('system_settings.save_keys')}
+                        </>
                     )}
                 </Button>
             </CardContent>
@@ -619,14 +687,25 @@ function ProviderInput({ label, placeholder, config, value, onChange, link }: an
             <div className="flex justify-between items-center">
                 <label className="text-sm font-medium flex items-center gap-2">
                     {label}
-                    {config?.isConfigured && <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200">{t('system_settings.active')}</Badge>}
+                    {config?.isConfigured && (
+                        <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200"
+                        >
+                            {t('system_settings.active')}
+                        </Badge>
+                    )}
                 </label>
-                <a href={link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline">{t('system_settings.get_key')} ↗</a>
+                <a href={link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline">
+                    {t('system_settings.get_key')} ↗
+                </a>
             </div>
             <div className="relative">
                 <Input
                     type="password"
-                    placeholder={config?.isConfigured ? `${t('system_settings.configured')} (${config.keyHint})` : placeholder}
+                    placeholder={
+                        config?.isConfigured ? `${t('system_settings.configured')} (${config.keyHint})` : placeholder
+                    }
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono text-sm pr-20"
@@ -636,10 +715,7 @@ function ProviderInput({ label, placeholder, config, value, onChange, link }: an
     );
 }
 
-function SchoolUsageChart({ perSchool, perProvider }: {
-    perSchool: any[];
-    perProvider: any[];
-}) {
+function SchoolUsageChart({ perSchool, perProvider }: { perSchool: any[]; perProvider: any[] }) {
     const { t } = useTranslation();
     const schoolData = perSchool
         .sort((a, b) => b.totalTokens - a.totalTokens)
@@ -666,7 +742,14 @@ function SchoolUsageChart({ perSchool, perProvider }: {
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={schoolData} layout="vertical" margin={{ left: 0 }}>
                             <XAxis type="number" hide />
-                            <YAxis type="category" dataKey="name" width={100} fontSize={11} tickLine={false} axisLine={false} />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={100}
+                                fontSize={11}
+                                tickLine={false}
+                                axisLine={false}
+                            />
                             <Tooltip cursor={{ fill: 'transparent' }} />
                             <Bar dataKey="tokens" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20} />
                         </BarChart>
@@ -685,10 +768,7 @@ function SchoolUsageChart({ perSchool, perProvider }: {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis fontSize={12} tickFormatter={formatNumber} tickLine={false} axisLine={false} />
-                                <Tooltip
-                                    formatter={(val: any) => formatNumber(val)}
-                                    cursor={{ fill: 'transparent' }}
-                                />
+                                <Tooltip formatter={(val: any) => formatNumber(val)} cursor={{ fill: 'transparent' }} />
                                 <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} barSize={30}>
                                     {providerData.map((_entry: any, index: number) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -707,10 +787,15 @@ function SchoolUsageChart({ perSchool, perProvider }: {
     );
 }
 
-function SchoolUsageTable({ perSchool }: {
+function SchoolUsageTable({
+    perSchool,
+}: {
     perSchool: Array<{
-        schoolName: string; totalTokens: number;
-        inputTokens: number; outputTokens: number; requestCount: number;
+        schoolName: string;
+        totalTokens: number;
+        inputTokens: number;
+        outputTokens: number;
+        requestCount: number;
     }>;
 }) {
     const { t } = useTranslation();
@@ -738,9 +823,15 @@ function SchoolUsageTable({ perSchool }: {
                             .map((s, i) => (
                                 <TableRow key={i}>
                                     <TableCell className="font-medium">{s.schoolName}</TableCell>
-                                    <TableCell className="text-right font-mono text-sm">{formatNumber(s.inputTokens)}</TableCell>
-                                    <TableCell className="text-right font-mono text-sm">{formatNumber(s.outputTokens)}</TableCell>
-                                    <TableCell className="text-right font-mono text-sm font-bold">{formatNumber(s.totalTokens)}</TableCell>
+                                    <TableCell className="text-right font-mono text-sm">
+                                        {formatNumber(s.inputTokens)}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-sm">
+                                        {formatNumber(s.outputTokens)}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-sm font-bold">
+                                        {formatNumber(s.totalTokens)}
+                                    </TableCell>
                                     <TableCell className="text-right">{s.requestCount}</TableCell>
                                 </TableRow>
                             ))}
@@ -766,7 +857,12 @@ function formatNumber(n: number): string {
 const SETTING_FIELDS = [
     { key: 'security.maxLoginAttempts', label: 'Max neúspěšných pokusů', type: 'number', section: 'Bezpečnost' },
     { key: 'security.lockoutMinutes', label: 'Doba zamčení účtu (min)', type: 'number', section: 'Bezpečnost' },
-    { key: 'security.passwordResetExpiry', label: 'Platnost reset tokenu (min)', type: 'number', section: 'Bezpečnost' },
+    {
+        key: 'security.passwordResetExpiry',
+        label: 'Platnost reset tokenu (min)',
+        type: 'number',
+        section: 'Bezpečnost',
+    },
     { key: 'general.systemName', label: 'Název systému', type: 'text', section: 'Obecné' },
 ] as const;
 
@@ -795,28 +891,37 @@ function SystemConfigTab() {
         }
     };
 
-    if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    if (loading)
+        return (
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+        );
 
-    const sections = [...new Set(SETTING_FIELDS.map(f => f.section))];
+    const sections = [...new Set(SETTING_FIELDS.map((f) => f.section))];
 
     return (
         <div className="space-y-6">
-            {sections.map(section => (
+            {sections.map((section) => (
                 <Card key={section}>
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                            {section === 'Bezpečnost' ? <Shield className="h-5 w-5" /> : <Settings className="h-5 w-5" />}
+                            {section === 'Bezpečnost' ? (
+                                <Shield className="h-5 w-5" />
+                            ) : (
+                                <Settings className="h-5 w-5" />
+                            )}
                             {section}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {SETTING_FIELDS.filter(f => f.section === section).map(field => (
+                        {SETTING_FIELDS.filter((f) => f.section === section).map((field) => (
                             <div key={field.key} className="grid grid-cols-3 items-center gap-4">
                                 <Label className="text-sm">{field.label}</Label>
                                 <Input
                                     type={field.type}
                                     value={settings[field.key] ?? ''}
-                                    onChange={e => setSettings(s => ({ ...s, [field.key]: e.target.value }))}
+                                    onChange={(e) => setSettings((s) => ({ ...s, [field.key]: e.target.value }))}
                                     className="col-span-2"
                                 />
                             </div>
@@ -826,7 +931,15 @@ function SystemConfigTab() {
             ))}
 
             <Button onClick={handleSave} disabled={saving} className="w-full">
-                {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...</> : <><Save className="h-4 w-4 mr-2" /> Uložit nastavení</>}
+                {saving ? (
+                    <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...
+                    </>
+                ) : (
+                    <>
+                        <Save className="h-4 w-4 mr-2" /> Uložit nastavení
+                    </>
+                )}
             </Button>
         </div>
     );
@@ -843,11 +956,15 @@ function MonitoringTab() {
     const [page, setPage] = useState(1);
 
     const fetchHealth = useCallback(() => {
-        getHealth().then(setHealth).catch(() => setHealth(null));
+        getHealth()
+            .then(setHealth)
+            .catch(() => setHealth(null));
     }, []);
 
     const fetchAuditLog = useCallback(() => {
-        getSystemAuditLog({ page, limit: 25 }).then(setAuditLog).catch(() => { });
+        getSystemAuditLog({ page, limit: 25 })
+            .then(setAuditLog)
+            .catch(() => {});
     }, [page]);
 
     useEffect(() => {
@@ -898,10 +1015,16 @@ function MonitoringTab() {
             {/* External links */}
             <div className="flex gap-3">
                 <a href="http://localhost:5601" target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-2" />Kibana</Button>
+                    <Button variant="outline" size="sm">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Kibana
+                    </Button>
                 </a>
                 <a href="http://localhost:3100" target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-2" />Grafana</Button>
+                    <Button variant="outline" size="sm">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Grafana
+                    </Button>
                 </a>
             </div>
 
@@ -909,7 +1032,9 @@ function MonitoringTab() {
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg">{t('system_settings.system_audit_log', 'Systémový log')}</CardTitle>
-                    <CardDescription>{t('system_settings.system_events', 'Systémové události (bez školy)')}</CardDescription>
+                    <CardDescription>
+                        {t('system_settings.system_events', 'Systémové události (bez školy)')}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {auditLog?.data?.length > 0 ? (
@@ -926,28 +1051,53 @@ function MonitoringTab() {
                                 <TableBody>
                                     {auditLog.data.map((log: any) => (
                                         <TableRow key={log.id}>
-                                            <TableCell className="text-xs">{new Date(log.createdAt).toLocaleString('cs')}</TableCell>
-                                            <TableCell><Badge variant="outline">{log.action}</Badge></TableCell>
-                                            <TableCell className="text-sm">{log.actor?.firstName} {log.actor?.lastName}</TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">{log.entity}</TableCell>
+                                            <TableCell className="text-xs">
+                                                {new Date(log.createdAt).toLocaleString('cs')}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{log.action}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-sm">
+                                                {log.actor?.firstName} {log.actor?.lastName}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {log.entity}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
                             </Table>
                             <div className="flex justify-between items-center mt-4">
                                 <span className="text-sm text-muted-foreground">
-                                    {t('system_settings.page', 'Strana')} {page} / {Math.ceil((auditLog.total || 1) / 25)}
+                                    {t('system_settings.page', 'Strana')} {page} /{' '}
+                                    {Math.ceil((auditLog.total || 1) / 25)}
                                 </span>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>←</Button>
-                                    <Button variant="outline" size="sm" disabled={page * 25 >= (auditLog.total || 0)} onClick={() => setPage(p => p + 1)}>→</Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={page <= 1}
+                                        onClick={() => setPage((p) => p - 1)}
+                                    >
+                                        ←
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={page * 25 >= (auditLog.total || 0)}
+                                        onClick={() => setPage((p) => p + 1)}
+                                    >
+                                        →
+                                    </Button>
                                 </div>
                             </div>
                         </>
                     ) : (
                         <div className="text-center py-8 text-muted-foreground">
                             <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                            <p className="text-sm">{t('system_settings.no_audit_entries', 'Žádné systémové záznamy')}</p>
+                            <p className="text-sm">
+                                {t('system_settings.no_audit_entries', 'Žádné systémové záznamy')}
+                            </p>
                         </div>
                     )}
                 </CardContent>
@@ -976,7 +1126,7 @@ function BackupsTab() {
     const [creating, setCreating] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [restoring, setRestoring] = useState<string | null>(null);
-    
+
     // New state for custom name dialog
     const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
     const [customName, setCustomName] = useState('');
@@ -988,7 +1138,9 @@ function BackupsTab() {
             .finally(() => setLoading(false));
     }, [t]);
 
-    useEffect(() => { fetch(); }, [fetch]);
+    useEffect(() => {
+        fetch();
+    }, [fetch]);
 
     const handleCreate = async () => {
         try {
@@ -1023,7 +1175,15 @@ function BackupsTab() {
     };
 
     const handleRestore = async (filename: string) => {
-        if (!confirm(t('system_settings.restore_confirm', 'Opravdu chcete obnovit databázi z této zálohy? Všechna aktuální data budou přepsána!'))) return;
+        if (
+            !confirm(
+                t(
+                    'system_settings.restore_confirm',
+                    'Opravdu chcete obnovit databázi z této zálohy? Všechna aktuální data budou přepsána!',
+                ),
+            )
+        )
+            return;
         try {
             setRestoring(filename);
             await restoreBackup(filename);
@@ -1057,7 +1217,12 @@ function BackupsTab() {
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-semibold">{t('system_settings.backups_title', 'Zálohy databáze')}</h3>
-                    <p className="text-sm text-muted-foreground">{t('system_settings.backups_desc', 'Vytvářejte a spravujte zálohy Cloudflare D1 (SQLite) databáze')}</p>
+                    <p className="text-sm text-muted-foreground">
+                        {t(
+                            'system_settings.backups_desc',
+                            'Vytvářejte a spravujte zálohy Cloudflare D1 (SQLite) databáze',
+                        )}
+                    </p>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative">
@@ -1069,36 +1234,57 @@ function BackupsTab() {
                             onChange={handleUpload}
                             disabled={uploading}
                         />
-                        <Button variant="outline" onClick={() => document.getElementById('backup-upload')?.click()} disabled={uploading}>
-                            {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                        <Button
+                            variant="outline"
+                            onClick={() => document.getElementById('backup-upload')?.click()}
+                            disabled={uploading}
+                        >
+                            {uploading ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                                <Upload className="h-4 w-4 mr-2" />
+                            )}
                             {t('system_settings.upload_backup', 'Nahrát zálohu')}
                         </Button>
                     </div>
-                    
+
                     <Dialog open={isNameDialogOpen} onOpenChange={setIsNameDialogOpen}>
                         <Button onClick={() => setIsNameDialogOpen(true)} disabled={creating}>
-                            {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                            {creating ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                                <Plus className="h-4 w-4 mr-2" />
+                            )}
                             {t('system_settings.create_backup', 'Vytvořit zálohu')}
                         </Button>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>{t('system_settings.create_backup_title', 'Vytvořit novou zálohu')}</DialogTitle>
+                                <DialogTitle>
+                                    {t('system_settings.create_backup_title', 'Vytvořit novou zálohu')}
+                                </DialogTitle>
                                 <DialogDescription>
-                                    {t('system_settings.create_backup_desc_dialog', 'Zadejte název zálohy nebo ponechte prázdné pro automatický název s datem.')}
+                                    {t(
+                                        'system_settings.create_backup_desc_dialog',
+                                        'Zadejte název zálohy nebo ponechte prázdné pro automatický název s datem.',
+                                    )}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="py-4">
-                                <Label htmlFor="custom-name">{t('system_settings.backup_name_label', 'Název zálohy')}</Label>
-                                <Input 
-                                    id="custom-name" 
-                                    placeholder="moje-zaloha-pred-zmenou" 
+                                <Label htmlFor="custom-name">
+                                    {t('system_settings.backup_name_label', 'Název zálohy')}
+                                </Label>
+                                <Input
+                                    id="custom-name"
+                                    placeholder="moje-zaloha-pred-zmenou"
                                     value={customName}
                                     onChange={(e) => setCustomName(e.target.value)}
                                     className="mt-2"
                                 />
                             </div>
                             <DialogFooter>
-                                <Button variant="ghost" onClick={() => setIsNameDialogOpen(false)}>{t('common.cancel', 'Zrušit')}</Button>
+                                <Button variant="ghost" onClick={() => setIsNameDialogOpen(false)}>
+                                    {t('common.cancel', 'Zrušit')}
+                                </Button>
                                 <Button onClick={handleCreate} disabled={creating}>
                                     {creating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                                     {t('system_settings.confirm_create', 'Vytvořit')}
@@ -1112,7 +1298,9 @@ function BackupsTab() {
             <Card>
                 <CardContent className="pt-6">
                     {loading ? (
-                        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
                     ) : backups.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <HardDrive className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -1126,7 +1314,9 @@ function BackupsTab() {
                                     <TableHead>{t('system_settings.backup_storage', 'Úložiště')}</TableHead>
                                     <TableHead>{t('system_settings.backup_size', 'Velikost')}</TableHead>
                                     <TableHead>{t('system_settings.backup_date', 'Datum')}</TableHead>
-                                    <TableHead className="text-right">{t('system_settings.backup_actions', 'Akce')}</TableHead>
+                                    <TableHead className="text-right">
+                                        {t('system_settings.backup_actions', 'Akce')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1134,21 +1324,44 @@ function BackupsTab() {
                                     <TableRow key={b.filename}>
                                         <TableCell className="font-mono text-sm">{b.filename}</TableCell>
                                         <TableCell>
-                                            <Badge variant={b.storage === 'R2' ? 'default' : 'secondary'} className="text-[10px] uppercase">
+                                            <Badge
+                                                variant={b.storage === 'R2' ? 'default' : 'secondary'}
+                                                className="text-[10px] uppercase"
+                                            >
                                                 {b.storage}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>{formatSize(b.size)}</TableCell>
-                                        <TableCell className="text-sm">{new Date(b.createdAt).toLocaleString('cs')}</TableCell>
+                                        <TableCell className="text-sm">
+                                            {new Date(b.createdAt).toLocaleString('cs')}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="sm" onClick={() => downloadBackup(b.filename)}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => downloadBackup(b.filename)}
+                                                >
                                                     <Download className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleRestore(b.filename)} disabled={restoring === b.filename}>
-                                                    {restoring === b.filename ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRestore(b.filename)}
+                                                    disabled={restoring === b.filename}
+                                                >
+                                                    {restoring === b.filename ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <RotateCcw className="h-4 w-4" />
+                                                    )}
                                                 </Button>
-                                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(b.filename)}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-destructive hover:text-destructive"
+                                                    onClick={() => handleDelete(b.filename)}
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>

@@ -31,7 +31,7 @@ export function ThemeToggle() {
     }, [theme]);
 
     const cycle = () => {
-        setTheme(prev => prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light');
+        setTheme((prev) => (prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light'));
     };
 
     return (

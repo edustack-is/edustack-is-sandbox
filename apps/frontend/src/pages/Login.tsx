@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { login, getSsoOptions, exchangeSsoToken, getLoginHelperConfig, getLoginHelperUsers, LoginHelperUser, LoginHelperConfig } from '../api';
+import {
+    login,
+    getSsoOptions,
+    exchangeSsoToken,
+    getLoginHelperConfig,
+    getLoginHelperUsers,
+    LoginHelperUser,
+    LoginHelperConfig,
+} from '../api';
 import { Loader2, Shield, UserCircle, ChevronRight, GraduationCap, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,13 +80,15 @@ export const Login = () => {
     const [selectedRole, setSelectedRole] = useState<string>('all');
 
     // Compute unique options for filters
-    const uniqueSchools = Array.from(new Set(helperUsers.flatMap(u => u.memberships.map(m => m.schoolName)))).sort();
-    const uniqueRoles = Array.from(new Set(helperUsers.flatMap(u => u.memberships.map(m => m.role)))).sort();
+    const uniqueSchools = Array.from(
+        new Set(helperUsers.flatMap((u) => u.memberships.map((m) => m.schoolName))),
+    ).sort();
+    const uniqueRoles = Array.from(new Set(helperUsers.flatMap((u) => u.memberships.map((m) => m.role)))).sort();
 
     // Apply filters
-    const filteredUsers = helperUsers.filter(user => {
-        const matchesSchool = selectedSchool === 'all' || user.memberships.some(m => m.schoolName === selectedSchool);
-        const matchesRole = selectedRole === 'all' || user.memberships.some(m => m.role === selectedRole);
+    const filteredUsers = helperUsers.filter((user) => {
+        const matchesSchool = selectedSchool === 'all' || user.memberships.some((m) => m.schoolName === selectedSchool);
+        const matchesRole = selectedRole === 'all' || user.memberships.some((m) => m.role === selectedRole);
         return matchesSchool && matchesRole;
     });
 
@@ -114,10 +124,12 @@ export const Login = () => {
             toast.error(decoded === 'sso_failed' ? t('login.sso_failed') : translateBackendError(decoded, t));
         }
 
-        getSsoOptions().then(setSsoOptions).finally(() => setLoadingSso(false));
+        getSsoOptions()
+            .then(setSsoOptions)
+            .finally(() => setLoadingSso(false));
 
         // Fetch login helper config
-        getLoginHelperConfig().then(config => {
+        getLoginHelperConfig().then((config) => {
             setHelperConfig(config);
             if (config.enabled) {
                 setLoadingHelper(true);
@@ -133,7 +145,7 @@ export const Login = () => {
         setFormData({ ...formData, [name]: value });
         // Clear error for this field on change
         if (fieldErrors[name as keyof FieldErrors]) {
-            setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+            setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
         }
     };
 
@@ -210,19 +222,17 @@ export const Login = () => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <InlineLanguageSwitcher />
-            <div className={`w-full transition-all duration-500 ease-in-out flex flex-col md:flex-row items-stretch justify-center gap-8 ${helperConfig?.enabled && helperUsers.length > 0 ? 'max-w-4xl' : 'max-w-md'}`}>
+            <div
+                className={`w-full transition-all duration-500 ease-in-out flex flex-col md:flex-row items-stretch justify-center gap-8 ${helperConfig?.enabled && helperUsers.length > 0 ? 'max-w-4xl' : 'max-w-md'}`}
+            >
                 {/* ─── Main Login Card ────────────────────────── */}
                 <div className="flex-1 bg-white p-8 rounded-xl shadow-lg border border-gray-100 max-w-md w-full mx-auto">
                     <div className="text-center">
                         <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                             <Shield className="h-6 w-6 text-indigo-600" />
                         </div>
-                        <h2 className="text-3xl font-extrabold text-gray-900">
-                            {t('login.welcome_back')}
-                        </h2>
-                        <p className="mt-2 text-sm text-gray-600">
-                            {t('login.sign_in_subtitle')}
-                        </p>
+                        <h2 className="text-3xl font-extrabold text-gray-900">{t('login.welcome_back')}</h2>
+                        <p className="mt-2 text-sm text-gray-600">{t('login.sign_in_subtitle')}</p>
                     </div>
 
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
@@ -297,7 +307,9 @@ export const Login = () => {
                                     <span className="w-full border-t border-gray-200"></span>
                                 </div>
                                 <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-white px-4 text-gray-500 font-medium">{t('login.or_continue_with')}</span>
+                                    <span className="bg-white px-4 text-gray-500 font-medium">
+                                        {t('login.or_continue_with')}
+                                    </span>
                                 </div>
                             </div>
 
@@ -337,20 +349,21 @@ export const Login = () => {
                                 <GraduationCap className="h-5 w-5 text-indigo-600" />
                                 {t('login.helper_title')}
                             </h3>
-                            <p className="text-sm text-gray-500 mt-1">
-                                {t('login.helper_desc')}
-                            </p>
-                            </div>
-
-                            {/* ─── Filters ───────────────────────────────── */}
-                            <div className="grid grid-cols-2 gap-2 mb-4">
+                            <p className="text-sm text-gray-500 mt-1">{t('login.helper_desc')}</p>
+                        </div>
+                        {/* ─── Filters ───────────────────────────────── */}
+                        <div className="grid grid-cols-2 gap-2 mb-4">
                             <select
                                 value={selectedSchool}
                                 onChange={(e) => setSelectedSchool(e.target.value)}
                                 className="text-xs border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                             >
                                 <option value="all">{t('login.filter_all_schools', 'Všechny školy')}</option>
-                                {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
+                                {uniqueSchools.map((s) => (
+                                    <option key={s} value={s}>
+                                        {s}
+                                    </option>
+                                ))}
                             </select>
                             <select
                                 value={selectedRole}
@@ -358,11 +371,14 @@ export const Login = () => {
                                 className="text-xs border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                             >
                                 <option value="all">{t('login.filter_all_roles', 'Všechny role')}</option>
-                                {uniqueRoles.map(r => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
+                                {uniqueRoles.map((r) => (
+                                    <option key={r} value={r}>
+                                        {t(`roles.${r}`)}
+                                    </option>
+                                ))}
                             </select>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto max-h-[450px] pr-2 custom-scrollbar">
+                        </div>
+                        <div className="flex-1 overflow-y-auto max-h-[450px] pr-2 custom-scrollbar">
                             {loadingHelper ? (
                                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-gray-400">
                                     <Loader2 className="h-8 w-8 animate-spin" />
@@ -395,7 +411,10 @@ export const Login = () => {
 
                                             <div className="mt-3 flex flex-wrap gap-2">
                                                 {user.memberships.map((m: any, idx: number) => (
-                                                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 group-hover:border-indigo-100 group-hover:text-indigo-700">
+                                                    <span
+                                                        key={idx}
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-medium text-gray-600 group-hover:border-indigo-100 group-hover:text-indigo-700"
+                                                    >
                                                         <Building2 className="h-2.5 w-2.5" />
                                                         {m.schoolName} • {t(`roles.${m.role}`)}
                                                     </span>
@@ -410,7 +429,8 @@ export const Login = () => {
                                     )}
                                 </div>
                             )}
-                            </div>                    </div>
+                        </div>{' '}
+                    </div>
                 )}
             </div>
         </div>

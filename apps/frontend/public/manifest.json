@@ -1,17 +1,17 @@
 {
-    "name": "EduStack IS",
-    "short_name": "EduStack",
-    "description": "Školní informační systém – rozvrhy, klasifikace, docházka, komunikace",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#1e293b",
-    "orientation": "portrait-primary",
-    "icons": [
-        {
-            "src": "/vite.svg",
-            "sizes": "any",
-            "type": "image/svg+xml"
-        }
-    ]
+  "name": "EduStack IS",
+  "short_name": "EduStack",
+  "description": "Školní informační systém – rozvrhy, klasifikace, docházka, komunikace",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e293b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
 }

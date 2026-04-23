@@ -11,17 +11,21 @@ import {
   BadRequestException,
   Req,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
-import { SystemAdminSsoService } from './system-admin-sso.service';
+import {
+  SystemAdminSsoService,
+  UpsertSsoDto,
+} from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
+
+interface UserRequest extends Request {
+  user: { userId: string; email: string; isSystemAdmin: boolean };
+}
 
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
@@ -43,7 +47,7 @@ export class SystemAdminController {
   @Put('sso/:provider')
   async updateSsoProvider(
     @Param('provider') provider: string,
-    @Body() body: any,
+    @Body() body: UpsertSsoDto,
   ) {
     return this.ssoService.upsertSsoProvider(provider, body);
   }
@@ -60,12 +64,13 @@ export class SystemAdminController {
   }
 
   @Post('schools')
-  createSchool(@Body() body: any) {
+  createSchool(@Body() body: Record<string, unknown>) {
     try {
       const dto = validateCreateSchoolDto(body);
       return this.systemAdminService.createSchool(dto);
-    } catch (e: any) {
-      throw new BadRequestException(e.message);
+    } catch (e: unknown) {
+      const error = e as Error;
+      throw new BadRequestException(error.message);
     }
   }
 
@@ -79,7 +84,7 @@ export class SystemAdminController {
     @Param('id') id: string,
     @Body()
     body: { name?: string; address?: string; requireSsoEmailMatch?: boolean },
-    @Req() req: any,
+    @Req() req: UserRequest,
   ) {
     return this.systemAdminService.updateSchool(id, body, req.user.userId);
   }
@@ -87,8 +92,8 @@ export class SystemAdminController {
   @Patch('schools/:id/settings')
   updateSettings(
     @Param('id') id: string,
-    @Body('aiConfig') aiConfig?: any,
-    @Body('ssoConfig') ssoConfig?: any,
+    @Body('aiConfig') aiConfig?: Record<string, unknown>,
+    @Body('ssoConfig') ssoConfig?: Record<string, unknown>,
   ) {
     return this.systemAdminService.updateSchoolSettings(
       id,
@@ -126,7 +131,7 @@ export class SystemAdminController {
 
   @Post('admins')
   promoteToSysAdmin(
-    @Req() req: any,
+    @Req() req: UserRequest,
     @Body('email') email: string,
     @Body('firstName') firstName?: string,
     @Body('lastName') lastName?: string,
@@ -140,7 +145,7 @@ export class SystemAdminController {
   }
 
   @Delete('admins/:id')
-  removeSystemAdmin(@Req() req: any, @Param('id') id: string) {
+  removeSystemAdmin(@Req() req: UserRequest, @Param('id') id: string) {
     return this.systemAdminService.removeSystemAdmin(req.user.userId, id);
   }
 

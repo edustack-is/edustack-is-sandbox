@@ -3,11 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
+import {
+  BulletinPost,
+  Poll,
+  PollOption,
+  PollVote,
+  CalendarEvent,
+  EventRsvp,
+} from '../database/types';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class CommunityService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   // ─── BULLETIN BOARD ─────────────────────────────────────
 
@@ -16,49 +25,74 @@ export class CommunityService {
     schoolId: string,
     data: { title: string; content: string; pinned?: boolean },
   ) {
-    return this.prisma.bulletinPost.create({
-      data: {
-        title: data.title,
-        content: data.content,
-        pinned: data.pinned ?? false,
-        authorId: userId,
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "BulletinPost" (id, title, content, pinned, authorId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.title,
+        data.content,
+        data.pinned ? 1 : 0,
+        userId,
         schoolId,
-      },
-      include: { author: { select: { firstName: true, lastName: true } } },
-    });
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
+    return await this.db.queryOne(
+      'SELECT b.*, u.firstName, u.lastName FROM "BulletinPost" b JOIN "User" u ON b.authorId = u.id WHERE b.id = ?',
+      [id],
+    );
   }
 
   async getBulletinPosts(schoolId: string) {
-    return this.prisma.bulletinPost.findMany({
-      where: { schoolId },
-      include: { author: { select: { firstName: true, lastName: true } } },
-      orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
-    });
+    return this.db.query(
+      `SELECT b.*, u.firstName, u.lastName FROM "BulletinPost" b 
+       JOIN "User" u ON b.authorId = u.id 
+       WHERE b.schoolId = ? ORDER BY b.pinned DESC, b.createdAt DESC`,
+      [schoolId],
+    );
   }
 
   async updateBulletinPost(
     userId: string,
     schoolId: string,
     postId: string,
-    data: { title?: string; content?: string; pinned?: boolean },
+    data: any,
   ) {
-    const post = await this.prisma.bulletinPost.findFirst({
-      where: { id: postId, schoolId },
-    });
+    const post = await this.db.queryOne(
+      'SELECT * FROM "BulletinPost" WHERE id = ? AND schoolId = ?',
+      [postId, schoolId],
+    );
     if (!post) throw new NotFoundException('Post not found');
-    return this.prisma.bulletinPost.update({
-      where: { id: postId },
-      data,
-      include: { author: { select: { firstName: true, lastName: true } } },
+
+    const fields = ['updatedAt = ?'];
+    const values = [new Date().toISOString()];
+    ['title', 'content', 'pinned'].forEach((k) => {
+      if (data[k] !== undefined) {
+        fields.push(`"${k}" = ?`);
+        values.push(k === 'pinned' ? (data[k] ? 1 : 0) : data[k]);
+      }
     });
+
+    await this.db.execute(
+      `UPDATE "BulletinPost" SET ${fields.join(', ')} WHERE id = ?`,
+      [...values, postId],
+    );
+    return await this.db.queryOne(
+      'SELECT b.*, u.firstName, u.lastName FROM "BulletinPost" b JOIN "User" u ON b.authorId = u.id WHERE b.id = ?',
+      [postId],
+    );
   }
 
   async deleteBulletinPost(schoolId: string, postId: string) {
-    const post = await this.prisma.bulletinPost.findFirst({
-      where: { id: postId, schoolId },
-    });
+    const post = await this.db.queryOne(
+      'SELECT id FROM "BulletinPost" WHERE id = ? AND schoolId = ?',
+      [postId, schoolId],
+    );
     if (!post) throw new NotFoundException('Post not found');
-    return this.prisma.bulletinPost.delete({ where: { id: postId } });
+    await this.db.execute('DELETE FROM "BulletinPost" WHERE id = ?', [postId]);
+    return { success: true };
   }
 
   // ─── POLLS ──────────────────────────────────────────────
@@ -75,142 +109,210 @@ export class CommunityService {
   ) {
     if (!data.options || data.options.length < 2)
       throw new BadRequestException('Alespoň 2 možnosti');
-    return this.prisma.poll.create({
-      data: {
-        question: data.question,
-        multiSelect: data.multiSelect ?? false,
-        endsAt: data.endsAt ? new Date(data.endsAt) : null,
-        authorId: userId,
-        schoolId,
-        options: {
-          create: data.options.map((text) => ({ text })),
-        },
-      },
-      include: {
-        options: { include: { _count: { select: { votes: true } } } },
-        author: { select: { firstName: true, lastName: true } },
-      },
+
+    return this.db.transaction(async (db) => {
+      const pollId = crypto.randomUUID();
+      await db.execute(
+        'INSERT INTO "Poll" (id, question, multiSelect, endsAt, authorId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          pollId,
+          data.question,
+          data.multiSelect ? 1 : 0,
+          data.endsAt ? new Date(data.endsAt).toISOString() : null,
+          userId,
+          schoolId,
+          new Date().toISOString(),
+        ],
+      );
+
+      for (const opt of data.options) {
+        await db.execute(
+          'INSERT INTO "PollOption" (id, text, pollId) VALUES (?, ?, ?)',
+          [crypto.randomUUID(), opt, pollId],
+        );
+      }
+
+      return await this.getPollWithDetails(pollId);
     });
+  }
+
+  private async getPollWithDetails(id: string) {
+    const poll = await this.db.queryOne(
+      'SELECT p.*, u.firstName, u.lastName FROM "Poll" p JOIN "User" u ON p.authorId = u.id WHERE p.id = ?',
+      [id],
+    );
+    if (!poll) return null;
+    const options = await this.db.query(
+      'SELECT o.*, (SELECT COUNT(*) FROM "PollVote" WHERE optionId = o.id) as voteCount FROM "PollOption" o WHERE o.pollId = ?',
+      [id],
+    );
+    return {
+      ...poll,
+      author: {
+        firstName: (poll as any).firstName,
+        lastName: (poll as any).lastName,
+      },
+      options: options.map((o: any) => ({
+        ...o,
+        _count: { votes: o.voteCount },
+      })),
+    };
   }
 
   async getPolls(schoolId: string) {
-    return this.prisma.poll.findMany({
-      where: { schoolId },
-      include: {
-        options: { include: { _count: { select: { votes: true } } } },
-        author: { select: { firstName: true, lastName: true } },
-        _count: { select: { options: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const polls = await this.db.query(
+      'SELECT id FROM "Poll" WHERE schoolId = ? ORDER BY createdAt DESC',
+      [schoolId],
+    );
+    const result = [];
+    for (const p of polls as any[]) {
+      result.push(await this.getPollWithDetails(p.id));
+    }
+    return result;
   }
 
   async vote(userId: string, optionId: string) {
-    const option = await this.prisma.pollOption.findUnique({
-      where: { id: optionId },
-      include: { poll: true },
-    });
+    const option = await this.db.queryOne(
+      'SELECT o.*, p.multiSelect, p.endsAt FROM "PollOption" o JOIN "Poll" p ON o.pollId = p.id WHERE o.id = ?',
+      [optionId],
+    );
     if (!option) throw new NotFoundException('Option not found');
-    if (option.poll.endsAt && new Date() > option.poll.endsAt) {
+    const row = option as any;
+    if (row.endsAt && new Date() > new Date(row.endsAt))
       throw new BadRequestException('Anketa již skončila');
-    }
 
-    // If not multiSelect, remove previous vote for this poll
-    if (!option.poll.multiSelect) {
-      const existingVotes = await this.prisma.pollVote.findMany({
-        where: {
-          userId,
-          option: { pollId: option.pollId },
-        },
-      });
-      if (existingVotes.length > 0) {
-        await this.prisma.pollVote.deleteMany({
-          where: { id: { in: existingVotes.map((v) => v.id) } },
-        });
+    return this.db.transaction(async (db) => {
+      if (!row.multiSelect) {
+        await db.execute(
+          'DELETE FROM "PollVote" WHERE userId = ? AND optionId IN (SELECT id FROM "PollOption" WHERE pollId = ?)',
+          [userId, row.pollId],
+        );
       }
-    }
 
-    return this.prisma.pollVote.upsert({
-      where: { userId_optionId: { userId, optionId } },
-      update: {},
-      create: { userId, optionId },
+      const existing = await db.queryOne(
+        'SELECT id FROM "PollVote" WHERE userId = ? AND optionId = ?',
+        [userId, optionId],
+      );
+      if (!existing) {
+        await db.execute(
+          'INSERT INTO "PollVote" (id, userId, optionId, createdAt) VALUES (?, ?, ?, ?)',
+          [crypto.randomUUID(), userId, optionId, new Date().toISOString()],
+        );
+      }
+      return { success: true };
     });
   }
 
   async deletePoll(schoolId: string, pollId: string) {
-    const poll = await this.prisma.poll.findFirst({
-      where: { id: pollId, schoolId },
-    });
+    const poll = await this.db.queryOne(
+      'SELECT id FROM "Poll" WHERE id = ? AND schoolId = ?',
+      [pollId, schoolId],
+    );
     if (!poll) throw new NotFoundException('Poll not found');
-    return this.prisma.poll.delete({ where: { id: pollId } });
+    await this.db.transaction(async (db) => {
+      await db.execute(
+        'DELETE FROM "PollVote" WHERE optionId IN (SELECT id FROM "PollOption" WHERE pollId = ?)',
+        [pollId],
+      );
+      await db.execute('DELETE FROM "PollOption" WHERE pollId = ?', [pollId]);
+      await db.execute('DELETE FROM "Poll" WHERE id = ?', [pollId]);
+    });
+    return { success: true };
   }
 
   // ─── CALENDAR EVENTS ────────────────────────────────────
 
-  async createCalendarEvent(
-    userId: string,
-    schoolId: string,
-    data: {
-      title: string;
-      description?: string;
-      startDate: string;
-      endDate?: string;
-      location?: string;
-    },
-  ) {
-    return this.prisma.calendarEvent.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        startDate: new Date(data.startDate),
-        endDate: data.endDate ? new Date(data.endDate) : null,
-        location: data.location,
-        authorId: userId,
+  async createCalendarEvent(userId: string, schoolId: string, data: any) {
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "CalendarEvent" (id, title, description, startDate, endDate, location, authorId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        data.title,
+        data.description || null,
+        new Date(data.startDate).toISOString(),
+        data.endDate ? new Date(data.endDate).toISOString() : null,
+        data.location || null,
+        userId,
         schoolId,
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
+    return await this.getCalendarEventWithDetails(id);
+  }
+
+  private async getCalendarEventWithDetails(id: string) {
+    const ev = await this.db.queryOne(
+      'SELECT e.*, u.firstName, u.lastName, (SELECT COUNT(*) FROM "EventRsvp" WHERE eventId = e.id) as rsvpCount FROM "CalendarEvent" e JOIN "User" u ON e.authorId = u.id WHERE e.id = ?',
+      [id],
+    );
+    if (!ev) return null;
+    const rsvps = await this.db.query(
+      'SELECT r.*, u.firstName, u.lastName FROM "EventRsvp" r JOIN "User" u ON r.userId = u.id WHERE r.eventId = ?',
+      [id],
+    );
+    return {
+      ...ev,
+      author: {
+        firstName: (ev as any).firstName,
+        lastName: (ev as any).lastName,
       },
-      include: {
-        author: { select: { firstName: true, lastName: true } },
-        _count: { select: { rsvps: true } },
-      },
-    });
+      rsvps: rsvps.map((r: any) => ({
+        ...r,
+        user: { firstName: r.firstName, lastName: r.lastName },
+      })),
+      _count: { rsvps: (ev as any).rsvpCount },
+    };
   }
 
   async getCalendarEvents(schoolId: string) {
-    return this.prisma.calendarEvent.findMany({
-      where: { schoolId },
-      include: {
-        author: { select: { firstName: true, lastName: true } },
-        rsvps: {
-          include: { user: { select: { firstName: true, lastName: true } } },
-        },
-        _count: { select: { rsvps: true } },
-      },
-      orderBy: { startDate: 'asc' },
-    });
+    const events = await this.db.query(
+      'SELECT id FROM "CalendarEvent" WHERE schoolId = ? ORDER BY startDate ASC',
+      [schoolId],
+    );
+    const result = [];
+    for (const e of events as any[]) {
+      result.push(await this.getCalendarEventWithDetails(e.id));
+    }
+    return result;
   }
 
-  async rsvpEvent(
-    userId: string,
-    eventId: string,
-    status: 'YES' | 'NO' | 'MAYBE',
-  ) {
-    const event = await this.prisma.calendarEvent.findUnique({
-      where: { id: eventId },
-    });
-    if (!event) throw new NotFoundException('Event not found');
-
-    return this.prisma.eventRsvp.upsert({
-      where: { userId_eventId: { userId, eventId } },
-      update: { status },
-      create: { userId, eventId, status },
-    });
+  async rsvpEvent(userId: string, eventId: string, status: string) {
+    const existing = await this.db.queryOne(
+      'SELECT id FROM "EventRsvp" WHERE userId = ? AND eventId = ?',
+      [userId, eventId],
+    );
+    if (existing) {
+      await this.db.execute('UPDATE "EventRsvp" SET status = ? WHERE id = ?', [
+        status,
+        (existing as any).id,
+      ]);
+    } else {
+      await this.db.execute(
+        'INSERT INTO "EventRsvp" (id, userId, eventId, status, createdAt) VALUES (?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          userId,
+          eventId,
+          status,
+          new Date().toISOString(),
+        ],
+      );
+    }
+    return { success: true };
   }
 
   async deleteCalendarEvent(schoolId: string, eventId: string) {
-    const event = await this.prisma.calendarEvent.findFirst({
-      where: { id: eventId, schoolId },
+    const ev = await this.db.queryOne(
+      'SELECT id FROM "CalendarEvent" WHERE id = ? AND schoolId = ?',
+      [eventId, schoolId],
+    );
+    if (!ev) throw new NotFoundException('Event not found');
+    await this.db.transaction(async (db) => {
+      await db.execute('DELETE FROM "EventRsvp" WHERE eventId = ?', [eventId]);
+      await db.execute('DELETE FROM "CalendarEvent" WHERE id = ?', [eventId]);
     });
-    if (!event) throw new NotFoundException('Event not found');
-    return this.prisma.calendarEvent.delete({ where: { id: eventId } });
+    return { success: true };
   }
 }

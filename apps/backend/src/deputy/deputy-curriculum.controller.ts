@@ -24,7 +24,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../database/types';
 import { DeputyCurriculumService } from './deputy-curriculum.service';
 import { RvpImportService } from './rvp-import.service';
 import type { RvpConfirmData } from './rvp-import.service';

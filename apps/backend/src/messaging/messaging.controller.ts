@@ -20,10 +20,10 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../database/types';
 import { MessagingService } from './messaging.service';
 import { NotificationService } from './notification.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import {
   ClassBroadcastDto,
   CountResponseDto,
@@ -50,7 +50,7 @@ export class MessagingController {
   constructor(
     private messagingService: MessagingService,
     private notificationService: NotificationService,
-    private prisma: PrismaService,
+    private db: DatabaseService,
   ) {}
 
   private ensureTenant(req: any) {
@@ -559,7 +559,7 @@ export class MessagingController {
     @Req() req: any,
     @Body() body: { enabled: boolean },
   ) {
-    await this.prisma.user.update({
+    await this.db.user.update({
       where: { id: req.user.userId },
       data: { emailNotificationsEnabled: body.enabled },
     });

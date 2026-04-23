@@ -249,7 +249,9 @@ export class BackupService {
     try {
       // 2. Overwrite active DB
       fs.copyFileSync(localPath, dbPath);
-      this.logger.log('System restored successfully. Application might need restart to clear cache if using better-sqlite3 pooled connections.');
+      this.logger.log(
+        'System restored successfully. Application might need restart to clear cache if using better-sqlite3 pooled connections.',
+      );
     } catch (err: any) {
       this.logger.error('Failed to restore database:', err);
       throw new Error(`Restore failed: ${err.message}`);

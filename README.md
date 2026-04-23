@@ -4,14 +4,14 @@
 
 ## Technologie
 
-| Vrstva | Stack |
-|--------|-------|
-| Backend | NestJS, Prisma ORM |
-| Databáze | Cloudflare D1 (SQLite) |
-| Frontend | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
-| MCP Server | Node.js, SSE transport, 36 AI nástrojů |
-| AI | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
-| Infra | Cloudflare Workers, Cloudflare Pages |
+| Vrstva     | Stack                                                |
+| ---------- | ---------------------------------------------------- |
+| Backend    | NestJS, Prisma ORM                                   |
+| Databáze   | Cloudflare D1 (SQLite)                               |
+| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui  |
+| MCP Server | Node.js, SSE transport, 36 AI nástrojů               |
+| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
+| Infra      | Cloudflare Workers, Cloudflare Pages                 |
 
 ## Rychlý start
 
@@ -29,14 +29,15 @@ Aplikace používá jeden společný soubor s proměnnými prostředí v kořenu
 cp .env.example .env
 ```
 
-| Proměnná | Popis | Jak vygenerovat |
-|----------|-------|-----------------|
-| `JWT_SECRET` | Klíč pro podepisování JWT tokenů | `openssl rand -base64 64` |
-| `ENCRYPTION_KEY` | AES-256 klíč pro šifrování secrets | `openssl rand -base64 32` |
-| `ENABLE_LOGIN_HELPER` | Zapne panel s demo uživateli na login screenu | `true` nebo `false` |
+| Proměnná              | Popis                                         | Jak vygenerovat           |
+| --------------------- | --------------------------------------------- | ------------------------- |
+| `JWT_SECRET`          | Klíč pro podepisování JWT tokenů              | `openssl rand -base64 64` |
+| `ENCRYPTION_KEY`      | AES-256 klíč pro šifrování secrets            | `openssl rand -base64 32` |
+| `ENABLE_LOGIN_HELPER` | Zapne panel s demo uživateli na login screenu | `true` nebo `false`       |
 
 **SMTP (E-maily):**
 Pro lokální testování e-mailů se při spuštění aplikace automaticky aktivuje MailDev:
+
 - **SMTP server:** Port 1025
 - **Webové rozhraní:** http://localhost:1081 (konzultace doručených e-mailů)
 
@@ -57,11 +58,11 @@ npm run db:init
 
 #### Práce s databází
 
-| Akce | Příkaz | Popis |
-| :--- | :--- | :--- |
-| **Reset / Init** | `npm run db:init` | Vytvoří/aktualizuje lokální D1 schéma |
-| **Deploy** | `npm run db:deploy` | Přenese změny schématu do Cloudflare Cloudu |
-| **Prohlížení** | `npm run db:studio` | Otevře grafické rozhraní Prisma Studio |
+| Akce             | Příkaz              | Popis                                       |
+| :--------------- | :------------------ | :------------------------------------------ |
+| **Reset / Init** | `npm run db:init`   | Vytvoří/aktualizuje lokální D1 schéma       |
+| **Deploy**       | `npm run db:deploy` | Přenese změny schématu do Cloudflare Cloudu |
+| **Prohlížení**   | `npm run db:studio` | Otevře grafické rozhraní Prisma Studio      |
 
 ### 3. Demo Data
 
@@ -72,6 +73,7 @@ npm run seed:demo
 ```
 
 **Přihlašovací údaje (Heslo: `password123`):**
+
 - Systémový administrátor: `admin@edustack.cz`
 - Ředitel: `headmaster@tgmasaryk.cz`
 
@@ -82,10 +84,10 @@ npm run seed:demo
 npm run dev
 ```
 
-| Služba | URL |
-|--------|-----|
-| Aplikace | http://localhost:5173 |
-| Backend API | http://localhost:3000 |
+| Služba       | URL                            |
+| ------------ | ------------------------------ |
+| Aplikace     | http://localhost:5173          |
+| Backend API  | http://localhost:3000          |
 | Swagger docs | http://localhost:3000/api/docs |
 
 ## Zálohování (Backup Storage)
@@ -93,10 +95,13 @@ npm run dev
 Systém podporuje automatické i manuální zálohy databáze. Úložiště je konfigurovatelné:
 
 ### 1. Lokální režim (Výchozí)
+
 Pokud ponecháte proměnné `R2_*` v `.env` prázdné, zálohy se budou ukládat do adresáře `data/backups`.
 
 ### 2. Produkční režim (Cloudflare R2)
+
 Pro bezpečné uložení v cloudu nastavte přihlašovací údaje k R2 bucketu:
+
 - **R2_ENDPOINT:** URL vašeho R2 rozhraní (najdete v CF dashboardu).
 - **R2_ACCESS_KEY_ID:** Přístupový klíč s právy pro zápis.
 - **R2_SECRET_ACCESS_KEY:** Tajný klíč (v produkci vložte jako `wrangler secret`).

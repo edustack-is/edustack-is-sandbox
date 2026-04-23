@@ -25,7 +25,7 @@ test.describe('Curriculum and Schedule', () => {
         if (await scheduleBtn.isVisible()) {
             await scheduleBtn.click();
             // Otestujeme přítomnost bloků předmětů
-            // await expect(page.locator('.schedule-grid')).toBeVisible(); 
+            // await expect(page.locator('.schedule-grid')).toBeVisible();
         }
     });
 

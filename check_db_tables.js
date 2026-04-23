@@ -6,12 +6,12 @@ const path = require('path');
 async function check() {
     let dbPath = null;
     const wranglerDir = path.join(process.cwd(), 'apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
-    
+
     console.log(`Checking directory: ${wranglerDir}`);
-    
+
     if (fs.existsSync(wranglerDir)) {
         const files = fs.readdirSync(wranglerDir);
-        const dbFile = files.find(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+        const dbFile = files.find((f) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
         if (dbFile) {
             dbPath = path.join(wranglerDir, dbFile);
             console.log(`Found hashed DB: ${dbPath}`);
@@ -19,7 +19,7 @@ async function check() {
     }
 
     if (!dbPath) {
-        console.error("Could not find D1 database file.");
+        console.error('Could not find D1 database file.');
         return;
     }
 
@@ -30,7 +30,7 @@ async function check() {
         const secrets = await prisma.systemSecret.findMany();
         console.log(`✅ Success! Found ${secrets.length} secrets in SystemSecret table.`);
     } catch (e) {
-        console.error("❌ Error query SystemSecret table:", e.message);
+        console.error('❌ Error query SystemSecret table:', e.message);
     } finally {
         await prisma.$disconnect();
     }

@@ -48,10 +48,7 @@ export class BackupController {
 
   @Get(':filename/download')
   @ApiOperation({ summary: 'Stažení zálohy' })
-  async downloadBackup(
-    @Param('filename') filename: string,
-    @Res() res: any,
-  ) {
+  async downloadBackup(@Param('filename') filename: string, @Res() res: any) {
     const buffer = await this.backupService.getBackupFile(filename);
     res.set({
       'Content-Type': 'application/x-sqlite3',

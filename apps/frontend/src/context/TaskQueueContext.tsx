@@ -10,7 +10,7 @@ export interface TaskItem {
     label: string;
     status: TaskStatus;
     error?: string;
-    createdAt: number;   // timestamp
+    createdAt: number; // timestamp
     finishedAt?: number; // timestamp
 }
 
@@ -42,50 +42,57 @@ export function TaskQueueProvider({ children }: { children: React.ReactNode }) {
             status: 'running',
             createdAt: Date.now(),
         };
-        setTasks(prev => [task, ...prev]);
+        setTasks((prev) => [task, ...prev]);
         return id;
     }, []);
 
     const updateTask = useCallback((id: string, updates: Partial<Pick<TaskItem, 'status' | 'error'>>) => {
-        setTasks(prev => prev.map(t => {
-            if (t.id !== id) return t;
-            return {
-                ...t,
-                ...updates,
-                ...(updates.status && updates.status !== 'running' ? { finishedAt: Date.now() } : {}),
-            };
-        }));
+        setTasks((prev) =>
+            prev.map((t) => {
+                if (t.id !== id) return t;
+                return {
+                    ...t,
+                    ...updates,
+                    ...(updates.status && updates.status !== 'running' ? { finishedAt: Date.now() } : {}),
+                };
+            }),
+        );
     }, []);
 
-    const completeTask = useCallback((id: string, success: boolean, error?: string) => {
-        updateTask(id, {
-            status: success ? 'done' : 'error',
-            ...(error ? { error } : {}),
-        });
-    }, [updateTask]);
+    const completeTask = useCallback(
+        (id: string, success: boolean, error?: string) => {
+            updateTask(id, {
+                status: success ? 'done' : 'error',
+                ...(error ? { error } : {}),
+            });
+        },
+        [updateTask],
+    );
 
     const clearFinished = useCallback(() => {
-        setTasks(prev => prev.filter(t => t.status === 'running'));
+        setTasks((prev) => prev.filter((t) => t.status === 'running'));
     }, []);
 
     const clearAll = useCallback(() => {
         setTasks([]);
     }, []);
 
-    const runningCount = tasks.filter(t => t.status === 'running').length;
+    const runningCount = tasks.filter((t) => t.status === 'running').length;
     const hasRunning = runningCount > 0;
 
     return (
-        <TaskQueueContext.Provider value={{
-            tasks,
-            addTask,
-            updateTask,
-            completeTask,
-            clearFinished,
-            clearAll,
-            hasRunning,
-            runningCount,
-        }}>
+        <TaskQueueContext.Provider
+            value={{
+                tasks,
+                addTask,
+                updateTask,
+                completeTask,
+                clearFinished,
+                clearAll,
+                hasRunning,
+                runningCount,
+            }}
+        >
             {children}
         </TaskQueueContext.Provider>
     );

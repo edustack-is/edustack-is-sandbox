@@ -56,8 +56,8 @@ export const downloadBackup = (filename: string) => {
     a.download = filename;
     // For auth, use fetch + blob
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.blob())
-        .then(blob => {
+        .then((r) => r.blob())
+        .then((blob) => {
             const blobUrl = URL.createObjectURL(blob);
             a.href = blobUrl;
             a.click();

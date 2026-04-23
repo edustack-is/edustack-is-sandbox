@@ -1,12 +1,7 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RegistryService } from './registry.service';
-import {
-  Prisma,
-  Classroom,
-  StudentProfile,
-  TeacherProfile,
-} from '@prisma/client';
+import { Classroom, StudentProfile, TeacherProfile } from '../database/types';
 
 import { RegistryClassroomResponseDto } from '../common/dto/response.dto';
 @ApiTags('registry')
@@ -21,21 +16,7 @@ export class RegistryController {
     description: 'Třída vytvořena v matrice.',
     type: RegistryClassroomResponseDto,
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-  })
-  async createClassroom(
-    @Body() data: Prisma.ClassroomCreateInput,
-  ): Promise<Classroom> {
+  async createClassroom(@Body() data: any): Promise<Classroom> {
     return this.registryService.createClassroom(data);
   }
 
@@ -45,16 +26,12 @@ export class RegistryController {
   }
 
   @Post('students')
-  async createStudentProfile(
-    @Body() data: Prisma.StudentProfileCreateInput,
-  ): Promise<StudentProfile> {
+  async createStudentProfile(@Body() data: any): Promise<StudentProfile> {
     return this.registryService.createStudentProfile(data);
   }
 
   @Post('teachers')
-  async createTeacherProfile(
-    @Body() data: Prisma.TeacherProfileCreateInput,
-  ): Promise<TeacherProfile> {
+  async createTeacherProfile(@Body() data: any): Promise<TeacherProfile> {
     return this.registryService.createTeacherProfile(data);
   }
 }

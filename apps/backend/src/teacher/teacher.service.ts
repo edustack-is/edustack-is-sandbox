@@ -2,96 +2,112 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AttendanceStatus } from '@prisma/client';
+import { DatabaseService } from '../database/database.service';
+import {
+  TeacherProfile,
+  StudentProfile,
+  ScheduleEvent,
+  User,
+} from '../database/types';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class TeacherService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   /**
    * Returns a unified schedule across ALL schools where this teacher teaches.
-   * Ignores current school context — uses global identity.
    */
   async getMySchedule(userId: string) {
-    // Find teacher profile
-    const teacherProfile = await this.prisma.teacherProfile.findUnique({
-      where: { userId },
-    });
+    const teacherProfile = await this.db.queryOne<TeacherProfile>(
+      'SELECT * FROM "TeacherProfile" WHERE userId = ?',
+      [userId],
+    );
 
-    if (!teacherProfile) {
+    if (!teacherProfile)
       throw new NotFoundException('Teacher profile not found');
-    }
 
-    // Get all schedule events for this teacher across all schools
-    const events = await this.prisma.scheduleEvent.findMany({
-      where: { teacherId: teacherProfile.id },
-      include: {
-        subject: { include: { template: true } },
-        classroom: true,
-        school: { select: { id: true, name: true } },
-      },
-      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-    });
+    const events = await this.db.query(
+      `SELECT se.*, si.id as si_id, st.name as st_name, c.name as c_name, s.id as s_id, s.name as s_name 
+       FROM "ScheduleEvent" se 
+       JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id 
+       JOIN "SubjectTemplate" st ON si.templateId = st.id 
+       JOIN "Classroom" c ON se.classroomId = c.id 
+       JOIN "School" s ON se.schoolId = s.id 
+       WHERE se.teacherId = ? 
+       ORDER BY se.dayOfWeek ASC, se.startTime ASC`,
+      [teacherProfile.id],
+    );
 
-    return events;
+    return events.map((e: any) => ({
+      ...e,
+      subject: { id: e.si_id, template: { name: e.st_name } },
+      classroom: { id: e.classroomId, name: e.c_name },
+      school: { id: e.s_id, name: e.s_name },
+    }));
   }
 
   /**
-   * Returns a list of classes and their students that this teacher teaches
-   * within the current school context.
+   * Returns a list of classes and their students that this teacher teaches within current school.
    */
   async getClasses(userId: string, schoolId: string) {
-    const teacherProfile = await this.prisma.teacherProfile.findUnique({
-      where: { userId },
-    });
-
-    if (!teacherProfile) {
+    const teacherProfile = await this.db.queryOne<TeacherProfile>(
+      'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+      [userId],
+    );
+    if (!teacherProfile)
       throw new NotFoundException('Teacher profile not found');
-    }
 
-    // Get distinct classrooms from schedule events in this school
-    const events = await this.prisma.scheduleEvent.findMany({
-      where: {
-        teacherId: teacherProfile.id,
-        schoolId,
-      },
-      select: { classroomId: true, subjectInstanceId: true },
-      distinct: ['classroomId'],
-    });
+    const classroomIds = (
+      await this.db.query<{ classroomId: string }>(
+        'SELECT DISTINCT classroomId FROM "ScheduleEvent" WHERE teacherId = ? AND schoolId = ?',
+        [teacherProfile.id, schoolId],
+      )
+    ).map((e) => e.classroomId);
 
-    const classroomIds = events.map((e: any) => e.classroomId);
+    if (classroomIds.length === 0) return [];
 
-    const classrooms = await this.prisma.classroom.findMany({
-      where: { id: { in: classroomIds } },
-      include: {
-        students: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
+    const result = [];
+    for (const cid of classroomIds) {
+      const classroom = await this.db.queryOne(
+        'SELECT * FROM "Classroom" WHERE id = ?',
+        [cid],
+      );
+      if (!classroom) continue;
+
+      const students = await this.db.query(
+        'SELECT sp.*, u.firstName, u.lastName, u.email FROM "StudentProfile" sp JOIN "User" u ON sp.userId = u.id WHERE sp.classroomId = ?',
+        [cid],
+      );
+
+      const events = await this.db.query(
+        'SELECT se.*, st.name as st_name FROM "ScheduleEvent" se JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id JOIN "SubjectTemplate" st ON si.templateId = st.id WHERE se.classroomId = ? AND se.teacherId = ?',
+        [cid, teacherProfile.id],
+      );
+
+      result.push({
+        ...classroom,
+        students: students.map((s: any) => ({
+          ...s,
+          user: {
+            id: s.userId,
+            firstName: s.firstName,
+            lastName: s.lastName,
+            email: s.email,
           },
-        },
-        scheduleEvents: {
-          where: { teacherId: teacherProfile.id },
-          include: { subject: { include: { template: true } } },
-        },
-      },
-    });
-
-    return classrooms;
+        })),
+        scheduleEvents: events.map((e: any) => ({
+          ...e,
+          subject: { template: { name: e.st_name } },
+        })),
+      });
+    }
+    return result;
   }
 
   /**
-   * Creates a grade for a student. Validates that the teacher teaches this student
-   * via schedule events (teacher teaches in the student's classroom for the given subject).
+   * Creates a grade for a student.
    */
   async createGrade(
     userId: string,
@@ -104,144 +120,118 @@ export class TeacherService {
       description?: string;
     },
   ) {
-    const teacherProfile = await this.prisma.teacherProfile.findUnique({
-      where: { userId },
-    });
-    if (!teacherProfile)
-      throw new NotFoundException('Teacher profile not found');
+    const teacher = await this.db.queryOne<TeacherProfile>(
+      'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+      [userId],
+    );
+    if (!teacher) throw new NotFoundException('Teacher profile not found');
 
-    // Validate student exists
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: data.studentId },
-      select: { id: true, classroomId: true },
-    });
+    const student = await this.db.queryOne<StudentProfile>(
+      'SELECT id, classroomId FROM "StudentProfile" WHERE id = ?',
+      [data.studentId],
+    );
     if (!student) throw new NotFoundException('Student not found');
 
-    // Validate teacher teaches this student's classroom for the given subject
-    const hasAuthority = await this.prisma.scheduleEvent.findFirst({
-      where: {
-        teacherId: teacherProfile.id,
+    const hasAuthority = await this.db.queryOne(
+      'SELECT id FROM "ScheduleEvent" WHERE teacherId = ? AND schoolId = ? AND classroomId = ? AND subjectInstanceId = ? LIMIT 1',
+      [teacher.id, schoolId, student.classroomId || '', data.subjectInstanceId],
+    );
+    if (!hasAuthority) throw new ForbiddenException('Not authorized.');
+
+    const gradeId = randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Grade" (id, value, weight, description, date, type, schoolId, studentId, subjectInstanceId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, "NUMERIC", ?, ?, ?, ?, ?)',
+      [
+        gradeId,
+        data.value,
+        data.weight,
+        data.description || null,
+        new Date().toISOString(),
         schoolId,
-        classroomId: student.classroomId ?? undefined,
-        subjectInstanceId: data.subjectInstanceId,
-      },
-    });
+        data.studentId,
+        data.subjectInstanceId,
+        teacher.id,
+        new Date().toISOString(),
+      ],
+    );
 
-    if (!hasAuthority) {
-      throw new ForbiddenException(
-        'You are not authorized to grade this student for this subject.',
-      );
-    }
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        randomUUID(),
+        userId,
+        'CREATE_GRADE',
+        'Grade',
+        gradeId,
+        JSON.stringify(data),
+        new Date().toISOString(),
+      ],
+    );
 
-    // Create the grade
-    const grade = await this.prisma.grade.create({
-      data: {
-        value: data.value,
-        weight: data.weight,
-        description: data.description,
-        schoolId,
-        studentId: data.studentId,
-        subjectInstanceId: data.subjectInstanceId,
-        teacherId: teacherProfile.id,
-      },
-      include: {
-        subjectInstance: { include: { template: true } },
-        studentProfile: true,
-      },
-    });
-
-    // Audit log
-    await this.prisma.auditLog.create({
-      data: {
-        actorId: userId,
-        action: 'CREATE_GRADE',
-        entity: 'Grade',
-        entityId: grade.id,
-        newValues: {
-          value: data.value,
-          weight: data.weight,
-          studentId: data.studentId,
-          subjectInstanceId: data.subjectInstanceId,
-          description: data.description,
-        },
-      },
-    });
-
-    return grade;
+    return await this.db.queryOne('SELECT * FROM "Grade" WHERE id = ?', [
+      gradeId,
+    ]);
   }
 
   /**
-   * Records attendance for a student. Validates teacher authority via schedule events.
+   * Records attendance for a student.
    */
   async createAttendance(
     userId: string,
     schoolId: string,
-    data: {
-      studentId: string;
-      status: AttendanceStatus;
-      date?: string;
-      note?: string;
-    },
+    data: { studentId: string; status: string; date?: string; note?: string },
   ) {
-    const teacherProfile = await this.prisma.teacherProfile.findUnique({
-      where: { userId },
-    });
-    if (!teacherProfile)
-      throw new NotFoundException('Teacher profile not found');
+    const teacher = await this.db.queryOne<TeacherProfile>(
+      'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+      [userId],
+    );
+    if (!teacher) throw new NotFoundException('Teacher profile not found');
 
-    // Validate student exists
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: data.studentId },
-      select: { id: true, classroomId: true },
-    });
+    const student = await this.db.queryOne<StudentProfile>(
+      'SELECT id, classroomId FROM "StudentProfile" WHERE id = ?',
+      [data.studentId],
+    );
     if (!student) throw new NotFoundException('Student not found');
 
-    // Validate teacher teaches this student's classroom
-    const hasAuthority = await this.prisma.scheduleEvent.findFirst({
-      where: {
-        teacherId: teacherProfile.id,
+    const hasAuthority = await this.db.queryOne(
+      'SELECT id FROM "ScheduleEvent" WHERE teacherId = ? AND schoolId = ? AND classroomId = ? LIMIT 1',
+      [teacher.id, schoolId, student.classroomId || ''],
+    );
+    if (!hasAuthority) throw new ForbiddenException('Not authorized.');
+
+    const date = data.date
+      ? new Date(data.date).toISOString()
+      : new Date().toISOString();
+    const id = randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Attendance" (id, date, status, note, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        date,
+        data.status,
+        data.note || null,
         schoolId,
-        classroomId: student.classroomId ?? undefined,
-      },
-    });
+        data.studentId,
+        teacher.id,
+        new Date().toISOString(),
+      ],
+    );
 
-    if (!hasAuthority) {
-      throw new ForbiddenException(
-        'You are not authorized to record attendance for this student.',
-      );
-    }
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        randomUUID(),
+        userId,
+        'CREATE_ATTENDANCE',
+        'Attendance',
+        id,
+        JSON.stringify(data),
+        new Date().toISOString(),
+      ],
+    );
 
-    const attendanceDate = data.date ? new Date(data.date) : new Date();
-
-    // Create or update attendance (upsert by student+date+school)
-    const attendance = await this.prisma.attendance.create({
-      data: {
-        date: attendanceDate,
-        status: data.status,
-        note: data.note,
-        schoolId,
-        studentId: data.studentId,
-        teacherId: teacherProfile.id,
-      },
-      include: { studentProfile: true },
-    });
-
-    // Audit log
-    await this.prisma.auditLog.create({
-      data: {
-        actorId: userId,
-        action: 'CREATE_ATTENDANCE',
-        entity: 'Attendance',
-        entityId: attendance.id,
-        newValues: {
-          studentId: data.studentId,
-          status: data.status,
-          date: attendanceDate.toISOString(),
-          note: data.note,
-        },
-      },
-    });
-
-    return attendance;
+    return await this.db.queryOne('SELECT * FROM "Attendance" WHERE id = ?', [
+      id,
+    ]);
   }
 }

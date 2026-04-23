@@ -67,11 +67,7 @@ const SheetTitle = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Title>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-    <DialogPrimitive.Title
-        ref={ref}
-        className={cn('text-lg font-semibold text-foreground', className)}
-        {...props}
-    />
+    <DialogPrimitive.Title ref={ref} className={cn('text-lg font-semibold text-foreground', className)} {...props} />
 ));
 SheetTitle.displayName = DialogPrimitive.Title.displayName;
 
@@ -79,15 +75,18 @@ const SheetDescription = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Description>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
-    <DialogPrimitive.Description
-        ref={ref}
-        className={cn('text-sm text-muted-foreground', className)}
-        {...props}
-    />
+    <DialogPrimitive.Description ref={ref} className={cn('text-sm text-muted-foreground', className)} {...props} />
 ));
 SheetDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {
-    Sheet, SheetPortal, SheetOverlay, SheetTrigger, SheetClose,
-    SheetContent, SheetHeader, SheetTitle, SheetDescription,
+    Sheet,
+    SheetPortal,
+    SheetOverlay,
+    SheetTrigger,
+    SheetClose,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
 };

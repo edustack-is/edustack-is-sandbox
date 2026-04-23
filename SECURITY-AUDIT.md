@@ -10,12 +10,12 @@
 
 The application is a **school information system** (NestJS + React) with JWT authentication, RBAC, SSO integration, and AI features. An initial audit identified **16 findings** across all severity levels. After two rounds of remediation, **all 16 findings have been addressed**.
 
-| Severity | Found | Fixed | Remaining |
-|----------|-------|-------|-----------|
-| 🔴 Critical | 3 | 3 | 0 |
-| 🟠 High | 4 | 4 | 0 |
-| 🟡 Medium | 5 | 5 | 0 |
-| 🔵 Low / Info | 4 | 4 | 0 |
+| Severity      | Found | Fixed | Remaining |
+| ------------- | ----- | ----- | --------- |
+| 🔴 Critical   | 3     | 3     | 0         |
+| 🟠 High       | 4     | 4     | 0         |
+| 🟡 Medium     | 5     | 5     | 0         |
+| 🔵 Low / Info | 4     | 4     | 0         |
 
 ### Post-Remediation Status: All findings resolved ✅
 
@@ -31,10 +31,13 @@ New informational items identified during re-audit are listed in the "Future Imp
 **Fix:** Removed `|| 'secretKey'` fallback. Application now **fails to start** if `JWT_SECRET` is not set (fail-fast in `main.ts` + constructor throw in `JwtStrategy`).
 
 **Verification:**
+
 ```typescript
 // main.ts — fail-fast check
 if (!process.env.JWT_SECRET) missingVars.push('JWT_SECRET ...');
-if (missingVars.length > 0) { process.exit(1); }
+if (missingVars.length > 0) {
+    process.exit(1);
+}
 
 // jwt.strategy.ts — constructor throws
 if (!secret) throw new Error('❌ JWT_SECRET is not set!');
@@ -48,6 +51,7 @@ if (!secret) throw new Error('❌ JWT_SECRET is not set!');
 **Fix:** Removed `|| 'edu-stack-default-key-change-me!!'` fallback. Application crashes if `ENCRYPTION_KEY` is not set. Salt is now derived using SHA-256 instead of a static string.
 
 **Verification:**
+
 ```typescript
 if (!encryptionKey) throw new Error('❌ ENCRYPTION_KEY is not set!');
 const salt = crypto.createHash('sha256').update('edustack-encryption-salt').digest();
@@ -62,6 +66,7 @@ this.key = crypto.scryptSync(encryptionKey, salt, 32);
 **Fix:** Endpoint now: (1) requires JWT authentication via `@UseGuards(JwtAuthGuard)`, (2) reads `adminId` from `req.user.userId` (not request body), (3) checks caller is system admin OR has management role (ADMIN/DEPUTY/PRINCIPAL) in a shared school.
 
 **Verification:**
+
 ```typescript
 @UseGuards(JwtAuthGuard)
 @Post('impersonate/:id')
@@ -83,10 +88,11 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 ### H1. ✅ FIXED — Init Endpoints Protected
 
 **File:** `init/init.controller.ts`, `init/setup-token.guard.ts`  
-**Fix:**  
-1. New `SetupTokenGuard` — if `SETUP_TOKEN` env is set, requires `x-setup-token` header  
-2. Per-endpoint `@Throttle()` rate limiting (3-10 req/60s depending on endpoint)  
-3. `seed-files` endpoint now also guarded  
+**Fix:**
+
+1. New `SetupTokenGuard` — if `SETUP_TOKEN` env is set, requires `x-setup-token` header
+2. Per-endpoint `@Throttle()` rate limiting (3-10 req/60s depending on endpoint)
+3. `seed-files` endpoint now also guarded
 
 ---
 
@@ -100,10 +106,11 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 ### H3. ✅ FIXED — Global ValidationPipe + Helmet
 
 **File:** `main.ts`, `init/init.service.ts`  
-**Fix:**  
-1. Global `ValidationPipe` with `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`  
-2. `SetupDto` has full `class-validator` decorators (`@IsEmail`, `@MinLength(8)`, `@Matches`, etc.)  
-3. `helmet()` middleware added with production CSP  
+**Fix:**
+
+1. Global `ValidationPipe` with `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`
+2. `SetupDto` has full `class-validator` decorators (`@IsEmail`, `@MinLength(8)`, `@Matches`, etc.)
+3. `helmet()` middleware added with production CSP
 
 ---
 
@@ -140,10 +147,11 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 ### M4. ✅ FIXED — Adminer Bound to Localhost
 
 **File:** `docker-compose.yml`  
-**Fix:**  
-1. Adminer bound to `127.0.0.1:8080`  
-2. Added `profiles: [dev]` — only starts with `docker compose --profile dev up`  
-3. PostgreSQL also bound to `127.0.0.1:5432`  
+**Fix:**
+
+1. Adminer bound to `127.0.0.1:8080`
+2. Added `profiles: [dev]` — only starts with `docker compose --profile dev up`
+3. PostgreSQL also bound to `127.0.0.1:5432`
 
 ---
 
@@ -153,6 +161,7 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 **Status:** Mitigated via restrictive CSP in production. Full migration to httpOnly cookies is a future improvement (4+ hrs effort, requires backend refactoring of all token-based auth flows).
 
 **Current mitigations:**
+
 - Production CSP blocks inline scripts (`scriptSrc: ['self']`)
 - No `dangerouslySetInnerHTML` usage found in frontend ✅
 - `withCredentials: true` added to axios instance
@@ -178,10 +187,11 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 ### L3. ✅ FIXED — RolesGuard School Context Validation
 
 **File:** `auth/roles.guard.ts`  
-**Fix:** Enhanced guard:  
-1. System admins bypass role checks  
-2. Tenant JWTs validated for both role AND `schoolId` presence  
-3. Global tokens (non-admin) are denied access to role-gated endpoints with clear error message  
+**Fix:** Enhanced guard:
+
+1. System admins bypass role checks
+2. Tenant JWTs validated for both role AND `schoolId` presence
+3. Global tokens (non-admin) are denied access to role-gated endpoints with clear error message
 
 ---
 
@@ -194,24 +204,24 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 
 ## ✅ Positive Security Observations
 
-| Feature | Assessment |
-|---------|------------|
-| Password hashing | ✅ bcrypt with 10 rounds |
-| Parameterized queries | ✅ Prisma ORM prevents SQL injection |
-| Audit logging | ✅ Login attempts, impersonation, sensitive reads logged |
-| JWT-based auth | ✅ Global guard via `APP_GUARD`, no hardcoded secrets |
-| Role-based access | ✅ RolesGuard + Roles decorator + school context validation |
-| SystemAdmin guard | ✅ Dedicated `IsSystemAdminGuard` on system endpoints |
-| Secrets encryption | ✅ AES-256-GCM with secure key derivation |
-| Invitation tokens | ✅ Cryptographically random, bcrypt-hashed, time-limited |
-| File upload validation | ✅ MIME type + size limits on avatar upload |
-| `.env` in `.gitignore` | ✅ Environment files excluded from version control |
-| SSO cookie security | ✅ httpOnly, short-lived cookies for OAuth state |
-| Security headers | ✅ Helmet with production CSP |
-| Rate limiting | ✅ Global + per-endpoint throttling |
-| Input validation | ✅ Global ValidationPipe + class-validator |
-| CORS | ✅ Explicit origin configuration |
-| Setup protection | ✅ Optional SETUP_TOKEN guard |
+| Feature                | Assessment                                                  |
+| ---------------------- | ----------------------------------------------------------- |
+| Password hashing       | ✅ bcrypt with 10 rounds                                    |
+| Parameterized queries  | ✅ Prisma ORM prevents SQL injection                        |
+| Audit logging          | ✅ Login attempts, impersonation, sensitive reads logged    |
+| JWT-based auth         | ✅ Global guard via `APP_GUARD`, no hardcoded secrets       |
+| Role-based access      | ✅ RolesGuard + Roles decorator + school context validation |
+| SystemAdmin guard      | ✅ Dedicated `IsSystemAdminGuard` on system endpoints       |
+| Secrets encryption     | ✅ AES-256-GCM with secure key derivation                   |
+| Invitation tokens      | ✅ Cryptographically random, bcrypt-hashed, time-limited    |
+| File upload validation | ✅ MIME type + size limits on avatar upload                 |
+| `.env` in `.gitignore` | ✅ Environment files excluded from version control          |
+| SSO cookie security    | ✅ httpOnly, short-lived cookies for OAuth state            |
+| Security headers       | ✅ Helmet with production CSP                               |
+| Rate limiting          | ✅ Global + per-endpoint throttling                         |
+| Input validation       | ✅ Global ValidationPipe + class-validator                  |
+| CORS                   | ✅ Explicit origin configuration                            |
+| Setup protection       | ✅ Optional SETUP_TOKEN guard                               |
 
 ---
 
@@ -219,16 +229,16 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 
 These are **not vulnerabilities** but represent areas for further hardening:
 
-| # | Area | Description | Effort |
-|---|------|-------------|--------|
-| F1 | **Full httpOnly cookie auth** | Migrate all JWT storage from `localStorage` to httpOnly cookies. Eliminates XSS token theft entirely. | 🔴 4+ hrs |
-| F2 | **DTO validation on all endpoints** | Several controllers still use `@Body() body: any` or `Record<string, string>` (login, SSO config, school creation). Gradually add typed DTOs with class-validator. | 🟡 2-3 hrs |
-| F3 | **Account lockout** | After N failed login attempts, temporarily lock the account. Currently only logged, not enforced. | 🟡 1-2 hrs |
-| F4 | **Refresh token rotation** | Current 60-minute JWT has no refresh mechanism. Add refresh tokens with rotation and revocation. | 🔴 4+ hrs |
-| F5 | **accept-invite is @Public** | The `POST /api/auth/accept-invite` endpoint doesn't have `@Public()` decorator explicitly but relies on the global auth guard. The invitation token in body acts as the auth mechanism. Consider rate limiting this endpoint. | 🟢 15 min |
-| F6 | **Asymmetric JWT keys** | Consider RS256 instead of HS256 for production deployments to allow token verification without the signing key. | 🟡 1-2 hrs |
-| F7 | **npm audit warnings** | 17 known vulnerabilities in dependencies (13 moderate, 2 high, 2 critical). Run `npm audit fix` and review. | 🟢 30 min |
-| F8 | **Maildev in production** | MailDev SMTP server is always started. Consider adding `profiles: [dev]` like Adminer. | 🟢 5 min |
+| #   | Area                                | Description                                                                                                                                                                                                                   | Effort     |
+| --- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| F1  | **Full httpOnly cookie auth**       | Migrate all JWT storage from `localStorage` to httpOnly cookies. Eliminates XSS token theft entirely.                                                                                                                         | 🔴 4+ hrs  |
+| F2  | **DTO validation on all endpoints** | Several controllers still use `@Body() body: any` or `Record<string, string>` (login, SSO config, school creation). Gradually add typed DTOs with class-validator.                                                            | 🟡 2-3 hrs |
+| F3  | **Account lockout**                 | After N failed login attempts, temporarily lock the account. Currently only logged, not enforced.                                                                                                                             | 🟡 1-2 hrs |
+| F4  | **Refresh token rotation**          | Current 60-minute JWT has no refresh mechanism. Add refresh tokens with rotation and revocation.                                                                                                                              | 🔴 4+ hrs  |
+| F5  | **accept-invite is @Public**        | The `POST /api/auth/accept-invite` endpoint doesn't have `@Public()` decorator explicitly but relies on the global auth guard. The invitation token in body acts as the auth mechanism. Consider rate limiting this endpoint. | 🟢 15 min  |
+| F6  | **Asymmetric JWT keys**             | Consider RS256 instead of HS256 for production deployments to allow token verification without the signing key.                                                                                                               | 🟡 1-2 hrs |
+| F7  | **npm audit warnings**              | 17 known vulnerabilities in dependencies (13 moderate, 2 high, 2 critical). Run `npm audit fix` and review.                                                                                                                   | 🟢 30 min  |
+| F8  | **Maildev in production**           | MailDev SMTP server is always started. Consider adding `profiles: [dev]` like Adminer.                                                                                                                                        | 🟢 5 min   |
 
 ---
 
@@ -248,4 +258,4 @@ Before deploying to production, ensure:
 
 ---
 
-*This audit covers code review only. A full assessment would include dynamic testing (DAST), dependency vulnerability scanning (`npm audit`), and infrastructure review.*
+_This audit covers code review only. A full assessment would include dynamic testing (DAST), dependency vulnerability scanning (`npm audit`), and infrastructure review._

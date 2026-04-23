@@ -77,10 +77,7 @@ export const ActivateAccount = () => {
 
     const handleSsoActivate = (provider: string) => {
         if (!token) return;
-        const backendUrl =
-            window.location.origin === 'http://localhost:5173'
-                ? 'http://localhost:3000'
-                : '';
+        const backendUrl = window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
         window.location.href = `${backendUrl}/api/auth/sso/${provider}?invitationToken=${encodeURIComponent(token)}`;
     };
 
@@ -93,14 +90,9 @@ export const ActivateAccount = () => {
                     <div className="mx-auto h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
                         <Shield className="h-6 w-6 text-red-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-red-600 mb-4">
-                        {t('activate.invalid_link')}
-                    </h2>
+                    <h2 className="text-2xl font-bold text-red-600 mb-4">{t('activate.invalid_link')}</h2>
                     <p className="text-gray-600">{t('activate.link_expired')}</p>
-                    <a
-                        href="/login"
-                        className="mt-4 inline-block text-indigo-600 hover:text-indigo-500 font-medium"
-                    >
+                    <a href="/login" className="mt-4 inline-block text-indigo-600 hover:text-indigo-500 font-medium">
                         {t('activate.back_to_login')}
                     </a>
                 </div>
@@ -120,21 +112,15 @@ export const ActivateAccount = () => {
                     <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                         <Fingerprint className="h-6 w-6 text-indigo-600" />
                     </div>
-                    <h2 className="text-3xl font-extrabold text-gray-900">
-                        {t('activate.title')}
-                    </h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        {t('activate.subtitle')}
-                    </p>
+                    <h2 className="text-3xl font-extrabold text-gray-900">{t('activate.title')}</h2>
+                    <p className="mt-2 text-sm text-gray-600">{t('activate.subtitle')}</p>
                 </div>
 
                 {/* SSO section — shown when providers are configured */}
                 {hasSso && (
                     <>
                         <div className="space-y-3 mb-6">
-                            <p className="text-sm font-medium text-gray-700">
-                                {t('activate.sso_section_title')}
-                            </p>
+                            <p className="text-sm font-medium text-gray-700">{t('activate.sso_section_title')}</p>
                             {ssoOptions.map((provider) => {
                                 const Icon = SSO_PROVIDER_ICON[provider] || SsoFallbackIcon;
                                 const label = SSO_PROVIDER_LABEL[provider] || provider;
@@ -178,10 +164,7 @@ export const ActivateAccount = () => {
                 <form className="space-y-5" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label
-                                htmlFor="password"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                                 {t('activate.new_password')}
                             </label>
                             <PasswordInput
@@ -193,10 +176,7 @@ export const ActivateAccount = () => {
                             />
                         </div>
                         <div>
-                            <label
-                                htmlFor="confirmPassword"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                                 {t('activate.confirm_password')}
                             </label>
                             <PasswordInput
@@ -210,11 +190,7 @@ export const ActivateAccount = () => {
                         </div>
                     </div>
 
-                    <Button
-                        type="submit"
-                        className="w-full h-11 text-md font-semibold"
-                        disabled={loading}
-                    >
+                    <Button type="submit" className="w-full h-11 text-md font-semibold" disabled={loading}>
                         {loading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

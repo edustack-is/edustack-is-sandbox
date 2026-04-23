@@ -62,7 +62,7 @@ api.interceptors.response.use(
             }
         }
         return Promise.reject(error);
-    }
+    },
 );
 
 export const getUsers = async (params?: { page?: number; limit?: number; role?: string; status?: string }) => {
@@ -106,14 +106,23 @@ export const upsertTimeSlots = async (slots: { lessonNumber: number; startTime: 
     return response.data;
 };
 
-export const getScheduleEvents = async (filters?: { academicYearId?: string; classroomId?: string; teacherId?: string }) => {
+export const getScheduleEvents = async (filters?: {
+    academicYearId?: string;
+    classroomId?: string;
+    teacherId?: string;
+}) => {
     const response = await api.get('/api/schedule/events', { params: filters });
     return response.data;
 };
 
 export const createScheduleEvent = async (data: {
-    dayOfWeek: number; lessonNumber: number; subjectInstanceId: string;
-    classroomId: string; teacherId: string; roomId?: string; academicYearId: string;
+    dayOfWeek: number;
+    lessonNumber: number;
+    subjectInstanceId: string;
+    classroomId: string;
+    teacherId: string;
+    roomId?: string;
+    academicYearId: string;
 }) => {
     const response = await api.post('/api/schedule/events', data);
     return response.data;
@@ -215,7 +224,14 @@ export const getRecurringEvents = async () => {
     return response.data;
 };
 
-export const createRecurringEvent = async (data: { title: string; dayOfWeek: number; startTime: string; endTime: string; roomId?: string; teacherId?: string }) => {
+export const createRecurringEvent = async (data: {
+    title: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    roomId?: string;
+    teacherId?: string;
+}) => {
     const response = await api.post('/api/schedule/recurring-events', data);
     return response.data;
 };
@@ -245,8 +261,7 @@ export const getInitStatus = async () => {
 };
 
 /** Build optional setup-token headers */
-const setupHeaders = (token?: string) =>
-    token ? { 'x-setup-token': token } : {};
+const setupHeaders = (token?: string) => (token ? { 'x-setup-token': token } : {});
 
 export const setupApp = async (data: any, setupToken?: string) => {
     const { confirmPassword, ...payload } = data;
@@ -369,7 +384,10 @@ export const searchUsers = async (query: string) => {
     const response = await api.get('/api/users', { params: { search: query, limit: 20 } });
     return response.data;
 };
-export const updateSystemSchool = async (id: string, payload: { name?: string; address?: string; requireSsoEmailMatch?: boolean }) => {
+export const updateSystemSchool = async (
+    id: string,
+    payload: { name?: string; address?: string; requireSsoEmailMatch?: boolean },
+) => {
     const response = await api.patch(`/api/system/schools/${id}`, payload);
     return response.data;
 };
@@ -411,13 +429,16 @@ export const createGrade = async (data: {
     return response.data;
 };
 
-export const updateGrade = async (id: string, data: {
-    value?: string;
-    weight?: number;
-    description?: string;
-    verbalText?: string;
-    category?: string;
-}) => {
+export const updateGrade = async (
+    id: string,
+    data: {
+        value?: string;
+        weight?: number;
+        description?: string;
+        verbalText?: string;
+        category?: string;
+    },
+) => {
     const response = await api.put(`/api/grading/grades/${id}`, data);
     return response.data;
 };
@@ -459,11 +480,7 @@ export const upsertReportCard = async (data: {
     return response.data;
 };
 
-export const polishVerbalEvaluation = async (data: {
-    text: string;
-    studentName: string;
-    subjectName: string;
-}) => {
+export const polishVerbalEvaluation = async (data: { text: string; studentName: string; subjectName: string }) => {
     const response = await api.post('/api/grading/ai-polish', data);
     return response.data;
 };
@@ -475,7 +492,12 @@ export const getGradingTypes = async (classroomId: string) => {
 
 // ─── BEHAVIOR GRADES ────────────────────────────────────────
 
-export const upsertBehaviorGrade = async (data: { studentId: string; semesterId: string; grade: number; note?: string }) => {
+export const upsertBehaviorGrade = async (data: {
+    studentId: string;
+    semesterId: string;
+    grade: number;
+    note?: string;
+}) => {
     const response = await api.put('/api/grading/behavior', data);
     return response.data;
 };
@@ -488,8 +510,12 @@ export const getBehaviorGrades = async (classroomId: string, semesterId: string)
 // ─── COMPETENCY GRADES ──────────────────────────────────────
 
 export const upsertCompetencyGrade = async (data: {
-    studentId: string; competencyId: string; subjectInstanceId: string;
-    semesterId: string; level: number; note?: string;
+    studentId: string;
+    competencyId: string;
+    subjectInstanceId: string;
+    semesterId: string;
+    level: number;
+    note?: string;
 }) => {
     const response = await api.put('/api/grading/competency', data);
     return response.data;
@@ -534,8 +560,12 @@ export const getReportCardHtml = async (classroomId: string, semesterId: string)
 // ─── COMMISSION EXAMS ───────────────────────────────────────
 
 export const createCommissionExam = async (data: {
-    date: string; originalGrade: string; studentId: string;
-    subjectInstanceId: string; semesterId: string; note?: string;
+    date: string;
+    originalGrade: string;
+    studentId: string;
+    subjectInstanceId: string;
+    semesterId: string;
+    note?: string;
 }) => {
     const response = await api.post('/api/grading/commission-exams', data);
     return response.data;
@@ -563,7 +593,11 @@ export const getClassificationDeadline = async (semesterId: string) => {
     return response.data;
 };
 
-export const upsertClassificationDeadline = async (data: { semesterId: string; deadline: string; isLocked?: boolean }) => {
+export const upsertClassificationDeadline = async (data: {
+    semesterId: string;
+    deadline: string;
+    isLocked?: boolean;
+}) => {
     const response = await api.put('/api/grading/deadline', data);
     return response.data;
 };
@@ -576,7 +610,9 @@ export const lockClassification = async (semesterId: string, lock: boolean) => {
 // ─── ATTENDANCE ─────────────────────────────────────────────
 
 export const recordAttendance = async (data: {
-    date: string; lessonNumber: number; classroomId: string;
+    date: string;
+    lessonNumber: number;
+    classroomId: string;
     records: Array<{ studentId: string; status: string; note?: string }>;
 }) => {
     const response = await api.post('/api/attendance/record', data);
@@ -588,7 +624,12 @@ export const getClassroomAttendance = async (classroomId: string, date: string) 
     return response.data;
 };
 
-export const createAbsenceExcuse = async (data: { studentId: string; reason: string; dateFrom: string; dateTo: string }) => {
+export const createAbsenceExcuse = async (data: {
+    studentId: string;
+    reason: string;
+    dateFrom: string;
+    dateTo: string;
+}) => {
     const response = await api.post('/api/attendance/excuses', data);
     return response.data;
 };
@@ -757,7 +798,12 @@ export const getPolls = async () => {
     return response.data;
 };
 
-export const createPoll = async (data: { question: string; options: string[]; multiSelect?: boolean; endsAt?: string }) => {
+export const createPoll = async (data: {
+    question: string;
+    options: string[];
+    multiSelect?: boolean;
+    endsAt?: string;
+}) => {
     const response = await api.post('/api/community/polls', data);
     return response.data;
 };
@@ -777,7 +823,13 @@ export const getCalendarEvents = async () => {
     return response.data;
 };
 
-export const createCalendarEvent = async (data: { title: string; description?: string; startDate: string; endDate?: string; location?: string }) => {
+export const createCalendarEvent = async (data: {
+    title: string;
+    description?: string;
+    startDate: string;
+    endDate?: string;
+    location?: string;
+}) => {
     const response = await api.post('/api/community/events', data);
     return response.data;
 };
@@ -800,9 +852,14 @@ export const getClassBookEntries = async (classroomId: string, date: string) => 
 };
 
 export const upsertClassBookEntry = async (data: {
-    classroomId: string; date: string; lessonNumber: number;
-    topic?: string; notes?: string; absentCount?: number;
-    scheduleEventId?: string; subjectName?: string;
+    classroomId: string;
+    date: string;
+    lessonNumber: number;
+    topic?: string;
+    notes?: string;
+    absentCount?: number;
+    scheduleEventId?: string;
+    subjectName?: string;
 }) => {
     const response = await api.post('/api/classbook/entries', data);
     return response.data;
@@ -834,27 +891,55 @@ export const aiRefineText = async (data: { existingText?: string; context: strin
     return response.data;
 };
 
-export const aiGenerateThematicPlan = async (data: { subjectName: string; grade: string; hoursPerWeek: number; semesterWeeks?: number; topics?: string }) => {
+export const aiGenerateThematicPlan = async (data: {
+    subjectName: string;
+    grade: string;
+    hoursPerWeek: number;
+    semesterWeeks?: number;
+    topics?: string;
+}) => {
     const response = await api.post('/api/ai/thematic-plan', data);
     return response.data;
 };
 
-export const aiStudentRecommendations = async (data: { studentName: string; grades: Array<{ subject: string; grade: number }>; attendance?: { total: number; absent: number }; behavior?: string }) => {
+export const aiStudentRecommendations = async (data: {
+    studentName: string;
+    grades: Array<{ subject: string; grade: number }>;
+    attendance?: { total: number; absent: number };
+    behavior?: string;
+}) => {
     const response = await api.post('/api/ai/student-recommendations', data);
     return response.data;
 };
 
-export const aiClassAnalysis = async (data: { className: string; grades: Array<{ student: string; subject: string; grade: number }>; subjectName?: string }) => {
+export const aiClassAnalysis = async (data: {
+    className: string;
+    grades: Array<{ student: string; subject: string; grade: number }>;
+    subjectName?: string;
+}) => {
     const response = await api.post('/api/ai/class-analysis', data);
     return response.data;
 };
 
-export const aiGenerateTest = async (data: { subjectName: string; topic: string; grade: string; questionCount?: number; difficulty?: 'easy' | 'medium' | 'hard'; questionTypes?: string }) => {
+export const aiGenerateTest = async (data: {
+    subjectName: string;
+    topic: string;
+    grade: string;
+    questionCount?: number;
+    difficulty?: 'easy' | 'medium' | 'hard';
+    questionTypes?: string;
+}) => {
     const response = await api.post('/api/ai/generate-test', data);
     return response.data;
 };
 
-export const aiGenerateWrittenTest = async (data: { subjectName: string; topics: string[]; grade: string; duration?: number; variantCount?: number }) => {
+export const aiGenerateWrittenTest = async (data: {
+    subjectName: string;
+    topics: string[];
+    grade: string;
+    duration?: number;
+    variantCount?: number;
+}) => {
     const response = await api.post('/api/ai/generate-written-test', data);
     return response.data;
 };

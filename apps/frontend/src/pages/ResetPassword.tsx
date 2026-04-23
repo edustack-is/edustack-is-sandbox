@@ -70,13 +70,8 @@ export const ResetPassword = () => {
                     <div className="mx-auto h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
                         <Shield className="h-6 w-6 text-red-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-red-600 mb-4">
-                        {t('reset_password.invalid_token')}
-                    </h2>
-                    <a
-                        href="/login"
-                        className="mt-4 inline-block text-indigo-600 hover:text-indigo-500 font-medium"
-                    >
+                    <h2 className="text-2xl font-bold text-red-600 mb-4">{t('reset_password.invalid_token')}</h2>
+                    <a href="/login" className="mt-4 inline-block text-indigo-600 hover:text-indigo-500 font-medium">
                         {t('reset_password.back_to_login')}
                     </a>
                 </div>
@@ -92,21 +87,14 @@ export const ResetPassword = () => {
                     <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                         <KeyRound className="h-6 w-6 text-indigo-600" />
                     </div>
-                    <h2 className="text-3xl font-extrabold text-gray-900">
-                        {t('reset_password.title')}
-                    </h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        {t('reset_password.subtitle')}
-                    </p>
+                    <h2 className="text-3xl font-extrabold text-gray-900">{t('reset_password.title')}</h2>
+                    <p className="mt-2 text-sm text-gray-600">{t('reset_password.subtitle')}</p>
                 </div>
 
                 <form className="space-y-5" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label
-                                htmlFor="password"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                                 {t('reset_password.new_password')}
                             </label>
                             <PasswordInput
@@ -118,10 +106,7 @@ export const ResetPassword = () => {
                             />
                         </div>
                         <div>
-                            <label
-                                htmlFor="confirmPassword"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                                 {t('reset_password.confirm_password')}
                             </label>
                             <PasswordInput
@@ -135,11 +120,7 @@ export const ResetPassword = () => {
                         </div>
                     </div>
 
-                    <Button
-                        type="submit"
-                        className="w-full h-11 text-md font-semibold"
-                        disabled={loading}
-                    >
+                    <Button type="submit" className="w-full h-11 text-md font-semibold" disabled={loading}>
                         {loading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

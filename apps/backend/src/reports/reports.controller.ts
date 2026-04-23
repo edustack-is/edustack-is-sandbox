@@ -19,10 +19,11 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../database/types';
 import { ReportsService } from './reports.service';
 
 import { ReportStatsResponseDto } from '../common/dto/response.dto';
+
 @ApiTags('reports')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/reports')
@@ -166,33 +167,6 @@ export class ReportsController {
       academicYearId,
     );
     const html = this.reportsService.renderReportHtml(report, 'csi');
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
-  }
-
-  @Get('msmt')
-  @ApiOperation({
-    summary: 'Výkaz pro MŠMT (JSON)',
-    description:
-      'Data pro Ministerstvo školství: žáci, učitelé, ročníky, předměty, zázemí.',
-  })
-  async msmtReport(@Req() req: any) {
-    this.ensureTenant(req);
-    return this.reportsService.generateMsmtReport(req.user.schoolId);
-  }
-
-  @Get('msmt/print')
-  @ApiOperation({
-    summary: 'Výkaz pro MŠMT (HTML)',
-    description: 'Tisknutelná HTML verze výkazu pro MŠMT.',
-  })
-  @ApiProduces('text/html')
-  async msmtReportHtml(@Req() req: any, @Res() res: Response) {
-    this.ensureTenant(req);
-    const report = await this.reportsService.generateMsmtReport(
-      req.user.schoolId,
-    );
-    const html = this.reportsService.renderReportHtml(report, 'msmt');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   }
