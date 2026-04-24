@@ -57,18 +57,36 @@ export class BackupService {
     // 1. Get database path
     let sourcePath = process.env.DATABASE_URL?.replace('file:', '');
 
-    // Auto-detect if not set
-    if (!sourcePath) {
-      const wranglerDir = path.join(
-        process.cwd(),
-        '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
-      );
-      if (fs.existsSync(wranglerDir)) {
-        const files = fs.readdirSync(wranglerDir);
-        const dbFile = files.find(
-          (f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite',
-        );
-        if (dbFile) sourcePath = path.join(wranglerDir, dbFile);
+    // Auto-detect if not set or doesn't exist
+    if (!sourcePath || !fs.existsSync(sourcePath)) {
+      let currentPath = process.cwd();
+      let found = false;
+      for (let i = 0; i < 4; i++) {
+        const possibleDirs = [
+          path.join(
+            currentPath,
+            'apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+          ),
+          path.join(
+            currentPath,
+            '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+          ),
+        ];
+        for (const dir of possibleDirs) {
+          if (fs.existsSync(dir)) {
+            const files = fs.readdirSync(dir);
+            const dbFile = files.find(
+              (f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite',
+            );
+            if (dbFile) {
+              sourcePath = path.join(dir, dbFile);
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) break;
+        currentPath = path.join(currentPath, '..');
       }
     }
 

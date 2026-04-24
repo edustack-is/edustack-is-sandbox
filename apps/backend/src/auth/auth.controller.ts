@@ -332,7 +332,6 @@ export class AuthController {
     return this.authService.resetPassword(body.token, body.password);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('identities')
   @ApiOperation({ summary: 'Propojené SSO identity uživatele' })
   @ApiResponse({
@@ -360,7 +359,6 @@ export class AuthController {
     return this.authService.getIdentities(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('impersonate/:id')
   @ApiOperation({ summary: 'Impersonace jiného uživatele (admin)' })
   @ApiResponse({
@@ -424,7 +422,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, type: LoginResponseDto })
   @ApiBody({ type: LoginDto })
-  async login(@Body() body: Record<string, string>, @Req() req: Request) {
+  async login(@Body() body: LoginDto, @Req() req: Request) {
     // Extract IP and User-Agent
     const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -443,7 +441,6 @@ export class AuthController {
     return this.authService.login(user, ip as string, userAgent);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('schools')
   @ApiOperation({ summary: 'Seznam škol uživatele' })
   @ApiResponse({ status: 200, type: SchoolListItemDto, isArray: true })
@@ -466,7 +463,6 @@ export class AuthController {
     return this.authService.getSchools(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('select-school/:schoolId')
   @ApiOperation({ summary: 'Výběr školy a role' })
   @ApiResponse({ status: 200, type: SelectSchoolResponseDto })
@@ -493,7 +489,6 @@ export class AuthController {
     return this.authService.selectSchool(req.user.userId, schoolId, role);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('refresh-global')
   @ApiOperation({ summary: 'Obnovení globálního JWT tokenu' })
   @ApiResponse({ status: 200, type: LoginResponseDto })
@@ -511,7 +506,6 @@ export class AuthController {
     return this.authService.refreshGlobalToken(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiOperation({ summary: 'Profil přihlášeného uživatele' })
   @ApiResponse({ status: 200, type: UserProfileDto })
@@ -529,7 +523,6 @@ export class AuthController {
     return this.authService.getMe(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch('profile')
   @ApiOperation({ summary: 'Aktualizace profilu' })
   @ApiResponse({
@@ -559,7 +552,6 @@ export class AuthController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('avatar')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Nahrání avataru' })

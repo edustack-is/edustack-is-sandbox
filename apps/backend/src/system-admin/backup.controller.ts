@@ -25,19 +25,20 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { BackupService } from './backup.service';
+import { CreateBackupDto } from './dto/create-backup.dto';
 
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system/backups')
-@UseGuards(JwtAuthGuard, IsSystemAdminGuard)
+@UseGuards(IsSystemAdminGuard)
 export class BackupController {
   constructor(private readonly backupService: BackupService) {}
 
   @Post()
   @ApiOperation({ summary: 'Vytvoření zálohy' })
   @ApiResponse({ status: 201, description: 'Záloha vytvořena.' })
-  async createBackup(@Query('name') name?: string) {
-    return this.backupService.createBackup(name);
+  async createBackup(@Query() query: CreateBackupDto) {
+    return this.backupService.createBackup(query.name);
   }
 
   @Get()
