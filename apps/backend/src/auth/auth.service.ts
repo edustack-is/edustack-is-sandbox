@@ -195,7 +195,7 @@ export class AuthService {
       );
 
       await db.execute(
-        'UPDATE "SchoolMembership" SET status = \'ACTIVE\' WHERE userId = ? AND status = \'PENDING\'',
+        "UPDATE \"SchoolMembership\" SET status = 'ACTIVE' WHERE userId = ? AND status = 'PENDING'",
         [user.id],
       );
 
@@ -292,7 +292,7 @@ export class AuthService {
       );
 
       await db.execute(
-        'UPDATE "SchoolMembership" SET status = \'ACTIVE\' WHERE userId = ? AND status = \'PENDING\'',
+        "UPDATE \"SchoolMembership\" SET status = 'ACTIVE' WHERE userId = ? AND status = 'PENDING'",
         [user.id],
       );
 
@@ -658,7 +658,7 @@ export class AuthService {
 
   async getCallerManagementSchools(userId: string): Promise<string[]> {
     const memberships = await this.db.query<{ schoolId: string }>(
-      'SELECT schoolId FROM "SchoolMembership" WHERE userId = ? AND role IN (\'ADMIN\', \'DEPUTY\', \'PRINCIPAL\') AND status = \'ACTIVE\'',
+      "SELECT schoolId FROM \"SchoolMembership\" WHERE userId = ? AND role IN ('ADMIN', 'DEPUTY', 'PRINCIPAL') AND status = 'ACTIVE'",
       [userId],
     );
     return memberships.map((m: any) => m.schoolId);
@@ -757,14 +757,14 @@ export class AuthService {
       .map((r) => r.trim().toUpperCase());
 
     const users = await this.db.query<User>(
-      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND (email LIKE ? OR email LIKE ? OR email LIKE ?) LIMIT 100',
-      ['%.skola.test', '%.demo.test', '%@zak.skola.test'],
+      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND (email LIKE ? OR email LIKE ?) LIMIT 100',
+      ['%.skola.test', '%.demo.test'],
     );
 
     const helperUsers: LoginHelperUser[] = [];
 
     for (const user of users) {
-      const memberships = await this.db.query<{
+      const dbMemberships = await this.db.query<{
         schoolName: string;
         role: string;
       }>(
@@ -775,7 +775,7 @@ export class AuthService {
         [user.id],
       );
 
-      const filteredMemberships = memberships.filter((m) =>
+      const filteredMemberships = dbMemberships.filter((m) =>
         allowedRoles.includes(m.role.toUpperCase()),
       );
 
