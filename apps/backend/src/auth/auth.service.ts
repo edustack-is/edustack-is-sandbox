@@ -757,8 +757,7 @@ export class AuthService {
       .map((r) => r.trim().toUpperCase());
 
     const users = await this.db.query<User>(
-      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND (email LIKE ? OR email LIKE ?) LIMIT 100',
-      ['%.skola.test', '%.demo.test'],
+      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL LIMIT 100',
     );
 
     const helperUsers: LoginHelperUser[] = [];
