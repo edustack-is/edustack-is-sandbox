@@ -45,6 +45,7 @@ import {
 } from '../common/dto/response.dto';
 @ApiTags('auth')
 @Controller('api/auth')
+@UseGuards(JwtAuthGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

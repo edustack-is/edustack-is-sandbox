@@ -23,22 +23,31 @@ test.describe('Multi-role Login via Helper', () => {
             await expect(userButton).toBeVisible({ timeout: 20000 });
             await userButton.click();
 
-            // School selection might appear
-            await page.waitForTimeout(2000);
-            if (page.url().includes('/select-school')) {
-                // Click the first "Vstoupit" (Enter) button
-                await page.locator('button >> text=/Vstoupit|Enter/i').first().click();
+            // School selection might appear if not auto-redirected
+            try {
+                await page.waitForURL(url => url.pathname.includes('/select-school') || url.pathname.includes('/dashboard') || url.pathname.includes('/system/'), { timeout: 10000 });
+                
+                if (page.url().includes('/select-school')) {
+                    // Check if there are schools listed
+                    const enterButton = page.locator('button >> text=/Vstoupit|Enter/i').first();
+                    if (await enterButton.isVisible({ timeout: 5000 })) {
+                        await enterButton.click();
+                    }
+                }
+            } catch (e) {
+                console.log('Did not reach school selection or dashboard in time');
             }
 
-            // Redirection to dashboard
+            // Redirection to dashboard or system admin
             await page.waitForURL(url => !url.pathname.includes('/login') && !url.pathname.includes('/select-school'), { timeout: 30000 });
             
             // Check for navigation sidebar
             await expect(page.locator('nav')).toBeVisible({ timeout: 15000 });
             
             // Logout
-            await page.locator('nav button').last().click(); // Open profile menu
-            await page.locator('button').filter({ hasText: /Logout|Odhlásit/i }).first().click();
+            const logoutButton = page.getByRole('button', { name: /Logout|Odhlásit/i });
+            await expect(logoutButton).toBeVisible({ timeout: 15000 });
+            await logoutButton.click();
             
             await expect(page).toHaveURL(/.*\/login/);
         });

@@ -124,6 +124,8 @@ function SchoolDashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!currentSchool) return;
+
         api.get('/api/deputy/dashboard')
             .then((res) => setStats(res.data))
             .catch((err) => console.error('Failed to load school dashboard', err))
@@ -291,7 +293,7 @@ function SchoolDashboard() {
 // Main Dashboard - context-aware
 export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const { tokenType, isSystemAdmin } = useSchool();
+    const { tokenType, isSystemAdmin, schoolCount } = useSchool();
 
     useEffect(() => {
         // Regular user in GLOBAL mode → redirect to school selection
@@ -301,8 +303,9 @@ export const Dashboard: React.FC = () => {
     }, [tokenType, isSystemAdmin, navigate]);
 
     // System Admin in GLOBAL mode → admin dashboard
-    if (tokenType === 'GLOBAL' && isSystemAdmin) {
-        return <SystemAdminDashboard />;
+    if (tokenType === 'GLOBAL') {
+        if (isSystemAdmin) return <SystemAdminDashboard />;
+        return <div className="flex items-center justify-center h-full text-muted-foreground">Redirecting to school selection...</div>;
     }
 
     // TENANT mode (school selected) → school dashboard
