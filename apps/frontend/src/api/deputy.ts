@@ -25,18 +25,18 @@ export const getGradeLevels = async () => {
     return response.data;
 };
 
-export const createGradeLevel = async (data: {
-    name: string;
-    levelNumber: number;
-}) => {
+export const createGradeLevel = async (data: { name: string; levelNumber: number }) => {
     const response = await api.post('/api/deputy/grade-levels', data);
     return response.data;
 };
 
-export const updateGradeLevel = async (id: string, data: {
-    name?: string;
-    levelNumber?: number;
-}) => {
+export const updateGradeLevel = async (
+    id: string,
+    data: {
+        name?: string;
+        levelNumber?: number;
+    },
+) => {
     const response = await api.put(`/api/deputy/grade-levels/${id}`, data);
     return response.data;
 };
@@ -65,14 +65,17 @@ export const createRoom = async (data: {
     return response.data;
 };
 
-export const updateRoom = async (id: string, data: {
-    name?: string;
-    capacity?: number;
-    isComputerLab?: boolean;
-    specialEquipment?: string[];
-    buildingId?: string | null;
-    floor?: number | null;
-}) => {
+export const updateRoom = async (
+    id: string,
+    data: {
+        name?: string;
+        capacity?: number;
+        isComputerLab?: boolean;
+        specialEquipment?: string[];
+        buildingId?: string | null;
+        floor?: number | null;
+    },
+) => {
     const response = await api.put(`/api/deputy/rooms/${id}`, data);
     return response.data;
 };
@@ -134,17 +137,28 @@ export const getUpcomingEvents = async (limit = 10) => {
 };
 
 export const createSchoolEvent = async (data: {
-    title: string; description?: string; date: string;
-    endDate?: string; type?: string; allDay?: boolean;
+    title: string;
+    description?: string;
+    date: string;
+    endDate?: string;
+    type?: string;
+    allDay?: boolean;
 }) => {
     const response = await api.post('/api/deputy/events', data);
     return response.data;
 };
 
-export const updateSchoolEvent = async (id: string, data: {
-    title?: string; description?: string; date?: string;
-    endDate?: string; type?: string; allDay?: boolean;
-}) => {
+export const updateSchoolEvent = async (
+    id: string,
+    data: {
+        title?: string;
+        description?: string;
+        date?: string;
+        endDate?: string;
+        type?: string;
+        allDay?: boolean;
+    },
+) => {
     const response = await api.put(`/api/deputy/events/${id}`, data);
     return response.data;
 };
@@ -186,20 +200,19 @@ export const getSubjectTemplates = async () => {
     return response.data;
 };
 
-export const createSubject = async (data: {
-    name: string;
-    code: string;
-    svpDescription?: string;
-}) => {
+export const createSubject = async (data: { name: string; code: string; svpDescription?: string }) => {
     const response = await api.post('/api/deputy/subjects', data);
     return response.data;
 };
 
-export const updateSubject = async (id: string, data: {
-    name?: string;
-    code?: string;
-    svpDescription?: string;
-}) => {
+export const updateSubject = async (
+    id: string,
+    data: {
+        name?: string;
+        code?: string;
+        svpDescription?: string;
+    },
+) => {
     const response = await api.put(`/api/deputy/subjects/${id}`, data);
     return response.data;
 };
@@ -241,20 +254,19 @@ export const getCurriculumVersion = async (id: string) => {
     return response.data;
 };
 
-export const createCurriculumVersion = async (data: {
-    name: string;
-    validFrom: string;
-    validTo?: string;
-}) => {
+export const createCurriculumVersion = async (data: { name: string; validFrom: string; validTo?: string }) => {
     const response = await api.post('/api/deputy/curriculum-versions', data);
     return response.data;
 };
 
-export const updateCurriculumVersion = async (id: string, data: {
-    name?: string;
-    validFrom?: string;
-    validTo?: string | null;
-}) => {
+export const updateCurriculumVersion = async (
+    id: string,
+    data: {
+        name?: string;
+        validFrom?: string;
+        validTo?: string | null;
+    },
+) => {
     const response = await api.put(`/api/deputy/curriculum-versions/${id}`, data);
     return response.data;
 };
@@ -264,11 +276,14 @@ export const deleteCurriculumVersion = async (id: string) => {
     return response.data;
 };
 
-export const duplicateCurriculumVersion = async (id: string, data: {
-    name: string;
-    validFrom: string;
-    validTo?: string;
-}) => {
+export const duplicateCurriculumVersion = async (
+    id: string,
+    data: {
+        name: string;
+        validFrom: string;
+        validTo?: string;
+    },
+) => {
     const response = await api.post(`/api/deputy/curriculum-versions/${id}/duplicate`, data);
     return response.data;
 };
@@ -319,7 +334,6 @@ export const createSemesters = async (data: {
     return response.data;
 };
 
-
 export const batchEnroll = async (data: {
     studentIds: string[];
     academicYearId: string;
@@ -357,13 +371,16 @@ export const createStaffWorkload = async (data: {
     return response.data;
 };
 
-export const updateStaffWorkload = async (id: string, data: {
-    versionLabel?: string;
-    validFrom?: string;
-    teachingLoad?: number;
-    adminLoad?: number;
-    note?: string | null;
-}) => {
+export const updateStaffWorkload = async (
+    id: string,
+    data: {
+        versionLabel?: string;
+        validFrom?: string;
+        teachingLoad?: number;
+        adminLoad?: number;
+        note?: string | null;
+    },
+) => {
     const response = await api.put(`/api/deputy/staff-workloads/${id}`, data);
     return response.data;
 };
@@ -373,11 +390,14 @@ export const deleteStaffWorkload = async (id: string) => {
     return response.data;
 };
 
-export const saveStaffSubjectAssignments = async (workloadId: string, assignments: Array<{
-    subjectTemplateId: string;
-    gradeLevelIds: string[];
-    canSubstitute: boolean;
-}>) => {
+export const saveStaffSubjectAssignments = async (
+    workloadId: string,
+    assignments: Array<{
+        subjectTemplateId: string;
+        gradeLevelIds: string[];
+        canSubstitute: boolean;
+    }>,
+) => {
     const response = await api.put(`/api/deputy/staff-workloads/${workloadId}/subjects`, { assignments });
     return response.data;
 };
@@ -437,9 +457,15 @@ export const impersonateSchoolUser = async (userId: string) => {
 
 // ─── USER EDIT, SUSPEND, ROLE, EXPORT ───────────────────────────
 
-export const updateSchoolUser = async (userId: string, data: {
-    firstName?: string; lastName?: string; email?: string; workloadPercentage?: number;
-}) => {
+export const updateSchoolUser = async (
+    userId: string,
+    data: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        workloadPercentage?: number;
+    },
+) => {
     const response = await api.put(`/api/deputy/users/${userId}`, data);
     return response.data;
 };
@@ -476,7 +502,12 @@ export const getThematicPlan = async (id: string) => {
     return response.data;
 };
 
-export const createThematicPlan = async (data: { title: string; subjectTemplateId: string; academicYearId: string; gradeLevelId: string }) => {
+export const createThematicPlan = async (data: {
+    title: string;
+    subjectTemplateId: string;
+    academicYearId: string;
+    gradeLevelId: string;
+}) => {
     const response = await api.post('/api/deputy/thematic-plans', data);
     return response.data;
 };
@@ -491,10 +522,18 @@ export const deleteThematicPlan = async (id: string) => {
     return response.data;
 };
 
-export const saveThematicPlanWeeks = async (planId: string, weeks: Array<{
-    weekNumber: number; topic: string; objectives?: string; methods?: string;
-    resources?: string; crossCurricular?: string; notes?: string;
-}>) => {
+export const saveThematicPlanWeeks = async (
+    planId: string,
+    weeks: Array<{
+        weekNumber: number;
+        topic: string;
+        objectives?: string;
+        methods?: string;
+        resources?: string;
+        crossCurricular?: string;
+        notes?: string;
+    }>,
+) => {
     const response = await api.put(`/api/deputy/thematic-plans/${planId}/weeks`, { weeks });
     return response.data;
 };
@@ -507,8 +546,15 @@ export const getLessonPreparations = async (subjectTemplateId?: string) => {
 };
 
 export const createLessonPreparation = async (data: {
-    title: string; date: string; duration?: number; topic: string; objectives?: string;
-    activities?: string; materials?: string; homework?: string; evaluation?: string;
+    title: string;
+    date: string;
+    duration?: number;
+    topic: string;
+    objectives?: string;
+    activities?: string;
+    materials?: string;
+    homework?: string;
+    evaluation?: string;
     subjectTemplateId: string;
 }) => {
     const response = await api.post('/api/deputy/lesson-preparations', data);
@@ -533,8 +579,12 @@ export const getTeachingMaterials = async (subjectTemplateId?: string, type?: st
 };
 
 export const createTeachingMaterial = async (data: {
-    title: string; description?: string; url: string; type?: string;
-    subjectTemplateId?: string; gradeLevelId?: string;
+    title: string;
+    description?: string;
+    url: string;
+    type?: string;
+    subjectTemplateId?: string;
+    gradeLevelId?: string;
 }) => {
     const response = await api.post('/api/deputy/teaching-materials', data);
     return response.data;
@@ -578,8 +628,11 @@ export const getCompetencyMappings = async (subjectTemplateId?: string, gradeLev
 };
 
 export const upsertCompetencyMapping = async (data: {
-    competencyId: string; subjectTemplateId: string; gradeLevelId: string;
-    fulfilled: boolean; note?: string;
+    competencyId: string;
+    subjectTemplateId: string;
+    gradeLevelId: string;
+    fulfilled: boolean;
+    note?: string;
 }) => {
     const response = await api.post('/api/deputy/competency-mappings', data);
     return response.data;

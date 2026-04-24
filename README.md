@@ -4,156 +4,111 @@
 
 ## Technologie
 
-| Vrstva | Stack |
-|--------|-------|
-| Backend | NestJS, Prisma ORM, PostgreSQL |
-| Frontend | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
-| MCP Server | Node.js, SSE transport, 36 AI nástrojů |
-| AI | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
-| Infra | Docker Compose, PWA, automatické zálohy |
+| Vrstva     | Stack                                                |
+| ---------- | ---------------------------------------------------- |
+| Backend    | NestJS, Prisma ORM                                   |
+| Databáze   | Cloudflare D1 (SQLite)                               |
+| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui  |
+| MCP Server | Node.js, SSE transport, 36 AI nástrojů               |
+| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
+| Infra      | Cloudflare Workers, Cloudflare Pages                 |
 
 ## Rychlý start
 
 ### Prerekvizity
 
-- Docker & Docker Compose
-- Node.js 20+ (pro frontend dev server)
+- Node.js 20+
+- npm 10+
+- Cloudflare Wrangler (`npm install -g wrangler`)
 
 ### 1. Konfigurace
+
+Aplikace používá jeden společný soubor s proměnnými prostředí v kořenu projektu.
 
 ```bash
 cp .env.example .env
 ```
 
-Povinné proměnné v `.env`:
+| Proměnná              | Popis                                         | Jak vygenerovat           |
+| --------------------- | --------------------------------------------- | ------------------------- |
+| `JWT_SECRET`          | Klíč pro podepisování JWT tokenů              | `openssl rand -base64 64` |
+| `ENCRYPTION_KEY`      | AES-256 klíč pro šifrování secrets            | `openssl rand -base64 32` |
+| `ENABLE_LOGIN_HELPER` | Zapne panel s demo uživateli na login screenu | `true` nebo `false`       |
 
-| Proměnná | Popis | Jak vygenerovat |
-|----------|-------|-----------------|
-| `JWT_SECRET` | Klíč pro podepisování JWT tokenů | `openssl rand -base64 64` |
-| `ENCRYPTION_KEY` | AES-256 klíč pro šifrování secrets | `openssl rand -base64 32` |
+**SMTP (E-maily):**
+Pro lokální testování e-mailů se při spuštění aplikace automaticky aktivuje MailDev:
 
-Vše ostatní má rozumné výchozí hodnoty pro lokální vývoj (databáze, SMTP, CORS).
+- **SMTP server:** Port 1025
+- **Webové rozhraní:** http://localhost:1081 (konzultace doručených e-mailů)
 
-### 2. Spuštění backendu
+### 2. Instalace a příprava databáze
+
+Aplikace je plně integrovaná s **Cloudflare D1**. Pro lokální vývoj i produkci používáme stejný Wrangler workflow.
 
 ```bash
-docker compose up -d
+# 1. Instalace závislostí
+npm install
+
+# 2. Vygenerování Prisma klienta (pro TypeScript typy)
+npm run db:generate
+
+# 3. Inicializace lokální D1 databáze (vytvoří schéma přes Wrangler)
+npm run db:init
 ```
 
-Při prvním spuštění se automaticky:
-- nainstalují závislosti (`npm install`)
-- vygeneruje Prisma klient
-- vytvoří/aktualizuje schéma databáze
+#### Práce s databází
 
-| Služba | URL |
-|--------|-----|
-| Backend API | http://localhost:3000 |
-| Swagger docs | http://localhost:3000/api/docs |
-| MCP Server | http://localhost:3001/sse |
-| MailDev (dev e-maily) | http://localhost:1080 |
+| Akce             | Příkaz              | Popis                                       |
+| :--------------- | :------------------ | :------------------------------------------ |
+| **Reset / Init** | `npm run db:init`   | Vytvoří/aktualizuje lokální D1 schéma       |
+| **Deploy**       | `npm run db:deploy` | Přenese změny schématu do Cloudflare Cloudu |
+| **Prohlížení**   | `npm run db:studio` | Otevře grafické rozhraní Prisma Studio      |
 
-Pro Adminer (DB GUI): `docker compose --profile dev up -d`  → http://localhost:8080
+### 3. Demo Data
 
-### 3. Spuštění frontendu
+Chcete-li databázi naplnit kompletním školním nastavením (akademické roky, školy, uživatelé, třídy atd.), spusťte:
 
 ```bash
-cd apps/frontend
-npm install
+npm run seed:demo
+```
+
+**Přihlašovací údaje (Heslo: `password123`):**
+
+- Systémový administrátor: `admin@edustack.cz`
+- Ředitel: `headmaster@tgmasaryk.cz`
+
+### 4. Spuštění aplikace
+
+```bash
+# Spustí backend, frontend a MCP server najednou
 npm run dev
 ```
 
-Aplikace: http://localhost:5173
+| Služba       | URL                            |
+| ------------ | ------------------------------ |
+| Aplikace     | http://localhost:5173          |
+| Backend API  | http://localhost:3000          |
+| Swagger docs | http://localhost:3000/api/docs |
 
-### 4. Prvotní nastavení
+## Zálohování (Backup Storage)
 
-Po spuštění otevřete http://localhost:5173 — zobrazí se Setup průvodce pro vytvoření prvního systémového administrátora.
+Systém podporuje automatické i manuální zálohy databáze. Úložiště je konfigurovatelné:
 
-## Struktura projektu
+### 1. Lokální režim (Výchozí)
 
-```
-├── apps/
-│   ├── backend/          # NestJS REST API (17 modulů)
-│   ├── frontend/         # React SPA
-│   └── mcp-server/       # MCP server pro AI agenty
-├── data/                 # Zálohy (gitignored)
-├── docs/                 # Dokumentace
-│   └── funkcni-analyza.md  # Přehled 169 funkcí (96% pokrytí)
-└── docker-compose.yml
-```
+Pokud ponecháte proměnné `R2_*` v `.env` prázdné, zálohy se budou ukládat do adresáře `data/backups`.
 
-## Backend moduly
+### 2. Produkční režim (Cloudflare R2)
 
-| Modul | Popis |
-|-------|-------|
-| `auth` | JWT autentizace, SSO (Google/Microsoft), role |
-| `init` | Prvotní setup, seed dat |
-| `users` | Správa uživatelů |
-| `registry` | Matrika – třídy, profily |
-| `deputy` | Zástupce ředitele – správa školy |
-| `principal` | Ředitel – audit log |
-| `grading` | Klasifikace, vysvědčení, chování |
-| `schedule` | Rozvrh, suplování, zvonění |
-| `attendance` | Docházka |
-| `classbook` | Třídní kniha |
-| `messaging` | Zprávy, nástěnka, ankety |
-| `community` | Školní události, kalendář |
-| `ai` | AI chat, generování, moderace |
-| `export` | CSV/XML/JSON export dat |
-| `reports` | Statistiky prospěchu/docházky, výkazy ČŠI/MŠMT |
-| `gdpr` | Export a smazání osobních dat (čl. 15/17 GDPR) |
-| `system-admin` | Správa systému, zálohy, monitoring |
+Pro bezpečné uložení v cloudu nastavte přihlašovací údaje k R2 bucketu:
 
-## Volitelná konfigurace
+- **R2_ENDPOINT:** URL vašeho R2 rozhraní (najdete v CF dashboardu).
+- **R2_ACCESS_KEY_ID:** Přístupový klíč s právy pro zápis.
+- **R2_SECRET_ACCESS_KEY:** Tajný klíč (v produkci vložte jako `wrangler secret`).
 
-Následující nastavení jsou konfigurovatelná přes UI aplikace (System Admin → Nastavení), **není třeba** je nastavovat v `.env`:
-
-- **AI klíče** (Gemini, OpenAI, Anthropic) → System Admin → AI
-- **SSO providery** (Google, Microsoft) → System Admin → SSO
-- **SMTP** → výchozí MailDev pro dev, produkce přes `.env`
-- **Auto zálohy** → `AUTO_BACKUP=true` v `.env` (denně 2:00, retenční politika 7 záloh)
-
-## Testování
-
-Projekt obsahuje automatizované End-to-End (E2E) testy pro všechny své části (Backend, Frontend, MCP Server). Testy zajišťují, že nedojde k nechtěnému rozbití funkčností.
-
-### Backend (NestJS + Prisma)
-Backendové testy používají `Supertest` a `Jest` pro ověření API endpointů proti reálné databázi.
-```bash
-# Z hlavního adresáře projektu:
-cd apps/backend
-
-# Spuštění všech E2E testů:
-npm run test:e2e
-```
-*Poznámka: Testy vyžadují běžící PostgreSQL databázi (viz `docker-compose up -d`) a zkopírovaný `.env` soubor podle `.env.example`.*
-
-### Frontend (React + Playwright)
-Frontendové testy používají framework `Playwright` pro simulaci uživatele přímo v prohlížečích (Chromium, Firefox, WebKit).
-```bash
-# Z hlavního adresáře projektu:
-cd apps/frontend
-
-# Prvotní instalace prohlížečů pro Playwright (stačí provést jednou):
-npx playwright install --with-deps chromium firefox webkit
-
-# Spuštění testů:
-npm run test:e2e
-
-# Spuštění testů s UI rozhraním:
-npm run test:e2e:ui
-```
-*Upozornění: E2E testy vyžadují, aby běželo lokální vývojové prostředí i backend API.*
-
-### MCP Server
-Pro testování MCP (Model Context Protocol) serveru je použit `Jest` a `@modelcontextprotocol/sdk` nad vlastním SSE transportem.
-```bash
-# Z hlavního adresáře projektu:
-cd apps/mcp-server
-
-# Spuštění integrací a validace nástrojů
-npx tsx test/runner.ts
-```
+**Upozornění:** Pro lokální vývoj nepoužívejte náhodné hodnoty (způsobí chybu spojení). Pokud nemáte R2 klíče, nechte pole prázdná pro aktivaci lokálního režimu.
 
 ## Dokumentace
 
-- [Funkční analýza](docs/funkcni-analyza.md) – přehled 169 funkcí s aktuálním stavem implementace a seznamem pokrývajících testů.
+- [Funkční analýza](docs/funkcni-analyza.md) – přehled 169 funkcí s aktuálním stavem implementace.
+- [Cloudflare Guide](README_CLOUDFLARE.md) – podrobnější info k nasazení.

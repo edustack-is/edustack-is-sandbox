@@ -89,16 +89,17 @@ function SystemAdminDashboard() {
                     {stats?.recentLogins && stats.recentLogins.length > 0 ? (
                         <div className="space-y-3">
                             {stats.recentLogins.map((login) => (
-                                <div key={login.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
+                                <div
+                                    key={login.id}
+                                    className="flex items-center justify-between border-b border-border pb-2 last:border-0"
+                                >
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium">
                                             {login.actor
                                                 ? `${login.actor.firstName} ${login.actor.lastName}`
                                                 : t('common.unknown_user')}
                                         </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {login.actor?.email}
-                                        </span>
+                                        <span className="text-xs text-muted-foreground">{login.actor?.email}</span>
                                     </div>
                                     <span className="text-xs text-muted-foreground">
                                         {new Date(login.createdAt).toLocaleString(i18n.language)}
@@ -136,7 +137,8 @@ function SchoolDashboard() {
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold tracking-tight">
-                {t('dashboard.school_dashboard_title')}{currentSchool ? ` – ${currentSchool.name}` : ''}
+                {t('dashboard.school_dashboard_title')}
+                {currentSchool ? ` – ${currentSchool.name}` : ''}
             </h1>
 
             {/* Current Academic Year Banner */}
@@ -147,7 +149,8 @@ function SchoolDashboard() {
                         <span className="font-semibold">{t('dashboard.current_academic_year')}:</span>{' '}
                         <span>{stats.currentAcademicYear.name}</span>
                         <span className="text-sm text-muted-foreground ml-2">
-                            ({new Date(stats.currentAcademicYear.startDate).toLocaleDateString(i18n.language)} – {new Date(stats.currentAcademicYear.endDate).toLocaleDateString(i18n.language)})
+                            ({new Date(stats.currentAcademicYear.startDate).toLocaleDateString(i18n.language)} –{' '}
+                            {new Date(stats.currentAcademicYear.endDate).toLocaleDateString(i18n.language)})
                         </span>
                     </div>
                 </div>
@@ -214,19 +217,27 @@ function SchoolDashboard() {
                         {stats?.recentMembers && stats.recentMembers.length > 0 ? (
                             <div className="space-y-3">
                                 {stats.recentMembers.map((member: any) => (
-                                    <div key={member.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
+                                    <div
+                                        key={member.id}
+                                        className="flex items-center justify-between border-b border-border pb-2 last:border-0"
+                                    >
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium">{member.name}</span>
                                             <span className="text-xs text-muted-foreground">{member.email}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${member.status === 'ACTIVE'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                                                }`}>
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    member.status === 'ACTIVE'
+                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                                }`}
+                                            >
                                                 {member.status === 'ACTIVE' ? t('common.active') : t('common.pending')}
                                             </span>
-                                            <span className="text-xs text-muted-foreground capitalize">{member.role.toLowerCase()}</span>
+                                            <span className="text-xs text-muted-foreground capitalize">
+                                                {member.role.toLowerCase()}
+                                            </span>
                                         </div>
                                     </div>
                                 ))}
@@ -247,15 +258,21 @@ function SchoolDashboard() {
                         {stats?.upcomingEvents && stats.upcomingEvents.length > 0 ? (
                             <div className="space-y-3">
                                 {stats.upcomingEvents.map((evt: any) => (
-                                    <div key={evt.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
+                                    <div
+                                        key={evt.id}
+                                        className="flex items-center justify-between border-b border-border pb-2 last:border-0"
+                                    >
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium">{evt.title}</span>
                                             <span className="text-xs text-muted-foreground">
                                                 {new Date(evt.date).toLocaleDateString(i18n.language)}
-                                                {evt.endDate && ` – ${new Date(evt.endDate).toLocaleDateString(i18n.language)}`}
+                                                {evt.endDate &&
+                                                    ` – ${new Date(evt.endDate).toLocaleDateString(i18n.language)}`}
                                             </span>
                                         </div>
-                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${EVENT_TYPE_COLORS[evt.type] || EVENT_TYPE_COLORS.OTHER}`}>
+                                        <span
+                                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${EVENT_TYPE_COLORS[evt.type] || EVENT_TYPE_COLORS.OTHER}`}
+                                        >
                                             {evt.type}
                                         </span>
                                     </div>

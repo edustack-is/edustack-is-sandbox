@@ -8,31 +8,18 @@ import {
     getFilteredRowModel,
     SortingState,
     ColumnFiltersState,
-} from "@tanstack/react-table"
-import { useState } from "react"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+} from '@tanstack/react-table';
+import { useState } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
-    pageSize?: number
-    columnFilters?: ColumnFiltersState
+    columns: ColumnDef<TData, TValue>[];
+    data: TData[];
+    pageSize?: number;
+    columnFilters?: ColumnFiltersState;
 }
 
 // Generate smart page numbers: 1, 2, 3 ... 10, 11, 12 ... 48, 49, 50
@@ -73,9 +60,9 @@ export function DataTable<TData, TValue>({
     pageSize: initialPageSize = 20,
     columnFilters,
 }: DataTableProps<TData, TValue>) {
-    const [sorting, setSorting] = useState<SortingState>([])
-    const [pageSize, setPageSizeState] = useState(initialPageSize)
-    const [pageIndex, setPageIndex] = useState(0)
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [pageSize, setPageSizeState] = useState(initialPageSize);
+    const [pageIndex, setPageIndex] = useState(0);
 
     const table = useReactTable({
         data,
@@ -86,9 +73,7 @@ export function DataTable<TData, TValue>({
         getFilteredRowModel: getFilteredRowModel(),
         onSortingChange: setSorting,
         onPaginationChange: (updater) => {
-            const next = typeof updater === 'function'
-                ? updater({ pageIndex, pageSize })
-                : updater;
+            const next = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
             setPageIndex(next.pageIndex);
             setPageSizeState(next.pageSize);
         },
@@ -97,18 +82,18 @@ export function DataTable<TData, TValue>({
             columnFilters: columnFilters ?? [],
             pagination: { pageIndex, pageSize },
         },
-    })
+    });
 
-    const pageCount = table.getPageCount()
-    const currentPage = table.getState().pagination.pageIndex + 1
-    const totalRows = table.getFilteredRowModel().rows.length
-    const pageNumbers = getPageNumbers(currentPage, pageCount)
+    const pageCount = table.getPageCount();
+    const currentPage = table.getState().pagination.pageIndex + 1;
+    const totalRows = table.getFilteredRowModel().rows.length;
+    const pageNumbers = getPageNumbers(currentPage, pageCount);
 
     const handlePageSizeChange = (newSize: string) => {
-        const size = parseInt(newSize, 10)
-        setPageSizeState(size)
-        setPageIndex(0) // reset to first page
-    }
+        const size = parseInt(newSize, 10);
+        setPageSizeState(size);
+        setPageIndex(0); // reset to first page
+    };
 
     return (
         <div className="space-y-3">
@@ -121,10 +106,7 @@ export function DataTable<TData, TValue>({
                                     <TableHead key={header.id}>
                                         {header.isPlaceholder
                                             ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
+                                            : flexRender(header.column.columnDef.header, header.getContext())}
                                     </TableHead>
                                 ))}
                             </TableRow>
@@ -133,10 +115,7 @@ export function DataTable<TData, TValue>({
                     <TableBody>
                         {table.getRowModel().rows?.length ? (
                             table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={row.getIsSelected() && "selected"}
-                                >
+                                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell key={cell.id}>
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -160,9 +139,7 @@ export function DataTable<TData, TValue>({
                 <div className="flex items-center justify-between px-2 flex-wrap gap-2">
                     {/* Left: info + page size */}
                     <div className="flex items-center gap-3">
-                        <p className="text-sm text-muted-foreground whitespace-nowrap">
-                            {totalRows} záznamů
-                        </p>
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">{totalRows} záznamů</p>
                         <div className="flex items-center gap-1.5">
                             <span className="text-xs text-muted-foreground">Zobrazit</span>
                             <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
@@ -170,8 +147,10 @@ export function DataTable<TData, TValue>({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {[10, 20, 30, 50].map(size => (
-                                        <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                                    {[10, 20, 30, 50].map((size) => (
+                                        <SelectItem key={size} value={String(size)}>
+                                            {size}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -182,16 +161,22 @@ export function DataTable<TData, TValue>({
                     {pageCount > 1 && (
                         <div className="flex items-center gap-1">
                             {/* Prev button */}
-                            <Button variant="outline" size="icon" className="h-8 w-8"
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
                                 onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}>
+                                disabled={!table.getCanPreviousPage()}
+                            >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
 
                             {/* Page numbers */}
                             {pageNumbers.map((page, idx) =>
                                 page === '...' ? (
-                                    <span key={`dots-${idx}`} className="px-1 text-xs text-muted-foreground">…</span>
+                                    <span key={`dots-${idx}`} className="px-1 text-xs text-muted-foreground">
+                                        …
+                                    </span>
                                 ) : (
                                     <Button
                                         key={page}
@@ -202,13 +187,17 @@ export function DataTable<TData, TValue>({
                                     >
                                         {page}
                                     </Button>
-                                )
+                                ),
                             )}
 
                             {/* Next button */}
-                            <Button variant="outline" size="icon" className="h-8 w-8"
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
                                 onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}>
+                                disabled={!table.getCanNextPage()}
+                            >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
@@ -216,5 +205,5 @@ export function DataTable<TData, TValue>({
                 </div>
             )}
         </div>
-    )
+    );
 }

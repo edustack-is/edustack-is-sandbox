@@ -2,9 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-    getConversations, getMessages, sendMessage,
-    createConversation, getAvailableRecipients, getMessagingClassrooms,
-    createClassBroadcast, createSchoolBroadcast,
+    getConversations,
+    getMessages,
+    sendMessage,
+    createConversation,
+    getAvailableRecipients,
+    getMessagingClassrooms,
+    createClassBroadcast,
+    createSchoolBroadcast,
 } from '@/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,13 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-    MessageSquare, Send, Plus, Search, Users, Megaphone, School,
-    Loader2, ArrowLeft,
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { MessageSquare, Send, Plus, Search, Users, Megaphone, School, Loader2, ArrowLeft } from 'lucide-react';
 import { useSchool } from '@/context/SchoolContext';
 
 // ─── Types ─────────────────────────────────────────────
@@ -154,9 +154,9 @@ export default function Messages() {
         if (conv.subject) return conv.subject;
         if (conv.type === 'CLASS_BROADCAST') return '📢 Třídní zpráva';
         if (conv.type === 'SCHOOL_BROADCAST') return '🏫 Školní zpráva';
-        const others = conv.participants.filter(p => p.id !== currentUserId);
+        const others = conv.participants.filter((p) => p.id !== currentUserId);
         if (others.length === 0) return 'Konverzace';
-        return others.map(p => `${p.firstName} ${p.lastName}`).join(', ');
+        return others.map((p) => `${p.firstName} ${p.lastName}`).join(', ');
     };
 
     const getConversationIcon = (type: string) => {
@@ -177,7 +177,7 @@ export default function Messages() {
         return new Date(dateStr).toLocaleDateString('cs-CZ');
     };
 
-    const filteredConversations = conversations.filter(c => {
+    const filteredConversations = conversations.filter((c) => {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         const title = getConversationTitle(c).toLowerCase();
@@ -185,7 +185,7 @@ export default function Messages() {
         return title.includes(q) || lastMsg.includes(q);
     });
 
-    const selectedConv = conversations.find(c => c.id === selectedId);
+    const selectedConv = conversations.find((c) => c.id === selectedId);
 
     return (
         <div className="h-[calc(100vh-6rem)] flex flex-col">
@@ -213,7 +213,7 @@ export default function Messages() {
                                 placeholder="Hledat konverzace..."
                                 className="pl-9 h-9"
                                 value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
@@ -227,19 +227,20 @@ export default function Messages() {
                                 {searchQuery ? 'Žádné výsledky' : 'Zatím nemáte žádné zprávy'}
                             </div>
                         ) : (
-                            filteredConversations.map(conv => (
+                            filteredConversations.map((conv) => (
                                 <button
                                     key={conv.id}
                                     onClick={() => setSelectedId(conv.id)}
-                                    className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-accent/50 transition-colors border-b ${selectedId === conv.id ? 'bg-accent' : ''
-                                        } ${conv.unreadCount > 0 ? 'bg-primary/5' : ''}`}
+                                    className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-accent/50 transition-colors border-b ${
+                                        selectedId === conv.id ? 'bg-accent' : ''
+                                    } ${conv.unreadCount > 0 ? 'bg-primary/5' : ''}`}
                                 >
-                                    <div className="mt-1 shrink-0">
-                                        {getConversationIcon(conv.type)}
-                                    </div>
+                                    <div className="mt-1 shrink-0">{getConversationIcon(conv.type)}</div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold' : ''}`}>
+                                            <span
+                                                className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold' : ''}`}
+                                            >
                                                 {getConversationTitle(conv)}
                                             </span>
                                             {conv.lastMessage && (
@@ -250,13 +251,18 @@ export default function Messages() {
                                         </div>
                                         {conv.lastMessage && (
                                             <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                                <span className="font-medium">{conv.lastMessage.sender.firstName}:</span>{' '}
+                                                <span className="font-medium">
+                                                    {conv.lastMessage.sender.firstName}:
+                                                </span>{' '}
                                                 {conv.lastMessage.content}
                                             </p>
                                         )}
                                     </div>
                                     {conv.unreadCount > 0 && (
-                                        <Badge variant="default" className="shrink-0 h-5 min-w-[20px] flex items-center justify-center text-[10px]">
+                                        <Badge
+                                            variant="default"
+                                            className="shrink-0 h-5 min-w-[20px] flex items-center justify-center text-[10px]"
+                                        >
                                             {conv.unreadCount}
                                         </Badge>
                                     )}
@@ -279,9 +285,12 @@ export default function Messages() {
                                     <ArrowLeft className="h-4 w-4" />
                                 </button>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-sm truncate">{getConversationTitle(selectedConv)}</h3>
+                                    <h3 className="font-semibold text-sm truncate">
+                                        {getConversationTitle(selectedConv)}
+                                    </h3>
                                     <p className="text-xs text-muted-foreground">
-                                        {selectedConv.participants.length} účastníků · {selectedConv.totalMessages} zpráv
+                                        {selectedConv.participants.length} účastníků · {selectedConv.totalMessages}{' '}
+                                        zpráv
                                     </p>
                                 </div>
                             </div>
@@ -293,26 +302,39 @@ export default function Messages() {
                                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                     </div>
                                 ) : messages.length === 0 ? (
-                                    <div className="text-center py-12 text-sm text-muted-foreground">Zatím žádné zprávy</div>
+                                    <div className="text-center py-12 text-sm text-muted-foreground">
+                                        Zatím žádné zprávy
+                                    </div>
                                 ) : (
-                                    messages.map(msg => {
+                                    messages.map((msg) => {
                                         const isMine = msg.sender.id === currentUserId;
                                         return (
-                                            <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                            <div
+                                                key={msg.id}
+                                                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                                            >
                                                 <div className={`max-w-[75%] ${isMine ? 'order-1' : ''}`}>
                                                     {!isMine && (
                                                         <p className="text-[10px] text-muted-foreground mb-0.5 ml-1">
                                                             {msg.sender.firstName} {msg.sender.lastName}
                                                         </p>
                                                     )}
-                                                    <div className={`rounded-2xl px-4 py-2 text-sm ${isMine
-                                                        ? 'bg-primary text-primary-foreground rounded-br-md'
-                                                        : 'bg-muted rounded-bl-md'
-                                                        }`}>
+                                                    <div
+                                                        className={`rounded-2xl px-4 py-2 text-sm ${
+                                                            isMine
+                                                                ? 'bg-primary text-primary-foreground rounded-br-md'
+                                                                : 'bg-muted rounded-bl-md'
+                                                        }`}
+                                                    >
                                                         <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                                                     </div>
-                                                    <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMine ? 'text-right mr-1' : 'ml-1'}`}>
-                                                        {new Date(msg.createdAt).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}
+                                                    <p
+                                                        className={`text-[10px] text-muted-foreground mt-0.5 ${isMine ? 'text-right mr-1' : 'ml-1'}`}
+                                                    >
+                                                        {new Date(msg.createdAt).toLocaleTimeString('cs-CZ', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                        })}
                                                     </p>
                                                 </div>
                                             </div>
@@ -331,15 +353,15 @@ export default function Messages() {
                                         rows={1}
                                         className="resize-none min-h-[40px] max-h-32"
                                         value={newMessage}
-                                        onChange={e => setNewMessage(e.target.value)}
+                                        onChange={(e) => setNewMessage(e.target.value)}
                                         onKeyDown={handleKeyDown}
                                     />
-                                    <Button
-                                        size="icon"
-                                        onClick={handleSend}
-                                        disabled={sending || !newMessage.trim()}
-                                    >
-                                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    <Button size="icon" onClick={handleSend} disabled={sending || !newMessage.trim()}>
+                                        {sending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4" />
+                                        )}
                                     </Button>
                                 </div>
                             </div>
@@ -387,7 +409,11 @@ export default function Messages() {
 // New Message Dialog
 // ═══════════════════════════════════════════════════════════
 
-function NewMessageDialog({ open, onOpenChange, onCreated }: {
+function NewMessageDialog({
+    open,
+    onOpenChange,
+    onCreated,
+}: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     onCreated: (convId: string) => void;
@@ -404,7 +430,7 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
         if (open) {
             setLoading(true);
             getAvailableRecipients()
-                .then(data => setRecipients(data || []))
+                .then((data) => setRecipients(data || []))
                 .catch(() => toast.error('Nepodařilo se načíst příjemce'))
                 .finally(() => setLoading(false));
             setSelectedRecipients([]);
@@ -414,7 +440,7 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
         }
     }, [open]);
 
-    const filteredRecipients = recipients.filter(r => {
+    const filteredRecipients = recipients.filter((r) => {
         if (!search) return true;
         const q = search.toLowerCase();
         const name = `${r.firstName} ${r.lastName}`.toLowerCase();
@@ -439,9 +465,7 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
     };
 
     const toggleRecipient = (id: string) => {
-        setSelectedRecipients(prev =>
-            prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
-        );
+        setSelectedRecipients((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
     };
 
     return (
@@ -459,7 +483,7 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
                         <Input
                             placeholder="Zadejte předmět..."
                             value={subject}
-                            onChange={e => setSubject(e.target.value)}
+                            onChange={(e) => setSubject(e.target.value)}
                         />
                     </div>
 
@@ -467,8 +491,8 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
                         <Label>Příjemci</Label>
                         {selectedRecipients.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mb-2">
-                                {selectedRecipients.map(id => {
-                                    const r = recipients.find(rr => rr.id === id);
+                                {selectedRecipients.map((id) => {
+                                    const r = recipients.find((rr) => rr.id === id);
                                     if (!r) return null;
                                     return (
                                         <Badge
@@ -486,23 +510,31 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
                         <Input
                             placeholder="Hledat příjemce..."
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
+                            onChange={(e) => setSearch(e.target.value)}
                         />
                         <div className="max-h-40 overflow-auto border rounded-md">
                             {loading ? (
                                 <div className="p-4 text-center text-sm text-muted-foreground">Načítání...</div>
                             ) : filteredRecipients.length === 0 ? (
-                                <div className="p-4 text-center text-sm text-muted-foreground">Žádní dostupní příjemci</div>
+                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                    Žádní dostupní příjemci
+                                </div>
                             ) : (
-                                filteredRecipients.map(r => (
+                                filteredRecipients.map((r) => (
                                     <button
                                         key={r.id}
                                         onClick={() => toggleRecipient(r.id)}
-                                        className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent/50 text-sm border-b last:border-b-0 ${selectedRecipients.includes(r.id) ? 'bg-primary/10' : ''
-                                            }`}
+                                        className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent/50 text-sm border-b last:border-b-0 ${
+                                            selectedRecipients.includes(r.id) ? 'bg-primary/10' : ''
+                                        }`}
                                     >
-                                        <span className="flex-1">{r.firstName} {r.lastName}</span>
-                                        <Badge variant="outline" className={`text-[10px] ${ROLE_COLORS[r.role || ''] || ''}`}>
+                                        <span className="flex-1">
+                                            {r.firstName} {r.lastName}
+                                        </span>
+                                        <Badge
+                                            variant="outline"
+                                            className={`text-[10px] ${ROLE_COLORS[r.role || ''] || ''}`}
+                                        >
                                             {ROLE_LABELS[r.role || ''] || r.role}
                                         </Badge>
                                     </button>
@@ -517,18 +549,24 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
                             rows={4}
                             placeholder="Napište svou zprávu..."
                             value={message}
-                            onChange={e => setMessage(e.target.value)}
+                            onChange={(e) => setMessage(e.target.value)}
                         />
                     </div>
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Zrušit</Button>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Zrušit
+                    </Button>
                     <Button
                         onClick={handleSend}
                         disabled={sending || selectedRecipients.length === 0 || !message.trim()}
                     >
-                        {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+                        {sending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                            <Send className="h-4 w-4 mr-1" />
+                        )}
                         Odeslat
                     </Button>
                 </DialogFooter>
@@ -541,7 +579,12 @@ function NewMessageDialog({ open, onOpenChange, onCreated }: {
 // Broadcast Dialog
 // ═══════════════════════════════════════════════════════════
 
-function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: {
+function BroadcastDialog({
+    open,
+    onOpenChange,
+    canSchoolBroadcast,
+    onCreated,
+}: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     canSchoolBroadcast: boolean;
@@ -559,7 +602,7 @@ function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: 
         if (open) {
             setLoading(true);
             getMessagingClassrooms()
-                .then(data => {
+                .then((data) => {
                     setClassrooms(data || []);
                     if (data?.length > 0) setSelectedClassroom(data[0].id);
                 })
@@ -606,8 +649,11 @@ function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: 
                 <div className="space-y-4">
                     <div className="flex gap-2">
                         <button
-                            className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-all ${type === 'class' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 hover:bg-muted'
-                                }`}
+                            className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-all ${
+                                type === 'class'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-muted/30 hover:bg-muted'
+                            }`}
                             onClick={() => setType('class')}
                         >
                             <Users className="h-4 w-4 mx-auto mb-1" />
@@ -615,8 +661,11 @@ function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: 
                         </button>
                         {canSchoolBroadcast && (
                             <button
-                                className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-all ${type === 'school' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 hover:bg-muted'
-                                    }`}
+                                className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-all ${
+                                    type === 'school'
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-muted/30 hover:bg-muted'
+                                }`}
                                 onClick={() => setType('school')}
                             >
                                 <School className="h-4 w-4 mx-auto mb-1" />
@@ -634,10 +683,12 @@ function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: 
                                 <select
                                     className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                                     value={selectedClassroom}
-                                    onChange={e => setSelectedClassroom(e.target.value)}
+                                    onChange={(e) => setSelectedClassroom(e.target.value)}
                                 >
-                                    {classrooms.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    {classrooms.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                        </option>
                                     ))}
                                 </select>
                             )}
@@ -649,7 +700,7 @@ function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: 
                         <Input
                             placeholder="Např. Důležité oznámení..."
                             value={subject}
-                            onChange={e => setSubject(e.target.value)}
+                            onChange={(e) => setSubject(e.target.value)}
                         />
                     </div>
 
@@ -659,18 +710,21 @@ function BroadcastDialog({ open, onOpenChange, canSchoolBroadcast, onCreated }: 
                             rows={4}
                             placeholder="Napište text hromadné zprávy..."
                             value={message}
-                            onChange={e => setMessage(e.target.value)}
+                            onChange={(e) => setMessage(e.target.value)}
                         />
                     </div>
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Zrušit</Button>
-                    <Button
-                        onClick={handleSend}
-                        disabled={sending || !subject.trim() || !message.trim()}
-                    >
-                        {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Zrušit
+                    </Button>
+                    <Button onClick={handleSend} disabled={sending || !subject.trim() || !message.trim()}>
+                        {sending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                            <Send className="h-4 w-4 mr-1" />
+                        )}
                         Odeslat {type === 'school' ? 'všem' : 'třídě'}
                     </Button>
                 </DialogFooter>

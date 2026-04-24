@@ -78,10 +78,7 @@ export function initLogger() {
     // Unhandled promise rejections
     window.onunhandledrejection = (event) => {
         const reason = event.reason;
-        logger.error(
-            reason?.message || String(reason),
-            reason?.stack,
-        );
+        logger.error(reason?.message || String(reason), reason?.stack);
     };
 }
 

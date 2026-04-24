@@ -15,13 +15,20 @@ function decodeJwtPayload(token: string): any {
 
 export const ImpersonationBanner = () => {
     const { t } = useTranslation();
-    const { isSysAdminOverride, isImpersonated: contextImpersonated, readOnly, role, currentSchool, leaveSchool } = useSchool();
+    const {
+        isSysAdminOverride,
+        isImpersonated: contextImpersonated,
+        readOnly,
+        role,
+        currentSchool,
+        leaveSchool,
+    } = useSchool();
     const [isImpersonating, setIsImpersonating] = useState(false);
     const [targetEmail, setTargetEmail] = useState('');
 
     useEffect(() => {
-        const originalToken = localStorage.getItem('original_admin_token') ||
-            localStorage.getItem('impersonation_original_token');
+        const originalToken =
+            localStorage.getItem('original_admin_token') || localStorage.getItem('impersonation_original_token');
         if (originalToken) {
             setIsImpersonating(true);
 
@@ -39,8 +46,8 @@ export const ImpersonationBanner = () => {
     }, [t]);
 
     const stopImpersonation = () => {
-        const originalToken = localStorage.getItem('original_admin_token') ||
-            localStorage.getItem('impersonation_original_token');
+        const originalToken =
+            localStorage.getItem('original_admin_token') || localStorage.getItem('impersonation_original_token');
         if (originalToken) {
             localStorage.setItem('access_token', originalToken);
             localStorage.removeItem('original_admin_token');
@@ -102,4 +109,3 @@ export const ImpersonationBanner = () => {
         </div>
     );
 };
-

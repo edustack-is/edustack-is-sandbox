@@ -1,96 +1,124 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '../database/database.service';
 import { CryptoService } from '../utils/crypto.service';
-import { SecretType } from '@prisma/client';
+import { SecretType, SystemSecret } from '../database/types';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
+import * as crypto from 'crypto';
+
+export interface SsoProviderSettings {
+  clientId: string;
+  isActive: boolean;
+  isConfigured: boolean;
+  teamId?: string;
+  keyId?: string;
+}
+
+export type SsoSettings = Record<string, SsoProviderSettings>;
+
+export class UpsertSsoDto {
+  clientId: string;
+  clientSecret?: string;
+  isActive?: boolean;
+  teamId?: string;
+  keyId?: string;
+}
 
 @Injectable()
 export class SystemAdminSsoService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly cryptoService: CryptoService,
-        private readonly ssoStrategyFactory: SsoStrategyFactoryService,
-    ) { }
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly cryptoService: CryptoService,
+    private readonly ssoStrategyFactory: SsoStrategyFactoryService,
+  ) {}
 
-    async getSsoSettings() {
-        const secrets = await this.prisma.systemSecret.findMany({
-            where: { type: SecretType.SSO },
-        });
+  async getSsoSettings(): Promise<SsoSettings> {
+    const secrets = await this.db.query<SystemSecret>(
+      'SELECT * FROM "SystemSecret" WHERE type = ?',
+      [SecretType.SSO],
+    );
 
-        const providers = ['google', 'github', 'microsoft', 'apple'];
-        const result: any = {};
+    const providers = ['google', 'github', 'microsoft', 'apple'];
+    const result: SsoSettings = {};
 
-        for (const provider of providers) {
-            const providerSecrets = secrets.filter((s: any) => s.service === provider);
-            const clientId = providerSecrets.find((s: any) => s.key === 'CLIENT_ID');
-            const isActive = providerSecrets.some((s: any) => s.isActive);
+    for (const provider of providers) {
+      const providerSecrets = secrets.filter(
+        (s: SystemSecret) => s.service === provider,
+      );
+      const clientId = providerSecrets.find(
+        (s: SystemSecret) => s.key === 'CLIENT_ID',
+      );
+      const isActive = providerSecrets.some((s: SystemSecret) => s.isActive);
 
-            result[provider] = {
-                clientId: clientId?.value || '',
-                isActive,
-                isConfigured: providerSecrets.length > 0,
-            };
+      result[provider] = {
+        clientId: clientId?.value || '',
+        isActive,
+        isConfigured: providerSecrets.length > 0,
+      };
 
-            // Conditionally add Apple fields
-            if (provider === 'apple') {
-                result[provider].teamId = providerSecrets.find((s: any) => s.key === 'TEAM_ID')?.value || '';
-                result[provider].keyId = providerSecrets.find((s: any) => s.key === 'KEY_ID')?.value || '';
-            }
-        }
-
-        return result;
+      // Conditionally add Apple fields
+      if (provider === 'apple') {
+        result[provider].teamId =
+          providerSecrets.find((s: SystemSecret) => s.key === 'TEAM_ID')
+            ?.value || '';
+        result[provider].keyId =
+          providerSecrets.find((s: SystemSecret) => s.key === 'KEY_ID')
+            ?.value || '';
+      }
     }
 
-    async upsertSsoProvider(provider: string, data: any) {
-        const { clientId, clientSecret, isActive, ...extra } = data;
+    return result;
+  }
 
-        const secretsToUpsert = [
-            { key: 'CLIENT_ID', value: clientId },
-        ];
+  async upsertSsoProvider(provider: string, data: UpsertSsoDto) {
+    const { clientId, clientSecret, isActive, ...extra } = data;
 
-        if (clientSecret) {
-            secretsToUpsert.push({ key: provider === 'apple' ? 'PRIVATE_KEY' : 'CLIENT_SECRET', value: this.cryptoService.encrypt(clientSecret) });
-        }
+    const secretsToUpsert = [{ key: 'CLIENT_ID', value: clientId }];
 
-        if (provider === 'apple') {
-            if (extra.teamId) secretsToUpsert.push({ key: 'TEAM_ID', value: extra.teamId });
-            if (extra.keyId) secretsToUpsert.push({ key: 'KEY_ID', value: extra.keyId });
-        }
-
-        for (const item of secretsToUpsert) {
-            await this.prisma.systemSecret.upsert({
-                where: {
-                    type_service_key: {
-                        type: SecretType.SSO,
-                        service: provider,
-                        key: item.key,
-                    }
-                },
-                create: {
-                    type: SecretType.SSO,
-                    service: provider,
-                    key: item.key,
-                    value: item.value,
-                    isActive: isActive ?? true,
-                },
-                update: {
-                    value: item.value,
-                    isActive: isActive ?? true,
-                }
-            });
-        }
-
-        // Handle isActive for all secrets of this provider
-        if (isActive !== undefined) {
-            await this.prisma.systemSecret.updateMany({
-                where: { type: SecretType.SSO, service: provider },
-                data: { isActive },
-            });
-        }
-
-        // Trigger strategy reload
-        await this.ssoStrategyFactory.reloadStrategies();
-
-        return this.getSsoSettings();
+    if (clientSecret) {
+      secretsToUpsert.push({
+        key: provider === 'apple' ? 'PRIVATE_KEY' : 'CLIENT_SECRET',
+        value: this.cryptoService.encrypt(clientSecret),
+      });
     }
+
+    if (provider === 'apple') {
+      if (extra.teamId)
+        secretsToUpsert.push({ key: 'TEAM_ID', value: extra.teamId });
+      if (extra.keyId)
+        secretsToUpsert.push({ key: 'KEY_ID', value: extra.keyId });
+    }
+
+    for (const item of secretsToUpsert) {
+      await this.db.execute(
+        `INSERT INTO "SystemSecret" (id, type, service, "key", value, isActive, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(type, service, "key") DO UPDATE SET
+           value = excluded.value,
+           isActive = excluded.isActive,
+           updatedAt = excluded.updatedAt`,
+        [
+          crypto.randomUUID(),
+          SecretType.SSO,
+          provider,
+          item.key,
+          item.value,
+          isActive ?? true,
+          new Date().toISOString(),
+        ],
+      );
+    }
+
+    // Handle isActive for all secrets of this provider
+    if (isActive !== undefined) {
+      await this.db.execute(
+        'UPDATE "SystemSecret" SET isActive = ?, updatedAt = ? WHERE type = ? AND service = ?',
+        [isActive, new Date().toISOString(), SecretType.SSO, provider],
+      );
+    }
+
+    // Trigger strategy reload
+    await this.ssoStrategyFactory.reloadStrategies();
+
+    return this.getSsoSettings();
+  }
 }

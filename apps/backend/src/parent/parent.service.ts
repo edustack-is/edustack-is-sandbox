@@ -1,128 +1,115 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class ParentService {
-    constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly db: DatabaseService) {}
 
-    /**
-     * Returns all children linked to this parent, across all schools.
-     */
-    async getChildren(parentUserId: string) {
-        const links = await this.prisma.parentStudent.findMany({
-            where: { parentId: parentUserId },
-            include: {
-                student: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        email: true,
-                        studentProfile: {
-                            include: {
-                                classroom: true,
-                            },
-                        },
-                        schoolMemberships: {
-                            where: { status: 'ACTIVE' },
-                            include: {
-                                school: { select: { id: true, name: true } },
-                            },
-                        },
-                    },
-                },
-            },
-        });
+  /**
+   * Returns all children linked to this parent, across all schools.
+   */
+  async getChildren(parentUserId: string) {
+    const links = await this.db.query(
+      `SELECT ps.*, u.firstName, u.lastName, u.email, sp.id as profileId, sp.classroomId, c.name as cName 
+       FROM "ParentStudent" ps 
+       JOIN "User" u ON ps.studentId = u.id 
+       LEFT JOIN "StudentProfile" sp ON u.id = sp.userId 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       WHERE ps.parentId = ?`,
+      [parentUserId],
+    );
 
-        return links.map((link) => ({
-            linkId: link.id,
-            studentId: link.studentId,
-            student: link.student,
-        }));
-    }
+    return links.map((l: any) => ({
+      linkId: l.id,
+      studentId: l.studentId,
+      student: {
+        id: l.studentId,
+        firstName: l.firstName,
+        lastName: l.lastName,
+        email: l.email,
+        studentProfile: l.profileId
+          ? {
+              id: l.profileId,
+              classroom: l.classroomId
+                ? { id: l.classroomId, name: l.cName }
+                : null,
+            }
+          : null,
+      },
+    }));
+  }
 
-    /**
-     * Returns a child's dashboard data (grades, schedule, profile).
-     * Verifies the parent owns this child via ParentStudent.
-     */
-    async getChildDashboard(parentUserId: string, studentUserId: string) {
-        // Security: verify parent-student relationship
-        const link = await this.prisma.parentStudent.findFirst({
-            where: {
-                parentId: parentUserId,
-                studentId: studentUserId,
-            },
-        });
+  /**
+   * Returns a child's dashboard data (grades, schedule, profile).
+   */
+  async getChildDashboard(parentUserId: string, studentUserId: string) {
+    const link = await this.db.queryOne(
+      'SELECT id FROM "ParentStudent" WHERE parentId = ? AND studentId = ?',
+      [parentUserId, studentUserId],
+    );
+    if (!link)
+      throw new ForbiddenException('You do not have access to this student.');
 
-        if (!link) {
-            throw new ForbiddenException('You do not have access to this student.');
-        }
+    const user = await this.db.queryOne('SELECT * FROM "User" WHERE id = ?', [
+      studentUserId,
+    ]);
+    const profile = await this.db.queryOne(
+      'SELECT * FROM "StudentProfile" WHERE userId = ?',
+      [studentUserId],
+    );
+    if (!profile) throw new NotFoundException('Student profile not found');
 
-        // Get student profile with classroom, grades, and schedule
-        const studentProfile = await this.prisma.studentProfile.findUnique({
-            where: { userId: studentUserId },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        firstName: true,
-                        lastName: true,
-                    },
-                },
-                classroom: true,
-                grades: {
-                    include: {
-                        subjectInstance: { include: { template: true } },
-                        teacherProfile: {
-                            include: {
-                                user: { select: { firstName: true, lastName: true } },
-                            },
-                        },
-                    },
-                    orderBy: { date: 'desc' },
-                    take: 30,
-                },
-            },
-        });
+    const classroom = (profile as any).classroomId
+      ? await this.db.queryOne('SELECT * FROM "Classroom" WHERE id = ?', [
+          (profile as any).classroomId,
+        ])
+      : null;
 
-        if (!studentProfile) {
-            throw new NotFoundException('Student profile not found');
-        }
+    const grades = await this.db.query(
+      `SELECT g.*, st.name as subName, u.firstName as tFN, u.lastName as tLN 
+       FROM "Grade" g 
+       JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id 
+       JOIN "SubjectTemplate" st ON si.templateId = st.id 
+       JOIN "TeacherProfile" tp ON g.teacherId = tp.id 
+       JOIN "User" u ON tp.userId = u.id 
+       WHERE g.studentId = ? ORDER BY g.date DESC LIMIT 30`,
+      [(profile as any).id],
+    );
 
-        // Get schedule if student has a classroom
-        const schedule = studentProfile.classroomId
-            ? await this.prisma.scheduleEvent.findMany({
-                where: { classroomId: studentProfile.classroomId },
-                include: {
-                    subject: { include: { template: true } },
-                    teacherProfile: {
-                        include: {
-                            user: { select: { firstName: true, lastName: true } },
-                        },
-                    },
-                    classroom: true,
-                },
-                orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-            })
-            : [];
+    const schedule = (profile as any).classroomId
+      ? await this.db.query(
+          `SELECT se.*, st.name as subName, u.firstName as tFN, u.lastName as tLN 
+       FROM "ScheduleEvent" se 
+       JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id 
+       JOIN "SubjectTemplate" st ON si.templateId = st.id 
+       JOIN "TeacherProfile" tp ON se.teacherId = tp.id 
+       JOIN "User" u ON tp.userId = u.id 
+       WHERE se.classroomId = ? ORDER BY se.dayOfWeek ASC, se.startTime ASC`,
+          [(profile as any).classroomId],
+        )
+      : [];
 
-        // Get subjects
-        const subjects = studentProfile.classroomId
-            ? await this.prisma.subjectInstance.findMany({
-                where: {
-                    scheduleEvents: {
-                        some: { classroomId: studentProfile.classroomId },
-                    },
-                },
-                include: { template: true },
-            })
-            : [];
-
-        return {
-            profile: studentProfile,
-            schedule,
-            subjects,
-        };
-    }
+    return {
+      profile: {
+        ...profile,
+        user,
+        classroom,
+        grades: grades.map((g: any) => ({
+          ...g,
+          subjectInstance: { template: { name: g.subName } },
+          teacherProfile: { user: { firstName: g.tFN, lastName: g.tLN } },
+        })),
+      },
+      schedule: (schedule as any[]).map((s) => ({
+        ...s,
+        subject: { template: { name: s.subName } },
+        teacherProfile: { user: { firstName: s.tFN, lastName: s.tLN } },
+      })),
+      subjects: [], // Simplified for POC
+    };
+  }
 }

@@ -1,18 +1,54 @@
-import { useState, useEffect } from 'react';
-import { setupApp, getSeedFiles, setupWithSeed } from '../api';
+import { useState, useEffect, useRef } from 'react';
+import { setupApp, getSeedFiles, setupWithSeed, restoreBackup } from '../api';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
 import { useTranslation } from 'react-i18next';
 import {
-    Sparkles, User, Loader2, CheckCircle2, Database, Key, Users, BookOpen,
-    GraduationCap, School, ChevronRight, ChevronDown, Layers, Building2
+    Sparkles,
+    User,
+    Loader2,
+    CheckCircle2,
+    Database,
+    Key,
+    Users,
+    BookOpen,
+    GraduationCap,
+    School,
+    ChevronRight,
+    ChevronDown,
+    Layers,
+    Building2,
+    Upload,
+    History,
+    FileCode,
 } from 'lucide-react';
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type SeedFile = { filename: string; name: string; description: string };
 
+interface SeedResult {
+    school: { id: string; name: string };
+    counts: {
+        gradeLevels: number;
+        subjects: number;
+        curriculumEntries: number;
+        staff: number;
+        students: number;
+        rooms: number;
+    };
+    defaultPassword: string;
+    summary: string;
+}
+
 export const Setup = () => {
     const { t } = useTranslation();
+    const dragCounter = useRef(0);
+
+    useEffect(() => {
+        console.log('Setup Component Version: 2026-04-19-2158');
+    }, []);
 
     // ─── Read setup token from URL ?token=... ────────────────
     const setupToken = new URLSearchParams(window.location.search).get('token') || undefined;
@@ -29,12 +65,18 @@ export const Setup = () => {
     const [loading, setLoading] = useState(false);
 
     // ─── Seed state ─────────────────────────────────────────
-    const [seedMode, setSeedMode] = useState<'none' | 'file'>('none');
+    const [seedMode, setSeedMode] = useState<'none' | 'file' | 'restore'>('none');
     const [seedFiles, setSeedFiles] = useState<SeedFile[]>([]);
     const [selectedSeed, setSelectedSeed] = useState('');
+    const [backupFile, setBackupFile] = useState<File | null>(null);
+    const [backupFileName, setBackupFileName] = useState('');
     const [showAiKeys, setShowAiKeys] = useState(false);
     const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
-    const [seedResult, setSeedResult] = useState<any>(null);
+    const [seedResult, setSeedResult] = useState<SeedResult | null>(null);
+    const [restoreSuccess, setRestoreSuccess] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isDraggingOverSeed, setIsDraggingOverSeed] = useState(false);
+    const [isDraggingOverRestore, setIsDraggingOverRestore] = useState(false);
 
     // ─── Load seed files on mount ───────────────────────────
     useEffect(() => {
@@ -43,11 +85,109 @@ export const Setup = () => {
                 setSeedFiles(files);
                 if (files.length > 0) setSelectedSeed(files[0].filename);
             })
-            .catch(() => { /* no seed files available */ });
+            .catch(() => {
+                /* no seed files available */
+            });
+    }, [setupToken]);
+
+    // ─── Robust Global Drag & Drop ──────────────────────────
+    useEffect(() => {
+        const onDragOver = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+        };
+
+        const onDragEnter = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter.current++;
+            if (dragCounter.current === 1) {
+                setIsDragging(true);
+            }
+        };
+
+        const onDragLeave = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter.current--;
+            if (dragCounter.current <= 0) {
+                dragCounter.current = 0;
+                setIsDragging(false);
+            }
+        };
+
+        const onDrop = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            dragCounter.current = 0;
+
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                handleDroppedFile(files[0]);
+            }
+        };
+
+        window.addEventListener('dragover', onDragOver);
+        window.addEventListener('dragenter', onDragEnter);
+        window.addEventListener('dragleave', onDragLeave);
+        window.addEventListener('drop', onDrop);
+
+        return () => {
+            window.removeEventListener('dragover', onDragOver);
+            window.removeEventListener('dragenter', onDragEnter);
+            window.removeEventListener('dragleave', onDragLeave);
+            window.removeEventListener('drop', onDrop);
+        };
     }, []);
+
+    const handleDroppedFile = (file: File) => {
+        const name = file.name.toLowerCase();
+        if (name.endsWith('.sqlite') || name.endsWith('.db')) {
+            setSeedMode('restore');
+            processSqliteFile(file);
+            toast.success(t('setup.sqlite_detected', 'Detekována SQLite záloha'));
+        } else {
+            toast.error(t('setup.invalid_file_type_sqlite', 'Nepodporovaný typ souboru. Použijte .sqlite nebo .db.'));
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const processSqliteFile = (file: File) => {
+        setBackupFile(file);
+        setBackupFileName(file.name);
+        setError('');
+    };
+
+    const handleBackupUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processSqliteFile(file);
+    };
+
+    const handleRestore = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!backupFile) return;
+
+        setLoading(true);
+        setError('');
+        try {
+            await restoreBackup(backupFile, setupToken);
+            setRestoreSuccess(true);
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 3000);
+        } catch (err) {
+            const error = err as { response?: { data?: { message?: string } } };
+            setError(error.response?.data?.message || 'Restore failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -68,14 +208,15 @@ export const Setup = () => {
         setLoading(true);
         try {
             if (seedMode === 'file' && selectedSeed) {
-                // Combined setup + seed
-                const result = await setupWithSeed({
-                    ...formData,
-                    seedFilename: selectedSeed,
-                    aiKeys: hasAnyAiKey() ? aiKeys : undefined,
-                }, setupToken);
+                const result = await setupWithSeed(
+                    {
+                        ...formData,
+                        seedFilename: selectedSeed,
+                        aiKeys: hasAnyAiKey() ? aiKeys : undefined,
+                    },
+                    setupToken,
+                );
                 setSeedResult(result.seed);
-                // After 3s redirect
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 4000);
@@ -83,9 +224,10 @@ export const Setup = () => {
                 await setupApp(formData, setupToken);
                 window.location.href = '/login';
             }
-        } catch (err: any) {
-            const msg = err.response?.data?.message || 'Setup failed';
-            if (msg.includes('already initialized') || err.response?.status === 403) {
+        } catch (err) {
+            const error = err as { response?: { data?: { message?: string }; status?: number } };
+            const msg = error.response?.data?.message || 'Setup failed';
+            if (msg.includes('already initialized') || error.response?.status === 403) {
                 window.location.href = '/login';
                 return;
             }
@@ -97,11 +239,52 @@ export const Setup = () => {
 
     const hasAnyAiKey = () => aiKeys.geminiApiKey || aiKeys.openAiApiKey || aiKeys.anthropicApiKey;
 
-    // ─── Seed completed ─────────────────────────────────────
+    // ─── Seed/Restore completed ─────────────────────────────
+    if (restoreSuccess) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
+                <div className="max-w-lg w-full bg-white rounded-3xl shadow-2xl p-10 space-y-8 border border-green-50 animate-in zoom-in duration-300">
+                    <div className="text-center space-y-4">
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-50 mx-auto border-4 border-white shadow-sm">
+                            <CheckCircle2 className="h-10 w-10 text-green-500" />
+                        </div>
+                        <h2 className="text-3xl font-black text-gray-900 tracking-tight">
+                            {t('setup.restore_complete', 'Obnova dokončena!')}
+                        </h2>
+                        <p className="text-gray-500 font-medium text-lg leading-relaxed">
+                            {t('setup.restore_complete_desc', 'Databáze byla úspěšně přepsána vaší zálohou.')}
+                        </p>
+                    </div>
+
+                    <div className="bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100/50 flex flex-col items-center gap-4">
+                        <div className="flex items-center gap-3 text-indigo-600 font-bold">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>{t('setup.redirecting', 'Přesměrovávám na přihlášení...')}</span>
+                        </div>
+                        <div className="flex flex-col gap-2 w-full">
+                            <button
+                                onClick={() => (window.location.href = '/login')}
+                                className="text-sm font-bold text-indigo-500 hover:text-indigo-700 underline underline-offset-4 decoration-2"
+                            >
+                                {t('setup.redirect_manual', 'Klikněte zde, pokud nebudete přesměrováni automaticky')}
+                            </button>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="text-xs text-gray-400 hover:text-gray-600"
+                            >
+                                {t('setup.refresh_status', 'Zkontrolovat stav systému')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (seedResult) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
-                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-indigo-100">
+                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-indigo-100 animate-in zoom-in duration-300">
                     <div className="text-center space-y-3">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
                             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -117,18 +300,46 @@ export const Setup = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                             {[
-                                { icon: <GraduationCap className="h-4 w-4" />, label: t('setup.seed_grades'), count: seedResult.counts.gradeLevels },
-                                { icon: <BookOpen className="h-4 w-4" />, label: t('setup.seed_subjects'), count: seedResult.counts.subjects },
-                                { icon: <Layers className="h-4 w-4" />, label: t('setup.seed_entries'), count: seedResult.counts.curriculumEntries },
-                                { icon: <Users className="h-4 w-4" />, label: t('setup.seed_staff'), count: seedResult.counts.staff },
-                                { icon: <User className="h-4 w-4" />, label: t('setup.seed_students'), count: seedResult.counts.students },
-                                { icon: <School className="h-4 w-4" />, label: t('setup.seed_rooms'), count: seedResult.counts.rooms },
-                            ].filter(i => i.count > 0).map((item, idx) => (
-                                <div key={idx} className="flex items-center gap-2 text-gray-600">
-                                    {item.icon}
-                                    <span>{item.count} {item.label}</span>
-                                </div>
-                            ))}
+                                {
+                                    icon: <GraduationCap className="h-4 w-4" />,
+                                    label: t('setup.seed_grades'),
+                                    count: seedResult.counts.gradeLevels,
+                                },
+                                {
+                                    icon: <BookOpen className="h-4 w-4" />,
+                                    label: t('setup.seed_subjects'),
+                                    count: seedResult.counts.subjects,
+                                },
+                                {
+                                    icon: <Layers className="h-4 w-4" />,
+                                    label: t('setup.seed_entries'),
+                                    count: seedResult.counts.curriculumEntries,
+                                },
+                                {
+                                    icon: <Users className="h-4 w-4" />,
+                                    label: t('setup.seed_staff'),
+                                    count: seedResult.counts.staff,
+                                },
+                                {
+                                    icon: <User className="h-4 w-4" />,
+                                    label: t('setup.seed_students'),
+                                    count: seedResult.counts.students,
+                                },
+                                {
+                                    icon: <School className="h-4 w-4" />,
+                                    label: t('setup.seed_rooms'),
+                                    count: seedResult.counts.rooms,
+                                },
+                            ]
+                                .filter((i) => i.count > 0)
+                                .map((item, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 text-gray-600">
+                                        {item.icon}
+                                        <span>
+                                            {item.count} {item.label}
+                                        </span>
+                                    </div>
+                                ))}
                         </div>
                     </div>
 
@@ -151,11 +362,38 @@ export const Setup = () => {
         );
     }
 
+    const isAnyLocalDragging = isDraggingOverSeed || isDraggingOverRestore;
+
     // ─── Main setup form ────────────────────────────────────
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden">
+            {/* ─── Global Drag Overlay ───────────────────────── */}
+            {isDragging && !isAnyLocalDragging && (
+                <div className="fixed inset-0 z-[100] bg-indigo-600/40 backdrop-blur-md pointer-events-none flex items-center justify-center border-[16px] border-white/30 m-4 rounded-[40px] animate-in fade-in duration-300">
+                    <div className="bg-white p-12 rounded-3xl shadow-2xl flex flex-col items-center gap-6 scale-in-center">
+                        <div className="w-24 h-24 rounded-full bg-indigo-50 flex items-center justify-center">
+                            <Upload className="h-12 w-12 text-indigo-600 animate-bounce" />
+                        </div>
+                        <div className="text-center space-y-2">
+                            <h2 className="text-3xl font-black text-gray-900">
+                                {t('setup.drop_to_upload', 'Pusťte pro nahrání')}
+                            </h2>
+                            <p className="text-gray-500 font-medium">
+                                {t('setup.drop_hint', 'Automaticky rozpoznáme JSON dataset nebo SQLite zálohu.')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <InlineLanguageSwitcher />
-            <div className="max-w-xl w-full space-y-6">
+
+            <div
+                className={cn(
+                    'max-w-xl w-full space-y-6 transition-all duration-500',
+                    isDragging && !isAnyLocalDragging && 'blur-sm scale-[0.98] opacity-50',
+                )}
+            >
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 mx-auto shadow-lg">
@@ -166,210 +404,468 @@ export const Setup = () => {
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 text-center">
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 text-center animate-in shake duration-500">
                         {error}
                     </div>
                 )}
 
-                <form className="space-y-6" onSubmit={handleSubmit}>
-                    {/* ─── Admin Account Card ────────────────────── */}
+                <div className="space-y-6">
+                    {/* ─── Mode Selector ────────────────────────── */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
                         <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                            <User className="h-5 w-5 text-indigo-500" />
-                            {t('setup.admin_section')}
+                            <Layers className="h-5 w-5 text-indigo-500" />
+                            {t('setup.mode_section', 'Metoda instalace')}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label htmlFor="adminFirstName" className="block text-sm font-medium text-gray-700">{t('setup.first_name')}</label>
-                                <input
-                                    id="adminFirstName"
-                                    name="adminFirstName"
-                                    type="text"
-                                    required
-                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                    value={formData.adminFirstName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label htmlFor="adminLastName" className="block text-sm font-medium text-gray-700">{t('setup.last_name')}</label>
-                                <input
-                                    id="adminLastName"
-                                    name="adminLastName"
-                                    type="text"
-                                    required
-                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                    value={formData.adminLastName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">{t('setup.admin_email')}</label>
-                            <input
-                                id="adminEmail"
-                                name="adminEmail"
-                                type="email"
-                                required
-                                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                value={formData.adminEmail}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700">{t('setup.password')}</label>
-                                <PasswordInput
-                                    id="adminPassword"
-                                    name="adminPassword"
-                                    required
-                                    value={formData.adminPassword}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">{t('setup.confirm_password')}</label>
-                                <PasswordInput
-                                    id="confirmPassword"
-                                    name="confirmPassword"
-                                    required
-                                    showStrength={false}
-                                    value={formData.confirmPassword}
-                                    onChange={handleChange}
-                                />
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSeedMode('none')}
+                                className={cn(
+                                    'p-4 rounded-xl border-2 text-left transition-all',
+                                    seedMode !== 'restore'
+                                        ? 'border-indigo-500 bg-indigo-50/50 shadow-sm'
+                                        : 'border-gray-100 hover:border-indigo-200',
+                                )}
+                            >
+                                <div className="flex items-center gap-2 font-bold text-indigo-900 mb-1">
+                                    <Sparkles className="h-4 w-4" />
+                                    {t('setup.mode_new', 'Nová instalace')}
+                                </div>
+                                <div className="text-xs text-indigo-600/70">
+                                    {t('setup.mode_new_desc', 'Vytvořit prázdný systém nebo načíst demo data.')}
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSeedMode('restore')}
+                                className={cn(
+                                    'p-4 rounded-xl border-2 text-left transition-all',
+                                    seedMode === 'restore'
+                                        ? 'border-violet-500 bg-violet-50/50 shadow-sm'
+                                        : 'border-gray-100 hover:border-violet-200',
+                                )}
+                            >
+                                <div className="flex items-center gap-2 font-bold text-violet-900 mb-1">
+                                    <History className="h-4 w-4" />
+                                    {t('setup.mode_restore', 'Obnovit ze zálohy')}
+                                </div>
+                                <div className="text-xs text-violet-600/70">
+                                    {t('setup.mode_restore_desc', 'Nahrát existující databázi (.sqlite).')}
+                                </div>
+                            </button>
                         </div>
                     </div>
 
-                    {/* ─── Demo Data Card ────────────────────────── */}
-                    {seedFiles.length > 0 && (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                    {seedMode === 'restore' ? (
+                        /* ─── RESTORE FORM ────────────────────────── */
+                        <form
+                            onSubmit={handleRestore}
+                            className="bg-white rounded-2xl shadow-sm border border-violet-200 p-6 space-y-6 animate-in slide-in-from-right duration-300"
+                        >
                             <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                <Database className="h-5 w-5 text-violet-500" />
-                                {t('setup.demo_data_section')}
+                                <FileCode className="h-5 w-5 text-violet-500" />
+                                {t('setup.restore_section', 'Nahrání zálohy')}
                             </div>
 
-                            <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
-
-                            {/* Mode selector */}
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setSeedMode('none')}
-                                    className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all ${seedMode === 'none'
-                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                        : 'border-gray-200 hover:border-indigo-200 text-gray-600'
-                                        }`}
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept=".sqlite,.db"
+                                    onChange={handleBackupUpload}
+                                    className="hidden"
+                                    id="backup-file-upload"
+                                />
+                                <label
+                                    htmlFor="backup-file-upload"
+                                    onDragEnter={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsDraggingOverRestore(true);
+                                    }}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsDraggingOverRestore(true);
+                                    }}
+                                    onDragLeave={() => setIsDraggingOverRestore(false)}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsDraggingOverRestore(false);
+                                        setIsDragging(false);
+                                        dragCounter.current = 0;
+                                        const files = e.dataTransfer?.files;
+                                        if (files && files.length > 0) {
+                                            handleDroppedFile(files[0]);
+                                        }
+                                    }}
+                                    className={cn(
+                                        'flex flex-col items-center justify-center w-full p-10 border-2 border-dashed rounded-xl cursor-pointer transition-all',
+                                        isDraggingOverRestore
+                                            ? 'border-violet-500 bg-violet-50'
+                                            : backupFile
+                                              ? 'border-green-400 bg-green-50'
+                                              : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50',
+                                    )}
                                 >
-                                    {t('setup.no_demo_data')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSeedMode('file')}
-                                    className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${seedMode === 'file'
-                                        ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                        : 'border-gray-200 hover:border-violet-200 text-gray-600'
-                                        }`}
-                                >
-                                    <Sparkles className="h-4 w-4" />
-                                    {t('setup.load_demo_data')}
-                                </button>
+                                    <div className="pointer-events-none flex flex-col items-center justify-center">
+                                        <Database
+                                            className={cn(
+                                                'h-12 w-12 mb-3',
+                                                backupFile ? 'text-green-500' : 'text-gray-400',
+                                            )}
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 text-center">
+                                            {backupFileName ||
+                                                t('setup.select_backup_file', 'Vyberte soubor zálohy (.sqlite)')}
+                                        </span>
+                                        <span className="text-xs text-gray-500 mt-2 text-center max-w-[300px]">
+                                            {t(
+                                                'setup.restore_warning',
+                                                'Upozornění: Tato akce přepíše aktuální databázi daty ze zálohy.',
+                                            )}
+                                        </span>
+                                    </div>
+                                </label>
                             </div>
 
-                            {/* Seed file picker */}
-                            {seedMode === 'file' && (
-                                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                    <div className="space-y-2">
-                                        {seedFiles.map((sf) => (
-                                            <label
-                                                key={sf.filename}
-                                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSeed === sf.filename
-                                                    ? 'border-violet-400 bg-violet-50'
-                                                    : 'border-gray-200 hover:border-violet-200'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="seedFile"
-                                                    value={sf.filename}
-                                                    checked={selectedSeed === sf.filename}
-                                                    onChange={() => setSelectedSeed(sf.filename)}
-                                                    className="mt-1 accent-violet-500"
-                                                />
-                                                <div>
-                                                    <div className="font-medium text-sm">{sf.name}</div>
-                                                    {sf.description && (
-                                                        <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
+                            <button
+                                type="submit"
+                                disabled={loading || !backupFile}
+                                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
+                                    bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 
+                                    disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        {t('setup.restoring', 'Obnovuji systém...')}
+                                    </>
+                                ) : (
+                                    <>
+                                        <History className="h-5 w-5" />
+                                        {t('setup.restore_button', 'Obnovit systém ze zálohy')}
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    ) : (
+                        /* ─── REGULAR SETUP FORM ───────────────────── */
+                        <form className="space-y-6 animate-in slide-in-from-left duration-300" onSubmit={handleSubmit}>
+                            {/* Admin Account Card */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                                <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                    <User className="h-5 w-5 text-indigo-500" />
+                                    {t('setup.admin_section')}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor="adminFirstName"
+                                            className="block text-sm font-medium text-gray-700"
+                                        >
+                                            {t('setup.first_name')}
+                                        </label>
+                                        <input
+                                            id="adminFirstName"
+                                            name="adminFirstName"
+                                            type="text"
+                                            required
+                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                            value={formData.adminFirstName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor="adminLastName"
+                                            className="block text-sm font-medium text-gray-700"
+                                        >
+                                            {t('setup.last_name')}
+                                        </label>
+                                        <input
+                                            id="adminLastName"
+                                            name="adminLastName"
+                                            type="text"
+                                            required
+                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                            value={formData.adminLastName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700">
+                                        {t('setup.admin_email')}
+                                    </label>
+                                    <input
+                                        id="adminEmail"
+                                        name="adminEmail"
+                                        type="email"
+                                        required
+                                        className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                        value={formData.adminEmail}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor="adminPassword"
+                                            className="block text-sm font-medium text-gray-700"
+                                        >
+                                            {t('setup.password')}
+                                        </label>
+                                        <PasswordInput
+                                            id="adminPassword"
+                                            name="adminPassword"
+                                            required
+                                            value={formData.adminPassword}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor="confirmPassword"
+                                            className="block text-sm font-medium text-gray-700"
+                                        >
+                                            {t('setup.confirm_password')}
+                                        </label>
+                                        <PasswordInput
+                                            id="confirmPassword"
+                                            name="confirmPassword"
+                                            required
+                                            showStrength={false}
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Demo Data Card */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+                                <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                    <Database className="h-5 w-5 text-violet-500" />
+                                    {t('setup.demo_data_section')}
+                                </div>
+
+                                <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeedMode('none')}
+                                        className={cn(
+                                            'p-3 rounded-xl border-2 text-sm font-medium transition-all',
+                                            seedMode === 'none'
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                                : 'border-gray-200 hover:border-indigo-200 text-gray-600',
+                                        )}
+                                    >
+                                        {t('setup.no_demo_data')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeedMode('file')}
+                                        disabled={seedFiles.length === 0}
+                                        className={cn(
+                                            'p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2',
+                                            seedMode === 'file'
+                                                ? 'border-violet-500 bg-violet-50 text-violet-700'
+                                                : seedFiles.length === 0
+                                                  ? 'opacity-50 grayscale cursor-not-allowed'
+                                                  : 'border-gray-200 hover:border-violet-200 text-gray-600',
+                                        )}
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                        {t('setup.load_demo_data')}
+                                    </button>
+                                </div>
+
+                                {seedMode === 'file' && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="space-y-2">
+                                            {seedFiles.map((sf) => (
+                                                <label
+                                                    key={sf.filename}
+                                                    className={cn(
+                                                        'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all',
+                                                        selectedSeed === sf.filename
+                                                            ? 'border-violet-400 bg-violet-50'
+                                                            : 'border-gray-200 hover:border-violet-200',
                                                     )}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="seedFile"
+                                                        value={sf.filename}
+                                                        checked={selectedSeed === sf.filename}
+                                                        onChange={() => setSelectedSeed(sf.filename)}
+                                                        className="mt-1 accent-violet-500"
+                                                    />
+                                                    <div>
+                                                        <div className="font-medium text-sm">{sf.name}</div>
+                                                        {sf.description && (
+                                                            <div className="text-xs text-gray-500 mt-0.5">
+                                                                {sf.description}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {seedMode === 'restore' && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept=".sqlite,.db"
+                                                onChange={handleBackupUpload}
+                                                className="hidden"
+                                                id="restore-file-upload-inline"
+                                            />
+                                            <label
+                                                htmlFor="restore-file-upload-inline"
+                                                onDragEnter={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setIsDraggingOverRestore(true);
+                                                }}
+                                                onDragOver={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setIsDraggingOverRestore(true);
+                                                }}
+                                                onDragLeave={() => setIsDraggingOverRestore(false)}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setIsDraggingOverRestore(false);
+                                                    setIsDragging(false);
+                                                    dragCounter.current = 0;
+                                                    const files = e.dataTransfer?.files;
+                                                    if (files && files.length > 0) {
+                                                        handleDroppedFile(files[0]);
+                                                    }
+                                                }}
+                                                className={cn(
+                                                    'flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all',
+                                                    isDraggingOverRestore
+                                                        ? 'border-violet-500 bg-violet-50'
+                                                        : backupFile
+                                                          ? 'border-green-400 bg-green-50'
+                                                          : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50',
+                                                )}
+                                            >
+                                                <div className="pointer-events-none flex flex-col items-center justify-center">
+                                                    <Database
+                                                        className={cn(
+                                                            'h-8 w-8 mb-2',
+                                                            backupFile ? 'text-green-500' : 'text-gray-400',
+                                                        )}
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700">
+                                                        {backupFileName ||
+                                                            t(
+                                                                'setup.select_backup_file',
+                                                                'Vyberte soubor zálohy (.sqlite)',
+                                                            )}
+                                                    </span>
                                                 </div>
                                             </label>
-                                        ))}
+                                        </div>
                                     </div>
+                                )}
 
-                                    {/* AI Keys (optional) */}
+                                {seedMode === 'file' && (
                                     <div className="border-t pt-4">
                                         <button
                                             type="button"
                                             onClick={() => setShowAiKeys(!showAiKeys)}
                                             className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
                                         >
-                                            {showAiKeys ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                            {showAiKeys ? (
+                                                <ChevronDown className="h-4 w-4" />
+                                            ) : (
+                                                <ChevronRight className="h-4 w-4" />
+                                            )}
                                             <Key className="h-4 w-4" />
                                             {t('setup.ai_keys_optional')}
                                         </button>
 
                                         {showAiKeys && (
-                                            <div className="space-y-3 mt-3 animate-in slide-in-from-top-2 duration-200">
+                                            <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                                 <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
                                                 {[
-                                                    { key: 'geminiApiKey', label: 'Google Gemini API Key', placeholder: 'AIza...' },
-                                                    { key: 'openAiApiKey', label: 'OpenAI API Key', placeholder: 'sk-...' },
-                                                    { key: 'anthropicApiKey', label: 'Anthropic API Key', placeholder: 'sk-ant-...' },
+                                                    {
+                                                        key: 'geminiApiKey',
+                                                        label: 'Google Gemini API Key',
+                                                        placeholder: 'AIza...',
+                                                    },
+                                                    {
+                                                        key: 'openAiApiKey',
+                                                        label: 'OpenAI API Key',
+                                                        placeholder: 'sk-...',
+                                                    },
+                                                    {
+                                                        key: 'anthropicApiKey',
+                                                        label: 'Anthropic API Key',
+                                                        placeholder: 'sk-ant-...',
+                                                    },
                                                 ].map(({ key, label, placeholder }) => (
                                                     <div key={key} className="space-y-1">
-                                                        <label className="text-xs font-medium text-gray-600">{label}</label>
+                                                        <label className="text-xs font-medium text-gray-600">
+                                                            {label}
+                                                        </label>
                                                         <input
                                                             type="password"
                                                             placeholder={placeholder}
                                                             className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                                            value={(aiKeys as any)[key]}
-                                                            onChange={(e) => setAiKeys({ ...aiKeys, [key]: e.target.value })}
+                                                            value={aiKeys[key as keyof AiKeys]}
+                                                            onChange={(e) =>
+                                                                setAiKeys({ ...aiKeys, [key]: e.target.value })
+                                                            }
                                                         />
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
 
-                    {/* ─── Submit ─────────────────────────────────── */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
-                            bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700
-                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
-                            disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                {seedMode === 'file' ? t('setup.creating_with_seed') : t('setup.creating')}
-                            </>
-                        ) : (
-                            <>
-                                {seedMode === 'file' && <Sparkles className="h-5 w-5" />}
-                                {seedMode === 'file' ? t('setup.create_with_seed') : t('setup.create_button')}
-                            </>
-                        )}
-                    </button>
-                </form>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium
+                                    bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
+                                    disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        {seedMode === 'file' ? t('setup.creating_with_seed') : t('setup.creating')}
+                                    </>
+                                ) : (
+                                    <>
+                                        {seedMode === 'file' && <Sparkles className="h-5 w-5" />}
+                                        {seedMode === 'file' ? t('setup.create_with_seed') : t('setup.create_button')}
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+                </div>
             </div>
         </div>
     );

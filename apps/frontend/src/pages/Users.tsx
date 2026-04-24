@@ -1,15 +1,38 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { ColumnDef } from '@tanstack/react-table';
-import { UserCog, Send, Plus, Trash2, GraduationCap, UserMinus, Filter, Users2, Link2, Pencil, Ban, ShieldCheck, Download } from 'lucide-react';
+import {
+    UserCog,
+    Send,
+    Plus,
+    Trash2,
+    GraduationCap,
+    UserMinus,
+    Filter,
+    Users2,
+    Link2,
+    Pencil,
+    Ban,
+    ShieldCheck,
+    Download,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 import { getUsers, api } from '../api';
 import {
-    getDeputyUsers, createStudentFamily, createStaff, resendInvitation,
-    removeSchoolUser, setUserAlumni, impersonateSchoolUser,
-    updateSchoolUser, suspendUser, reactivateUser, changeUserRole, exportUsersCSV,
+    getDeputyUsers,
+    createStudentFamily,
+    createStaff,
+    resendInvitation,
+    removeSchoolUser,
+    setUserAlumni,
+    impersonateSchoolUser,
+    updateSchoolUser,
+    suspendUser,
+    reactivateUser,
+    changeUserRole,
+    exportUsersCSV,
 } from '../api/deputy';
 
 import { DataTable } from '@/components/ui/data-table';
@@ -17,24 +40,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel,
-    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-    AlertDialogHeader, AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
 // ─── Types ──────────────────────────────────────────────────────
 
-interface RelatedPerson { id: string; name: string; }
+interface RelatedPerson {
+    id: string;
+    name: string;
+}
 
 interface SchoolUser {
     id: string;
@@ -61,7 +93,9 @@ interface StudentFamilyFormData {
 }
 
 interface StaffFormData {
-    firstName: string; lastName: string; email: string;
+    firstName: string;
+    lastName: string;
+    email: string;
     role: 'TEACHER' | 'DEPUTY';
     workloadPercentage: string;
 }
@@ -70,22 +104,33 @@ interface StaffFormData {
 
 function roleBadgeVariant(role: string) {
     switch (role) {
-        case 'PRINCIPAL': return 'default';
-        case 'DEPUTY': return 'default';
-        case 'TEACHER': return 'secondary';
-        case 'STUDENT': return 'outline';
-        case 'PARENT': return 'outline';
-        default: return 'outline';
+        case 'PRINCIPAL':
+            return 'default';
+        case 'DEPUTY':
+            return 'default';
+        case 'TEACHER':
+            return 'secondary';
+        case 'STUDENT':
+            return 'outline';
+        case 'PARENT':
+            return 'outline';
+        default:
+            return 'outline';
     }
 }
 
 function statusBadgeVariant(status: string) {
     switch (status) {
-        case 'ACTIVE': return 'default';
-        case 'PENDING': return 'secondary';
-        case 'SUSPENDED': return 'secondary';
-        case 'ARCHIVED': return 'destructive';
-        default: return 'outline';
+        case 'ACTIVE':
+            return 'default';
+        case 'PENDING':
+            return 'secondary';
+        case 'SUSPENDED':
+            return 'secondary';
+        case 'ARCHIVED':
+            return 'destructive';
+        default:
+            return 'outline';
     }
 }
 
@@ -112,7 +157,13 @@ export default function Users() {
 
     // Edit dialog
     const [editTarget, setEditTarget] = useState<SchoolUser | null>(null);
-    const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', workloadPercentage: '', role: '' });
+    const [editForm, setEditForm] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        workloadPercentage: '',
+        role: '',
+    });
     const [editSaving, setEditSaving] = useState(false);
 
     // Classrooms for filter
@@ -126,7 +177,11 @@ export default function Users() {
         },
     });
 
-    const { fields: parentFields, append: addParent, remove: removeParent } = useFieldArray({
+    const {
+        fields: parentFields,
+        append: addParent,
+        remove: removeParent,
+    } = useFieldArray({
         control: studentForm.control,
         name: 'parents',
     });
@@ -134,8 +189,11 @@ export default function Users() {
     // ── Staff form ─────────────────────────────────────────
     const staffForm = useForm<StaffFormData>({
         defaultValues: {
-            firstName: '', lastName: '', email: '',
-            role: 'TEACHER', workloadPercentage: '1.0',
+            firstName: '',
+            lastName: '',
+            email: '',
+            role: 'TEACHER',
+            workloadPercentage: '1.0',
         },
     });
 
@@ -150,18 +208,20 @@ export default function Users() {
             if (error.response?.status === 403) {
                 try {
                     const fallback = await getUsers({ limit: 100 });
-                    setUsers(fallback.data.map((u: any) => ({
-                        id: u.id,
-                        membershipId: '',
-                        email: u.email,
-                        firstName: u.firstName,
-                        lastName: u.lastName,
-                        role: u.role || '—',
-                        status: u.status || '—',
-                        workloadPercentage: null,
-                        lastLogin: u.lastLogin,
-                        createdAt: u.createdAt,
-                    })));
+                    setUsers(
+                        fallback.data.map((u: any) => ({
+                            id: u.id,
+                            membershipId: '',
+                            email: u.email,
+                            firstName: u.firstName,
+                            lastName: u.lastName,
+                            role: u.role || '—',
+                            status: u.status || '—',
+                            workloadPercentage: null,
+                            lastLogin: u.lastLogin,
+                            createdAt: u.createdAt,
+                        })),
+                    );
                 } catch (fallbackError) {
                     console.error(fallbackError);
                     toast.error(t('users_page.load_failed'));
@@ -178,7 +238,7 @@ export default function Users() {
     useEffect(() => {
         loadUsers();
         api.get('/api/deputy/classrooms')
-            .then(res => setClassrooms(Array.isArray(res.data) ? res.data : []))
+            .then((res) => setClassrooms(Array.isArray(res.data) ? res.data : []))
             .catch(() => setClassrooms([]));
     }, []);
 
@@ -187,19 +247,20 @@ export default function Users() {
         let filtered = users;
 
         if (filterRole !== 'ALL') {
-            filtered = filtered.filter(u => u.role === filterRole);
+            filtered = filtered.filter((u) => u.role === filterRole);
         }
 
         if (filterClassroom !== 'ALL') {
-            filtered = filtered.filter(u => u.classroomId === filterClassroom);
+            filtered = filtered.filter((u) => u.classroomId === filterClassroom);
         }
 
         if (searchText.trim()) {
             const q = searchText.trim().toLowerCase();
-            filtered = filtered.filter(u =>
-                u.firstName.toLowerCase().includes(q) ||
-                u.lastName.toLowerCase().includes(q) ||
-                u.email.toLowerCase().includes(q)
+            filtered = filtered.filter(
+                (u) =>
+                    u.firstName.toLowerCase().includes(q) ||
+                    u.lastName.toLowerCase().includes(q) ||
+                    u.email.toLowerCase().includes(q),
             );
         }
 
@@ -421,7 +482,7 @@ export default function Users() {
 
     // ── Unique roles in data ──────────────────────────────
     const uniqueRoles = useMemo(() => {
-        const roles = new Set(users.map(u => u.role));
+        const roles = new Set(users.map((u) => u.role));
         return Array.from(roles).sort();
     }, [users]);
 
@@ -475,7 +536,7 @@ export default function Users() {
                     parts.push(
                         <Badge key="cls" variant="outline" className="text-[10px] mr-1">
                             🏫 {u.classroomName}
-                        </Badge>
+                        </Badge>,
                     );
                 }
 
@@ -484,7 +545,7 @@ export default function Users() {
                     parts.push(
                         <Badge key="hr" variant="outline" className="text-[10px] mr-1">
                             🏠 TÚ: {u.homeroomClassName}
-                        </Badge>
+                        </Badge>,
                     );
                 }
 
@@ -493,8 +554,8 @@ export default function Users() {
                     parts.push(
                         <span key="parents" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
                             <Link2 className="h-3 w-3" />
-                            {u.parents.map(p => p.name).join(', ')}
-                        </span>
+                            {u.parents.map((p) => p.name).join(', ')}
+                        </span>,
                     );
                 }
 
@@ -503,8 +564,8 @@ export default function Users() {
                     parts.push(
                         <span key="children" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
                             <Users2 className="h-3 w-3" />
-                            {u.children.map(c => c.name).join(', ')}
-                        </span>
+                            {u.children.map((c) => c.name).join(', ')}
+                        </span>,
                     );
                 }
 
@@ -542,17 +603,16 @@ export default function Users() {
                     )}
 
                     {/* Suspend / Reactivate */}
-                    {row.original.status === 'ACTIVE' &&
-                        row.original.role !== 'PRINCIPAL' && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                title={t('users_page.suspend', 'Pozastavit')}
-                                onClick={() => handleSuspend(row.original.id)}
-                            >
-                                <Ban className="h-4 w-4 text-amber-600" />
-                            </Button>
-                        )}
+                    {row.original.status === 'ACTIVE' && row.original.role !== 'PRINCIPAL' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.suspend', 'Pozastavit')}
+                            onClick={() => handleSuspend(row.original.id)}
+                        >
+                            <Ban className="h-4 w-4 text-amber-600" />
+                        </Button>
+                    )}
                     {row.original.status === 'SUSPENDED' && (
                         <Button
                             variant="ghost"
@@ -565,43 +625,40 @@ export default function Users() {
                     )}
 
                     {/* Impersonate — only active students/teachers/parents */}
-                    {row.original.status === 'ACTIVE' &&
-                        !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                title={t('users_page.impersonate')}
-                                onClick={() => handleImpersonate(row.original.id)}
-                            >
-                                <UserCog className="h-4 w-4 text-amber-600" />
-                            </Button>
-                        )}
+                    {row.original.status === 'ACTIVE' && !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.impersonate')}
+                            onClick={() => handleImpersonate(row.original.id)}
+                        >
+                            <UserCog className="h-4 w-4 text-amber-600" />
+                        </Button>
+                    )}
 
                     {/* Set as alumni — only active students */}
-                    {row.original.role === 'STUDENT' &&
-                        row.original.status === 'ACTIVE' && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                title={t('users_page.set_alumni')}
-                                onClick={() => setAlumniTarget(row.original)}
-                            >
-                                <GraduationCap className="h-4 w-4 text-blue-600" />
-                            </Button>
-                        )}
+                    {row.original.role === 'STUDENT' && row.original.status === 'ACTIVE' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.set_alumni')}
+                            onClick={() => setAlumniTarget(row.original)}
+                        >
+                            <GraduationCap className="h-4 w-4 text-blue-600" />
+                        </Button>
+                    )}
 
                     {/* Remove from school — anyone except PRINCIPAL */}
-                    {row.original.role !== 'PRINCIPAL' &&
-                        row.original.status !== 'ARCHIVED' && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                title={t('users_page.remove_user')}
-                                onClick={() => setRemoveTarget(row.original)}
-                            >
-                                <UserMinus className="h-4 w-4 text-destructive" />
-                            </Button>
-                        )}
+                    {row.original.role !== 'PRINCIPAL' && row.original.status !== 'ARCHIVED' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.remove_user')}
+                            onClick={() => setRemoveTarget(row.original)}
+                        >
+                            <UserMinus className="h-4 w-4 text-destructive" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -615,7 +672,12 @@ export default function Users() {
                     <h1 className="text-2xl font-bold tracking-tight">{t('users_page.title')}</h1>
                     <p className="text-muted-foreground">{t('users_page.subtitle')}</p>
                 </div>
-                <Button onClick={() => { setDialogOpen(true); setActiveTab('student'); }}>
+                <Button
+                    onClick={() => {
+                        setDialogOpen(true);
+                        setActiveTab('student');
+                    }}
+                >
                     <Plus className="h-4 w-4 mr-2" />
                     {t('users_page.add_user')}
                 </Button>
@@ -642,7 +704,7 @@ export default function Users() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Všechny role</SelectItem>
-                        {uniqueRoles.map(r => (
+                        {uniqueRoles.map((r) => (
                             <SelectItem key={r} value={r}>
                                 {t(`roles.${r}`, r)}
                             </SelectItem>
@@ -656,15 +718,25 @@ export default function Users() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="ALL">Všechny třídy</SelectItem>
-                            {classrooms.map(c => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            {classrooms.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 )}
                 {(filterRole !== 'ALL' || filterClassroom !== 'ALL' || searchText) && (
-                    <Button variant="ghost" size="sm" className="h-8"
-                        onClick={() => { setFilterRole('ALL'); setFilterClassroom('ALL'); setSearchText(''); }}>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => {
+                            setFilterRole('ALL');
+                            setFilterClassroom('ALL');
+                            setSearchText('');
+                        }}
+                    >
                         Vyčistit filtry
                     </Button>
                 )}
@@ -674,7 +746,9 @@ export default function Users() {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    {t('common.loading')}
+                </div>
             ) : (
                 <DataTable columns={columns} data={filteredUsers} pageSize={20} />
             )}
@@ -684,9 +758,7 @@ export default function Users() {
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{t('users_page.add_dialog_title')}</DialogTitle>
-                        <DialogDescription>
-                            {t('users_page.add_dialog_description')}
-                        </DialogDescription>
+                        <DialogDescription>{t('users_page.add_dialog_description')}</DialogDescription>
                     </DialogHeader>
 
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -700,23 +772,39 @@ export default function Users() {
                             <form onSubmit={handleStudentSubmit}>
                                 {/* Student section */}
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('users_page.student_section')}</h3>
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                        {t('users_page.student_section')}
+                                    </h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="student-firstName">{t('users_page.first_name_required')}</Label>
-                                            <Input id="student-firstName" placeholder="Jan"
-                                                {...studentForm.register('student.firstName')} />
+                                            <Label htmlFor="student-firstName">
+                                                {t('users_page.first_name_required')}
+                                            </Label>
+                                            <Input
+                                                id="student-firstName"
+                                                placeholder="Jan"
+                                                {...studentForm.register('student.firstName')}
+                                            />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="student-lastName">{t('users_page.last_name_required')}</Label>
-                                            <Input id="student-lastName" placeholder="Novák"
-                                                {...studentForm.register('student.lastName')} />
+                                            <Label htmlFor="student-lastName">
+                                                {t('users_page.last_name_required')}
+                                            </Label>
+                                            <Input
+                                                id="student-lastName"
+                                                placeholder="Novák"
+                                                {...studentForm.register('student.lastName')}
+                                            />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="student-email">{t('users_page.email_optional')}</Label>
-                                        <Input id="student-email" type="email" placeholder="jan.novak@skola.cz"
-                                            {...studentForm.register('student.email')} />
+                                        <Input
+                                            id="student-email"
+                                            type="email"
+                                            placeholder="jan.novak@skola.cz"
+                                            {...studentForm.register('student.email')}
+                                        />
                                     </div>
                                 </div>
 
@@ -726,8 +814,14 @@ export default function Users() {
                                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                                             {t('users_page.legal_guardians')}
                                         </h3>
-                                        <Button type="button" variant="outline" size="sm"
-                                            onClick={() => addParent({ firstName: '', lastName: '', email: '', phone: '' })}>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                addParent({ firstName: '', lastName: '', email: '', phone: '' })
+                                            }
+                                        >
                                             <Plus className="h-3 w-3 mr-1" /> {t('users_page.add_parent')}
                                         </Button>
                                     </div>
@@ -741,34 +835,50 @@ export default function Users() {
                                     {parentFields.map((field, index) => (
                                         <div key={field.id} className="rounded-lg border p-4 space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium">{t('users_page.parent_number', { number: index + 1 })}</span>
-                                                <Button type="button" variant="ghost" size="icon"
-                                                    onClick={() => removeParent(index)}>
+                                                <span className="text-sm font-medium">
+                                                    {t('users_page.parent_number', { number: index + 1 })}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeParent(index)}
+                                                >
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1">
                                                     <Label>{t('users_page.first_name_required')}</Label>
-                                                    <Input placeholder="Jana"
-                                                        {...studentForm.register(`parents.${index}.firstName`)} />
+                                                    <Input
+                                                        placeholder="Jana"
+                                                        {...studentForm.register(`parents.${index}.firstName`)}
+                                                    />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label>{t('users_page.last_name_required')}</Label>
-                                                    <Input placeholder="Nováková"
-                                                        {...studentForm.register(`parents.${index}.lastName`)} />
+                                                    <Input
+                                                        placeholder="Nováková"
+                                                        {...studentForm.register(`parents.${index}.lastName`)}
+                                                    />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1">
                                                     <Label>{t('users_page.email_required')}</Label>
-                                                    <Input type="email" placeholder="jana@email.cz"
-                                                        {...studentForm.register(`parents.${index}.email`)} />
+                                                    <Input
+                                                        type="email"
+                                                        placeholder="jana@email.cz"
+                                                        {...studentForm.register(`parents.${index}.email`)}
+                                                    />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label>{t('common.phone')}</Label>
-                                                    <Input type="tel" placeholder="+420 ..."
-                                                        {...studentForm.register(`parents.${index}.phone`)} />
+                                                    <Input
+                                                        type="tel"
+                                                        placeholder="+420 ..."
+                                                        {...studentForm.register(`parents.${index}.phone`)}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -790,45 +900,71 @@ export default function Users() {
                         <TabsContent value="staff" className="space-y-6 mt-4">
                             <form onSubmit={handleStaffSubmit}>
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('users_page.employee_section')}</h3>
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                        {t('users_page.employee_section')}
+                                    </h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="staff-firstName">{t('users_page.first_name_required')}</Label>
-                                            <Input id="staff-firstName" placeholder="Petr"
-                                                {...staffForm.register('firstName')} />
+                                            <Label htmlFor="staff-firstName">
+                                                {t('users_page.first_name_required')}
+                                            </Label>
+                                            <Input
+                                                id="staff-firstName"
+                                                placeholder="Petr"
+                                                {...staffForm.register('firstName')}
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="staff-lastName">{t('users_page.last_name_required')}</Label>
-                                            <Input id="staff-lastName" placeholder="Svoboda"
-                                                {...staffForm.register('lastName')} />
+                                            <Input
+                                                id="staff-lastName"
+                                                placeholder="Svoboda"
+                                                {...staffForm.register('lastName')}
+                                            />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="staff-email">{t('users_page.email_required')}</Label>
-                                        <Input id="staff-email" type="email" placeholder="petr.svoboda@skola.cz"
-                                            {...staffForm.register('email')} />
+                                        <Input
+                                            id="staff-email"
+                                            type="email"
+                                            placeholder="petr.svoboda@skola.cz"
+                                            {...staffForm.register('email')}
+                                        />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label>{t('users_page.role_required')}</Label>
                                             <Select
                                                 value={staffForm.watch('role')}
-                                                onValueChange={(val) => staffForm.setValue('role', val as 'TEACHER' | 'DEPUTY')}
+                                                onValueChange={(val) =>
+                                                    staffForm.setValue('role', val as 'TEACHER' | 'DEPUTY')
+                                                }
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="TEACHER">{t('users_page.role_teacher')}</SelectItem>
-                                                    <SelectItem value="DEPUTY">{t('users_page.role_deputy')}</SelectItem>
+                                                    <SelectItem value="TEACHER">
+                                                        {t('users_page.role_teacher')}
+                                                    </SelectItem>
+                                                    <SelectItem value="DEPUTY">
+                                                        {t('users_page.role_deputy')}
+                                                    </SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="staff-workload">{t('users_page.workload')}</Label>
-                                            <Input id="staff-workload" type="number" step="0.1" min="0.1" max="1.0"
+                                            <Input
+                                                id="staff-workload"
+                                                type="number"
+                                                step="0.1"
+                                                min="0.1"
+                                                max="1.0"
                                                 placeholder="1.0"
-                                                {...staffForm.register('workloadPercentage')} />
+                                                {...staffForm.register('workloadPercentage')}
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -885,10 +1021,7 @@ export default function Users() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleSetAlumni}
-                            disabled={settingAlumni}
-                        >
+                        <AlertDialogAction onClick={handleSetAlumni} disabled={settingAlumni}>
                             {settingAlumni ? t('common.saving') : t('users_page.confirm_alumni')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
@@ -905,29 +1038,42 @@ export default function Users() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <Label>{t('users_page.first_name_required')}</Label>
-                                <Input value={editForm.firstName}
-                                    onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))} />
+                                <Input
+                                    value={editForm.firstName}
+                                    onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label>{t('users_page.last_name_required')}</Label>
-                                <Input value={editForm.lastName}
-                                    onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))} />
+                                <Input
+                                    value={editForm.lastName}
+                                    onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
+                                />
                             </div>
                         </div>
                         <div className="space-y-1">
                             <Label>{t('common.email')}</Label>
-                            <Input type="email" value={editForm.email}
-                                onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                            <Input
+                                type="email"
+                                value={editForm.email}
+                                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                            />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <Label>{t('common.role')}</Label>
-                                <Select value={editForm.role}
-                                    onValueChange={v => setEditForm(f => ({ ...f, role: v }))}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                <Select
+                                    value={editForm.role}
+                                    onValueChange={(v) => setEditForm((f) => ({ ...f, role: v }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
                                     <SelectContent>
-                                        {['TEACHER', 'STUDENT', 'DEPUTY', 'PARENT'].map(r => (
-                                            <SelectItem key={r} value={r}>{t(`roles.${r}`, r)}</SelectItem>
+                                        {['TEACHER', 'STUDENT', 'DEPUTY', 'PARENT'].map((r) => (
+                                            <SelectItem key={r} value={r}>
+                                                {t(`roles.${r}`, r)}
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -935,16 +1081,28 @@ export default function Users() {
                             {['TEACHER', 'DEPUTY'].includes(editForm.role) && (
                                 <div className="space-y-1">
                                     <Label>{t('users_page.workload')}</Label>
-                                    <Input type="number" step="0.1" min="0.1" max="1.0"
+                                    <Input
+                                        type="number"
+                                        step="0.1"
+                                        min="0.1"
+                                        max="1.0"
                                         value={editForm.workloadPercentage}
-                                        onChange={e => setEditForm(f => ({ ...f, workloadPercentage: e.target.value }))} />
+                                        onChange={(e) =>
+                                            setEditForm((f) => ({ ...f, workloadPercentage: e.target.value }))
+                                        }
+                                    />
                                 </div>
                             )}
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditTarget(null)}>{t('common.cancel')}</Button>
-                        <Button onClick={handleEditSave} disabled={editSaving || !editForm.firstName || !editForm.lastName}>
+                        <Button variant="outline" onClick={() => setEditTarget(null)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            onClick={handleEditSave}
+                            disabled={editSaving || !editForm.firstName || !editForm.lastName}
+                        >
                             {editSaving ? t('common.saving') : t('common.save', 'Uložit')}
                         </Button>
                     </DialogFooter>

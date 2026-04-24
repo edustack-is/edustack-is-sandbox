@@ -3,8 +3,13 @@ import { CheckCircle, XCircle, Clock, AlertTriangle, Download, BarChart3 } from 
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-    getClassroomAttendance, recordAttendance, getAttendanceStats,
-    exportAttendanceCsv, getAbsenceExcuses, reviewAbsenceExcuse, getUnexcusedAlerts,
+    getClassroomAttendance,
+    recordAttendance,
+    getAttendanceStats,
+    exportAttendanceCsv,
+    getAbsenceExcuses,
+    reviewAbsenceExcuse,
+    getUnexcusedAlerts,
 } from '../api';
 import { api } from '../api';
 import { Button } from '@/components/ui/button';
@@ -17,9 +22,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type StatusKey = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
-const STATUS_ICONS: Record<StatusKey, typeof CheckCircle> = { PRESENT: CheckCircle, ABSENT: XCircle, LATE: Clock, EXCUSED: AlertTriangle };
-const STATUS_COLORS: Record<StatusKey, string> = { PRESENT: 'text-green-600', ABSENT: 'text-red-600', LATE: 'text-yellow-600', EXCUSED: 'text-blue-600' };
-const STATUS_LABELS: Record<StatusKey, string> = { PRESENT: 'Přítomen', ABSENT: 'Nepřítomen', LATE: 'Pozdě', EXCUSED: 'Omluven' };
+const STATUS_ICONS: Record<StatusKey, typeof CheckCircle> = {
+    PRESENT: CheckCircle,
+    ABSENT: XCircle,
+    LATE: Clock,
+    EXCUSED: AlertTriangle,
+};
+const STATUS_COLORS: Record<StatusKey, string> = {
+    PRESENT: 'text-green-600',
+    ABSENT: 'text-red-600',
+    LATE: 'text-yellow-600',
+    EXCUSED: 'text-blue-600',
+};
+const STATUS_LABELS: Record<StatusKey, string> = {
+    PRESENT: 'Přítomen',
+    ABSENT: 'Nepřítomen',
+    LATE: 'Pozdě',
+    EXCUSED: 'Omluven',
+};
 
 export default function AttendancePage() {
     const { t } = useTranslation();
@@ -35,7 +55,9 @@ export default function AttendancePage() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        api.get('/api/deputy/classrooms').then(r => setClassrooms(r.data)).catch(() => { });
+        api.get('/api/deputy/classrooms')
+            .then((r) => setClassrooms(r.data))
+            .catch(() => {});
     }, []);
 
     const loadAttendance = async () => {
@@ -53,11 +75,16 @@ export default function AttendancePage() {
                 if (!recs[s.id]) recs[s.id] = 'PRESENT';
             }
             setLocalRecords(recs);
-        } catch { toast.error('Nepodařilo se načíst docházku'); }
-        finally { setLoading(false); }
+        } catch {
+            toast.error('Nepodařilo se načíst docházku');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { loadAttendance(); }, [selectedClassroom, date, lessonNumber]);
+    useEffect(() => {
+        loadAttendance();
+    }, [selectedClassroom, date, lessonNumber]);
 
     const handleSave = async () => {
         if (!selectedClassroom) return;
@@ -65,27 +92,41 @@ export default function AttendancePage() {
         try {
             await recordAttendance({ date, lessonNumber, classroomId: selectedClassroom, records });
             toast.success('Docházka uložena');
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba'); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba');
+        }
     };
 
     const toggleStatus = (studentId: string) => {
         const order: StatusKey[] = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'];
         const current = localRecords[studentId] || 'PRESENT';
         const next = order[(order.indexOf(current) + 1) % order.length];
-        setLocalRecords(prev => ({ ...prev, [studentId]: next }));
+        setLocalRecords((prev) => ({ ...prev, [studentId]: next }));
     };
 
     const loadStats = async () => {
         if (!selectedClassroom) return;
-        try { setStats(await getAttendanceStats(selectedClassroom)); } catch { toast.error('Chyba'); }
+        try {
+            setStats(await getAttendanceStats(selectedClassroom));
+        } catch {
+            toast.error('Chyba');
+        }
     };
 
     const loadExcuses = async () => {
-        try { setExcuses(await getAbsenceExcuses(selectedClassroom ? { classroomId: selectedClassroom } : undefined)); } catch { toast.error('Chyba'); }
+        try {
+            setExcuses(await getAbsenceExcuses(selectedClassroom ? { classroomId: selectedClassroom } : undefined));
+        } catch {
+            toast.error('Chyba');
+        }
     };
 
     const loadAlerts = async () => {
-        try { setAlerts(await getUnexcusedAlerts()); } catch { toast.error('Chyba'); }
+        try {
+            setAlerts(await getUnexcusedAlerts());
+        } catch {
+            toast.error('Chyba');
+        }
     };
 
     const handleReview = async (id: string, status: 'APPROVED' | 'REJECTED') => {
@@ -93,7 +134,9 @@ export default function AttendancePage() {
             await reviewAbsenceExcuse(id, status);
             toast.success(status === 'APPROVED' ? 'Omluvenka schválena' : 'Omluvenka zamítnuta');
             loadExcuses();
-        } catch (e: any) { toast.error(e.response?.data?.message || 'Chyba'); }
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Chyba');
+        }
     };
 
     const handleExport = async () => {
@@ -106,7 +149,9 @@ export default function AttendancePage() {
             a.download = 'dochazka.csv';
             a.click();
             URL.revokeObjectURL(url);
-        } catch { toast.error('Chyba exportu'); }
+        } catch {
+            toast.error('Chyba exportu');
+        }
     };
 
     return (
@@ -117,14 +162,27 @@ export default function AttendancePage() {
                     <p className="text-muted-foreground">Záznam a správa docházky</p>
                 </div>
                 <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
-                    <SelectTrigger className="w-44"><SelectValue placeholder="Vyberte třídu" /></SelectTrigger>
+                    <SelectTrigger className="w-44">
+                        <SelectValue placeholder="Vyberte třídu" />
+                    </SelectTrigger>
                     <SelectContent>
-                        {classrooms.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {classrooms.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
 
-            <Tabs defaultValue="record" onValueChange={v => { if (v === 'stats') loadStats(); if (v === 'excuses') loadExcuses(); if (v === 'alerts') loadAlerts(); }}>
+            <Tabs
+                defaultValue="record"
+                onValueChange={(v) => {
+                    if (v === 'stats') loadStats();
+                    if (v === 'excuses') loadExcuses();
+                    if (v === 'alerts') loadAlerts();
+                }}
+            >
                 <TabsList>
                     <TabsTrigger value="record">Záznam</TabsTrigger>
                     <TabsTrigger value="stats">Statistiky</TabsTrigger>
@@ -139,25 +197,44 @@ export default function AttendancePage() {
                             <div className="flex items-center gap-4">
                                 <div className="space-y-1">
                                     <Label>Datum</Label>
-                                    <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-40" />
+                                    <Input
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="w-40"
+                                    />
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Hodina</Label>
-                                    <Select value={String(lessonNumber)} onValueChange={v => setLessonNumber(parseInt(v))}>
-                                        <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                    <Select
+                                        value={String(lessonNumber)}
+                                        onValueChange={(v) => setLessonNumber(parseInt(v))}
+                                    >
+                                        <SelectTrigger className="w-24">
+                                            <SelectValue />
+                                        </SelectTrigger>
                                         <SelectContent>
-                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <SelectItem key={n} value={String(n)}>{n}. hod</SelectItem>)}
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                                                <SelectItem key={n} value={String(n)}>
+                                                    {n}. hod
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="flex gap-2 ml-auto items-end">
                                     <Button onClick={handleSave}>Uložit</Button>
-                                    <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-1" />CSV</Button>
+                                    <Button variant="outline" onClick={handleExport}>
+                                        <Download className="h-4 w-4 mr-1" />
+                                        CSV
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent>
-                            {loading ? <p className="text-muted-foreground text-center py-8">{t('common.loading')}</p> : !attendance ? (
+                            {loading ? (
+                                <p className="text-muted-foreground text-center py-8">{t('common.loading')}</p>
+                            ) : !attendance ? (
                                 <p className="text-center text-muted-foreground py-8">Vyberte třídu</p>
                             ) : (
                                 <Table>
@@ -172,11 +249,21 @@ export default function AttendancePage() {
                                             const status = localRecords[s.id] || 'PRESENT';
                                             const Icon = STATUS_ICONS[status];
                                             return (
-                                                <TableRow key={s.id} className="cursor-pointer" onClick={() => toggleStatus(s.id)}>
-                                                    <TableCell>{s.lastName} {s.firstName}</TableCell>
+                                                <TableRow
+                                                    key={s.id}
+                                                    className="cursor-pointer"
+                                                    onClick={() => toggleStatus(s.id)}
+                                                >
+                                                    <TableCell>
+                                                        {s.lastName} {s.firstName}
+                                                    </TableCell>
                                                     <TableCell className="text-center">
-                                                        <Badge variant="outline" className={`gap-1 ${STATUS_COLORS[status]}`}>
-                                                            <Icon className="h-3 w-3" />{STATUS_LABELS[status]}
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`gap-1 ${STATUS_COLORS[status]}`}
+                                                        >
+                                                            <Icon className="h-3 w-3" />
+                                                            {STATUS_LABELS[status]}
                                                         </Badge>
                                                     </TableCell>
                                                 </TableRow>
@@ -192,9 +279,16 @@ export default function AttendancePage() {
                 {/* ─── STATS TAB ─── */}
                 <TabsContent value="stats">
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" />Statistiky docházky</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <BarChart3 className="h-5 w-5" />
+                                Statistiky docházky
+                            </CardTitle>
+                        </CardHeader>
                         <CardContent>
-                            {!stats ? <p className="text-muted-foreground text-center py-8">Vyberte třídu</p> : (
+                            {!stats ? (
+                                <p className="text-muted-foreground text-center py-8">Vyberte třídu</p>
+                            ) : (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -210,13 +304,19 @@ export default function AttendancePage() {
                                     <TableBody>
                                         {stats.stats.map((s: any) => (
                                             <TableRow key={s.studentId}>
-                                                <TableCell>{s.lastName} {s.firstName}</TableCell>
+                                                <TableCell>
+                                                    {s.lastName} {s.firstName}
+                                                </TableCell>
                                                 <TableCell className="text-center">{s.total}</TableCell>
-                                                <TableCell className="text-center text-green-600">{s.present}</TableCell>
+                                                <TableCell className="text-center text-green-600">
+                                                    {s.present}
+                                                </TableCell>
                                                 <TableCell className="text-center text-red-600">{s.absent}</TableCell>
                                                 <TableCell className="text-center text-yellow-600">{s.late}</TableCell>
                                                 <TableCell className="text-center text-blue-600">{s.excused}</TableCell>
-                                                <TableCell className="text-center font-semibold">{s.presentPercent}%</TableCell>
+                                                <TableCell className="text-center font-semibold">
+                                                    {s.presentPercent}%
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -229,9 +329,13 @@ export default function AttendancePage() {
                 {/* ─── EXCUSES TAB ─── */}
                 <TabsContent value="excuses">
                     <Card>
-                        <CardHeader><CardTitle>Omluvenky od rodičů</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle>Omluvenky od rodičů</CardTitle>
+                        </CardHeader>
                         <CardContent>
-                            {excuses.length === 0 ? <p className="text-muted-foreground text-center py-8">Žádné omluvenky</p> : (
+                            {excuses.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">Žádné omluvenky</p>
+                            ) : (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -247,21 +351,55 @@ export default function AttendancePage() {
                                     <TableBody>
                                         {excuses.map((e: any) => (
                                             <TableRow key={e.id}>
-                                                <TableCell>{e.student?.user?.lastName} {e.student?.user?.firstName}</TableCell>
-                                                <TableCell className="text-xs">{e.parent?.lastName} {e.parent?.firstName}</TableCell>
-                                                <TableCell className="text-xs">{new Date(e.dateFrom).toLocaleDateString('cs-CZ')}</TableCell>
-                                                <TableCell className="text-xs">{new Date(e.dateTo).toLocaleDateString('cs-CZ')}</TableCell>
+                                                <TableCell>
+                                                    {e.student?.user?.lastName} {e.student?.user?.firstName}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    {e.parent?.lastName} {e.parent?.firstName}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    {new Date(e.dateFrom).toLocaleDateString('cs-CZ')}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    {new Date(e.dateTo).toLocaleDateString('cs-CZ')}
+                                                </TableCell>
                                                 <TableCell className="max-w-xs truncate">{e.reason}</TableCell>
                                                 <TableCell>
-                                                    <Badge variant={e.status === 'APPROVED' ? 'default' : e.status === 'REJECTED' ? 'destructive' : 'outline'}>
-                                                        {e.status === 'APPROVED' ? 'Schváleno' : e.status === 'REJECTED' ? 'Zamítnuto' : 'Čeká'}
+                                                    <Badge
+                                                        variant={
+                                                            e.status === 'APPROVED'
+                                                                ? 'default'
+                                                                : e.status === 'REJECTED'
+                                                                  ? 'destructive'
+                                                                  : 'outline'
+                                                        }
+                                                    >
+                                                        {e.status === 'APPROVED'
+                                                            ? 'Schváleno'
+                                                            : e.status === 'REJECTED'
+                                                              ? 'Zamítnuto'
+                                                              : 'Čeká'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     {e.status === 'PENDING' && (
                                                         <div className="flex gap-1">
-                                                            <Button size="sm" variant="outline" className="text-green-600 h-7" onClick={() => handleReview(e.id, 'APPROVED')}>✓</Button>
-                                                            <Button size="sm" variant="outline" className="text-red-600 h-7" onClick={() => handleReview(e.id, 'REJECTED')}>✗</Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-green-600 h-7"
+                                                                onClick={() => handleReview(e.id, 'APPROVED')}
+                                                            >
+                                                                ✓
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-red-600 h-7"
+                                                                onClick={() => handleReview(e.id, 'REJECTED')}
+                                                            >
+                                                                ✗
+                                                            </Button>
                                                         </div>
                                                     )}
                                                 </TableCell>
@@ -277,9 +415,16 @@ export default function AttendancePage() {
                 {/* ─── ALERTS TAB ─── */}
                 <TabsContent value="alerts">
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-red-500" />Neomluvené absence – eskalace</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                                Neomluvené absence – eskalace
+                            </CardTitle>
+                        </CardHeader>
                         <CardContent>
-                            {alerts.length === 0 ? <p className="text-muted-foreground text-center py-8">Žádní studenti nad práhem</p> : (
+                            {alerts.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">Žádní studenti nad práhem</p>
+                            ) : (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -291,7 +436,9 @@ export default function AttendancePage() {
                                     <TableBody>
                                         {alerts.map((a: any) => (
                                             <TableRow key={a.student.id} className="text-red-600">
-                                                <TableCell className="font-medium">{a.student.lastName} {a.student.firstName}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    {a.student.lastName} {a.student.firstName}
+                                                </TableCell>
                                                 <TableCell>{a.student.classroom?.name || '-'}</TableCell>
                                                 <TableCell className="text-center font-bold">{a.count}</TableCell>
                                             </TableRow>

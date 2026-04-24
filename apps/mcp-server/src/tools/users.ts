@@ -1,21 +1,22 @@
-import { server } from "../server.js";
-import { PrismaClient } from "@prisma/client";
-import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { server } from '../server.js';
+import { prisma } from '../db.js';
+import { z } from 'zod';
 
 // ─── LIST / SEARCH USERS ────────────────────────────────────────
 
 server.tool(
-    "list_users",
-    "Vypíše uživatele v systému. Může filtrovat podle školy, role, statusu nebo vyhledávat podle jména či emailu.",
+    'list_users',
+    'Vypíše uživatele v systému. Může filtrovat podle školy, role, statusu nebo vyhledávat podle jména či emailu.',
     {
-        schoolId: z.string().optional().describe("Filtrovat podle ID školy"),
-        role: z.enum(["ADMIN", "DIRECTOR", "PRINCIPAL", "DEPUTY", "TEACHER", "STUDENT", "PARENT"]).optional().describe("Filtrovat podle role"),
-        status: z.enum(["PENDING", "ACTIVE", "SUSPENDED", "ARCHIVED"]).optional().describe("Filtrovat podle statusu"),
-        search: z.string().optional().describe("Vyhledávací fráze (jméno nebo email)"),
-        limit: z.number().optional().describe("Maximální počet výsledků (výchozí 50)"),
-        offset: z.number().optional().describe("Offset pro stránkování (výchozí 0)"),
+        schoolId: z.string().optional().describe('Filtrovat podle ID školy'),
+        role: z
+            .enum(['ADMIN', 'DIRECTOR', 'PRINCIPAL', 'DEPUTY', 'TEACHER', 'STUDENT', 'PARENT'])
+            .optional()
+            .describe('Filtrovat podle role'),
+        status: z.enum(['PENDING', 'ACTIVE', 'SUSPENDED', 'ARCHIVED']).optional().describe('Filtrovat podle statusu'),
+        search: z.string().optional().describe('Vyhledávací fráze (jméno nebo email)'),
+        limit: z.number().optional().describe('Maximální počet výsledků (výchozí 50)'),
+        offset: z.number().optional().describe('Offset pro stránkování (výchozí 0)'),
     },
     async ({ schoolId, role, status, search, limit, offset }) => {
         try {
@@ -36,9 +37,9 @@ server.tool(
 
             if (search) {
                 where.OR = [
-                    { firstName: { contains: search, mode: "insensitive" } },
-                    { lastName: { contains: search, mode: "insensitive" } },
-                    { email: { contains: search, mode: "insensitive" } },
+                    { firstName: { contains: search, mode: 'insensitive' } },
+                    { lastName: { contains: search, mode: 'insensitive' } },
+                    { email: { contains: search, mode: 'insensitive' } },
                 ];
             }
 
@@ -64,33 +65,35 @@ server.tool(
                             },
                         },
                     },
-                    orderBy: { lastName: "asc" },
+                    orderBy: { lastName: 'asc' },
                 }),
                 prisma.user.count({ where }),
             ]);
 
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify({ total, count: users.length, offset: skip, users }, null, 2),
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({ total, count: users.length, offset: skip, users }, null, 2),
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při načítání uživatelů: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při načítání uživatelů: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── GET USER DETAIL ────────────────────────────────────────────
 
 server.tool(
-    "get_user_detail",
-    "Vrátí detailní informace o konkrétním uživateli včetně jeho členství ve školách, profilů a rodinných vazeb.",
+    'get_user_detail',
+    'Vrátí detailní informace o konkrétním uživateli včetně jeho členství ve školách, profilů a rodinných vazeb.',
     {
-        userId: z.string().describe("ID uživatele"),
+        userId: z.string().describe('ID uživatele'),
     },
     async ({ userId }) => {
         try {
@@ -153,34 +156,37 @@ server.tool(
             if (!user) {
                 return {
                     isError: true,
-                    content: [{ type: "text", text: `Uživatel s ID '${userId}' nebyl nalezen.` }],
+                    content: [{ type: 'text', text: `Uživatel s ID '${userId}' nebyl nalezen.` }],
                 };
             }
 
             return {
-                content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
+                content: [{ type: 'text', text: JSON.stringify(user, null, 2) }],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při načítání uživatele: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při načítání uživatele: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── CREATE USER ────────────────────────────────────────────────
 
 server.tool(
-    "create_user",
-    "Vytvoří nového uživatele a volitelně ho přiřadí ke škole s danou rolí. Pokud je role TEACHER, vytvoří i TeacherProfile. Pokud je role STUDENT, vytvoří i StudentProfile.",
+    'create_user',
+    'Vytvoří nového uživatele a volitelně ho přiřadí ke škole s danou rolí. Pokud je role TEACHER, vytvoří i TeacherProfile. Pokud je role STUDENT, vytvoří i StudentProfile.',
     {
-        email: z.string().describe("E-mail uživatele"),
-        firstName: z.string().describe("Jméno"),
-        lastName: z.string().describe("Příjmení"),
-        schoolId: z.string().optional().describe("ID školy pro přiřazení"),
-        role: z.enum(["ADMIN", "DIRECTOR", "PRINCIPAL", "DEPUTY", "TEACHER", "STUDENT", "PARENT"]).optional().describe("Role ve škole (vyžaduje schoolId)"),
-        isSystemAdmin: z.boolean().optional().describe("Nastavit jako systémového administrátora"),
+        email: z.string().describe('E-mail uživatele'),
+        firstName: z.string().describe('Jméno'),
+        lastName: z.string().describe('Příjmení'),
+        schoolId: z.string().optional().describe('ID školy pro přiřazení'),
+        role: z
+            .enum(['ADMIN', 'DIRECTOR', 'PRINCIPAL', 'DEPUTY', 'TEACHER', 'STUDENT', 'PARENT'])
+            .optional()
+            .describe('Role ve škole (vyžaduje schoolId)'),
+        isSystemAdmin: z.boolean().optional().describe('Nastavit jako systémového administrátora'),
     },
     async ({ email, firstName, lastName, schoolId, role, isSystemAdmin }) => {
         try {
@@ -188,7 +194,7 @@ server.tool(
                 email,
                 firstName,
                 lastName,
-                passwordHash: "awaiting_activation",
+                passwordHash: 'awaiting_activation',
                 isSystemAdmin: isSystemAdmin ?? false,
             };
 
@@ -197,15 +203,15 @@ server.tool(
                     create: {
                         schoolId,
                         role,
-                        status: "ACTIVE",
+                        status: 'ACTIVE',
                     },
                 };
 
-                if (role === "TEACHER") {
+                if (role === 'TEACHER') {
                     data.teacherProfile = { create: {} };
                 }
 
-                if (role === "STUDENT") {
+                if (role === 'STUDENT') {
                     data.studentProfile = {
                         create: {
                             firstName,
@@ -230,33 +236,36 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Uživatel '${firstName} ${lastName}' (${email}) byl úspěšně vytvořen s ID: ${user.id}` +
-                        (role ? ` a rolí ${role}` : '') +
-                        (schoolId ? ` ve škole ${schoolId}` : ''),
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text:
+                            `Uživatel '${firstName} ${lastName}' (${email}) byl úspěšně vytvořen s ID: ${user.id}` +
+                            (role ? ` a rolí ${role}` : '') +
+                            (schoolId ? ` ve škole ${schoolId}` : ''),
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při vytváření uživatele: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při vytváření uživatele: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── UPDATE USER ────────────────────────────────────────────────
 
 server.tool(
-    "update_user",
-    "Aktualizuje údaje existujícího uživatele (jméno, příjmení, email, systémový admin status).",
+    'update_user',
+    'Aktualizuje údaje existujícího uživatele (jméno, příjmení, email, systémový admin status).',
     {
-        userId: z.string().describe("ID uživatele"),
-        firstName: z.string().optional().describe("Nové jméno"),
-        lastName: z.string().optional().describe("Nové příjmení"),
-        email: z.string().optional().describe("Nový email"),
-        isSystemAdmin: z.boolean().optional().describe("Nastavit/odebrat systémového administrátora"),
+        userId: z.string().describe('ID uživatele'),
+        firstName: z.string().optional().describe('Nové jméno'),
+        lastName: z.string().optional().describe('Nové příjmení'),
+        email: z.string().optional().describe('Nový email'),
+        isSystemAdmin: z.boolean().optional().describe('Nastavit/odebrat systémového administrátora'),
     },
     async ({ userId, firstName, lastName, email, isSystemAdmin }) => {
         try {
@@ -279,30 +288,37 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Uživatel ${user.firstName} ${user.lastName} (${user.id}) byl úspěšně aktualizován.`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Uživatel ${user.firstName} ${user.lastName} (${user.id}) byl úspěšně aktualizován.`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při aktualizaci uživatele: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při aktualizaci uživatele: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── ASSIGN / CHANGE ROLE ───────────────────────────────────────
 
 server.tool(
-    "assign_user_role",
-    "Přiřadí uživatele ke škole s danou rolí, nebo změní existující roli/status členství. Pokud členství existuje, aktualizuje ho. Pokud ne, vytvoří nové.",
+    'assign_user_role',
+    'Přiřadí uživatele ke škole s danou rolí, nebo změní existující roli/status členství. Pokud členství existuje, aktualizuje ho. Pokud ne, vytvoří nové.',
     {
-        userId: z.string().describe("ID uživatele"),
-        schoolId: z.string().describe("ID školy"),
-        role: z.enum(["ADMIN", "DIRECTOR", "PRINCIPAL", "DEPUTY", "TEACHER", "STUDENT", "PARENT"]).describe("Role ve škole"),
-        status: z.enum(["PENDING", "ACTIVE", "SUSPENDED", "ARCHIVED"]).optional().describe("Status členství (výchozí ACTIVE)"),
+        userId: z.string().describe('ID uživatele'),
+        schoolId: z.string().describe('ID školy'),
+        role: z
+            .enum(['ADMIN', 'DIRECTOR', 'PRINCIPAL', 'DEPUTY', 'TEACHER', 'STUDENT', 'PARENT'])
+            .describe('Role ve škole'),
+        status: z
+            .enum(['PENDING', 'ACTIVE', 'SUSPENDED', 'ARCHIVED'])
+            .optional()
+            .describe('Status členství (výchozí ACTIVE)'),
     },
     async ({ userId, schoolId, role, status }) => {
         try {
@@ -312,13 +328,13 @@ server.tool(
                 },
                 update: {
                     role,
-                    status: status ?? "ACTIVE",
+                    status: status ?? 'ACTIVE',
                 },
                 create: {
                     userId,
                     schoolId,
                     role,
-                    status: status ?? "ACTIVE",
+                    status: status ?? 'ACTIVE',
                 },
                 include: {
                     user: { select: { firstName: true, lastName: true } },
@@ -327,7 +343,7 @@ server.tool(
             });
 
             // Create teacher/student profile if needed
-            if (role === "TEACHER") {
+            if (role === 'TEACHER') {
                 await prisma.teacherProfile.upsert({
                     where: { userId },
                     update: {},
@@ -335,7 +351,7 @@ server.tool(
                 });
             }
 
-            if (role === "STUDENT") {
+            if (role === 'STUDENT') {
                 const user = await prisma.user.findUnique({
                     where: { id: userId },
                     select: { firstName: true, lastName: true },
@@ -345,35 +361,37 @@ server.tool(
                     update: {},
                     create: {
                         userId,
-                        firstName: user?.firstName ?? "",
-                        lastName: user?.lastName ?? "",
+                        firstName: user?.firstName ?? '',
+                        lastName: user?.lastName ?? '',
                     },
                 });
             }
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Uživatel '${membership.user.firstName} ${membership.user.lastName}' má nyní roli ${role} ve škole '${membership.school.name}'.`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Uživatel '${membership.user.firstName} ${membership.user.lastName}' má nyní roli ${role} ve škole '${membership.school.name}'.`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při přiřazení role: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při přiřazení role: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── REMOVE USER FROM SCHOOL ────────────────────────────────────
 
 server.tool(
-    "remove_user_from_school",
-    "Odebere uživatele ze školy (smaže jeho SchoolMembership).",
+    'remove_user_from_school',
+    'Odebere uživatele ze školy (smaže jeho SchoolMembership).',
     {
-        userId: z.string().describe("ID uživatele"),
-        schoolId: z.string().describe("ID školy"),
+        userId: z.string().describe('ID uživatele'),
+        schoolId: z.string().describe('ID školy'),
     },
     async ({ userId, schoolId }) => {
         try {
@@ -384,33 +402,35 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Členství uživatele ${userId} ve škole ${schoolId} bylo odstraněno.`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Členství uživatele ${userId} ve škole ${schoolId} bylo odstraněno.`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při odebírání ze školy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při odebírání ze školy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── LIST SCHOOLS ───────────────────────────────────────────────
 
 server.tool(
-    "list_schools",
-    "Vypíše všechny školy v systému včetně počtu členů.",
+    'list_schools',
+    'Vypíše všechny školy v systému včetně počtu členů.',
     {
-        search: z.string().optional().describe("Vyhledávání podle názvu školy"),
+        search: z.string().optional().describe('Vyhledávání podle názvu školy'),
     },
     async ({ search }) => {
         try {
             const where: any = { deletedAt: null };
             if (search) {
-                where.name = { contains: search, mode: "insensitive" };
+                where.name = { contains: search, mode: 'insensitive' };
             }
 
             const schools = await prisma.school.findMany({
@@ -428,31 +448,33 @@ server.tool(
                         },
                     },
                 },
-                orderBy: { name: "asc" },
+                orderBy: { name: 'asc' },
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(schools, null, 2),
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify(schools, null, 2),
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při načítání škol: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při načítání škol: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── GET SCHOOL DETAIL ──────────────────────────────────────────
 
 server.tool(
-    "get_school_detail",
-    "Vrátí detailní informace o škole včetně seznamu tříd, školních roků a počtu členů podle rolí.",
+    'get_school_detail',
+    'Vrátí detailní informace o škole včetně seznamu tříd, školních roků a počtu členů podle rolí.',
     {
-        schoolId: z.string().describe("ID školy"),
+        schoolId: z.string().describe('ID školy'),
     },
     async ({ schoolId }) => {
         try {
@@ -472,7 +494,7 @@ server.tool(
                             grade: true,
                             _count: { select: { students: true } },
                         },
-                        orderBy: { grade: "asc" },
+                        orderBy: { grade: 'asc' },
                     },
                     academicYears: {
                         select: {
@@ -482,7 +504,7 @@ server.tool(
                             endDate: true,
                             isCurrent: true,
                         },
-                        orderBy: { startDate: "desc" },
+                        orderBy: { startDate: 'desc' },
                     },
                 },
             });
@@ -490,43 +512,45 @@ server.tool(
             if (!school) {
                 return {
                     isError: true,
-                    content: [{ type: "text", text: `Škola s ID '${schoolId}' nebyla nalezena.` }],
+                    content: [{ type: 'text', text: `Škola s ID '${schoolId}' nebyla nalezena.` }],
                 };
             }
 
             // Count members by role
             const membersByRole = await prisma.schoolMembership.groupBy({
-                by: ["role"],
-                where: { schoolId, status: "ACTIVE" },
+                by: ['role'],
+                where: { schoolId, status: 'ACTIVE' },
                 _count: { role: true },
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify({ ...school, membersByRole }, null, 2),
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({ ...school, membersByRole }, null, 2),
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při načítání školy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při načítání školy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── UPDATE SCHOOL ──────────────────────────────────────────────
 
 server.tool(
-    "update_school",
-    "Aktualizuje údaje existující školy (název, adresa, kontakní email, povolení self-registrace).",
+    'update_school',
+    'Aktualizuje údaje existující školy (název, adresa, kontakní email, povolení self-registrace).',
     {
-        schoolId: z.string().describe("ID školy"),
-        name: z.string().optional().describe("Nový název školy"),
-        address: z.string().optional().describe("Nová adresa"),
-        contactEmail: z.string().optional().describe("Nový kontaktní email"),
-        allowStudentSelfRegistration: z.boolean().optional().describe("Povolit/zakázat self-registraci studentů"),
+        schoolId: z.string().describe('ID školy'),
+        name: z.string().optional().describe('Nový název školy'),
+        address: z.string().optional().describe('Nová adresa'),
+        contactEmail: z.string().optional().describe('Nový kontaktní email'),
+        allowStudentSelfRegistration: z.boolean().optional().describe('Povolit/zakázat self-registraci studentů'),
     },
     async ({ schoolId, name, address, contactEmail, allowStudentSelfRegistration }) => {
         try {
@@ -534,7 +558,8 @@ server.tool(
             if (name !== undefined) data.name = name;
             if (address !== undefined) data.address = address;
             if (contactEmail !== undefined) data.contactEmail = contactEmail;
-            if (allowStudentSelfRegistration !== undefined) data.allowStudentSelfRegistration = allowStudentSelfRegistration;
+            if (allowStudentSelfRegistration !== undefined)
+                data.allowStudentSelfRegistration = allowStudentSelfRegistration;
 
             const school = await prisma.school.update({
                 where: { id: schoolId },
@@ -543,27 +568,29 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Škola '${school.name}' (${school.id}) byla úspěšně aktualizována.`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Škola '${school.name}' (${school.id}) byla úspěšně aktualizována.`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při aktualizaci školy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při aktualizaci školy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── LIST CLASSROOMS ────────────────────────────────────────────
 
 server.tool(
-    "list_classrooms",
-    "Vypíše třídy v dané škole včetně počtu studentů.",
+    'list_classrooms',
+    'Vypíše třídy v dané škole včetně počtu studentů.',
     {
-        schoolId: z.string().describe("ID školy"),
+        schoolId: z.string().describe('ID školy'),
     },
     async ({ schoolId }) => {
         try {
@@ -580,33 +607,35 @@ server.tool(
                     },
                     _count: { select: { students: true } },
                 },
-                orderBy: { grade: "asc" },
+                orderBy: { grade: 'asc' },
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(classrooms, null, 2),
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify(classrooms, null, 2),
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při načítání tříd: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při načítání tříd: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── CREATE CLASSROOM ───────────────────────────────────────────
 
 server.tool(
-    "create_classroom",
-    "Vytvoří novou třídu v dané škole.",
+    'create_classroom',
+    'Vytvoří novou třídu v dané škole.',
     {
-        schoolId: z.string().describe("ID školy"),
+        schoolId: z.string().describe('ID školy'),
         name: z.string().describe("Název třídy (např. '1.A')"),
-        grade: z.number().describe("Ročník (číslo, např. 1)"),
+        grade: z.number().describe('Ročník (číslo, např. 1)'),
     },
     async ({ schoolId, name, grade }) => {
         try {
@@ -616,28 +645,30 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Třída '${classroom.name}' (ročník ${classroom.grade}) byla vytvořena s ID: ${classroom.id}`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Třída '${classroom.name}' (ročník ${classroom.grade}) byla vytvořena s ID: ${classroom.id}`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při vytváření třídy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při vytváření třídy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── ASSIGN STUDENT TO CLASSROOM ────────────────────────────────
 
 server.tool(
-    "assign_student_to_classroom",
-    "Přiřadí studenta do třídy (aktualizuje StudentProfile).",
+    'assign_student_to_classroom',
+    'Přiřadí studenta do třídy (aktualizuje StudentProfile).',
     {
-        userId: z.string().describe("ID uživatele (studenta)"),
-        classroomId: z.string().describe("ID třídy"),
+        userId: z.string().describe('ID uživatele (studenta)'),
+        classroomId: z.string().describe('ID třídy'),
     },
     async ({ userId, classroomId }) => {
         try {
@@ -653,28 +684,30 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Student '${profile.firstName} ${profile.lastName}' byl přiřazen do třídy '${profile.classroom?.name}'.`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Student '${profile.firstName} ${profile.lastName}' byl přiřazen do třídy '${profile.classroom?.name}'.`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při přiřazení studenta do třídy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při přiřazení studenta do třídy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── LINK PARENT TO STUDENT ─────────────────────────────────────
 
 server.tool(
-    "link_parent_to_student",
-    "Propojí rodiče se studentem (vytvoří ParentStudent vazbu).",
+    'link_parent_to_student',
+    'Propojí rodiče se studentem (vytvoří ParentStudent vazbu).',
     {
-        parentUserId: z.string().describe("ID uživatele (rodiče)"),
-        studentUserId: z.string().describe("ID uživatele (studenta)"),
+        parentUserId: z.string().describe('ID uživatele (rodiče)'),
+        studentUserId: z.string().describe('ID uživatele (studenta)'),
     },
     async ({ parentUserId, studentUserId }) => {
         try {
@@ -686,27 +719,29 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Rodič ${parentUserId} byl úspěšně propojen se studentem ${studentUserId}.`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Rodič ${parentUserId} byl úspěšně propojen se studentem ${studentUserId}.`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při propojování rodiče a studenta: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při propojování rodiče a studenta: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── DELETE SCHOOL (SOFT DELETE) ────────────────────────────────
 
 server.tool(
-    "delete_school",
-    "Smaže školu (soft delete – nastaví deletedAt). Škola se přestane zobrazovat v seznamech, ale data zůstanou v databázi.",
+    'delete_school',
+    'Smaže školu (soft delete – nastaví deletedAt). Škola se přestane zobrazovat v seznamech, ale data zůstanou v databázi.',
     {
-        schoolId: z.string().describe("ID školy ke smazání"),
+        schoolId: z.string().describe('ID školy ke smazání'),
     },
     async ({ schoolId }) => {
         try {
@@ -714,13 +749,13 @@ server.tool(
             if (!school) {
                 return {
                     isError: true,
-                    content: [{ type: "text", text: `Škola s ID '${schoolId}' nebyla nalezena.` }],
+                    content: [{ type: 'text', text: `Škola s ID '${schoolId}' nebyla nalezena.` }],
                 };
             }
             if (school.deletedAt) {
                 return {
                     isError: true,
-                    content: [{ type: "text", text: `Škola '${school.name}' je již smazaná.` }],
+                    content: [{ type: 'text', text: `Škola '${school.name}' je již smazaná.` }],
                 };
             }
 
@@ -730,35 +765,48 @@ server.tool(
             });
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Škola '${school.name}' byla úspěšně smazána (soft delete).`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Škola '${school.name}' byla úspěšně smazána (soft delete).`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při mazání školy: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při mazání školy: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 // ─── BATCH CREATE USERS ─────────────────────────────────────────
 
 server.tool(
-    "batch_create_users",
-    "Hromadně vytvoří uživatele a přiřadí je ke škole. Podporuje vytváření studentů, učitelů, rodičů a dalších rolí. U studentů automaticky vytváří StudentProfile, u učitelů TeacherProfile. Může propojit rodiče se studenty.",
+    'batch_create_users',
+    'Hromadně vytvoří uživatele a přiřadí je ke škole. Podporuje vytváření studentů, učitelů, rodičů a dalších rolí. U studentů automaticky vytváří StudentProfile, u učitelů TeacherProfile. Může propojit rodiče se studenty.',
     {
-        schoolId: z.string().describe("ID školy, ke které budou uživatelé přiřazeni"),
-        users: z.array(z.object({
-            firstName: z.string().describe("Jméno"),
-            lastName: z.string().describe("Příjmení"),
-            email: z.string().describe("E-mail"),
-            role: z.enum(["ADMIN", "DIRECTOR", "PRINCIPAL", "DEPUTY", "TEACHER", "STUDENT", "PARENT"]).describe("Role ve škole"),
-            classroomId: z.string().optional().describe("ID třídy (pro studenty)"),
-            parentEmails: z.array(z.string()).optional().describe("E-maily rodičů, kteří mají být propojeni s tímto studentem (vytvoří se automaticky pokud neexistují)"),
-        })).describe("Seznam uživatelů k vytvoření"),
+        schoolId: z.string().describe('ID školy, ke které budou uživatelé přiřazeni'),
+        users: z
+            .array(
+                z.object({
+                    firstName: z.string().describe('Jméno'),
+                    lastName: z.string().describe('Příjmení'),
+                    email: z.string().describe('E-mail'),
+                    role: z
+                        .enum(['ADMIN', 'DIRECTOR', 'PRINCIPAL', 'DEPUTY', 'TEACHER', 'STUDENT', 'PARENT'])
+                        .describe('Role ve škole'),
+                    classroomId: z.string().optional().describe('ID třídy (pro studenty)'),
+                    parentEmails: z
+                        .array(z.string())
+                        .optional()
+                        .describe(
+                            'E-maily rodičů, kteří mají být propojeni s tímto studentem (vytvoří se automaticky pokud neexistují)',
+                        ),
+                }),
+            )
+            .describe('Seznam uživatelů k vytvoření'),
     },
     async ({ schoolId, users }) => {
         try {
@@ -776,17 +824,17 @@ server.tool(
                             email: u.email,
                             firstName: u.firstName,
                             lastName: u.lastName,
-                            passwordHash: "awaiting_activation",
+                            passwordHash: 'awaiting_activation',
                             schoolMemberships: {
                                 create: {
                                     schoolId,
                                     role: u.role,
-                                    status: "ACTIVE",
+                                    status: 'ACTIVE',
                                 },
                             },
                         };
 
-                        if (u.role === "STUDENT") {
+                        if (u.role === 'STUDENT') {
                             data.studentProfile = {
                                 create: {
                                     firstName: u.firstName,
@@ -796,7 +844,7 @@ server.tool(
                             };
                         }
 
-                        if (u.role === "TEACHER") {
+                        if (u.role === 'TEACHER') {
                             data.teacherProfile = { create: {} };
                         }
 
@@ -808,22 +856,22 @@ server.tool(
                         });
                         if (!existingMembership) {
                             await tx.schoolMembership.create({
-                                data: { userId: user.id, schoolId, role: u.role, status: "ACTIVE" },
+                                data: { userId: user.id, schoolId, role: u.role, status: 'ACTIVE' },
                             });
                         }
                     }
 
                     created.push({ id: user.id, name: `${u.firstName} ${u.lastName}`, role: u.role, email: u.email });
 
-                    if (u.role === "PARENT") {
+                    if (u.role === 'PARENT') {
                         parentMap.set(u.email, user.id);
                     }
                 }
 
                 // Second pass: create parent-student links
                 for (const u of users) {
-                    if (u.role === "STUDENT" && u.parentEmails && u.parentEmails.length > 0) {
-                        const studentUser = created.find(c => c.email === u.email);
+                    if (u.role === 'STUDENT' && u.parentEmails && u.parentEmails.length > 0) {
+                        const studentUser = created.find((c) => c.email === u.email);
                         if (!studentUser) continue;
 
                         for (const parentEmail of u.parentEmails) {
@@ -857,24 +905,29 @@ server.tool(
 
             const summary = {
                 total: result.length,
-                byRole: result.reduce((acc, u) => {
-                    acc[u.role] = (acc[u.role] || 0) + 1;
-                    return acc;
-                }, {} as Record<string, number>),
+                byRole: result.reduce(
+                    (acc, u) => {
+                        acc[u.role] = (acc[u.role] || 0) + 1;
+                        return acc;
+                    },
+                    {} as Record<string, number>,
+                ),
                 users: result,
             };
 
             return {
-                content: [{
-                    type: "text",
-                    text: `Úspěšně vytvořeno ${result.length} uživatelů.\n${JSON.stringify(summary, null, 2)}`,
-                }],
+                content: [
+                    {
+                        type: 'text',
+                        text: `Úspěšně vytvořeno ${result.length} uživatelů.\n${JSON.stringify(summary, null, 2)}`,
+                    },
+                ],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při hromadném vytváření uživatelů: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při hromadném vytváření uživatelů: ${error.message}` }],
             };
         }
-    }
+    },
 );

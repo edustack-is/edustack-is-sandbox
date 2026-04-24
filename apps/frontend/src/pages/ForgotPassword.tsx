@@ -55,17 +55,9 @@ export const ForgotPassword = () => {
                         <div className="mx-auto h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle2 className="h-6 w-6 text-green-600" />
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900">
-                            {t('forgot_password.success_title')}
-                        </h2>
-                        <p className="text-sm text-gray-600">
-                            {t('forgot_password.success_message')}
-                        </p>
-                        <Button
-                            variant="outline"
-                            className="mt-4"
-                            onClick={() => navigate('/login')}
-                        >
+                        <h2 className="text-2xl font-bold text-gray-900">{t('forgot_password.success_title')}</h2>
+                        <p className="text-sm text-gray-600">{t('forgot_password.success_message')}</p>
+                        <Button variant="outline" className="mt-4" onClick={() => navigate('/login')}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             {t('forgot_password.back_to_login')}
                         </Button>
@@ -77,12 +69,8 @@ export const ForgotPassword = () => {
                             <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                                 <Mail className="h-6 w-6 text-indigo-600" />
                             </div>
-                            <h2 className="text-3xl font-extrabold text-gray-900">
-                                {t('forgot_password.title')}
-                            </h2>
-                            <p className="mt-2 text-sm text-gray-600">
-                                {t('forgot_password.subtitle')}
-                            </p>
+                            <h2 className="text-3xl font-extrabold text-gray-900">{t('forgot_password.title')}</h2>
+                            <p className="mt-2 text-sm text-gray-600">{t('forgot_password.subtitle')}</p>
                         </div>
 
                         <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>

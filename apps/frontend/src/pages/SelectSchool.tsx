@@ -94,7 +94,7 @@ export function SelectSchool() {
             setSchools(list);
 
             const newSchoolId = res.id;
-            const membership = list.find((m: any) => (m.schoolId === newSchoolId || m.school.id === newSchoolId));
+            const membership = list.find((m: any) => m.schoolId === newSchoolId || m.school.id === newSchoolId);
 
             if (membership) {
                 await handleSelect(membership.schoolId || membership.school.id);
@@ -103,7 +103,6 @@ export function SelectSchool() {
                 setNewSchoolName('');
                 setNewSchoolAddress('');
             }
-
         } catch (err: any) {
             toast.error(t('select_school.failed_create') + ': ' + (err.response?.data?.message || err.message));
         } finally {
@@ -128,9 +127,7 @@ export function SelectSchool() {
                         {isCreating ? t('select_school.create_new_title') : t('select_school.title')}
                     </h1>
                     <p className="text-muted-foreground">
-                        {isCreating
-                            ? t('select_school.create_subtitle')
-                            : t('select_school.subtitle')}
+                        {isCreating ? t('select_school.create_subtitle') : t('select_school.subtitle')}
                     </p>
                 </div>
 
@@ -143,7 +140,7 @@ export function SelectSchool() {
                                     <Input
                                         id="schoolName"
                                         value={newSchoolName}
-                                        onChange={e => setNewSchoolName(e.target.value)}
+                                        onChange={(e) => setNewSchoolName(e.target.value)}
                                         placeholder="e.g. Gymnázium Jana Keplera"
                                         required
                                     />
@@ -153,7 +150,7 @@ export function SelectSchool() {
                                     <Input
                                         id="address"
                                         value={newSchoolAddress}
-                                        onChange={e => setNewSchoolAddress(e.target.value)}
+                                        onChange={(e) => setNewSchoolAddress(e.target.value)}
                                     />
                                 </div>
                             </CardContent>
@@ -205,17 +202,19 @@ export function SelectSchool() {
                                                 variant="secondary"
                                                 className="w-full"
                                                 disabled={selecting === (membership.schoolId || membership.school.id)}
-                                                onClick={() => handleSelect(membership.schoolId || membership.school.id)}
+                                                onClick={() =>
+                                                    handleSelect(membership.schoolId || membership.school.id)
+                                                }
                                             >
-                                                {selecting === (membership.schoolId || membership.school.id) ? t('select_school.entering') : t('select_school.enter')}
+                                                {selecting === (membership.schoolId || membership.school.id)
+                                                    ? t('select_school.entering')
+                                                    : t('select_school.enter')}
                                             </Button>
                                         </CardContent>
                                     </Card>
                                 ))}
                             </div>
                         )}
-
-
                     </>
                 )}
             </div>

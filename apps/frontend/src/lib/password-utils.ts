@@ -47,22 +47,34 @@ export const validatePassword = (password: string): PasswordValidationResult => 
 
 export const getStrengthColor = (strength: number) => {
     switch (strength) {
-        case 0: return 'bg-gray-200';
-        case 1: return 'bg-red-500';
-        case 2: return 'bg-orange-500';
-        case 3: return 'bg-yellow-500';
-        case 4: return 'bg-green-500';
-        default: return 'bg-gray-200';
+        case 0:
+            return 'bg-gray-200';
+        case 1:
+            return 'bg-red-500';
+        case 2:
+            return 'bg-orange-500';
+        case 3:
+            return 'bg-yellow-500';
+        case 4:
+            return 'bg-green-500';
+        default:
+            return 'bg-gray-200';
     }
 };
 
 export const getStrengthLabel = (strength: number): string => {
     switch (strength) {
-        case 0: return 'password.strength_too_short';
-        case 1: return 'password.strength_weak';
-        case 2: return 'password.strength_fair';
-        case 3: return 'password.strength_good';
-        case 4: return 'password.strength_strong';
-        default: return '';
+        case 0:
+            return 'password.strength_too_short';
+        case 1:
+            return 'password.strength_weak';
+        case 2:
+            return 'password.strength_fair';
+        case 3:
+            return 'password.strength_good';
+        case 4:
+            return 'password.strength_strong';
+        default:
+            return '';
     }
 };

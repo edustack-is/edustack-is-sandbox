@@ -3,7 +3,7 @@ import { CryptoService } from '../../utils/crypto.service';
 
 @Global()
 @Module({
-    providers: [CryptoService],
-    exports: [CryptoService],
+  providers: [CryptoService],
+  exports: [CryptoService],
 })
-export class CryptoModule { }
+export class CryptoModule {}

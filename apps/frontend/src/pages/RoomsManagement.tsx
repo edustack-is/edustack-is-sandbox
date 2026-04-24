@@ -12,9 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -63,7 +61,9 @@ export default function RoomsManagement() {
         }
     };
 
-    useEffect(() => { loadRooms(); }, []);
+    useEffect(() => {
+        loadRooms();
+    }, []);
 
     // ── Open sheet for create/edit ─────────────────────────
     const openCreate = () => {
@@ -115,7 +115,7 @@ export default function RoomsManagement() {
 
         // Client-side uniqueness check
         const duplicate = rooms.find(
-            (r) => r.name.toLowerCase() === data.name.trim().toLowerCase() && r.id !== editingRoom?.id
+            (r) => r.name.toLowerCase() === data.name.trim().toLowerCase() && r.id !== editingRoom?.id,
         );
         if (duplicate) {
             toast.error(t('rooms.name_duplicate'));
@@ -173,7 +173,11 @@ export default function RoomsManagement() {
         {
             accessorKey: 'capacity',
             header: t('rooms.capacity_column'),
-            cell: ({ row }) => <span>{row.original.capacity} {t('rooms.seats')}</span>,
+            cell: ({ row }) => (
+                <span>
+                    {row.original.capacity} {t('rooms.seats')}
+                </span>
+            ),
         },
         {
             accessorKey: 'isComputerLab',
@@ -195,7 +199,9 @@ export default function RoomsManagement() {
                 return (
                     <div className="flex flex-wrap gap-1">
                         {equipment.map((item, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">{item}</Badge>
+                            <Badge key={i} variant="outline" className="text-xs">
+                                {item}
+                            </Badge>
                         ))}
                     </div>
                 );
@@ -206,12 +212,15 @@ export default function RoomsManagement() {
             header: t('common.actions'),
             cell: ({ row }) => (
                 <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" title={t('common.edit')}
-                        onClick={() => openEdit(row.original)}>
+                    <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(row.original)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" title={t('common.delete')}
-                        onClick={() => handleDelete(row.original)}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        title={t('common.delete')}
+                        onClick={() => handleDelete(row.original)}
+                    >
                         <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                 </div>
@@ -234,7 +243,9 @@ export default function RoomsManagement() {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">{t('common.loading')}</div>
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    {t('common.loading')}
+                </div>
             ) : (
                 <DataTable columns={columns} data={rooms} />
             )}
@@ -253,15 +264,19 @@ export default function RoomsManagement() {
                         {/* Name */}
                         <div className="space-y-2">
                             <Label htmlFor="room-name">{t('rooms.name_label')}</Label>
-                            <Input id="room-name" placeholder="e.g. A101"
-                                {...form.register('name')} />
+                            <Input id="room-name" placeholder="e.g. A101" {...form.register('name')} />
                         </div>
 
                         {/* Capacity */}
                         <div className="space-y-2">
                             <Label htmlFor="room-capacity">{t('rooms.capacity_label')}</Label>
-                            <Input id="room-capacity" type="number" min="1" placeholder="30"
-                                {...form.register('capacity')} />
+                            <Input
+                                id="room-capacity"
+                                type="number"
+                                min="1"
+                                placeholder="30"
+                                {...form.register('capacity')}
+                            />
                         </div>
 
                         {/* Computer lab checkbox */}
@@ -272,7 +287,9 @@ export default function RoomsManagement() {
                                 className="h-4 w-4 rounded border-input"
                                 {...form.register('isComputerLab')}
                             />
-                            <Label htmlFor="room-computerLab" className="cursor-pointer">{t('rooms.computer_lab')}</Label>
+                            <Label htmlFor="room-computerLab" className="cursor-pointer">
+                                {t('rooms.computer_lab')}
+                            </Label>
                         </div>
 
                         {/* Special equipment tags */}
@@ -286,8 +303,13 @@ export default function RoomsManagement() {
                                     placeholder="e.g. Projector"
                                     className="flex-1"
                                 />
-                                <Button type="button" variant="outline" size="sm" onClick={addTag}
-                                    disabled={!tagInput.trim()}>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addTag}
+                                    disabled={!tagInput.trim()}
+                                >
                                     <Plus className="h-3 w-3" />
                                 </Button>
                             </div>
@@ -296,8 +318,11 @@ export default function RoomsManagement() {
                                     {equipmentTags.map((tag, index) => (
                                         <Badge key={index} variant="secondary" className="gap-1 pr-1">
                                             {tag}
-                                            <button type="button" onClick={() => removeTag(index)}
-                                                className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeTag(index)}
+                                                className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                                            >
                                                 <X className="h-3 w-3" />
                                             </button>
                                         </Badge>
@@ -308,12 +333,16 @@ export default function RoomsManagement() {
 
                         {/* Actions */}
                         <div className="flex gap-2 pt-4">
-                            <Button type="button" variant="outline" className="flex-1"
-                                onClick={() => setSheetOpen(false)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setSheetOpen(false)}
+                            >
                                 {t('common.cancel')}
                             </Button>
                             <Button type="submit" className="flex-1" disabled={submitting}>
-                                {submitting ? t('common.saving') : (editingRoom ? t('common.save') : t('common.create'))}
+                                {submitting ? t('common.saving') : editingRoom ? t('common.save') : t('common.create')}
                             </Button>
                         </div>
                     </form>

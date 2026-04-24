@@ -5,13 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -21,8 +15,19 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, School, Users, BookOpen,
-    Calendar, GraduationCap, MessageSquare, ClipboardList, Sparkles,
+    Loader2,
+    Plus,
+    Trash2,
+    AlertTriangle,
+    CheckCircle2,
+    School,
+    Users,
+    BookOpen,
+    Calendar,
+    GraduationCap,
+    MessageSquare,
+    ClipboardList,
+    Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateTestData, wipeSchoolData, wipeAllData, getSystemSchools, aiGenerateSchoolName } from '@/api/index';
@@ -82,7 +87,9 @@ export function TestDataGenerator() {
         try {
             const data = await getSystemSchools();
             setSchools(data);
-        } catch { /* ignore */ }
+        } catch {
+            /* ignore */
+        }
     };
 
     // ─── Generate handler ────────────────────────────────
@@ -209,16 +216,22 @@ export function TestDataGenerator() {
                                     disabled={generatingName}
                                     title="AI generovat název"
                                 >
-                                    {generatingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                    {generatingName ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4" />
+                                    )}
                                 </Button>
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Typ školy</Label>
                             <Select value={schoolType} onValueChange={setSchoolType}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {SCHOOL_TYPES.map(t => (
+                                    {SCHOOL_TYPES.map((t) => (
                                         <SelectItem key={t.value} value={t.value}>
                                             {t.icon} {t.label}
                                         </SelectItem>
@@ -238,22 +251,41 @@ export function TestDataGenerator() {
                         <div className="grid gap-3 md:grid-cols-3 pl-4 border-l-2 border-blue-200">
                             <div className="space-y-1">
                                 <Label className="text-xs">Učitelé (celkem)</Label>
-                                <Input type="number" min={0} max={100} value={teacherCount}
-                                    onChange={(e) => setTeacherCount(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={teacherCount}
+                                    onChange={(e) => setTeacherCount(parseInt(e.target.value) || 0)}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs flex items-center gap-1">
-                                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600">ACTIVE</Badge>
+                                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600">
+                                        ACTIVE
+                                    </Badge>
                                 </Label>
-                                <Input type="number" min={0} max={teacherCount} value={teacherActive}
-                                    onChange={(e) => setTeacherActive(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={teacherCount}
+                                    value={teacherActive}
+                                    onChange={(e) => setTeacherActive(parseInt(e.target.value) || 0)}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs flex items-center gap-1">
-                                    <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600">INVITED</Badge>
+                                    <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600">
+                                        INVITED
+                                    </Badge>
                                 </Label>
-                                <Input type="number" min={0} max={teacherCount} value={teacherInvited}
-                                    onChange={(e) => setTeacherInvited(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={teacherCount}
+                                    value={teacherInvited}
+                                    onChange={(e) => setTeacherInvited(parseInt(e.target.value) || 0)}
+                                />
                             </div>
                         </div>
 
@@ -261,22 +293,41 @@ export function TestDataGenerator() {
                         <div className="grid gap-3 md:grid-cols-3 pl-4 border-l-2 border-green-200">
                             <div className="space-y-1">
                                 <Label className="text-xs">Studenti (celkem)</Label>
-                                <Input type="number" min={0} max={500} value={studentCount}
-                                    onChange={(e) => setStudentCount(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={500}
+                                    value={studentCount}
+                                    onChange={(e) => setStudentCount(parseInt(e.target.value) || 0)}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs flex items-center gap-1">
-                                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600">ACTIVE</Badge>
+                                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600">
+                                        ACTIVE
+                                    </Badge>
                                 </Label>
-                                <Input type="number" min={0} max={studentCount} value={studentActive}
-                                    onChange={(e) => setStudentActive(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={studentCount}
+                                    value={studentActive}
+                                    onChange={(e) => setStudentActive(parseInt(e.target.value) || 0)}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs flex items-center gap-1">
-                                    <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600">INVITED</Badge>
+                                    <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600">
+                                        INVITED
+                                    </Badge>
                                 </Label>
-                                <Input type="number" min={0} max={studentCount} value={studentInvited}
-                                    onChange={(e) => setStudentInvited(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={studentCount}
+                                    value={studentInvited}
+                                    onChange={(e) => setStudentInvited(parseInt(e.target.value) || 0)}
+                                />
                             </div>
                         </div>
 
@@ -284,8 +335,13 @@ export function TestDataGenerator() {
                         <div className="grid gap-3 md:grid-cols-3 pl-4 border-l-2 border-purple-200">
                             <div className="space-y-1">
                                 <Label className="text-xs">Rodiče</Label>
-                                <Input type="number" min={0} max={500} value={parentCount}
-                                    onChange={(e) => setParentCount(parseInt(e.target.value) || 0)} />
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={500}
+                                    value={parentCount}
+                                    onChange={(e) => setParentCount(parseInt(e.target.value) || 0)}
+                                />
                                 <p className="text-[10px] text-muted-foreground">0 = automaticky (1 na studenta)</p>
                             </div>
                         </div>
@@ -297,29 +353,61 @@ export function TestDataGenerator() {
                             <ClipboardList className="h-4 w-4" /> Moduly k vygenerování
                         </h4>
                         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                            <FeatureToggle icon={<BookOpen className="h-4 w-4" />} label="Předměty (RVP)"
-                                checked={generateSubjects} onCheckedChange={setGenerateSubjects} />
-                            <FeatureToggle icon={<Calendar className="h-4 w-4" />} label="Rozvrh"
-                                checked={generateSchedule} onCheckedChange={setGenerateSchedule} />
-                            <FeatureToggle icon={<GraduationCap className="h-4 w-4" />} label="Klasifikace"
-                                checked={generateGrades} onCheckedChange={setGenerateGrades} />
-                            <FeatureToggle icon={<MessageSquare className="h-4 w-4" />} label="Zprávy (komunikace)"
-                                checked={generateCommunication} onCheckedChange={setGenerateCommunication} />
-                            <FeatureToggle icon={<ClipboardList className="h-4 w-4" />} label="Docházka a omluvenky"
-                                checked={generateAttendance} onCheckedChange={setGenerateAttendance} />
-                            <FeatureToggle icon={<GraduationCap className="h-4 w-4" />} label="Vysvědčení a chování"
-                                checked={generateReportCards} onCheckedChange={setGenerateReportCards} />
-                            <FeatureToggle icon={<MessageSquare className="h-4 w-4" />} label="Komunita (ankety, nástěnka)"
-                                checked={generateCommunity} onCheckedChange={setGenerateCommunity} />
+                            <FeatureToggle
+                                icon={<BookOpen className="h-4 w-4" />}
+                                label="Předměty (RVP)"
+                                checked={generateSubjects}
+                                onCheckedChange={setGenerateSubjects}
+                            />
+                            <FeatureToggle
+                                icon={<Calendar className="h-4 w-4" />}
+                                label="Rozvrh"
+                                checked={generateSchedule}
+                                onCheckedChange={setGenerateSchedule}
+                            />
+                            <FeatureToggle
+                                icon={<GraduationCap className="h-4 w-4" />}
+                                label="Klasifikace"
+                                checked={generateGrades}
+                                onCheckedChange={setGenerateGrades}
+                            />
+                            <FeatureToggle
+                                icon={<MessageSquare className="h-4 w-4" />}
+                                label="Zprávy (komunikace)"
+                                checked={generateCommunication}
+                                onCheckedChange={setGenerateCommunication}
+                            />
+                            <FeatureToggle
+                                icon={<ClipboardList className="h-4 w-4" />}
+                                label="Docházka a omluvenky"
+                                checked={generateAttendance}
+                                onCheckedChange={setGenerateAttendance}
+                            />
+                            <FeatureToggle
+                                icon={<GraduationCap className="h-4 w-4" />}
+                                label="Vysvědčení a chování"
+                                checked={generateReportCards}
+                                onCheckedChange={setGenerateReportCards}
+                            />
+                            <FeatureToggle
+                                icon={<MessageSquare className="h-4 w-4" />}
+                                label="Komunita (ankety, nástěnka)"
+                                checked={generateCommunity}
+                                onCheckedChange={setGenerateCommunity}
+                            />
                         </div>
                     </div>
 
                     {/* Generate button */}
                     <Button onClick={handleGenerate} disabled={generating} className="w-full" size="lg">
                         {generating ? (
-                            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Generuji testovací data...</>
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Generuji testovací data...
+                            </>
                         ) : (
-                            <><Plus className="h-4 w-4 mr-2" /> Generovat školu s daty</>
+                            <>
+                                <Plus className="h-4 w-4 mr-2" /> Generovat školu s daty
+                            </>
                         )}
                     </Button>
 
@@ -341,8 +429,14 @@ export function TestDataGenerator() {
                                             <StatBadge label="Učitelé" value={lastResult.stats.teachers} />
                                             <StatBadge label="Studenti" value={lastResult.stats.students} />
                                             <StatBadge label="Rodiče" value={lastResult.stats.parents} />
-                                            <StatBadge label="Instance předmětů" value={lastResult.stats.subjectInstances} />
-                                            <StatBadge label="Události rozvrhu" value={lastResult.stats.scheduleEvents} />
+                                            <StatBadge
+                                                label="Instance předmětů"
+                                                value={lastResult.stats.subjectInstances}
+                                            />
+                                            <StatBadge
+                                                label="Události rozvrhu"
+                                                value={lastResult.stats.scheduleEvents}
+                                            />
                                             <StatBadge label="Známky" value={lastResult.stats.grades} />
                                             <StatBadge label="Konverzace" value={lastResult.stats.conversations} />
                                             <StatBadge label="Zprávy" value={lastResult.stats.messages} />
@@ -355,7 +449,8 @@ export function TestDataGenerator() {
                                             <StatBadge label="Události" value={lastResult.stats.calendarEvents} />
                                         </div>
                                         <p className="text-[10px] text-muted-foreground mt-2">
-                                            🔑 Heslo pro všechny demo účty: <code className="font-mono bg-muted px-1 rounded">Demo1234!</code>
+                                            🔑 Heslo pro všechny demo účty:{' '}
+                                            <code className="font-mono bg-muted px-1 rounded">Demo1234!</code>
                                         </p>
                                     </div>
                                 </div>
@@ -372,9 +467,7 @@ export function TestDataGenerator() {
                         <AlertTriangle className="h-5 w-5" />
                         Nebezpečná zóna
                     </CardTitle>
-                    <CardDescription>
-                        Tyto akce jsou nevratné. Data budou trvale smazána.
-                    </CardDescription>
+                    <CardDescription>Tyto akce jsou nevratné. Data budou trvale smazána.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {/* Wipe school */}
@@ -391,7 +484,7 @@ export function TestDataGenerator() {
                                     <SelectValue placeholder="Vyberte školu..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {schools.map(s => (
+                                    {schools.map((s) => (
                                         <SelectItem key={s.id} value={s.id}>
                                             {s.name}
                                         </SelectItem>
@@ -399,7 +492,8 @@ export function TestDataGenerator() {
                                 </SelectContent>
                             </Select>
                             <Button
-                                variant="destructive" size="sm"
+                                variant="destructive"
+                                size="sm"
                                 disabled={!selectedSchoolId}
                                 onClick={() => setWipeDialogOpen(true)}
                             >
@@ -413,7 +507,8 @@ export function TestDataGenerator() {
                         <div>
                             <p className="font-medium text-sm text-destructive">Smazat VŠECHNA data</p>
                             <p className="text-xs text-muted-foreground">
-                                Smaže všechny školy, uživatele a data v celém systému. Zůstanou pouze systémoví administrátoři.
+                                Smaže všechny školy, uživatele a data v celém systému. Zůstanou pouze systémoví
+                                administrátoři.
                             </p>
                         </div>
                         <Button variant="destructive" onClick={() => setWipeAllDialogOpen(true)}>
@@ -434,12 +529,14 @@ export function TestDataGenerator() {
                             Smazat školu a všechna data
                         </DialogTitle>
                         <DialogDescription>
-                            Opravdu chcete smazat školu „{schools.find(s => s.id === selectedSchoolId)?.name}"
-                            a všechna přidružená data? Tato akce je nevratná.
+                            Opravdu chcete smazat školu „{schools.find((s) => s.id === selectedSchoolId)?.name}" a
+                            všechna přidružená data? Tato akce je nevratná.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setWipeDialogOpen(false)}>Zrušit</Button>
+                        <Button variant="outline" onClick={() => setWipeDialogOpen(false)}>
+                            Zrušit
+                        </Button>
                         <Button variant="destructive" onClick={handleWipeSchool} disabled={wiping}>
                             {wiping && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                             Smazat nenávratně
@@ -468,7 +565,13 @@ export function TestDataGenerator() {
                         className="font-mono"
                     />
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setWipeAllDialogOpen(false); setWipeConfirmText(''); }}>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setWipeAllDialogOpen(false);
+                                setWipeConfirmText('');
+                            }}
+                        >
                             Zrušit
                         </Button>
                         <Button
@@ -488,8 +591,16 @@ export function TestDataGenerator() {
 
 // ─── Sub-components ─────────────────────────────────────────────
 
-function FeatureToggle({ icon, label, checked, onCheckedChange }: {
-    icon: React.ReactNode; label: string; checked: boolean; onCheckedChange: (v: boolean) => void;
+function FeatureToggle({
+    icon,
+    label,
+    checked,
+    onCheckedChange,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    checked: boolean;
+    onCheckedChange: (v: boolean) => void;
 }) {
     return (
         <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">

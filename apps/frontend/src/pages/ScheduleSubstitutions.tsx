@@ -1,38 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
-import {
-    getScheduleEvents,
-    getSubstitutions,
-    createSubstitution,
-    deleteSubstitution,
-    api,
-} from '@/api';
+import { getScheduleEvents, getSubstitutions, createSubstitution, deleteSubstitution, api } from '@/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import {
-    CalendarDays, Plus, Trash2, UserCheck, Ban,
-    ArrowLeftRight, MapPin, BookOpen,
-} from 'lucide-react';
+import { CalendarDays, Plus, Trash2, UserCheck, Ban, ArrowLeftRight, MapPin, BookOpen } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -78,10 +57,12 @@ const TYPE_CONFIG = {
     CANCELLED: { label: 'Odpadá', icon: Ban, color: 'bg-red-100 text-red-800 border-red-300' },
     MERGED: { label: 'Spojeno', icon: ArrowLeftRight, color: 'bg-violet-100 text-violet-800 border-violet-300' },
     ROOM_CHANGE: { label: 'Změna učebny', icon: MapPin, color: 'bg-sky-100 text-sky-800 border-sky-300' },
-    SUBJECT_CHANGE: { label: 'Změna předmětu', icon: BookOpen, color: 'bg-orange-100 text-orange-800 border-orange-300' },
+    SUBJECT_CHANGE: {
+        label: 'Změna předmětu',
+        icon: BookOpen,
+        color: 'bg-orange-100 text-orange-800 border-orange-300',
+    },
 };
-
-
 
 export const ScheduleSubstitutions: React.FC = () => {
     const { t } = useTranslation();
@@ -143,17 +124,21 @@ export const ScheduleSubstitutions: React.FC = () => {
         if (!schoolId) return;
         // Load all events for the dropdown
         getScheduleEvents()
-            .then(data => setEvents(Array.isArray(data) ? data : []))
+            .then((data) => setEvents(Array.isArray(data) ? data : []))
             .catch(() => setEvents([]));
 
         // Load teachers
         api.get('/api/deputy/dashboard')
-            .then(res => {
+            .then((res) => {
                 if (res.data?.teachers) {
-                    setTeachers(res.data.teachers.filter((u: any) => u.teacherProfile).map((u: any) => ({
-                        id: u.teacherProfile.id,
-                        user: { firstName: u.firstName, lastName: u.lastName },
-                    })));
+                    setTeachers(
+                        res.data.teachers
+                            .filter((u: any) => u.teacherProfile)
+                            .map((u: any) => ({
+                                id: u.teacherProfile.id,
+                                user: { firstName: u.firstName, lastName: u.lastName },
+                            })),
+                    );
                 }
             })
             .catch(() => setTeachers([]));
@@ -197,19 +182,22 @@ export const ScheduleSubstitutions: React.FC = () => {
     };
 
     // Group substitutions by date
-    const groupedByDate = substitutions.reduce((acc, sub) => {
-        const date = new Date(sub.date).toISOString().slice(0, 10);
-        if (!acc[date]) acc[date] = [];
-        acc[date].push(sub);
-        return acc;
-    }, {} as Record<string, SubstitutionItem[]>);
+    const groupedByDate = substitutions.reduce(
+        (acc, sub) => {
+            const date = new Date(sub.date).toISOString().slice(0, 10);
+            if (!acc[date]) acc[date] = [];
+            acc[date].push(sub);
+            return acc;
+        },
+        {} as Record<string, SubstitutionItem[]>,
+    );
 
     // Filter events for the selected date's day of week
     const getEventsForDate = (date: string) => {
         const d = new Date(date);
         const dow = d.getDay(); // 0=Sun... convert to 1=Mon...
         const adjustedDow = dow === 0 ? 7 : dow;
-        return events.filter(e => e.dayOfWeek === adjustedDow);
+        return events.filter((e) => e.dayOfWeek === adjustedDow);
     };
 
     if (!canManage) {
@@ -232,17 +220,19 @@ export const ScheduleSubstitutions: React.FC = () => {
                     <Input
                         type="date"
                         value={selectedDate}
-                        onChange={e => setSelectedDate(e.target.value)}
+                        onChange={(e) => setSelectedDate(e.target.value)}
                         className="w-40"
                     />
-                    <Button onClick={() => {
-                        setFormDate(selectedDate);
-                        setFormEventId('');
-                        setFormType('SUBSTITUTION');
-                        setFormTeacherId('');
-                        setFormNote('');
-                        setCreateDialog(true);
-                    }}>
+                    <Button
+                        onClick={() => {
+                            setFormDate(selectedDate);
+                            setFormEventId('');
+                            setFormType('SUBSTITUTION');
+                            setFormTeacherId('');
+                            setFormNote('');
+                            setCreateDialog(true);
+                        }}
+                    >
                         <Plus className="h-4 w-4 mr-1" />
                         Nové suplování
                     </Button>
@@ -262,76 +252,88 @@ export const ScheduleSubstitutions: React.FC = () => {
                     </CardContent>
                 </Card>
             ) : (
-                Object.entries(groupedByDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, subs]) => (
-                    <Card key={date}>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <CalendarDays className="h-4 w-4" />
-                                {new Date(date).toLocaleDateString('cs-CZ', {
-                                    weekday: 'long',
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                })}
-                                <Badge variant="secondary" className="ml-2">{subs.length}</Badge>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y">
-                                {subs.sort((a, b) => a.originalEvent.lessonNumber - b.originalEvent.lessonNumber).map(sub => {
-                                    const cfg = TYPE_CONFIG[sub.type];
-                                    const Icon = cfg.icon;
-                                    return (
-                                        <div key={sub.id} className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${cfg.color}`}>
-                                                <Icon className="h-4 w-4" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-medium text-sm">
-                                                        {sub.originalEvent.lessonNumber}. hodina
-                                                    </span>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {sub.originalEvent.subject.template.code}
-                                                    </Badge>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {sub.originalEvent.classroom.name}
-                                                    </span>
-                                                    <Badge className={`text-xs border ${cfg.color}`}>
-                                                        {cfg.label}
-                                                    </Badge>
-                                                </div>
-                                                <div className="text-xs text-muted-foreground mt-0.5">
-                                                    Původně: {sub.originalEvent.teacherProfile.user.lastName}{' '}
-                                                    {sub.originalEvent.teacherProfile.user.firstName}
-                                                    {sub.substituteTeacher && (
-                                                        <span className="text-foreground font-medium">
-                                                            {' → '}{sub.substituteTeacher.user.lastName}{' '}
-                                                            {sub.substituteTeacher.user.firstName}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {sub.note && (
-                                                    <div className="text-xs italic text-muted-foreground mt-0.5">
-                                                        {sub.note}
+                Object.entries(groupedByDate)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([date, subs]) => (
+                        <Card key={date}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4" />
+                                    {new Date(date).toLocaleDateString('cs-CZ', {
+                                        weekday: 'long',
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric',
+                                    })}
+                                    <Badge variant="secondary" className="ml-2">
+                                        {subs.length}
+                                    </Badge>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <div className="divide-y">
+                                    {subs
+                                        .sort((a, b) => a.originalEvent.lessonNumber - b.originalEvent.lessonNumber)
+                                        .map((sub) => {
+                                            const cfg = TYPE_CONFIG[sub.type];
+                                            const Icon = cfg.icon;
+                                            return (
+                                                <div
+                                                    key={sub.id}
+                                                    className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
+                                                >
+                                                    <div
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center border ${cfg.color}`}
+                                                    >
+                                                        <Icon className="h-4 w-4" />
                                                     </div>
-                                                )}
-                                            </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-destructive hover:text-destructive"
-                                                onClick={() => handleDelete(sub.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-medium text-sm">
+                                                                {sub.originalEvent.lessonNumber}. hodina
+                                                            </span>
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {sub.originalEvent.subject.template.code}
+                                                            </Badge>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {sub.originalEvent.classroom.name}
+                                                            </span>
+                                                            <Badge className={`text-xs border ${cfg.color}`}>
+                                                                {cfg.label}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                                            Původně: {sub.originalEvent.teacherProfile.user.lastName}{' '}
+                                                            {sub.originalEvent.teacherProfile.user.firstName}
+                                                            {sub.substituteTeacher && (
+                                                                <span className="text-foreground font-medium">
+                                                                    {' → '}
+                                                                    {sub.substituteTeacher.user.lastName}{' '}
+                                                                    {sub.substituteTeacher.user.firstName}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {sub.note && (
+                                                            <div className="text-xs italic text-muted-foreground mt-0.5">
+                                                                {sub.note}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDelete(sub.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
             )}
 
             {/* ─── Create dialog ─────────────────────────────── */}
@@ -344,11 +346,7 @@ export const ScheduleSubstitutions: React.FC = () => {
                     <div className="space-y-4">
                         <div>
                             <Label>Datum *</Label>
-                            <Input
-                                type="date"
-                                value={formDate}
-                                onChange={e => setFormDate(e.target.value)}
-                            />
+                            <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
                         </div>
 
                         <div>
@@ -358,11 +356,14 @@ export const ScheduleSubstitutions: React.FC = () => {
                                     <SelectValue placeholder="Vyberte hodinu..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {getEventsForDate(formDate).sort((a, b) => a.lessonNumber - b.lessonNumber).map(e => (
-                                        <SelectItem key={e.id} value={e.id}>
-                                            {e.lessonNumber}. hod — {e.subject.template.code} ({e.classroom.name}, {e.teacherProfile.user.lastName})
-                                        </SelectItem>
-                                    ))}
+                                    {getEventsForDate(formDate)
+                                        .sort((a, b) => a.lessonNumber - b.lessonNumber)
+                                        .map((e) => (
+                                            <SelectItem key={e.id} value={e.id}>
+                                                {e.lessonNumber}. hod — {e.subject.template.code} ({e.classroom.name},{' '}
+                                                {e.teacherProfile.user.lastName})
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -391,7 +392,7 @@ export const ScheduleSubstitutions: React.FC = () => {
                                         <SelectValue placeholder="Vyberte učitele..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {teachers.map(t => (
+                                        {teachers.map((t) => (
                                             <SelectItem key={t.id} value={t.id}>
                                                 {t.user.lastName} {t.user.firstName}
                                             </SelectItem>
@@ -405,7 +406,7 @@ export const ScheduleSubstitutions: React.FC = () => {
                             <Label>Poznámka</Label>
                             <Textarea
                                 value={formNote}
-                                onChange={e => setFormNote(e.target.value)}
+                                onChange={(e) => setFormNote(e.target.value)}
                                 placeholder="Důvod suplování..."
                                 rows={2}
                             />

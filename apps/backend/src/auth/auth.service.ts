@@ -1,659 +1,793 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { DatabaseService } from '../database/database.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { UserRole, SecretType } from '@prisma/client';
+import {
+  User,
+  School,
+  SchoolMembership,
+  Identity,
+  SystemSecret,
+} from '../database/types';
 import { validatePasswordStrength } from '../utils/password-policy';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
+export interface LoginHelperMembership {
+  schoolName: string;
+  role: string;
+}
+
+export interface LoginHelperUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  memberships: LoginHelperMembership[];
+}
+
 @Injectable()
 export class AuthService {
-    constructor(
-        private prisma: PrismaService,
-        private jwtService: JwtService,
-        private mailService: MailService,
-    ) { }
+  constructor(
+    private db: DatabaseService,
+    private jwtService: JwtService,
+    private mailService: MailService,
+  ) {}
 
-    async getSsoOptions() {
-        const activeSecrets = await this.prisma.systemSecret.findMany({
-            where: {
-                type: SecretType.SSO,
-                isActive: true,
-                key: 'CLIENT_ID' // Just check for existence of basic config
-            },
-            select: { service: true }
-        });
+  async getSsoOptions(): Promise<string[]> {
+    const activeSecrets = await this.db.query<SystemSecret>(
+      'SELECT service FROM "SystemSecret" WHERE type = ? AND isActive = 1 AND key = ?',
+      ['SSO', 'CLIENT_ID'],
+    );
 
-        // Return unique service names in lowercase
-        return Array.from(new Set(activeSecrets.map((s: any) => s.service.toLowerCase())));
+    return Array.from(
+      new Set(activeSecrets.map((s) => s.service.toLowerCase())),
+    );
+  }
+
+  async validateUser(
+    email: string,
+    pass: string,
+  ): Promise<Partial<User> | null> {
+    const user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE email = ?',
+      [email],
+    );
+    if (!user || !user.passwordHash) {
+      return null;
     }
 
-    async validateUser(email: string, pass: string): Promise<any> {
-        const user = await this.prisma.user.findUnique({ where: { email } });
-        if (!user || !user.passwordHash) {
-            return null;
-        }
-
-        // Check if account is locked
-        if (user.lockedUntil && user.lockedUntil > new Date()) {
-            const remainingMs = user.lockedUntil.getTime() - Date.now();
-            const remainingMin = Math.ceil(remainingMs / 60000);
-            throw new BadRequestException(`account_locked_until:${remainingMin}`);
-        }
-
-        const isPasswordValid = await bcrypt.compare(pass, user.passwordHash);
-
-        if (!isPasswordValid) {
-            const newAttempts = user.failedLoginAttempts + 1;
-            const updateData: any = { failedLoginAttempts: newAttempts };
-
-            if (newAttempts >= MAX_FAILED_ATTEMPTS) {
-                const lockedUntil = new Date();
-                lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCKOUT_MINUTES);
-                updateData.lockedUntil = lockedUntil;
-            }
-
-            await this.prisma.user.update({
-                where: { id: user.id },
-                data: updateData,
-            });
-
-            if (newAttempts >= MAX_FAILED_ATTEMPTS) {
-                throw new BadRequestException(`account_locked_until:${LOCKOUT_MINUTES}`);
-            }
-
-            return null;
-        }
-
-        // Success — reset failed attempts
-        if (user.failedLoginAttempts > 0 || user.lockedUntil) {
-            await this.prisma.user.update({
-                where: { id: user.id },
-                data: { failedLoginAttempts: 0, lockedUntil: null },
-            });
-        }
-
-        const { passwordHash, ...result } = user;
-        return result;
+    const lockedUntil = user.lockedUntil ? new Date(user.lockedUntil) : null;
+    if (lockedUntil && lockedUntil > new Date()) {
+      const remainingMs = lockedUntil.getTime() - Date.now();
+      const remainingMin = Math.ceil(remainingMs / 60000);
+      throw new BadRequestException(`account_locked_until:${remainingMin}`);
     }
 
-    async createInvitation(userId: string, studentId?: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new NotFoundException('User not found');
+    const isPasswordValid = await bcrypt.compare(pass, user.passwordHash);
 
-        // If studentId is provided (parent invitation), validate the student exists
-        if (studentId) {
-            const student = await this.prisma.user.findUnique({ where: { id: studentId } });
-            if (!student) throw new NotFoundException('Student not found');
-        }
+    if (!isPasswordValid) {
+      const newAttempts = user.failedLoginAttempts + 1;
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const hashedToken = await bcrypt.hash(token, 10);
-        const expires = new Date();
-        expires.setHours(expires.getHours() + 48);
-
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: {
-                invitationToken: hashedToken,
-                invitationExpires: expires,
-            },
-        });
-
-        // Composite token: userId.rawToken[.studentId]
-        const fullToken = studentId
-            ? `${userId}.${token}.${studentId}`
-            : `${userId}.${token}`;
-
-        return { token: fullToken };
-    }
-
-    async acceptInvitation(token: string, password: string) {
-        const parts = token.split('.');
-        const userId = parts[0];
-        const rawToken = parts[1];
-        const linkedStudentId = parts[2] || null; // Optional: for parent invitations
-
-        if (!userId || !rawToken) throw new BadRequestException('Invalid token format');
-
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user || !user.invitationToken || !user.invitationExpires) {
-            throw new BadRequestException('Invalid invitation');
-        }
-
-        if (new Date() > user.invitationExpires) {
-            throw new BadRequestException('Invitation expired');
-        }
-
-        const isMatch = await bcrypt.compare(rawToken, user.invitationToken);
-        if (!isMatch) throw new BadRequestException('Invalid token');
-
-        // Check student self-registration permission
-        const memberships = await this.prisma.schoolMembership.findMany({
-            where: { userId: user.id },
-            include: { school: true },
-        });
-
-        for (const membership of memberships) {
-            if (membership.role === 'STUDENT' && !membership.school.allowStudentSelfRegistration) {
-                throw new BadRequestException(
-                    `School "${membership.school.name}" does not allow student self-registration.`
-                );
-            }
-        }
-
-        // Enforce password policy server-side
-        validatePasswordStrength(password);
-
-        const passwordHash = await bcrypt.hash(password, 10);
-
-        // Update user, activate memberships, and create parent-student link in a transaction
-        const updatedUser = await this.prisma.$transaction(async (tx: any) => {
-            const updated = await tx.user.update({
-                where: { id: user.id },
-                data: {
-                    passwordHash,
-                    invitationToken: null,
-                    invitationExpires: null,
-                    lastLogin: new Date(),
-                },
-            });
-
-            // Activate all PENDING memberships for this user
-            await tx.schoolMembership.updateMany({
-                where: { userId: user.id, status: 'PENDING' },
-                data: { status: 'ACTIVE' },
-            });
-
-            // Auto-create ParentStudent link for parent invitations
-            if (linkedStudentId) {
-                const existingLink = await tx.parentStudent.findFirst({
-                    where: { parentId: user.id, studentId: linkedStudentId },
-                });
-                if (!existingLink) {
-                    await tx.parentStudent.create({
-                        data: {
-                            parentId: user.id,
-                            studentId: linkedStudentId,
-                        },
-                    });
-                }
-            }
-
-            return updated;
-        });
-
-        return this.login(updatedUser);
-    }
-
-    /**
-     * Activate an invited account via SSO instead of setting a password.
-     * Validates the invitation token, activates memberships, links the SSO identity, and returns a JWT.
-     */
-    async acceptInvitationViaSso(token: string, provider: string, providerId: string, ssoEmail: string) {
-        const parts = token.split('.');
-        const userId = parts[0];
-        const rawToken = parts[1];
-        const linkedStudentId = parts[2] || null;
-
-        if (!userId || !rawToken) throw new BadRequestException('Invalid token format');
-
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user || !user.invitationToken || !user.invitationExpires) {
-            throw new BadRequestException('Invalid invitation');
-        }
-
-        if (new Date() > user.invitationExpires) {
-            throw new BadRequestException('Invitation expired');
-        }
-
-        const isMatch = await bcrypt.compare(rawToken, user.invitationToken);
-        if (!isMatch) throw new BadRequestException('Invalid token');
-
-        // Check school-level constraints
-        const memberships = await this.prisma.schoolMembership.findMany({
-            where: { userId: user.id },
-            include: { school: true },
-        });
-
-        for (const membership of memberships) {
-            if (membership.role === 'STUDENT' && !membership.school.allowStudentSelfRegistration) {
-                throw new BadRequestException(
-                    `School "${membership.school.name}" does not allow student self-registration.`
-                );
-            }
-            // Check SSO email match requirement
-            if (membership.school.requireSsoEmailMatch && ssoEmail.toLowerCase() !== user.email.toLowerCase()) {
-                throw new BadRequestException(
-                    `School "${membership.school.name}" requires the SSO email to match your account email (${user.email}).`
-                );
-            }
-        }
-
-        const updatedUser = await this.prisma.$transaction(async (tx: any) => {
-            // Clear invitation token, keep passwordHash null (SSO-only user)
-            const updated = await tx.user.update({
-                where: { id: user.id },
-                data: {
-                    invitationToken: null,
-                    invitationExpires: null,
-                    lastLogin: new Date(),
-                },
-            });
-
-            // Activate all PENDING memberships
-            await tx.schoolMembership.updateMany({
-                where: { userId: user.id, status: 'PENDING' },
-                data: { status: 'ACTIVE' },
-            });
-
-            // Link SSO identity
-            const existingIdentity = await tx.identity.findFirst({
-                where: { provider, providerId },
-            });
-            if (!existingIdentity) {
-                await tx.identity.create({
-                    data: { userId: user.id, provider, providerId },
-                });
-            }
-
-            // Auto-create ParentStudent link for parent invitations
-            if (linkedStudentId) {
-                const existingLink = await tx.parentStudent.findFirst({
-                    where: { parentId: user.id, studentId: linkedStudentId },
-                });
-                if (!existingLink) {
-                    await tx.parentStudent.create({
-                        data: { parentId: user.id, studentId: linkedStudentId },
-                    });
-                }
-            }
-
-            return updated;
-        });
-
-        return this.login(updatedUser);
-    }
-
-    async login(user: any, ip?: string, userAgent?: string) {
-        // Log successful login
-        await this.logLoginAttempt(user.email, true, ip, userAgent, user.id);
-
-        const payload = {
-            sub: user.id,
-            email: user.email,
-            isSystemAdmin: user.isSystemAdmin,
-            type: 'GLOBAL'
-        };
-        return {
-            access_token: this.jwtService.sign(payload),
-        };
-    }
-
-    /**
-     * Re-issue a GLOBAL token for the given user (used when frontend
-     * lost the saved global_token, e.g. after page refresh in school context).
-     */
-    async refreshGlobalToken(userId: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new NotFoundException('User not found');
-
-        const payload = {
-            sub: user.id,
-            email: user.email,
-            isSystemAdmin: user.isSystemAdmin,
-            type: 'GLOBAL'
-        };
-        return {
-            access_token: this.jwtService.sign(payload),
-        };
-    }
-
-    async verifyToken(token: string) {
-        return this.jwtService.verify(token);
-    }
-
-    async getIdentities(userId: string) {
-        const identities = await this.prisma.identity.findMany({
-            where: { userId },
-        });
-        return identities.map(id => ({
-            provider: id.provider,
-            providerId: id.providerId,
-            createdAt: id.createdAt
-        }));
-    }
-
-    async linkIdentity(userId: string, provider: string, providerId: string) {
-        // Check if this identity is already linked to someone else
-        const existing = await this.prisma.identity.findFirst({
-            where: { provider, providerId }
-        });
-
-        if (existing) {
-            if (existing.userId === userId) return; // Already linked to this user
-            throw new BadRequestException('This account is already linked to another user.');
-        }
-
-        return this.prisma.identity.create({
-            data: {
-                userId,
-                provider,
-                providerId
-            }
-        });
-    }
-
-    async getSchools(userId: string) {
-        return this.prisma.schoolMembership.findMany({
-            where: { userId, status: 'ACTIVE' },
-            include: { school: true },
-        });
-    }
-
-    async selectSchool(userId: string, schoolId: string, role?: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new UnauthorizedException('User not found');
-
-        // System admins can select any school without membership
-        if (user.isSystemAdmin) {
-            const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
-            if (!school) throw new NotFoundException('School not found');
-
-            // Check if admin actually has a membership in this school
-            const membership = await this.prisma.schoolMembership.findFirst({
-                where: { userId, schoolId, status: 'ACTIVE' },
-            });
-
-            const effectiveRole = role || (membership?.role as string) || 'ADMIN';
-            const isSysAdminOverride = !membership; // true if admin enters school without membership
-
-            const payload = {
-                sub: userId,
-                email: user.email,
-                isSystemAdmin: true,
-                isSysAdminOverride,
-                schoolId: school.id,
-                role: effectiveRole,
-                type: 'TENANT'
-            };
-
-            return {
-                access_token: this.jwtService.sign(payload),
-            };
-        }
-
-        // Regular users need active membership
-        const membership = await this.prisma.schoolMembership.findUnique({
-            where: { userId_schoolId: { userId, schoolId } },
-            include: { user: true }
-        });
-
-        if (!membership || membership.status !== 'ACTIVE') {
-            throw new UnauthorizedException('User is not an active member of this school.');
-        }
-
-        const payload = {
-            sub: userId,
-            email: membership.user.email,
-            schoolId: membership.schoolId,
-            role: membership.role,
-            type: 'TENANT'
-        };
-
-        return {
-            access_token: this.jwtService.sign(payload),
-        };
-    }
-
-    async logLoginAttempt(email: string, success: boolean, ip?: string, userAgent?: string, userId?: string) {
-        try {
-            let actorId = userId;
-            if (!actorId) {
-                const user = await this.prisma.user.findUnique({ where: { email } });
-                actorId = user?.id;
-            }
-
-            if (!actorId && !success) {
-                console.warn(`Failed login attempt for unknown user: ${email} from ${ip}`);
-                return;
-            }
-
-            if (actorId) {
-                await this.prisma.auditLog.create({
-                    data: {
-                        action: success ? 'LOGIN' : 'LOGIN_FAILED',
-                        actorId: actorId,
-                        entity: 'Auth',
-                        entityId: email,
-                        ipAddress: ip,
-                        userAgent: userAgent,
-                        newValues: { success },
-                    }
-                });
-            }
-        } catch (e) {
-            console.error('Failed to log login attempt', e);
-        }
-    }
-
-    async validateOAuthLogin(email: string, provider: string, providerId: string, firstName?: string, lastName?: string) {
-        let user = await this.prisma.user.findUnique({
-            where: { email },
-            include: { identities: true },
-        });
-
-        if (!user) {
-            // Check if we should allow auto-registration or just reject
-            // For now, following the previous logic: "User not found - you must be invited by the school first."
-            // But we might want to auto-create if it's the first admin setup? 
-            // Let's stick to the current strict policy unless told otherwise.
-            throw new UnauthorizedException('User not found - you must be invited by the school first.');
-        }
-
-        // Check if identity exists
-        const existingIdentity = user.identities.find(
-            (id) => id.provider === provider && id.providerId === providerId,
+      if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+        const lockedUntilDate = new Date();
+        lockedUntilDate.setMinutes(
+          lockedUntilDate.getMinutes() + LOCKOUT_MINUTES,
         );
 
-        if (!existingIdentity) {
-            await this.prisma.identity.create({
-                data: {
-                    provider,
-                    providerId,
-                    userId: user.id,
-                },
-            });
+        await this.db.execute(
+          'UPDATE "User" SET failedLoginAttempts = ?, lockedUntil = ? WHERE id = ?',
+          [newAttempts, lockedUntilDate.toISOString(), user.id],
+        );
+        throw new BadRequestException(
+          `account_locked_until:${LOCKOUT_MINUTES}`,
+        );
+      } else {
+        await this.db.execute(
+          'UPDATE "User" SET failedLoginAttempts = ? WHERE id = ?',
+          [newAttempts, user.id],
+        );
+      }
+
+      return null;
+    }
+
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.db.execute(
+        'UPDATE "User" SET failedLoginAttempts = 0, lockedUntil = NULL WHERE id = ?',
+        [user.id],
+      );
+    }
+
+    const { passwordHash, ...result } = user;
+    return result;
+  }
+
+  async createInvitation(userId: string, studentId?: string) {
+    const user = await this.db.queryOne<User>(
+      'SELECT id FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    if (studentId) {
+      const student = await this.db.queryOne<User>(
+        'SELECT id FROM "User" WHERE id = ?',
+        [studentId],
+      );
+      if (!student) throw new NotFoundException('Student not found');
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = await bcrypt.hash(token, 10);
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 48);
+
+    await this.db.execute(
+      'UPDATE "User" SET invitationToken = ?, invitationExpires = ? WHERE id = ?',
+      [hashedToken, expires.toISOString(), userId],
+    );
+
+    const fullToken = studentId
+      ? `${userId}.${token}.${studentId}`
+      : `${userId}.${token}`;
+
+    return { token: fullToken };
+  }
+
+  async acceptInvitation(token: string, password: string) {
+    const parts = token.split('.');
+    const userId = parts[0];
+    const rawToken = parts[1];
+    const linkedStudentId = parts[2] || null;
+
+    if (!userId || !rawToken)
+      throw new BadRequestException('Invalid token format');
+
+    const user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user || !user.invitationToken || !user.invitationExpires) {
+      throw new BadRequestException('Invalid invitation');
+    }
+
+    const invitationExpires = new Date(user.invitationExpires);
+    if (new Date() > invitationExpires) {
+      throw new BadRequestException('Invitation expired');
+    }
+
+    const isMatch = await bcrypt.compare(rawToken, user.invitationToken);
+    if (!isMatch) throw new BadRequestException('Invalid token');
+
+    const memberships = await this.db.query<
+      SchoolMembership & { schoolName: string; allowSelfReg: boolean }
+    >(
+      `SELECT m.*, s.name as schoolName, s.allowStudentSelfRegistration as allowSelfReg 
+       FROM "SchoolMembership" m 
+       JOIN "School" s ON m.schoolId = s.id 
+       WHERE m.userId = ?`,
+      [user.id],
+    );
+
+    for (const membership of memberships) {
+      if (membership.role === 'STUDENT' && !membership.allowSelfReg) {
+        throw new BadRequestException(
+          `School "${membership.schoolName}" does not allow student self-registration.`,
+        );
+      }
+    }
+
+    validatePasswordStrength(password);
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const updatedUser = await this.db.transaction(async (db) => {
+      await db.execute(
+        'UPDATE "User" SET passwordHash = ?, invitationToken = NULL, invitationExpires = NULL, lastLogin = ? WHERE id = ?',
+        [passwordHash, new Date().toISOString(), user.id],
+      );
+
+      await db.execute(
+        'UPDATE "SchoolMembership" SET status = \'ACTIVE\' WHERE userId = ? AND status = \'PENDING\'',
+        [user.id],
+      );
+
+      if (linkedStudentId) {
+        const existingLink = await db.queryOne(
+          'SELECT id FROM "ParentStudent" WHERE parentId = ? AND studentId = ?',
+          [user.id, linkedStudentId],
+        );
+        if (!existingLink) {
+          await db.execute(
+            'INSERT INTO "ParentStudent" (id, parentId, studentId, createdAt) VALUES (?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              user.id,
+              linkedStudentId,
+              new Date().toISOString(),
+            ],
+          );
         }
+      }
 
-        // Update last login
-        await this.prisma.user.update({
-            where: { id: user.id },
-            data: { lastLogin: new Date() },
-        });
+      return await db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [
+        user.id,
+      ]);
+    });
 
-        return this.login(user); // Returns Global token
+    return this.login(updatedUser!);
+  }
+
+  async acceptInvitationViaSso(
+    token: string,
+    provider: string,
+    providerId: string,
+    ssoEmail: string,
+  ) {
+    const parts = token.split('.');
+    const userId = parts[0];
+    const rawToken = parts[1];
+    const linkedStudentId = parts[2] || null;
+
+    if (!userId || !rawToken)
+      throw new BadRequestException('Invalid token format');
+
+    const user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user || !user.invitationToken || !user.invitationExpires) {
+      throw new BadRequestException('Invalid invitation');
     }
 
-    async impersonate(adminId: string, targetUserId: string) {
-        const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
-        if (!targetUser) throw new NotFoundException('Target user not found');
+    const invitationExpires = new Date(user.invitationExpires);
+    if (new Date() > invitationExpires) {
+      throw new BadRequestException('Invitation expired');
+    }
 
-        if (targetUser.isSystemAdmin) {
-            throw new UnauthorizedException('Cannot impersonate a System Admin.');
+    const isMatch = await bcrypt.compare(rawToken, user.invitationToken);
+    if (!isMatch) throw new BadRequestException('Invalid token');
+
+    const memberships = await this.db.query<
+      SchoolMembership & {
+        schoolName: string;
+        allowSelfReg: boolean;
+        requireSsoMatch: boolean;
+      }
+    >(
+      `SELECT m.*, s.name as schoolName, s.allowStudentSelfRegistration as allowSelfReg, s.requireSsoEmailMatch as requireSsoMatch
+       FROM "SchoolMembership" m 
+       JOIN "School" s ON m.schoolId = s.id 
+       WHERE m.userId = ?`,
+      [user.id],
+    );
+
+    for (const membership of memberships) {
+      if (membership.role === 'STUDENT' && !membership.allowSelfReg) {
+        throw new BadRequestException(
+          `School "${membership.schoolName}" does not allow student self-registration.`,
+        );
+      }
+      if (
+        membership.requireSsoMatch &&
+        ssoEmail.toLowerCase() !== user.email.toLowerCase()
+      ) {
+        throw new BadRequestException(
+          `School "${membership.schoolName}" requires the SSO email to match your account email (${user.email}).`,
+        );
+      }
+    }
+
+    const updatedUser = await this.db.transaction(async (db) => {
+      await db.execute(
+        'UPDATE "User" SET invitationToken = NULL, invitationExpires = NULL, lastLogin = ? WHERE id = ?',
+        [new Date().toISOString(), user.id],
+      );
+
+      await db.execute(
+        'UPDATE "SchoolMembership" SET status = \'ACTIVE\' WHERE userId = ? AND status = \'PENDING\'',
+        [user.id],
+      );
+
+      const existingIdentity = await db.queryOne(
+        'SELECT id FROM "Identity" WHERE provider = ? AND providerId = ?',
+        [provider, providerId],
+      );
+      if (!existingIdentity) {
+        await db.execute(
+          'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            provider,
+            providerId,
+            user.id,
+            new Date().toISOString(),
+          ],
+        );
+      }
+
+      if (linkedStudentId) {
+        const existingLink = await db.queryOne(
+          'SELECT id FROM "ParentStudent" WHERE parentId = ? AND studentId = ?',
+          [user.id, linkedStudentId],
+        );
+        if (!existingLink) {
+          await db.execute(
+            'INSERT INTO "ParentStudent" (id, parentId, studentId, createdAt) VALUES (?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              user.id,
+              linkedStudentId,
+              new Date().toISOString(),
+            ],
+          );
         }
+      }
 
-        await this.prisma.auditLog.create({
-            data: {
-                action: 'IMPERSONATE',
-                actorId: adminId,
-                entity: 'User',
-                entityId: targetUserId,
-                newValues: { reason: 'Support' },
-            },
-        });
+      return await db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [
+        user.id,
+      ]);
+    });
 
-        // Impersonation grants a Global Token for the target user
-        const payload = {
-            sub: targetUser.id,
-            email: targetUser.email,
-            isSystemAdmin: targetUser.isSystemAdmin,
-            type: 'GLOBAL',
-            isImpersonated: true,
-            actorId: adminId,
-        };
+    return this.login(updatedUser!);
+  }
 
-        return {
-            access_token: this.jwtService.sign(payload),
-        };
+  async login(user: Partial<User>, ip?: string, userAgent?: string) {
+    await this.logLoginAttempt(user.email!, true, ip, userAgent, user.id);
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      isSystemAdmin: !!user.isSystemAdmin,
+      type: 'GLOBAL',
+    };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+
+  async refreshGlobalToken(userId: string) {
+    const user = await this.db.queryOne<User>(
+      'SELECT id, email, isSystemAdmin FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      isSystemAdmin: !!user.isSystemAdmin,
+      type: 'GLOBAL',
+    };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+
+  async verifyToken(token: string) {
+    return this.jwtService.verify(token);
+  }
+
+  async getIdentities(userId: string) {
+    return this.db.query<Identity>(
+      'SELECT provider, providerId, createdAt FROM "Identity" WHERE userId = ?',
+      [userId],
+    );
+  }
+
+  async linkIdentity(userId: string, provider: string, providerId: string) {
+    const existing = await this.db.queryOne<Identity>(
+      'SELECT id, userId FROM "Identity" WHERE provider = ? AND providerId = ?',
+      [provider, providerId],
+    );
+
+    if (existing) {
+      if (existing.userId === userId) return;
+      throw new BadRequestException(
+        'This account is already linked to another user.',
+      );
     }
 
-    async updateProfile(userId: string, data: { avatarUrl?: string }) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new NotFoundException('User not found');
+    return this.db.execute(
+      'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
+        provider,
+        providerId,
+        userId,
+        new Date().toISOString(),
+      ],
+    );
+  }
 
-        const updated = await this.prisma.user.update({
-            where: { id: userId },
-            data: { avatarUrl: data.avatarUrl },
-        });
+  async getSchools(userId: string) {
+    return this.db.query(
+      `SELECT m.*, s.name as schoolName, s.address as schoolAddress 
+       FROM "SchoolMembership" m 
+       JOIN "School" s ON m.schoolId = s.id 
+       WHERE m.userId = ? AND m.status = 'ACTIVE'`,
+      [userId],
+    );
+  }
 
-        const { passwordHash, ...result } = updated;
-        return result;
+  async selectSchool(userId: string, schoolId: string, role?: string) {
+    const user = await this.db.queryOne<User>(
+      'SELECT id, email, isSystemAdmin FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user) throw new UnauthorizedException('User not found');
+
+    if (user.isSystemAdmin) {
+      const school = await this.db.queryOne<School>(
+        'SELECT id, name FROM "School" WHERE id = ?',
+        [schoolId],
+      );
+      if (!school) throw new NotFoundException('School not found');
+
+      const membership = await this.db.queryOne<{ role: string }>(
+        'SELECT role FROM "SchoolMembership" WHERE userId = ? AND schoolId = ? AND status = \'ACTIVE\'',
+        [userId, schoolId],
+      );
+
+      const effectiveRole = role || membership?.role || 'ADMIN';
+      const isSysAdminOverride = !membership;
+
+      const payload = {
+        sub: userId,
+        email: user.email,
+        isSystemAdmin: true,
+        isSysAdminOverride,
+        schoolId: school.id,
+        role: effectiveRole,
+        type: 'TENANT',
+      };
+
+      return { access_token: this.jwtService.sign(payload) };
     }
 
-    async getMe(userId: string) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-            include: {
-                studentProfile: {
-                    include: {
-                        classroom: {
-                            include: {
-                                homeroomTeacher: {
-                                    select: { id: true, user: { select: { firstName: true, lastName: true } } },
-                                },
-                            },
-                        },
-                    },
-                },
-                teacherProfile: {
-                    include: {
-                        homeroomClass: { select: { id: true, name: true } },
-                    },
-                },
-            },
-        });
+    const membership = await this.db.queryOne<
+      SchoolMembership & { email: string }
+    >(
+      `SELECT m.*, u.email 
+       FROM "SchoolMembership" m 
+       JOIN "School" s ON m.schoolId = s.id 
+       WHERE m.userId = ? AND m.schoolId = ? AND m.status = 'ACTIVE'`,
+      [userId, schoolId],
+    );
 
-        if (!user) throw new NotFoundException('User not found');
-
-        const { passwordHash, ...result } = user;
-        return result;
+    if (!membership) {
+      throw new UnauthorizedException(
+        'User is not an active member of this school.',
+      );
     }
 
-    // ─── Impersonation authorization helpers ─────────────────────
+    const payload = {
+      sub: userId,
+      email: membership.email,
+      schoolId: membership.schoolId,
+      role: membership.role,
+      type: 'TENANT',
+    };
 
-    /**
-     * Returns school IDs where the user has a management role (ADMIN, DEPUTY, PRINCIPAL).
-     */
-    async getCallerManagementSchools(userId: string): Promise<string[]> {
-        const memberships = await this.prisma.schoolMembership.findMany({
-            where: {
-                userId,
-                role: { in: ['ADMIN', 'DEPUTY', 'PRINCIPAL'] },
-                status: 'ACTIVE',
-            },
-            select: { schoolId: true },
-        });
-        return memberships.map(m => m.schoolId);
+    return { access_token: this.jwtService.sign(payload) };
+  }
+
+  async logLoginAttempt(
+    email: string,
+    success: boolean,
+    ip?: string,
+    userAgent?: string,
+    userId?: string,
+  ) {
+    try {
+      let actorId = userId;
+      if (!actorId) {
+        const user = await this.db.queryOne<User>(
+          'SELECT id FROM "User" WHERE email = ?',
+          [email],
+        );
+        actorId = user?.id;
+      }
+
+      if (!actorId && !success) {
+        console.warn(
+          `Failed login attempt for unknown user: ${email} from ${ip}`,
+        );
+        return;
+      }
+
+      if (actorId) {
+        await this.db.execute(
+          'INSERT INTO "AuditLog" (id, action, actorId, entity, entityId, ipAddress, userAgent, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            success ? 'LOGIN' : 'LOGIN_FAILED',
+            actorId,
+            'Auth',
+            email,
+            ip || null,
+            userAgent || null,
+            JSON.stringify({ success }),
+            new Date().toISOString(),
+          ],
+        );
+      }
+    } catch (e) {
+      console.error('Failed to log login attempt', e);
+    }
+  }
+
+  async validateOAuthLogin(
+    email: string,
+    provider: string,
+    providerId: string,
+  ) {
+    const user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE email = ?',
+      [email],
+    );
+
+    if (!user) {
+      throw new UnauthorizedException(
+        'User not found - you must be invited by the school first.',
+      );
     }
 
-    /**
-     * Returns all school IDs that a user belongs to (any role, any status).
-     */
-    async getUserSchoolIds(userId: string): Promise<string[]> {
-        const memberships = await this.prisma.schoolMembership.findMany({
-            where: { userId },
-            select: { schoolId: true },
-        });
-        return memberships.map(m => m.schoolId);
+    const existingIdentity = await this.db.queryOne(
+      'SELECT id FROM "Identity" WHERE provider = ? AND providerId = ? AND userId = ?',
+      [provider, providerId, user.id],
+    );
+
+    if (!existingIdentity) {
+      await this.db.execute(
+        'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          provider,
+          providerId,
+          user.id,
+          new Date().toISOString(),
+        ],
+      );
     }
 
-    // ─── Password Reset ──────────────────────────────────────────
+    await this.db.execute('UPDATE "User" SET lastLogin = ? WHERE id = ?', [
+      new Date().toISOString(),
+      user.id,
+    ]);
 
-    async requestPasswordReset(email: string) {
-        const user = await this.prisma.user.findUnique({ where: { email } });
+    return this.login(user);
+  }
 
-        // Always return success to prevent email enumeration
-        if (!user) return { message: 'ok' };
+  async impersonate(adminId: string, targetUserId: string) {
+    const targetUser = await this.db.queryOne<User>(
+      'SELECT id, email, isSystemAdmin FROM "User" WHERE id = ?',
+      [targetUserId],
+    );
+    if (!targetUser) throw new NotFoundException('Target user not found');
+    if (targetUser.isSystemAdmin)
+      throw new UnauthorizedException('Cannot impersonate a System Admin.');
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const hashedToken = await bcrypt.hash(token, 10);
-        const expires = new Date();
-        expires.setHours(expires.getHours() + 1); // 1 hour expiry
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, action, actorId, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
+        'IMPERSONATE',
+        adminId,
+        'User',
+        targetUserId,
+        JSON.stringify({ reason: 'Support' }),
+        new Date().toISOString(),
+      ],
+    );
 
-        await this.prisma.user.update({
-            where: { id: user.id },
-            data: {
-                passwordResetToken: hashedToken,
-                passwordResetExpires: expires,
-            },
-        });
+    const payload = {
+      sub: targetUser.id,
+      email: targetUser.email,
+      isSystemAdmin: !!targetUser.isSystemAdmin,
+      type: 'GLOBAL',
+      isImpersonated: true,
+      actorId: adminId,
+    };
 
-        const fullToken = `${user.id}.${token}`;
-        const displayName = `${user.firstName} ${user.lastName}`;
+    return { access_token: this.jwtService.sign(payload) };
+  }
 
-        try {
-            await this.mailService.sendPasswordReset(user.email, displayName, fullToken);
-        } catch (e) {
-            console.error('Failed to send password reset email', e);
-        }
+  async updateProfile(userId: string, data: { avatarUrl?: string }) {
+    const user = await this.db.queryOne<User>(
+      'SELECT id FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user) throw new NotFoundException('User not found');
 
-        return { message: 'ok' };
+    await this.db.execute('UPDATE "User" SET avatarUrl = ? WHERE id = ?', [
+      data.avatarUrl || null,
+      userId,
+    ]);
+    return await this.db.queryOne<User>(
+      'SELECT id, email, firstName, lastName, avatarUrl FROM "User" WHERE id = ?',
+      [userId],
+    );
+  }
+
+  async getMe(userId: string) {
+    const user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    const studentProfile = await this.db.queryOne(
+      `SELECT sp.*, c.name as classroomName, c.grade as classroomGrade 
+       FROM "StudentProfile" sp 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       WHERE sp.userId = ?`,
+      [userId],
+    );
+
+    const teacherProfile = await this.db.queryOne(
+      `SELECT tp.*, c.name as homeroomClassName 
+       FROM "TeacherProfile" tp 
+       LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id 
+       WHERE tp.userId = ?`,
+      [userId],
+    );
+
+    const { passwordHash, ...result } = user;
+    return {
+      ...result,
+      studentProfile,
+      teacherProfile,
+    };
+  }
+
+  async getCallerManagementSchools(userId: string): Promise<string[]> {
+    const memberships = await this.db.query<{ schoolId: string }>(
+      'SELECT schoolId FROM "SchoolMembership" WHERE userId = ? AND role IN (\'ADMIN\', \'DEPUTY\', \'PRINCIPAL\') AND status = \'ACTIVE\'',
+      [userId],
+    );
+    return memberships.map((m: any) => m.schoolId);
+  }
+
+  async getUserSchoolIds(userId: string): Promise<string[]> {
+    const memberships = await this.db.query<{ schoolId: string }>(
+      'SELECT schoolId FROM "SchoolMembership" WHERE userId = ?',
+      [userId],
+    );
+    return memberships.map((m) => m.schoolId);
+  }
+
+  async requestPasswordReset(email: string) {
+    const user = await this.db.queryOne<User>(
+      'SELECT id, email, firstName, lastName FROM "User" WHERE email = ?',
+      [email],
+    );
+    if (!user) return { message: 'ok' };
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = await bcrypt.hash(token, 10);
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1);
+
+    await this.db.execute(
+      'UPDATE "User" SET passwordResetToken = ?, passwordResetExpires = ? WHERE id = ?',
+      [hashedToken, expires.toISOString(), user.id],
+    );
+
+    const fullToken = `${user.id}.${token}`;
+    const displayName = `${user.firstName} ${user.lastName}`;
+
+    try {
+      await this.mailService.sendPasswordReset(
+        user.email,
+        displayName,
+        fullToken,
+      );
+    } catch (e) {
+      console.error('Failed to send password reset email', e);
     }
 
-    async resetPassword(token: string, newPassword: string) {
-        const parts = token.split('.');
-        const userId = parts[0];
-        const rawToken = parts[1];
+    return { message: 'ok' };
+  }
 
-        if (!userId || !rawToken) {
-            throw new BadRequestException('Invalid token format');
-        }
+  async resetPassword(token: string, newPassword: string) {
+    const parts = token.split('.');
+    const userId = parts[0];
+    const rawToken = parts[1];
 
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user || !user.passwordResetToken || !user.passwordResetExpires) {
-            throw new BadRequestException('Invalid or expired reset link');
-        }
+    if (!userId || !rawToken)
+      throw new BadRequestException('Invalid token format');
 
-        if (new Date() > user.passwordResetExpires) {
-            throw new BadRequestException('Reset link has expired');
-        }
-
-        const isMatch = await bcrypt.compare(rawToken, user.passwordResetToken);
-        if (!isMatch) {
-            throw new BadRequestException('Invalid reset link');
-        }
-
-        // Enforce password policy
-        validatePasswordStrength(newPassword);
-
-        const passwordHash = await bcrypt.hash(newPassword, 10);
-
-        await this.prisma.user.update({
-            where: { id: user.id },
-            data: {
-                passwordHash,
-                passwordResetToken: null,
-                passwordResetExpires: null,
-                failedLoginAttempts: 0,
-                lockedUntil: null,
-            },
-        });
-
-        return { message: 'Password has been reset successfully' };
+    const user = await this.db.queryOne<User>(
+      'SELECT id, passwordResetToken, passwordResetExpires FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user || !user.passwordResetToken || !user.passwordResetExpires) {
+      throw new BadRequestException('Invalid or expired reset link');
     }
+
+    const passwordResetExpires = new Date(user.passwordResetExpires);
+    if (new Date() > passwordResetExpires)
+      throw new BadRequestException('Reset link has expired');
+
+    const isMatch = await bcrypt.compare(rawToken, user.passwordResetToken);
+    if (!isMatch) throw new BadRequestException('Invalid reset link');
+
+    validatePasswordStrength(newPassword);
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await this.db.execute(
+      'UPDATE "User" SET passwordHash = ?, passwordResetToken = NULL, passwordResetExpires = NULL, failedLoginAttempts = 0, lockedUntil = NULL WHERE id = ?',
+      [passwordHash, userId],
+    );
+
+    return { message: 'Password has been reset successfully' };
+  }
+
+  getLoginHelperConfig() {
+    return {
+      enabled: process.env.ENABLE_LOGIN_HELPER === 'true',
+      defaultPassword: process.env.DEMO_PASSWORD || 'Demo1234!',
+    };
+  }
+
+  async getLoginHelperUsers(): Promise<LoginHelperUser[]> {
+    if (process.env.ENABLE_LOGIN_HELPER !== 'true') return [];
+
+    const allowedRoles = (
+      process.env.LOGIN_HELPER_ROLES ||
+      'SYSTEM_ADMIN,ADMIN,TEACHER,DEPUTY,PRINCIPAL,STUDENT,PARENT'
+    )
+      .split(',')
+      .map((r) => r.trim().toUpperCase());
+
+    const users = await this.db.query<User>(
+      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND (email LIKE ? OR email LIKE ? OR email LIKE ?) LIMIT 100',
+      ['%@demo.test', '%@skola.test', '%@zak.skola.test'],
+    );
+
+    const helperUsers: LoginHelperUser[] = [];
+
+    for (const user of users) {
+      const memberships = await this.db.query<{
+        schoolName: string;
+        role: string;
+      }>(
+        `SELECT s.name as schoolName, m.role 
+         FROM "SchoolMembership" m 
+         JOIN "School" s ON m.schoolId = s.id 
+         WHERE m.userId = ?`,
+        [user.id],
+      );
+
+      const filteredMemberships = memberships.filter((m) =>
+        allowedRoles.includes(m.role.toUpperCase()),
+      );
+
+      if (user.isSystemAdmin && allowedRoles.includes('SYSTEM_ADMIN')) {
+        filteredMemberships.unshift({
+          schoolName: 'System',
+          role: 'SYSTEM_ADMIN',
+        });
+      }
+
+      if (filteredMemberships.length > 0) {
+        helperUsers.push({
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          memberships: filteredMemberships,
+        });
+      }
+    }
+
+    return helperUsers;
+  }
 }

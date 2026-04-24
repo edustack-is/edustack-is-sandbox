@@ -2,24 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { TimetableGrid, ScheduleEventData, TimeSlot } from '@/components/schedule/TimetableGrid';
-import {
-    getTimeSlots,
-    getClassroomSchedule,
-    getTeacherSchedule,
-    getStudentSchedule,
-    api,
-    getMe,
-} from '@/api';
+import { getTimeSlots, getClassroomSchedule, getTeacherSchedule, getStudentSchedule, api, getMe } from '@/api';
 import { CalendarDays, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Calendar, GraduationCap, UserCheck, Users } from 'lucide-react';
 
@@ -33,8 +20,18 @@ interface TeacherOption {
     user: { firstName: string; lastName: string };
 }
 
-interface AcademicYearOption { id: string; name: string; isCurrent: boolean; }
-interface SemesterOption { id: string; name: string; number: number; startDate: string; endDate: string; }
+interface AcademicYearOption {
+    id: string;
+    name: string;
+    isCurrent: boolean;
+}
+interface SemesterOption {
+    id: string;
+    name: string;
+    number: number;
+    startDate: string;
+    endDate: string;
+}
 
 type ViewMode = 'my' | 'classroom' | 'teacher';
 
@@ -88,7 +85,10 @@ export const Schedule: React.FC = () => {
                 const tData = Array.isArray(tRes.data) ? tRes.data : [];
                 teacherList = tData.map((t: any) => ({
                     id: t.id,
-                    user: { firstName: t.user?.firstName || t.firstName || '', lastName: t.user?.lastName || t.lastName || '' },
+                    user: {
+                        firstName: t.user?.firstName || t.firstName || '',
+                        lastName: t.user?.lastName || t.lastName || '',
+                    },
                 }));
             } catch {
                 try {
@@ -100,7 +100,9 @@ export const Schedule: React.FC = () => {
                             id: t.teacherProfileId || t.id,
                             user: { firstName: t.firstName, lastName: t.lastName },
                         }));
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
             }
             if (!cancelled) setTeachers(teacherList);
 
@@ -111,9 +113,11 @@ export const Schedule: React.FC = () => {
                 if (!cancelled) {
                     setAcademicYears(years);
                     const current = years.find((y: any) => y.isCurrent);
-                    if (current) setSelectedAcademicYearId(prev => prev || current.id);
+                    if (current) setSelectedAcademicYearId((prev) => prev || current.id);
                 }
-            } catch { /* ignore */ }
+            } catch {
+                /* ignore */
+            }
 
             // Student homeroom defaults
             if (role === 'STUDENT' && userId) {
@@ -121,27 +125,31 @@ export const Schedule: React.FC = () => {
                     const me: any = await getMe();
                     if (!cancelled && me?.studentProfile?.classroomId) {
                         setMyClassroomId(me.studentProfile.classroomId);
-                        setSelectedClassroomId(prev => prev || me.studentProfile.classroomId);
+                        setSelectedClassroomId((prev) => prev || me.studentProfile.classroomId);
                     }
                     if (!cancelled && me?.studentProfile?.classroom?.homeroomTeacher?.id) {
                         const htId = me.studentProfile.classroom.homeroomTeacher.id;
                         setMyHomeroomTeacherId(htId);
-                        setSelectedTeacherId(prev => prev || htId);
+                        setSelectedTeacherId((prev) => prev || htId);
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
             }
 
             // Admin/Principal/Deputy: default to first classroom
             if (role !== 'TEACHER' && role !== 'STUDENT' && role !== 'PARENT' && clsList.length > 0) {
                 if (!cancelled) {
-                    setSelectedClassroomId(prev => prev || clsList[0].id);
-                    setViewMode(prev => prev === 'my' ? 'classroom' : prev);
+                    setSelectedClassroomId((prev) => prev || clsList[0].id);
+                    setViewMode((prev) => (prev === 'my' ? 'classroom' : prev));
                 }
             }
         };
 
         init();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [schoolId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load semesters when academic year changes
@@ -151,7 +159,7 @@ export const Schedule: React.FC = () => {
             return;
         }
         api.get('/api/deputy/semesters', { params: { academicYearId: selectedAcademicYearId } })
-            .then(res => {
+            .then((res) => {
                 const sems = Array.isArray(res.data) ? res.data : [];
                 setSemesters(sems);
                 const now = new Date();
@@ -169,7 +177,7 @@ export const Schedule: React.FC = () => {
     useEffect(() => {
         if (!schoolId) return;
         getTimeSlots()
-            .then(data => setSlots(Array.isArray(data) ? data : []))
+            .then((data) => setSlots(Array.isArray(data) ? data : []))
             .catch(() => setSlots([]));
     }, [schoolId]);
 
@@ -226,7 +234,9 @@ export const Schedule: React.FC = () => {
         };
 
         load();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, selectedAcademicYearId]);
 
     // Get current view title
@@ -235,14 +245,12 @@ export const Schedule: React.FC = () => {
             case 'my':
                 return role === 'TEACHER' ? 'Můj rozvrh' : role === 'STUDENT' ? 'Můj rozvrh' : 'Rozvrh';
             case 'classroom': {
-                const cls = classrooms.find(c => c.id === selectedClassroomId);
+                const cls = classrooms.find((c) => c.id === selectedClassroomId);
                 return cls ? `Rozvrh třídy ${cls.name}` : 'Rozvrh třídy';
             }
             case 'teacher': {
-                const teacher = teachers.find(t => t.id === selectedTeacherId);
-                return teacher
-                    ? `Rozvrh — ${teacher.user.firstName} ${teacher.user.lastName}`
-                    : 'Rozvrh učitele';
+                const teacher = teachers.find((t) => t.id === selectedTeacherId);
+                return teacher ? `Rozvrh — ${teacher.user.firstName} ${teacher.user.lastName}` : 'Rozvrh učitele';
             }
         }
     };
@@ -256,8 +264,8 @@ export const Schedule: React.FC = () => {
         if (!printWindow) return;
 
         const title = getViewTitle();
-        const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name || '';
-        const semesterName = semesters.find(s => s.id === selectedSemesterId)?.name || '';
+        const yearName = academicYears.find((y) => y.id === selectedAcademicYearId)?.name || '';
+        const semesterName = semesters.find((s) => s.id === selectedSemesterId)?.name || '';
 
         printWindow.document.write(`
             <!DOCTYPE html>
@@ -301,18 +309,20 @@ export const Schedule: React.FC = () => {
             { num: 5, label: 'Pátek' },
         ];
 
-        const maxLesson = events.length > 0 ? Math.max(...events.map(e => e.lessonNumber)) : 8;
+        const maxLesson = events.length > 0 ? Math.max(...events.map((e) => e.lessonNumber)) : 8;
         const usedSlots = slots.length > 0 ? slots : [];
 
         let html = '<table><thead><tr><th>Hodina</th>';
-        days.forEach(d => { html += `<th>${d.label}</th>`; });
+        days.forEach((d) => {
+            html += `<th>${d.label}</th>`;
+        });
         html += '</tr></thead><tbody>';
 
         for (let l = 1; l <= maxLesson; l++) {
-            const slot = usedSlots.find(s => s.lessonNumber === l);
+            const slot = usedSlots.find((s) => s.lessonNumber === l);
             html += `<tr><td class="slot">${l}.<br/>${slot ? `${slot.startTime}` : ''}</td>`;
-            days.forEach(d => {
-                const ev = events.find(e => e.dayOfWeek === d.num && e.lessonNumber === l);
+            days.forEach((d) => {
+                const ev = events.find((e) => e.dayOfWeek === d.num && e.lessonNumber === l);
                 if (ev) {
                     html += `<td>
                         <div class="subject-code">${ev.subject.template.code}</div>
@@ -350,20 +360,25 @@ export const Schedule: React.FC = () => {
                 {/* Year & Semester selectors + Print */}
                 <div className="flex items-center gap-2 flex-wrap">
                     {academicYears.length > 0 && (
-                        <Select value={selectedAcademicYearId} onValueChange={(val) => {
-                            setSelectedAcademicYearId(val);
-                            setSelectedSemesterId('');
-                        }}>
+                        <Select
+                            value={selectedAcademicYearId}
+                            onValueChange={(val) => {
+                                setSelectedAcademicYearId(val);
+                                setSelectedSemesterId('');
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
                                 <SelectValue placeholder="Rok..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {academicYears.map(y => (
-                                    <SelectItem key={y.id} value={y.id}>
-                                        {y.name} {y.isCurrent ? '(aktuální)' : ''}
-                                    </SelectItem>
-                                ))}
+                                {academicYears
+                                    .filter((y) => y.id)
+                                    .map((y) => (
+                                        <SelectItem key={y.id} value={y.id}>
+                                            {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                        </SelectItem>
+                                    ))}
                             </SelectContent>
                         </Select>
                     )}
@@ -373,10 +388,14 @@ export const Schedule: React.FC = () => {
                                 <SelectValue placeholder="Pololetí..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Vše</SelectItem>
-                                {semesters.map(s => (
-                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                ))}
+                                <SelectItem value="all">Vše</SelectItem>
+                                {semesters
+                                    .filter((s) => s.id)
+                                    .map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
                             </SelectContent>
                         </Select>
                     )}
@@ -422,39 +441,37 @@ export const Schedule: React.FC = () => {
 
                 {/* Classroom filter */}
                 <TabsContent value="classroom" className="mt-3">
-                    <Select
-                        value={selectedClassroomId}
-                        onValueChange={(v) => setSelectedClassroomId(v)}
-                    >
+                    <Select value={selectedClassroomId} onValueChange={(v) => setSelectedClassroomId(v)}>
                         <SelectTrigger className="w-full max-w-xs">
                             <SelectValue placeholder="Vyberte třídu..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {classrooms.map(c => (
-                                <SelectItem key={c.id} value={c.id}>
-                                    {c.name} {c.id === myClassroomId ? '(moje třída)' : ''}
-                                </SelectItem>
-                            ))}
+                            {classrooms
+                                .filter((c) => c.id)
+                                .map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name} {c.id === myClassroomId ? '(moje třída)' : ''}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
                 </TabsContent>
 
                 {/* Teacher filter */}
                 <TabsContent value="teacher" className="mt-3">
-                    <Select
-                        value={selectedTeacherId}
-                        onValueChange={(v) => setSelectedTeacherId(v)}
-                    >
+                    <Select value={selectedTeacherId} onValueChange={(v) => setSelectedTeacherId(v)}>
                         <SelectTrigger className="w-full max-w-xs">
                             <SelectValue placeholder="Vyberte učitele..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {teachers.map(t => (
-                                <SelectItem key={t.id} value={t.id}>
-                                    {t.user.lastName} {t.user.firstName}
-                                    {t.id === myHomeroomTeacherId ? ' (třídní učitel)' : ''}
-                                </SelectItem>
-                            ))}
+                            {teachers
+                                .filter((t) => t.id)
+                                .map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>
+                                        {t.user.lastName} {t.user.firstName}
+                                        {t.id === myHomeroomTeacherId ? ' (třídní učitel)' : ''}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
                 </TabsContent>
@@ -477,14 +494,11 @@ export const Schedule: React.FC = () => {
                     ) : events.length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground">
                             <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                            <p className="text-lg font-medium">
-                                {t('schedule.empty', 'Žádné hodiny v rozvrhu')}
-                            </p>
+                            <p className="text-lg font-medium">{t('schedule.empty', 'Žádné hodiny v rozvrhu')}</p>
                             <p className="text-sm mt-1">
-                                {(role === 'PRINCIPAL' || role === 'DEPUTY' || role === 'ADMIN')
+                                {role === 'PRINCIPAL' || role === 'DEPUTY' || role === 'ADMIN'
                                     ? t('schedule.empty_admin', 'Rozvrh můžete naplánovat v sekci Plánování rozvrhu.')
-                                    : t('schedule.empty_user', 'Rozvrh zatím nebyl vytvořen.')
-                                }
+                                    : t('schedule.empty_user', 'Rozvrh zatím nebyl vytvořen.')}
                             </p>
                         </div>
                     ) : (

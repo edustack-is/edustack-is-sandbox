@@ -2,31 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { TimetableGrid, ScheduleEventData, TimeSlot } from '@/components/schedule/TimetableGrid';
-import {
-    getTimeSlots,
-    upsertTimeSlots,
-    getScheduleEvents,
-    createScheduleEvent,
-    deleteScheduleEvent,
-    api,
-} from '@/api';
+import { getTimeSlots, upsertTimeSlots, getScheduleEvents, createScheduleEvent, deleteScheduleEvent, api } from '@/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -34,17 +15,39 @@ import { Calendar, Save, Trash2, Plus, Clock, Settings2 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────
 
-interface ClassroomOption { id: string; name: string; }
-interface TeacherOption { id: string; userId: string; user: { firstName: string; lastName: string }; }
+interface ClassroomOption {
+    id: string;
+    name: string;
+}
+interface TeacherOption {
+    id: string;
+    userId: string;
+    user: { firstName: string; lastName: string };
+}
 interface SubjectInstanceOption {
     id: string;
     hoursPerWeek: number;
     template: { id: string; name: string; code: string };
     gradeLevelId: string;
 }
-interface RoomOption { id: string; name: string; capacity: number; isComputerLab: boolean; }
-interface AcademicYearOption { id: string; name: string; isCurrent: boolean; }
-interface SemesterOption { id: string; name: string; number: number; startDate: string; endDate: string; }
+interface RoomOption {
+    id: string;
+    name: string;
+    capacity: number;
+    isComputerLab: boolean;
+}
+interface AcademicYearOption {
+    id: string;
+    name: string;
+    isCurrent: boolean;
+}
+interface SemesterOption {
+    id: string;
+    name: string;
+    number: number;
+    startDate: string;
+    endDate: string;
+}
 
 export const SchedulePlanner: React.FC = () => {
     const { t } = useTranslation();
@@ -89,12 +92,12 @@ export const SchedulePlanner: React.FC = () => {
 
         // Load time slots
         getTimeSlots()
-            .then(data => setSlots(Array.isArray(data) ? data : []))
+            .then((data) => setSlots(Array.isArray(data) ? data : []))
             .catch(() => setSlots([]));
 
         // Load classrooms
         api.get('/api/deputy/classrooms')
-            .then(res => {
+            .then((res) => {
                 const data = Array.isArray(res.data) ? res.data : [];
                 setClassrooms(data);
                 if (data.length > 0 && !selectedClassroomId) {
@@ -105,25 +108,29 @@ export const SchedulePlanner: React.FC = () => {
 
         // Load teachers
         api.get('/api/deputy/dashboard')
-            .then(res => {
+            .then((res) => {
                 if (res.data?.teachers) {
-                    setTeachers(res.data.teachers.filter((u: any) => u.teacherProfile).map((u: any) => ({
-                        id: u.teacherProfile.id,
-                        userId: u.id,
-                        user: { firstName: u.firstName, lastName: u.lastName },
-                    })));
+                    setTeachers(
+                        res.data.teachers
+                            .filter((u: any) => u.teacherProfile)
+                            .map((u: any) => ({
+                                id: u.teacherProfile.id,
+                                userId: u.id,
+                                user: { firstName: u.firstName, lastName: u.lastName },
+                            })),
+                    );
                 }
             })
             .catch(() => setTeachers([]));
 
         // Load rooms
         api.get('/api/deputy/rooms')
-            .then(res => setRooms(Array.isArray(res.data) ? res.data : []))
+            .then((res) => setRooms(Array.isArray(res.data) ? res.data : []))
             .catch(() => setRooms([]));
 
         // Load academic years
         api.get('/api/deputy/academic-years')
-            .then(res => {
+            .then((res) => {
                 const years = Array.isArray(res.data) ? res.data : [];
                 setAcademicYears(years);
                 const current = years.find((y: any) => y.isCurrent);
@@ -141,7 +148,7 @@ export const SchedulePlanner: React.FC = () => {
             return;
         }
         api.get('/api/deputy/semesters', { params: { academicYearId: selectedAcademicYearId } })
-            .then(res => {
+            .then((res) => {
                 const sems = Array.isArray(res.data) ? res.data : [];
                 setSemesters(sems);
                 // Auto-select current semester based on today's date
@@ -160,7 +167,7 @@ export const SchedulePlanner: React.FC = () => {
     useEffect(() => {
         if (!schoolId || !selectedAcademicYearId) return;
         api.get('/api/deputy/subject-instances', { params: { academicYearId: selectedAcademicYearId } })
-            .then(res => setSubjects(Array.isArray(res.data) ? res.data : []))
+            .then((res) => setSubjects(Array.isArray(res.data) ? res.data : []))
             .catch(() => {
                 // Fallback: try loading all subject instances
                 api.get('/api/schedule/events', { params: { academicYearId: selectedAcademicYearId } })
@@ -219,7 +226,7 @@ export const SchedulePlanner: React.FC = () => {
                 subjectInstanceId: addSubjectId,
                 classroomId: selectedClassroomId,
                 teacherId: addTeacherId,
-                roomId: addRoomId || undefined,
+                roomId: addRoomId && addRoomId !== 'none' ? addRoomId : undefined,
                 academicYearId: selectedAcademicYearId,
             });
             toast.success('Hodina přidána do rozvrhu.');
@@ -257,7 +264,7 @@ export const SchedulePlanner: React.FC = () => {
     // ─── Remaining hours calculation ────────────────────────
 
     const getUsedHours = (subjectId: string) => {
-        return events.filter(e => e.subject.id === subjectId).length;
+        return events.filter((e) => e.subject.id === subjectId).length;
     };
 
     // ─── Render ─────────────────────────────────────────────
@@ -285,13 +292,14 @@ export const SchedulePlanner: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                            setEditSlots(slots.length > 0
-                                ? [...slots]
-                                : Array.from({ length: 8 }, (_, i) => ({
-                                    lessonNumber: i + 1,
-                                    startTime: `${String(7 + i).padStart(2, '0')}:55`,
-                                    endTime: `${String(8 + i).padStart(2, '0')}:40`,
-                                }))
+                            setEditSlots(
+                                slots.length > 0
+                                    ? [...slots]
+                                    : Array.from({ length: 8 }, (_, i) => ({
+                                          lessonNumber: i + 1,
+                                          startTime: `${String(7 + i).padStart(2, '0')}:55`,
+                                          endTime: `${String(8 + i).padStart(2, '0')}:40`,
+                                      })),
                             );
                             setSlotsDialog(true);
                         }}
@@ -311,28 +319,37 @@ export const SchedulePlanner: React.FC = () => {
                             <SelectValue placeholder="Třída..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {classrooms.map(c => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                            ))}
+                            {classrooms
+                                .filter((c) => c.id)
+                                .map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <Label className="text-sm font-medium whitespace-nowrap">Rok:</Label>
-                    <Select value={selectedAcademicYearId} onValueChange={(val) => {
-                        setSelectedAcademicYearId(val);
-                        setSelectedSemesterId('');
-                    }}>
+                    <Select
+                        value={selectedAcademicYearId}
+                        onValueChange={(val) => {
+                            setSelectedAcademicYearId(val);
+                            setSelectedSemesterId('');
+                        }}
+                    >
                         <SelectTrigger className="w-40">
                             <SelectValue placeholder="Rok..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {academicYears.map(y => (
-                                <SelectItem key={y.id} value={y.id}>
-                                    {y.name} {y.isCurrent ? '(aktuální)' : ''}
-                                </SelectItem>
-                            ))}
+                            {academicYears
+                                .filter((y) => y.id)
+                                .map((y) => (
+                                    <SelectItem key={y.id} value={y.id}>
+                                        {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -345,10 +362,14 @@ export const SchedulePlanner: React.FC = () => {
                                 <SelectValue placeholder="Pololetí..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Vše</SelectItem>
-                                {semesters.map(s => (
-                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                ))}
+                                <SelectItem value="all">Vše</SelectItem>
+                                {semesters
+                                    .filter((s) => s.id)
+                                    .map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -360,11 +381,9 @@ export const SchedulePlanner: React.FC = () => {
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
-                            {classrooms.find(c => c.id === selectedClassroomId)?.name || 'Vyberte třídu'}
+                            {classrooms.find((c) => c.id === selectedClassroomId)?.name || 'Vyberte třídu'}
                         </CardTitle>
-                        <div className="text-sm text-muted-foreground">
-                            Kliknutím na prázdné pole přidáte hodinu
-                        </div>
+                        <div className="text-sm text-muted-foreground">Kliknutím na prázdné pole přidáte hodinu</div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-2 sm:p-4">
@@ -393,7 +412,7 @@ export const SchedulePlanner: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
-                            {subjects.map(sub => {
+                            {subjects.map((sub) => {
                                 const used = getUsedHours(sub.id);
                                 const remaining = sub.hoursPerWeek - used;
                                 return (
@@ -402,7 +421,12 @@ export const SchedulePlanner: React.FC = () => {
                                         variant={remaining <= 0 ? 'secondary' : 'default'}
                                         className={`text-xs ${remaining < 0 ? 'bg-destructive text-destructive-foreground' : remaining === 0 ? 'opacity-50' : ''}`}
                                     >
-                                        {sub.template.code}: {remaining > 0 ? `${remaining}h zbývá` : remaining === 0 ? '✓ hotovo' : `${Math.abs(remaining)}h navíc`}
+                                        {sub.template.code}:{' '}
+                                        {remaining > 0
+                                            ? `${remaining}h zbývá`
+                                            : remaining === 0
+                                              ? '✓ hotovo'
+                                              : `${Math.abs(remaining)}h navíc`}
                                     </Badge>
                                 );
                             })}
@@ -416,7 +440,8 @@ export const SchedulePlanner: React.FC = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            Přidat hodinu — {addDialog && DAYS_MAP[addDialog.dayOfWeek]}, {addDialog?.lessonNumber}. hodina
+                            Přidat hodinu — {addDialog && DAYS_MAP[addDialog.dayOfWeek]}, {addDialog?.lessonNumber}.
+                            hodina
                         </DialogTitle>
                     </DialogHeader>
 
@@ -428,11 +453,14 @@ export const SchedulePlanner: React.FC = () => {
                                     <SelectValue placeholder="Vyberte předmět..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {subjects.map(s => (
-                                        <SelectItem key={s.id} value={s.id}>
-                                            {s.template.code} — {s.template.name} ({s.hoursPerWeek - getUsedHours(s.id)}h zbývá)
-                                        </SelectItem>
-                                    ))}
+                                    {subjects
+                                        .filter((s) => s.id)
+                                        .map((s) => (
+                                            <SelectItem key={s.id} value={s.id}>
+                                                {s.template.code} — {s.template.name} (
+                                                {s.hoursPerWeek - getUsedHours(s.id)}h zbývá)
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -444,11 +472,13 @@ export const SchedulePlanner: React.FC = () => {
                                     <SelectValue placeholder="Vyberte učitele..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {teachers.map(t => (
-                                        <SelectItem key={t.id} value={t.id}>
-                                            {t.user.lastName} {t.user.firstName}
-                                        </SelectItem>
-                                    ))}
+                                    {teachers
+                                        .filter((t) => t.id)
+                                        .map((t) => (
+                                            <SelectItem key={t.id} value={t.id}>
+                                                {t.user.lastName} {t.user.firstName}
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -460,12 +490,14 @@ export const SchedulePlanner: React.FC = () => {
                                     <SelectValue placeholder="Vyberte učebnu..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">— Žádná —</SelectItem>
-                                    {rooms.map(r => (
-                                        <SelectItem key={r.id} value={r.id}>
-                                            {r.name} ({r.capacity} míst) {r.isComputerLab ? '💻' : ''}
-                                        </SelectItem>
-                                    ))}
+                                    <SelectItem value="none">— Žádná —</SelectItem>
+                                    {rooms
+                                        .filter((r) => r.id)
+                                        .map((r) => (
+                                            <SelectItem key={r.id} value={r.id}>
+                                                {r.name} ({r.capacity} míst) {r.isComputerLab ? '💻' : ''}
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -487,9 +519,7 @@ export const SchedulePlanner: React.FC = () => {
             <Dialog open={!!detailDialog} onOpenChange={(open) => !open && setDetailDialog(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>
-                            {detailDialog?.subject.template.name}
-                        </DialogTitle>
+                        <DialogTitle>{detailDialog?.subject.template.name}</DialogTitle>
                     </DialogHeader>
 
                     {detailDialog && (
@@ -500,21 +530,20 @@ export const SchedulePlanner: React.FC = () => {
                                     {DAYS_MAP[detailDialog.dayOfWeek]}
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Hodina:</span>{' '}
-                                    {detailDialog.lessonNumber}. ({detailDialog.startTime}–{detailDialog.endTime})
+                                    <span className="text-muted-foreground">Hodina:</span> {detailDialog.lessonNumber}.
+                                    ({detailDialog.startTime}–{detailDialog.endTime})
                                 </div>
                                 <div>
                                     <span className="text-muted-foreground">Učitel:</span>{' '}
-                                    {detailDialog.teacherProfile.user.firstName} {detailDialog.teacherProfile.user.lastName}
+                                    {detailDialog.teacherProfile.user.firstName}{' '}
+                                    {detailDialog.teacherProfile.user.lastName}
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Třída:</span>{' '}
-                                    {detailDialog.classroom.name}
+                                    <span className="text-muted-foreground">Třída:</span> {detailDialog.classroom.name}
                                 </div>
                                 {detailDialog.room && (
                                     <div>
-                                        <span className="text-muted-foreground">Učebna:</span>{' '}
-                                        {detailDialog.room.name}
+                                        <span className="text-muted-foreground">Učebna:</span> {detailDialog.room.name}
                                     </div>
                                 )}
                             </div>
@@ -547,13 +576,11 @@ export const SchedulePlanner: React.FC = () => {
                     <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                         {editSlots.map((slot, i) => (
                             <div key={slot.lessonNumber} className="flex items-center gap-2">
-                                <span className="w-8 text-sm font-medium text-center">
-                                    {slot.lessonNumber}.
-                                </span>
+                                <span className="w-8 text-sm font-medium text-center">{slot.lessonNumber}.</span>
                                 <Input
                                     type="time"
                                     value={slot.startTime}
-                                    onChange={e => {
+                                    onChange={(e) => {
                                         const updated = [...editSlots];
                                         updated[i] = { ...updated[i], startTime: e.target.value };
                                         setEditSlots(updated);
@@ -564,7 +591,7 @@ export const SchedulePlanner: React.FC = () => {
                                 <Input
                                     type="time"
                                     value={slot.endTime}
-                                    onChange={e => {
+                                    onChange={(e) => {
                                         const updated = [...editSlots];
                                         updated[i] = { ...updated[i], endTime: e.target.value };
                                         setEditSlots(updated);

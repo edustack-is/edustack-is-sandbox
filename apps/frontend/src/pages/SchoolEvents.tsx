@@ -6,19 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import {
-    CalendarDays, Plus, Pencil, Trash2, Loader2,
-} from 'lucide-react';
-import {
-    getSchoolEvents, createSchoolEvent, updateSchoolEvent, deleteSchoolEvent,
-} from '@/api/deputy';
+import { CalendarDays, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { getSchoolEvents, createSchoolEvent, updateSchoolEvent, deleteSchoolEvent } from '@/api/deputy';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
@@ -62,7 +54,12 @@ interface EventForm {
 }
 
 const EMPTY_FORM: EventForm = {
-    title: '', description: '', date: '', endDate: '', type: 'OTHER', allDay: true,
+    title: '',
+    description: '',
+    date: '',
+    endDate: '',
+    type: 'OTHER',
+    allDay: true,
 };
 
 export default function SchoolEvents() {
@@ -81,7 +78,9 @@ export default function SchoolEvents() {
             .finally(() => setLoading(false));
     }, [t]);
 
-    useEffect(() => { fetchEvents(); }, [fetchEvents]);
+    useEffect(() => {
+        fetchEvents();
+    }, [fetchEvents]);
 
     const openCreate = () => {
         setEditing(null);
@@ -149,7 +148,9 @@ export default function SchoolEvents() {
                         <CalendarDays className="h-6 w-6" />
                         {t('events.title', 'Události školního roku')}
                     </h1>
-                    <p className="text-sm text-muted-foreground">{t('events.subtitle', 'Správa událostí, prázdnin a schůzek')}</p>
+                    <p className="text-sm text-muted-foreground">
+                        {t('events.subtitle', 'Správa událostí, prázdnin a schůzek')}
+                    </p>
                 </div>
                 <Button onClick={openCreate}>
                     <Plus className="h-4 w-4 mr-2" /> {t('events.add', 'Přidat událost')}
@@ -162,7 +163,9 @@ export default function SchoolEvents() {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
                     ) : events.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -180,25 +183,37 @@ export default function SchoolEvents() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {events.map(evt => (
+                                {events.map((evt) => (
                                     <TableRow key={evt.id}>
                                         <TableCell className="text-sm whitespace-nowrap">
                                             {new Date(evt.date).toLocaleDateString(i18n.language)}
-                                            {evt.endDate && <> – {new Date(evt.endDate).toLocaleDateString(i18n.language)}</>}
+                                            {evt.endDate && (
+                                                <> – {new Date(evt.endDate).toLocaleDateString(i18n.language)}</>
+                                            )}
                                         </TableCell>
                                         <TableCell className="font-medium">{evt.title}</TableCell>
                                         <TableCell>
-                                            <Badge className={EVENT_TYPE_COLORS[evt.type] || EVENT_TYPE_COLORS.OTHER} variant="outline">
+                                            <Badge
+                                                className={EVENT_TYPE_COLORS[evt.type] || EVENT_TYPE_COLORS.OTHER}
+                                                variant="outline"
+                                            >
                                                 {EVENT_TYPE_LABELS[evt.type] || evt.type}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{evt.description}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                                            {evt.description}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
                                                 <Button variant="ghost" size="sm" onClick={() => openEdit(evt)}>
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(evt.id)}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-destructive hover:text-destructive"
+                                                    onClick={() => handleDelete(evt.id)}
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -215,45 +230,71 @@ export default function SchoolEvents() {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{editing ? t('events.edit', 'Upravit událost') : t('events.add', 'Přidat událost')}</DialogTitle>
+                        <DialogTitle>
+                            {editing ? t('events.edit', 'Upravit událost') : t('events.add', 'Přidat událost')}
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
                             <Label>{t('events.field_title', 'Název')}</Label>
-                            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+                            <Input
+                                value={form.title}
+                                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                            />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <Label>{t('events.field_date', 'Datum od')}</Label>
-                                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                                <Input
+                                    type="date"
+                                    value={form.date}
+                                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label>{t('events.field_end_date', 'Datum do')}</Label>
-                                <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
+                                <Input
+                                    type="date"
+                                    value={form.endDate}
+                                    onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                                />
                             </div>
                         </div>
                         <div className="space-y-1">
                             <Label>{t('events.field_type', 'Typ')}</Label>
-                            <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                            <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v }))}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {EVENT_TYPES.map(t => (
-                                        <SelectItem key={t} value={t}>{EVENT_TYPE_LABELS[t]}</SelectItem>
+                                    {EVENT_TYPES.map((t) => (
+                                        <SelectItem key={t} value={t}>
+                                            {EVENT_TYPE_LABELS[t]}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Switch checked={form.allDay} onCheckedChange={v => setForm(f => ({ ...f, allDay: v }))} />
+                            <Switch
+                                checked={form.allDay}
+                                onCheckedChange={(v) => setForm((f) => ({ ...f, allDay: v }))}
+                            />
                             <Label>{t('events.field_all_day', 'Celodenní')}</Label>
                         </div>
                         <div className="space-y-1">
                             <Label>{t('events.field_description', 'Popis')}</Label>
-                            <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} />
+                            <Textarea
+                                value={form.description}
+                                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                                rows={3}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel', 'Zrušit')}</Button>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                            {t('common.cancel', 'Zrušit')}
+                        </Button>
                         <Button onClick={handleSave} disabled={saving || !form.title || !form.date}>
                             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                             {editing ? t('common.save', 'Uložit') : t('events.add', 'Přidat událost')}

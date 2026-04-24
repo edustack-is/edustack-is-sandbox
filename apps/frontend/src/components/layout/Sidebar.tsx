@@ -1,6 +1,30 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, Calendar, CalendarDays, Users, LogOut, Building2, Users2, ArrowLeft, Settings, DoorOpen, BookOpen, User, Globe, PanelLeftClose, PanelLeftOpen, ClipboardList, FileText, MessageSquare, Target, Presentation, Clock, GitCompare } from 'lucide-react';
+import {
+    LayoutDashboard,
+    GraduationCap,
+    Calendar,
+    CalendarDays,
+    Users,
+    LogOut,
+    Building2,
+    Users2,
+    ArrowLeft,
+    Settings,
+    DoorOpen,
+    BookOpen,
+    User,
+    Globe,
+    PanelLeftClose,
+    PanelLeftOpen,
+    ClipboardList,
+    FileText,
+    MessageSquare,
+    Target,
+    Presentation,
+    Clock,
+    GitCompare,
+} from 'lucide-react';
 import { ThemeToggle } from '../ThemeToggle';
 import clsx from 'clsx';
 import { getMe } from '@/api';
@@ -9,18 +33,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // ─── Emoji Avatar Helpers ─────────────────────────────
 const EMOJI_AVATARS: Record<string, { emoji: string; bg: string }> = {
@@ -60,13 +74,15 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ to, icon: Icon, label, 
     const link = (
         <NavLink
             to={to}
-            className={({ isActive }) => clsx(
-                'nav-item flex items-center rounded-md transition-colors duration-200',
-                'hover:bg-accent hover:text-accent-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                collapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-4 py-2.5',
-                { 'bg-accent text-accent-foreground font-medium': isActive }
-            )}
+            className={({ isActive }) =>
+                clsx(
+                    'nav-item flex items-center rounded-md transition-colors duration-200',
+                    'hover:bg-accent hover:text-accent-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                    collapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-4 py-2.5',
+                    { 'bg-accent text-accent-foreground font-medium': isActive },
+                )
+            }
         >
             <Icon size={collapsed ? 21 : 18} className="shrink-0" />
             {!collapsed && <span>{label}</span>}
@@ -97,7 +113,7 @@ export const Sidebar: React.FC = () => {
     });
 
     const toggleCollapsed = () => {
-        setCollapsed(prev => {
+        setCollapsed((prev) => {
             const next = !prev;
             localStorage.setItem('sidebar-collapsed', String(next));
             return next;
@@ -120,7 +136,11 @@ export const Sidebar: React.FC = () => {
         { path: '/school/events', label: t('sidebar.events', 'Události'), icon: CalendarDays },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
         { path: '/school/thematic-plans', label: t('sidebar.thematic_plans', 'Tematické plány'), icon: ClipboardList },
-        { path: '/school/lesson-preparations', label: t('sidebar.lesson_preparations', 'Přípravy na hodiny'), icon: FileText },
+        {
+            path: '/school/lesson-preparations',
+            label: t('sidebar.lesson_preparations', 'Přípravy na hodiny'),
+            icon: FileText,
+        },
         { path: '/school/teaching-materials', label: t('sidebar.teaching_materials', 'Materiály'), icon: Presentation },
         { path: '/school/competency-mapping', label: t('sidebar.competency_mapping', 'Výstupy RVP'), icon: Target },
         { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
@@ -168,14 +188,16 @@ export const Sidebar: React.FC = () => {
             <aside
                 className={clsx(
                     'sidebar border-r border-border bg-card text-card-foreground flex flex-col h-full transition-all duration-300 ease-in-out overflow-hidden',
-                    collapsed ? 'w-16' : 'w-64'
+                    collapsed ? 'w-16' : 'w-64',
                 )}
             >
                 {/* Header */}
-                <div className={clsx(
-                    'sidebar-header border-b border-border flex items-center',
-                    collapsed ? 'p-3 justify-center' : 'p-6 justify-between'
-                )}>
+                <div
+                    className={clsx(
+                        'sidebar-header border-b border-border flex items-center',
+                        collapsed ? 'p-3 justify-center' : 'p-6 justify-between',
+                    )}
+                >
                     {!collapsed ? (
                         <>
                             <div className="flex-1 min-w-0">
@@ -245,14 +267,22 @@ export const Sidebar: React.FC = () => {
                 </div>
 
                 {/* Navigation */}
-                <nav className={clsx(
-                    'sidebar-nav flex-1 overflow-y-auto space-y-1',
-                    collapsed ? 'p-2 space-y-2' : 'p-4 space-y-2'
-                )} aria-label="Main Navigation">
+                <nav
+                    className={clsx(
+                        'sidebar-nav flex-1 overflow-y-auto space-y-1',
+                        collapsed ? 'p-2 space-y-2' : 'p-4 space-y-2',
+                    )}
+                    aria-label="Main Navigation"
+                >
                     {/* System Admin Global Navigation */}
                     {isSystemAdmin && !hasSchoolContext && (
                         <>
-                            <SidebarNavItem to="/dashboard" icon={LayoutDashboard} label={t('common.dashboard')} collapsed={collapsed} />
+                            <SidebarNavItem
+                                to="/dashboard"
+                                icon={LayoutDashboard}
+                                label={t('common.dashboard')}
+                                collapsed={collapsed}
+                            />
 
                             {!collapsed && (
                                 <div className="px-4 py-2.5 mt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -260,9 +290,24 @@ export const Sidebar: React.FC = () => {
                                 </div>
                             )}
                             {collapsed && <div className="my-2 border-t border-border" />}
-                            <SidebarNavItem to="/system/schools" icon={Building2} label={t('sidebar.schools')} collapsed={collapsed} />
-                            <SidebarNavItem to="/system/users" icon={Users2} label={t('sidebar.users')} collapsed={collapsed} />
-                            <SidebarNavItem to="/system/settings" icon={Settings} label={t('sidebar.system_settings')} collapsed={collapsed} />
+                            <SidebarNavItem
+                                to="/system/schools"
+                                icon={Building2}
+                                label={t('sidebar.schools')}
+                                collapsed={collapsed}
+                            />
+                            <SidebarNavItem
+                                to="/system/users"
+                                icon={Users2}
+                                label={t('sidebar.users')}
+                                collapsed={collapsed}
+                            />
+                            <SidebarNavItem
+                                to="/system/settings"
+                                icon={Settings}
+                                label={t('sidebar.system_settings')}
+                                collapsed={collapsed}
+                            />
                         </>
                     )}
 
@@ -296,15 +341,16 @@ export const Sidebar: React.FC = () => {
                                                     collapsed={false}
                                                 />
                                             ))}
-                                            {isPrincipalOrAdmin && principalItems.map((item) => (
-                                                <SidebarNavItem
-                                                    key={item.path}
-                                                    to={item.path}
-                                                    icon={item.icon}
-                                                    label={item.label}
-                                                    collapsed={false}
-                                                />
-                                            ))}
+                                            {isPrincipalOrAdmin &&
+                                                principalItems.map((item) => (
+                                                    <SidebarNavItem
+                                                        key={item.path}
+                                                        to={item.path}
+                                                        icon={item.icon}
+                                                        label={item.label}
+                                                        collapsed={false}
+                                                    />
+                                                ))}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
@@ -323,15 +369,16 @@ export const Sidebar: React.FC = () => {
                                             collapsed={collapsed}
                                         />
                                     ))}
-                                    {isPrincipalOrAdmin && principalItems.map((item) => (
-                                        <SidebarNavItem
-                                            key={item.path}
-                                            to={item.path}
-                                            icon={item.icon}
-                                            label={item.label}
-                                            collapsed={collapsed}
-                                        />
-                                    ))}
+                                    {isPrincipalOrAdmin &&
+                                        principalItems.map((item) => (
+                                            <SidebarNavItem
+                                                key={item.path}
+                                                to={item.path}
+                                                icon={item.icon}
+                                                label={item.label}
+                                                collapsed={collapsed}
+                                            />
+                                        ))}
                                 </>
                             )}
                         </>
@@ -341,13 +388,23 @@ export const Sidebar: React.FC = () => {
                     {!hasSchoolContext && !isSystemAdmin && !collapsed && (
                         <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                             <p>{t('sidebar.select_school_prompt')}</p>
-                            <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/select-school')}>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-3"
+                                onClick={() => navigate('/select-school')}
+                            >
                                 {t('sidebar.select_school_button')}
                             </Button>
                         </div>
                     )}
                     {!hasSchoolContext && !isSystemAdmin && collapsed && (
-                        <SidebarNavItem to="/select-school" icon={Building2} label={t('sidebar.select_school_button')} collapsed={collapsed} />
+                        <SidebarNavItem
+                            to="/select-school"
+                            icon={Building2}
+                            label={t('sidebar.select_school_button')}
+                            collapsed={collapsed}
+                        />
                     )}
                 </nav>
 
@@ -367,7 +424,11 @@ export const Sidebar: React.FC = () => {
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" sideOffset={8}>
-                                <p>{(i18n.language?.split('-')[0] || 'cs') === 'cs' ? '🇬🇧 Switch to English' : '🇨🇿 Přepnout do češtiny'}</p>
+                                <p>
+                                    {(i18n.language?.split('-')[0] || 'cs') === 'cs'
+                                        ? '🇬🇧 Switch to English'
+                                        : '🇨🇿 Přepnout do češtiny'}
+                                </p>
                             </TooltipContent>
                         </Tooltip>
                     ) : (
@@ -383,9 +444,10 @@ export const Sidebar: React.FC = () => {
                                         onClick={() => i18n.changeLanguage(lang.code)}
                                         className={`
                                             flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors
-                                            ${(i18n.language?.split('-')[0] || 'cs') === lang.code
-                                                ? 'bg-accent text-accent-foreground'
-                                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                                            ${
+                                                (i18n.language?.split('-')[0] || 'cs') === lang.code
+                                                    ? 'bg-accent text-accent-foreground'
+                                                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                                             }
                                         `}
                                     >
@@ -406,22 +468,38 @@ export const Sidebar: React.FC = () => {
                             <div className="flex flex-col items-center gap-2">
                                 <Tooltip delayDuration={0}>
                                     <TooltipTrigger asChild>
-                                        <button onClick={() => navigate('/profile')} className="rounded-full hover:ring-2 hover:ring-primary/30 transition-all">
+                                        <button
+                                            onClick={() => navigate('/profile')}
+                                            className="rounded-full hover:ring-2 hover:ring-primary/30 transition-all"
+                                        >
                                             <Avatar className="h-9 w-9">
                                                 {user.avatarUrl?.startsWith('emoji:') ? (
-                                                    <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getEmojiAvatarBg(user.avatarUrl)}`}>
-                                                        <span className="text-sm">{getEmojiAvatarEmoji(user.avatarUrl)}</span>
+                                                    <div
+                                                        className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getEmojiAvatarBg(user.avatarUrl)}`}
+                                                    >
+                                                        <span className="text-sm">
+                                                            {getEmojiAvatarEmoji(user.avatarUrl)}
+                                                        </span>
                                                     </div>
                                                 ) : user.avatarUrl?.startsWith('data:') ? (
-                                                    <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                                                    <img
+                                                        src={user.avatarUrl}
+                                                        alt="Avatar"
+                                                        className="w-full h-full object-cover rounded-full"
+                                                    />
                                                 ) : (
-                                                    <AvatarFallback className="text-xs">{user.firstName?.[0]}{user.lastName?.[0]}</AvatarFallback>
+                                                    <AvatarFallback className="text-xs">
+                                                        {user.firstName?.[0]}
+                                                        {user.lastName?.[0]}
+                                                    </AvatarFallback>
                                                 )}
                                             </Avatar>
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="right" sideOffset={8}>
-                                        <p className="font-medium">{user.firstName} {user.lastName}</p>
+                                        <p className="font-medium">
+                                            {user.firstName} {user.lastName}
+                                        </p>
                                         <p className="text-xs text-muted-foreground">{user.email}</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -445,28 +523,56 @@ export const Sidebar: React.FC = () => {
                                 <div className="flex items-center space-x-3">
                                     <Avatar>
                                         {user.avatarUrl?.startsWith('emoji:') ? (
-                                            <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getEmojiAvatarBg(user.avatarUrl)}`}>
+                                            <div
+                                                className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getEmojiAvatarBg(user.avatarUrl)}`}
+                                            >
                                                 <span className="text-lg">{getEmojiAvatarEmoji(user.avatarUrl)}</span>
                                             </div>
                                         ) : user.avatarUrl?.startsWith('data:') ? (
-                                            <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                                            <img
+                                                src={user.avatarUrl}
+                                                alt="Avatar"
+                                                className="w-full h-full object-cover rounded-full"
+                                            />
                                         ) : (
-                                            <AvatarFallback>{user.firstName?.[0]}{user.lastName?.[0]}</AvatarFallback>
+                                            <AvatarFallback>
+                                                {user.firstName?.[0]}
+                                                {user.lastName?.[0]}
+                                            </AvatarFallback>
                                         )}
                                     </Avatar>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-sm font-medium truncate">{user.firstName} {user.lastName}</span>
-                                        <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={user.email}>{user.email}</span>
+                                        <span className="text-sm font-medium truncate">
+                                            {user.firstName} {user.lastName}
+                                        </span>
+                                        <span
+                                            className="text-xs text-muted-foreground truncate max-w-[120px]"
+                                            title={user.email}
+                                        >
+                                            {user.email}
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2 w-full mt-2">
-                                    <Badge variant="outline" className="w-fit">{user.role || (isSystemAdmin ? 'System Admin' : 'User')}</Badge>
+                                    <Badge variant="outline" className="w-fit">
+                                        {user.role || (isSystemAdmin ? 'System Admin' : 'User')}
+                                    </Badge>
                                     <div className="space-y-1 w-full">
-                                        <Button variant="ghost" size="sm" className="w-full justify-start font-medium" onClick={() => navigate('/profile')}>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full justify-start font-medium"
+                                            onClick={() => navigate('/profile')}
+                                        >
                                             <User className="mr-2 h-4 w-4 text-muted-foreground" />
                                             {t('common.profile')}
                                         </Button>
-                                        <Button variant="ghost" size="sm" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 font-medium" onClick={handleLogout}>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 font-medium"
+                                            onClick={handleLogout}
+                                        >
                                             <LogOut className="mr-2 h-4 w-4" />
                                             {t('common.logout')}
                                         </Button>
@@ -475,7 +581,11 @@ export const Sidebar: React.FC = () => {
                             </div>
                         )
                     ) : (
-                        <div className={clsx("text-sm text-muted-foreground", collapsed ? "text-center" : "text-center")}>{collapsed ? '...' : t('common.loading')}</div>
+                        <div
+                            className={clsx('text-sm text-muted-foreground', collapsed ? 'text-center' : 'text-center')}
+                        >
+                            {collapsed ? '...' : t('common.loading')}
+                        </div>
                     )}
                 </div>
             </aside>

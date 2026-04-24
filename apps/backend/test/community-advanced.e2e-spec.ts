@@ -6,90 +6,92 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 describe('Community Features API (e2e)', () => {
-    let app: INestApplication<App>;
-    let jwtToken: string;
-    let schoolId: string;
+  let app: INestApplication<App>;
+  let jwtToken: string;
+  let schoolId: string;
 
-    beforeAll(async () => {
-        const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule],
-        }).compile();
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
-        app = moduleFixture.createNestApplication();
-        await app.init();
+    app = moduleFixture.createNestApplication();
+    await app.init();
 
-        const prisma = app.get(PrismaService);
-        const school = await prisma.school.findFirst();
-        schoolId = school.id;
+    const prisma = app.get(PrismaService);
+    const school = await prisma.school.findFirst();
+    schoolId = school.id;
 
-        const loginRes = await request(app.getHttpServer())
-            .post('/api/auth/login')
-            .send({ email: 'admin@edustack.cz', password: 'admin123' });
-        
-        const selectRes = await request(app.getHttpServer())
-            .post(`/api/auth/select-school/${schoolId}`)
-            .set('Authorization', `Bearer ${loginRes.body.access_token}`);
-            
-        jwtToken = selectRes.body.access_token;
-    });
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'admin@edustack.cz', password: 'admin123' });
 
-    afterAll(async () => {
-        try { await app.get(PrismaService).$disconnect(); } catch(e){} 
-        await app.close();
-    });
+    const selectRes = await request(app.getHttpServer())
+      .post(`/api/auth/select-school/${schoolId}`)
+      .set('Authorization', `Bearer ${loginRes.body.access_token}`);
 
-    it('F121 - Calendar & RSVP: Create a community calendar event', async () => {
-        const createRes = await request(app.getHttpServer())
-            .post('/api/community/events')
-            .set('Authorization', `Bearer ${jwtToken}`)
-            .send({
-                title: 'Školní ples E2E',
-                description: 'Událost pro e2e testy',
-                startDate: new Date().toISOString(),
-                location: 'Tělocvična'
-            });
+    jwtToken = selectRes.body.access_token;
+  });
 
-        expect(createRes.status).toBe(201);
-        expect(createRes.body).toHaveProperty('id');
-        const eventId = createRes.body.id;
+  afterAll(async () => {
+    try {
+      await app.get(PrismaService).$disconnect();
+    } catch (e) {}
+    await app.close();
+  });
 
-        // F121 - RSVP handling
-        const rsvpRes = await request(app.getHttpServer())
-            .post(`/api/community/events/${eventId}/rsvp`)
-            .set('Authorization', `Bearer ${jwtToken}`)
-            .send({
-                status: 'YES'
-            });
+  it('F121 - Calendar & RSVP: Create a community calendar event', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/community/events')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({
+        title: 'Školní ples E2E',
+        description: 'Událost pro e2e testy',
+        startDate: new Date().toISOString(),
+        location: 'Tělocvična',
+      });
 
-        expect([200, 201]).toContain(rsvpRes.status);
+    expect(createRes.status).toBe(201);
+    expect(createRes.body).toHaveProperty('id');
+    const eventId = createRes.body.id;
 
-        // Delete the event after test
-        await request(app.getHttpServer())
-            .delete(`/api/community/events/${eventId}`)
-            .set('Authorization', `Bearer ${jwtToken}`);
-    });
+    // F121 - RSVP handling
+    const rsvpRes = await request(app.getHttpServer())
+      .post(`/api/community/events/${eventId}/rsvp`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({
+        status: 'YES',
+      });
 
-    it('F114 - Notifications: Mark notifications as read', async () => {
-        // Fetch existing notifications
-        const listRes = await request(app.getHttpServer())
-            .get('/api/messaging/notifications')
-            .set('Authorization', `Bearer ${jwtToken}`);
-            
-        expect(listRes.status).toBe(200);
-        
-        // Mark all as read
-        const markRes = await request(app.getHttpServer())
-            .put('/api/messaging/notifications/read-all')
-            .set('Authorization', `Bearer ${jwtToken}`);
-            
-        expect(markRes.status).toBe(200);
-        
-        // Unread count should be 0
-        const unreadRes = await request(app.getHttpServer())
-            .get('/api/messaging/notifications/unread-count')
-            .set('Authorization', `Bearer ${jwtToken}`);
-            
-        expect(unreadRes.status).toBe(200);
-        expect(unreadRes.body.count).toBe(0);
-    });
+    expect([200, 201]).toContain(rsvpRes.status);
+
+    // Delete the event after test
+    await request(app.getHttpServer())
+      .delete(`/api/community/events/${eventId}`)
+      .set('Authorization', `Bearer ${jwtToken}`);
+  });
+
+  it('F114 - Notifications: Mark notifications as read', async () => {
+    // Fetch existing notifications
+    const listRes = await request(app.getHttpServer())
+      .get('/api/messaging/notifications')
+      .set('Authorization', `Bearer ${jwtToken}`);
+
+    expect(listRes.status).toBe(200);
+
+    // Mark all as read
+    const markRes = await request(app.getHttpServer())
+      .put('/api/messaging/notifications/read-all')
+      .set('Authorization', `Bearer ${jwtToken}`);
+
+    expect(markRes.status).toBe(200);
+
+    // Unread count should be 0
+    const unreadRes = await request(app.getHttpServer())
+      .get('/api/messaging/notifications/unread-count')
+      .set('Authorization', `Bearer ${jwtToken}`);
+
+    expect(unreadRes.status).toBe(200);
+    expect(unreadRes.body.count).toBe(0);
+  });
 });

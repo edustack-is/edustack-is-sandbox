@@ -1,186 +1,140 @@
 import {
-    Controller, Get, Post, Put, Body, Param, Query, Res,
-    UseGuards, Req, ForbiddenException,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  Query,
+  Res,
+  UseGuards,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import type { Response } from 'express';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+} from '@nestjs/swagger';
+import type { Response, Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../database/types';
 import { AttendanceService } from './attendance.service';
-import { CreateExcuseDto, RecordAttendanceDto, ReviewExcuseDto, SuccessResponseDto } from '../common/dto/api.dto';
+import {
+  CreateExcuseDto,
+  RecordAttendanceDto,
+  ReviewExcuseDto,
+  SuccessResponseDto,
+} from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
-import { AttendanceRecordResponseDto, AttendanceStatsResponseDto, ExcuseResponseDto, UnexcusedAlertDto } from '../common/dto/response.dto';
+import {
+  AttendanceRecordResponseDto,
+  AttendanceStatsResponseDto,
+  ExcuseResponseDto,
+  UnexcusedAlertDto,
+} from '../common/dto/response.dto';
+
+interface UserRequest extends Request {
+  user: {
+    userId: string;
+    email: string;
+    type: 'TENANT' | 'SYSTEM';
+    schoolId?: string;
+  };
+}
+
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/attendance')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AttendanceController {
-    constructor(private readonly attendanceService: AttendanceService) { }
+  constructor(private readonly attendanceService: AttendanceService) {}
 
-    private ensureTenant(req: any) {
-        if (req.user.type !== 'TENANT' || !req.user.schoolId) {
-            throw new ForbiddenException('School context required.');
-        }
+  private ensureTenant(req: UserRequest): string {
+    if (req.user.type !== 'TENANT' || !req.user.schoolId) {
+      throw new ForbiddenException('School context required.');
     }
+    return req.user.schoolId;
+  }
 
-    // ─── RECORD ATTENDANCE ──────────────────────────────────────
+  @Post('record')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Záznam docházky třídy' })
+  @ApiResponse({ status: 201, type: SuccessResponseDto })
+  @ApiBody({ type: RecordAttendanceDto })
+  async recordAttendance(@Req() req: UserRequest, @Body() body: any) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.recordAttendance(req.user.userId, schoolId, body);
+  }
 
-    @Post('record')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Záznam docházky třídy' })
-    @ApiResponse({ status: 201, description: 'Docházka zaznamenána.', type: SuccessResponseDto })
-    @ApiBody({ type: RecordAttendanceDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
+  @Get('classroom/:classroomId')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Docházka třídy za den' })
+  @ApiResponse({ status: 200, type: AttendanceRecordResponseDto, isArray: true })
+  async getClassroomAttendance(@Req() req: UserRequest, @Param('classroomId') classroomId: string, @Query('date') date: string) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.getClassroomAttendance(schoolId, classroomId, date);
+  }
 
-    async recordAttendance(
-        @Req() req: any,
-        @Body() body: {
-            date: string;
-            lessonNumber: number;
-            classroomId: string;
-            records: Array<{ studentId: string; status: string; note?: string }>;
-        },
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.recordAttendance(req.user.userId, req.user.schoolId, body);
-    }
+  @Post('excuses')
+  @Roles(UserRole.PARENT)
+  @ApiOperation({ summary: 'Omluvenka absence (rodič)' })
+  @ApiResponse({ status: 201, type: ExcuseResponseDto })
+  @ApiBody({ type: CreateExcuseDto })
+  async createExcuse(@Req() req: UserRequest, @Body() body: any) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.createExcuse(req.user.userId, schoolId, body);
+  }
 
-    // ─── GET CLASSROOM ATTENDANCE ───────────────────────────────
+  @Get('excuses')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Seznam omluvenek' })
+  @ApiResponse({ status: 200, type: ExcuseResponseDto, isArray: true })
+  async getExcuses(@Req() req: UserRequest, @Query('classroomId') classroomId?: string, @Query('status') status?: string) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.getExcuses(schoolId, { classroomId, status });
+  }
 
-    @Get('classroom/:classroomId')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Docházka třídy za den' })
-    @ApiResponse({ status: 200, description: 'Docházka třídy – pole záznamů.', type: AttendanceRecordResponseDto, isArray: true })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
+  @Put('excuses/:id/review')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Schválení/zamítnutí omluvenky' })
+  @ApiBody({ type: ReviewExcuseDto })
+  async reviewExcuse(@Req() req: UserRequest, @Param('id') id: string, @Body() body: { status: 'APPROVED' | 'REJECTED' }) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.reviewExcuse(req.user.userId, schoolId, id, body.status);
+  }
 
-    async getClassroomAttendance(
-        @Req() req: any,
-        @Param('classroomId') classroomId: string,
-        @Query('date') date: string,
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.getClassroomAttendance(req.user.schoolId, classroomId, date);
-    }
+  @Get('stats/:classroomId')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Statistiky docházky třídy' })
+  @ApiResponse({ status: 200, type: AttendanceStatsResponseDto })
+  async getClassStatistics(@Req() req: UserRequest, @Param('classroomId') classroomId: string, @Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.getClassStatistics(schoolId, classroomId, dateFrom, dateTo);
+  }
 
-    // ─── ABSENCE EXCUSES ────────────────────────────────────────
+  @Get('export/:classroomId')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Export docházky (CSV)' })
+  async exportCsv(@Req() req: UserRequest, @Res() res: Response, @Param('classroomId') classroomId: string, @Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string) {
+    const schoolId = this.ensureTenant(req);
+    const csv = await this.attendanceService.exportAttendanceCsv(schoolId, classroomId, dateFrom, dateTo);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=dochazka.csv');
+    res.send(csv);
+  }
 
-    @Post('excuses')
-    @Roles(UserRole.PARENT)
-    @ApiOperation({ summary: 'Omluvenka absence (rodič)' })
-    @ApiResponse({ status: 201, description: 'Omluvenka vytvořena.', type: ExcuseResponseDto })
-    @ApiBody({ type: CreateExcuseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-
-    async createExcuse(
-        @Req() req: any,
-        @Body() body: { studentId: string; reason: string; dateFrom: string; dateTo: string },
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.createExcuse(req.user.userId, req.user.schoolId, body);
-    }
-
-    @Get('excuses')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Seznam omluvenek' })
-    @ApiResponse({ status: 200, description: 'Seznam omluvenek – pole.', type: ExcuseResponseDto, isArray: true })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
-
-    async getExcuses(
-        @Req() req: any,
-        @Query('classroomId') classroomId?: string,
-        @Query('status') status?: string,
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.getExcuses(req.user.schoolId, { classroomId, status });
-    }
-
-    @Put('excuses/:id/review')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Schválení/zamítnutí omluvenky' })
-    @ApiBody({ type: ReviewExcuseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 400, description: 'Neplatný požadavek – chyba validace vstupních dat.', type: ErrorResponseDto })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
-
-    async reviewExcuse(
-        @Req() req: any,
-        @Param('id') id: string,
-        @Body() body: { status: 'APPROVED' | 'REJECTED' },
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.reviewExcuse(req.user.userId, req.user.schoolId, id, body.status);
-    }
-
-    // ─── STATISTICS ─────────────────────────────────────────────
-
-    @Get('stats/:classroomId')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Statistiky docházky třídy' })
-    @ApiResponse({ status: 200, description: 'Statistiky docházky třídy.', type: AttendanceStatsResponseDto })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
-
-    async getClassStatistics(
-        @Req() req: any,
-        @Param('classroomId') classroomId: string,
-        @Query('dateFrom') dateFrom?: string,
-        @Query('dateTo') dateTo?: string,
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.getClassStatistics(req.user.schoolId, classroomId, dateFrom, dateTo);
-    }
-
-    // ─── CSV EXPORT ─────────────────────────────────────────────
-
-    @Get('export/:classroomId')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Export docházky (CSV)' })
-    @ApiResponse({ status: 200, description: 'CSV soubor s docházkou.' })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-    @ApiResponse({ status: 404, description: 'Záznam nebyl nalezen.', type: ErrorResponseDto })
-
-    async exportCsv(
-        @Req() req: any,
-        @Res() res: Response,
-        @Param('classroomId') classroomId: string,
-        @Query('dateFrom') dateFrom?: string,
-        @Query('dateTo') dateTo?: string,
-    ) {
-        this.ensureTenant(req);
-        const csv = await this.attendanceService.exportAttendanceCsv(req.user.schoolId, classroomId, dateFrom, dateTo);
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', 'attachment; filename=dochazka.csv');
-        res.send(csv);
-    }
-
-    // ─── UNEXCUSED ALERTS ───────────────────────────────────────
-
-    @Get('unexcused-alerts')
-    @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-    @ApiOperation({ summary: 'Upozornění na neomluvené hodiny' })
-    @ApiResponse({ status: 200, description: 'Upozornění na neomluvené hodiny – pole.', type: UnexcusedAlertDto, isArray: true })
-    @ApiResponse({ status: 401, description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.', type: ErrorResponseDto })
-    @ApiResponse({ status: 403, description: 'Nedostatečná oprávnění pro tuto operaci.', type: ErrorResponseDto })
-
-    async getUnexcusedAlerts(
-        @Req() req: any,
-        @Query('threshold') threshold?: string,
-    ) {
-        this.ensureTenant(req);
-        return this.attendanceService.getUnexcusedAlerts(req.user.schoolId, threshold ? parseInt(threshold) : 5);
-    }
+  @Get('unexcused-alerts')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Upozornění na neomluvené hodiny' })
+  @ApiResponse({ status: 200, type: UnexcusedAlertDto, isArray: true })
+  async getUnexcusedAlerts(@Req() req: UserRequest, @Query('threshold') threshold?: string) {
+    const schoolId = this.ensureTenant(req);
+    return this.attendanceService.getUnexcusedAlerts(schoolId, threshold ? parseInt(threshold) : 5);
+  }
 }

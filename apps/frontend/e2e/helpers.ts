@@ -4,7 +4,10 @@ export async function loginAs(page: Page, email: string) {
     await page.goto('/');
 
     // If already logged in, we might see the layout with sidebar
-    const isDashboard = await page.getByRole('button', { name: /Logout|Odhlásit/i }).isVisible({ timeout: 2000 }).catch(() => false);
+    const isDashboard = await page
+        .getByRole('button', { name: /Logout|Odhlásit/i })
+        .isVisible({ timeout: 2000 })
+        .catch(() => false);
     if (isDashboard) {
         return;
     }

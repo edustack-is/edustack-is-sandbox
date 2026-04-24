@@ -37,8 +37,8 @@ export const getSystemAuditLog = async (params?: { page?: number; limit?: number
 
 // ─── Backups ────────────────────────────────────────────────────
 
-export const createBackup = async () => {
-    const response = await api.post('/api/system/backups');
+export const createBackup = async (name?: string) => {
+    const response = await api.post('/api/system/backups', null, { params: { name } });
     return response.data;
 };
 
@@ -56,8 +56,8 @@ export const downloadBackup = (filename: string) => {
     a.download = filename;
     // For auth, use fetch + blob
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.blob())
-        .then(blob => {
+        .then((r) => r.blob())
+        .then((blob) => {
             const blobUrl = URL.createObjectURL(blob);
             a.href = blobUrl;
             a.click();
@@ -72,5 +72,16 @@ export const restoreBackup = async (filename: string) => {
 
 export const deleteBackup = async (filename: string) => {
     const response = await api.delete(`/api/system/backups/${encodeURIComponent(filename)}`);
+    return response.data;
+};
+
+export const uploadBackup = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/api/system/backups/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
     return response.data;
 };

@@ -34,9 +34,9 @@ const SchoolContext = createContext<SchoolContextType>({
     role: null,
     currentSchool: null,
     schoolCount: 0,
-    selectSchool: async () => { },
-    leaveSchool: async () => { },
-    refreshTokenInfo: () => { },
+    selectSchool: async () => {},
+    leaveSchool: async () => {},
+    refreshTokenInfo: () => {},
 });
 
 function decodeJwtPayload(token: string): any {
@@ -51,7 +51,16 @@ function decodeJwtPayload(token: string): any {
 function getTokenInfo() {
     const token = localStorage.getItem('access_token');
     if (!token) {
-        return { tokenType: 'GLOBAL' as const, userId: null, schoolId: null, isSystemAdmin: false, isSysAdminOverride: false, isImpersonated: false, readOnly: false, role: null };
+        return {
+            tokenType: 'GLOBAL' as const,
+            userId: null,
+            schoolId: null,
+            isSystemAdmin: false,
+            isSysAdminOverride: false,
+            isImpersonated: false,
+            readOnly: false,
+            role: null,
+        };
     }
     const payload = decodeJwtPayload(token);
     return {
@@ -125,25 +134,30 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
         }
     }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin]);
 
-    const selectSchool = useCallback(async (schoolId: string, role?: string) => {
-        // Save the current GLOBAL token before switching to TENANT
-        if (!localStorage.getItem('global_token')) {
-            const currentToken = localStorage.getItem('access_token');
-            if (currentToken) {
-                const payload = decodeJwtPayload(currentToken);
-                // Only save if it's actually a GLOBAL token
-                if (payload.type !== 'TENANT') {
-                    localStorage.setItem('global_token', currentToken);
+    const selectSchool = useCallback(
+        async (schoolId: string, role?: string) => {
+            // Save the current GLOBAL token before switching to TENANT
+            if (!localStorage.getItem('global_token')) {
+                const currentToken = localStorage.getItem('access_token');
+                if (currentToken) {
+                    const payload = decodeJwtPayload(currentToken);
+                    // Only save if it's actually a GLOBAL token
+                    if (payload.type !== 'TENANT') {
+                        localStorage.setItem('global_token', currentToken);
+                    }
                 }
             }
-        }
 
-        const url = role ? `/api/auth/select-school/${schoolId}?role=${role}` : `/api/auth/select-school/${schoolId}`;
-        const response = await api.post(url);
-        const { access_token } = response.data;
-        localStorage.setItem('access_token', access_token);
-        refreshTokenInfo();
-    }, [refreshTokenInfo]);
+            const url = role
+                ? `/api/auth/select-school/${schoolId}?role=${role}`
+                : `/api/auth/select-school/${schoolId}`;
+            const response = await api.post(url);
+            const { access_token } = response.data;
+            localStorage.setItem('access_token', access_token);
+            refreshTokenInfo();
+        },
+        [refreshTokenInfo],
+    );
 
     const leaveSchool = useCallback(async () => {
         const globalToken = localStorage.getItem('global_token');

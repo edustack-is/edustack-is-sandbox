@@ -8,9 +8,22 @@ import { getWhiteBookData } from '../api/deputy';
 
 // ─── Types (shared with CurriculumManagement) ───────────────────
 
-interface GradeLevel { id: string; name: string; levelNumber: number; }
-interface AcademicYear { id: string; name: string; isCurrent: boolean; }
-interface SubjectTemplate { id: string; name: string; code: string; svpDescription: string | null; }
+interface GradeLevel {
+    id: string;
+    name: string;
+    levelNumber: number;
+}
+interface AcademicYear {
+    id: string;
+    name: string;
+    isCurrent: boolean;
+}
+interface SubjectTemplate {
+    id: string;
+    name: string;
+    code: string;
+    svpDescription: string | null;
+}
 
 interface CurriculumEntry {
     id: string;
@@ -57,15 +70,20 @@ export default function WhiteBook() {
             if (result.versions.length > 0) {
                 setSelectedVersionId(result.versions[0].id);
             }
-        } finally { setLoading(false); }
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     if (loading || !data) {
         return (
             <div className="flex items-center justify-center h-96 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />{t('common.loading')}
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                {t('common.loading')}
             </div>
         );
     }
@@ -82,10 +100,10 @@ export default function WhiteBook() {
 
     // Get unique subjects from current version's entries
     const subjectsInVersion = selectedVersion
-        ? [...new Set(selectedVersion.entries.map((e) => e.subjectTemplateId))]
-            .map((sid) => data.subjectTemplates.find((s) => s.id === sid))
-            .filter(Boolean)
-            .sort((a, b) => a!.name.localeCompare(b!.name)) as SubjectTemplate[]
+        ? ([...new Set(selectedVersion.entries.map((e) => e.subjectTemplateId))]
+              .map((sid) => data.subjectTemplates.find((s) => s.id === sid))
+              .filter(Boolean)
+              .sort((a, b) => a!.name.localeCompare(b!.name)) as SubjectTemplate[])
         : [];
 
     // Equipment per grade
@@ -128,14 +146,21 @@ export default function WhiteBook() {
                         <CardContent>
                             <div className="flex flex-wrap gap-2">
                                 {data.versions.map((v) => (
-                                    <button key={v.id} onClick={() => setSelectedVersionId(v.id)}
-                                        className={`px-4 py-2 rounded-lg text-sm transition-all border ${selectedVersionId === v.id
-                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                            : 'bg-background hover:bg-muted border-muted-foreground/20'}`}>
+                                    <button
+                                        key={v.id}
+                                        onClick={() => setSelectedVersionId(v.id)}
+                                        className={`px-4 py-2 rounded-lg text-sm transition-all border ${
+                                            selectedVersionId === v.id
+                                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                : 'bg-background hover:bg-muted border-muted-foreground/20'
+                                        }`}
+                                    >
                                         <div className="font-medium">{v.name}</div>
                                         <div className="text-[11px] opacity-80">
                                             {formatDate(v.validFrom)}
-                                            {v.validTo ? ` → ${formatDate(v.validTo)}` : ` → ${t('white_book.indefinite')}`}
+                                            {v.validTo
+                                                ? ` → ${formatDate(v.validTo)}`
+                                                : ` → ${t('white_book.indefinite')}`}
                                         </div>
                                     </button>
                                 ))}
@@ -152,61 +177,108 @@ export default function WhiteBook() {
                                         <GraduationCap className="h-5 w-5 text-primary" />
                                         <CardTitle className="text-lg">{t('white_book.hours_matrix')}</CardTitle>
                                     </div>
-                                    <CardDescription>{t('white_book.hours_matrix_desc', { name: selectedVersion.name })}</CardDescription>
+                                    <CardDescription>
+                                        {t('white_book.hours_matrix_desc', { name: selectedVersion.name })}
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {subjectsInVersion.length === 0 ? (
-                                        <div className="text-center py-8 text-muted-foreground text-sm">{t('white_book.no_entries')}</div>
+                                        <div className="text-center py-8 text-muted-foreground text-sm">
+                                            {t('white_book.no_entries')}
+                                        </div>
                                     ) : (
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm border-collapse">
                                                 <thead>
                                                     <tr className="border-b bg-muted/50">
-                                                        <th className="text-left py-2 px-3 font-semibold">{t('year_setup.subject_column')}</th>
+                                                        <th className="text-left py-2 px-3 font-semibold">
+                                                            {t('year_setup.subject_column')}
+                                                        </th>
                                                         {gradeLevels.map((gl) => (
-                                                            <th key={gl.id} className="text-center py-2 px-3 font-medium min-w-16">{gl.name}</th>
+                                                            <th
+                                                                key={gl.id}
+                                                                className="text-center py-2 px-3 font-medium min-w-16"
+                                                            >
+                                                                {gl.name}
+                                                            </th>
                                                         ))}
-                                                        <th className="text-center py-2 px-3 font-semibold bg-muted/70">{t('white_book.total')}</th>
+                                                        <th className="text-center py-2 px-3 font-semibold bg-muted/70">
+                                                            {t('white_book.total')}
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {subjectsInVersion.map((subject) => {
                                                         let total = 0;
                                                         return (
-                                                            <tr key={subject.id} className="border-b hover:bg-muted/20 transition-colors">
+                                                            <tr
+                                                                key={subject.id}
+                                                                className="border-b hover:bg-muted/20 transition-colors"
+                                                            >
                                                                 <td className="py-2 px-3">
                                                                     <div className="flex items-center gap-2">
-                                                                        <Badge variant="outline" className="font-mono text-[10px] px-1">{subject.code}</Badge>
-                                                                        <span className="font-medium">{subject.name}</span>
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="font-mono text-[10px] px-1"
+                                                                        >
+                                                                            {subject.code}
+                                                                        </Badge>
+                                                                        <span className="font-medium">
+                                                                            {subject.name}
+                                                                        </span>
                                                                     </div>
                                                                 </td>
                                                                 {gradeLevels.map((gl) => {
-                                                                    const entry = getEntry(selectedVersion.entries, subject.id, gl.id);
+                                                                    const entry = getEntry(
+                                                                        selectedVersion.entries,
+                                                                        subject.id,
+                                                                        gl.id,
+                                                                    );
                                                                     const hours = entry?.hoursPerWeek || 0;
                                                                     total += hours;
                                                                     return (
-                                                                        <td key={gl.id} className="text-center py-2 px-3">
+                                                                        <td
+                                                                            key={gl.id}
+                                                                            className="text-center py-2 px-3"
+                                                                        >
                                                                             {hours > 0 ? (
-                                                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">{hours}</span>
+                                                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                                                                                    {hours}
+                                                                                </span>
                                                                             ) : (
-                                                                                <span className="text-muted-foreground">—</span>
+                                                                                <span className="text-muted-foreground">
+                                                                                    —
+                                                                                </span>
                                                                             )}
                                                                         </td>
                                                                     );
                                                                 })}
-                                                                <td className="text-center py-2 px-3 bg-muted/30 font-semibold">{total}</td>
+                                                                <td className="text-center py-2 px-3 bg-muted/30 font-semibold">
+                                                                    {total}
+                                                                </td>
                                                             </tr>
                                                         );
                                                     })}
                                                     {/* Totals row */}
                                                     <tr className="bg-muted/50 font-semibold border-t-2 border-primary/30">
-                                                        <td className="py-2 px-3">{t('year_setup.total_hours_per_week')}</td>
+                                                        <td className="py-2 px-3">
+                                                            {t('year_setup.total_hours_per_week')}
+                                                        </td>
                                                         {gradeLevels.map((gl) => {
-                                                            const total = selectedVersion.entries.filter((e) => e.gradeLevelId === gl.id).reduce((s, e) => s + e.hoursPerWeek, 0);
-                                                            return <td key={gl.id} className="text-center py-2 px-3">{total || '—'}</td>;
+                                                            const total = selectedVersion.entries
+                                                                .filter((e) => e.gradeLevelId === gl.id)
+                                                                .reduce((s, e) => s + e.hoursPerWeek, 0);
+                                                            return (
+                                                                <td key={gl.id} className="text-center py-2 px-3">
+                                                                    {total || '—'}
+                                                                </td>
+                                                            );
                                                         })}
                                                         <td className="text-center py-2 px-3 bg-primary/10 text-primary">
-                                                            {selectedVersion.entries.reduce((s, e) => s + e.hoursPerWeek, 0)}
+                                                            {selectedVersion.entries.reduce(
+                                                                (s, e) => s + e.hoursPerWeek,
+                                                                0,
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -229,7 +301,9 @@ export default function WhiteBook() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {gradeLevels.map((gl) => {
                                             const equipment = equipmentByGrade(gl.id);
-                                            const entriesForGrade = selectedVersion.entries.filter((e) => e.gradeLevelId === gl.id);
+                                            const entriesForGrade = selectedVersion.entries.filter(
+                                                (e) => e.gradeLevelId === gl.id,
+                                            );
                                             return (
                                                 <div key={gl.id} className="border rounded-lg p-4">
                                                     <div className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -243,13 +317,17 @@ export default function WhiteBook() {
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {equipment.map((eq, i) => (
                                                                 <Badge key={i} variant="outline" className="text-xs">
-                                                                    {eq === 'Počítačová učebna' && <Monitor className="h-3 w-3 mr-1" />}
+                                                                    {eq === 'Počítačová učebna' && (
+                                                                        <Monitor className="h-3 w-3 mr-1" />
+                                                                    )}
                                                                     {eq}
                                                                 </Badge>
                                                             ))}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground italic">{t('white_book.no_equipment')}</span>
+                                                        <span className="text-xs text-muted-foreground italic">
+                                                            {t('white_book.no_equipment')}
+                                                        </span>
                                                     )}
                                                 </div>
                                             );
@@ -272,7 +350,9 @@ export default function WhiteBook() {
                                         <SubjectDetailAccordion
                                             key={subject.id}
                                             subject={subject}
-                                            entries={selectedVersion.entries.filter((e) => e.subjectTemplateId === subject.id)}
+                                            entries={selectedVersion.entries.filter(
+                                                (e) => e.subjectTemplateId === subject.id,
+                                            )}
                                             gradeLevels={gradeLevels}
                                         />
                                     ))}
@@ -291,7 +371,9 @@ export default function WhiteBook() {
 // ═══════════════════════════════════════════════════════════════
 
 function SubjectDetailAccordion({
-    subject, entries, gradeLevels,
+    subject,
+    entries,
+    gradeLevels,
 }: {
     subject: SubjectTemplate;
     entries: CurriculumEntry[];
@@ -308,10 +390,19 @@ function SubjectDetailAccordion({
 
     return (
         <div className="border rounded-lg">
-            <button onClick={() => setOpen(!open)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg">
+            <button
+                onClick={() => setOpen(!open)}
+                className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
+            >
                 <div className="flex items-center gap-3">
-                    {open ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                    <Badge variant="outline" className="font-mono text-xs">{subject.code}</Badge>
+                    {open ? (
+                        <ChevronDown className="h-4 w-4 text-primary" />
+                    ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <Badge variant="outline" className="font-mono text-xs">
+                        {subject.code}
+                    </Badge>
                     <span className="font-medium">{subject.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -338,33 +429,50 @@ function SubjectDetailAccordion({
                                         <div className="flex items-center gap-3 mb-3">
                                             <GraduationCap className="h-4 w-4 text-primary" />
                                             <span className="font-medium text-sm">{gl?.name}</span>
-                                            <Badge className="text-xs">{entry.hoursPerWeek} {t('curriculum.hours_unit')}</Badge>
-                                            {entry.needsComputerLab && <Badge variant="outline" className="text-xs"><Monitor className="h-3 w-3 mr-1" /> PC</Badge>}
+                                            <Badge className="text-xs">
+                                                {entry.hoursPerWeek} {t('curriculum.hours_unit')}
+                                            </Badge>
+                                            {entry.needsComputerLab && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    <Monitor className="h-3 w-3 mr-1" /> PC
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             {entry.rvpDescription && (
                                                 <div className="space-y-1">
-                                                    <p className="text-xs font-medium text-blue-600 flex items-center gap-1"><FileText className="h-3 w-3" /> RVP</p>
-                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{entry.rvpDescription}</p>
+                                                    <p className="text-xs font-medium text-blue-600 flex items-center gap-1">
+                                                        <FileText className="h-3 w-3" /> RVP
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                                        {entry.rvpDescription}
+                                                    </p>
                                                 </div>
                                             )}
                                             {entry.svpApproach && (
                                                 <div className="space-y-1">
-                                                    <p className="text-xs font-medium text-emerald-600 flex items-center gap-1"><BookOpen className="h-3 w-3" /> ŠVP</p>
-                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{entry.svpApproach}</p>
+                                                    <p className="text-xs font-medium text-emerald-600 flex items-center gap-1">
+                                                        <BookOpen className="h-3 w-3" /> ŠVP
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                                        {entry.svpApproach}
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
-                                        {entry.equipmentRequirements && (entry.equipmentRequirements as string[]).length > 0 && (
-                                            <div className="mt-3 flex items-center gap-2">
-                                                <Wrench className="h-3 w-3 text-orange-500" />
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(entry.equipmentRequirements as string[]).map((eq, i) => (
-                                                        <Badge key={i} variant="outline" className="text-[10px]">{eq}</Badge>
-                                                    ))}
+                                        {entry.equipmentRequirements &&
+                                            (entry.equipmentRequirements as string[]).length > 0 && (
+                                                <div className="mt-3 flex items-center gap-2">
+                                                    <Wrench className="h-3 w-3 text-orange-500" />
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(entry.equipmentRequirements as string[]).map((eq, i) => (
+                                                            <Badge key={i} variant="outline" className="text-[10px]">
+                                                                {eq}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
                                     </div>
                                 );
                             })}

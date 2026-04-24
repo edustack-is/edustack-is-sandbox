@@ -5,21 +5,24 @@ import { ShieldPlus, Trash2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
 } from '@/components/ui/dialog';
 import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel,
-    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-    AlertDialogHeader, AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
 
@@ -80,7 +83,9 @@ export function SystemAdminUsers() {
         }
     };
 
-    useEffect(() => { loadAdmins(); }, []);
+    useEffect(() => {
+        loadAdmins();
+    }, []);
 
     const handleAddAdmin = async () => {
         if (!newAdminEmail.trim()) {
@@ -174,7 +179,9 @@ export function SystemAdminUsers() {
                                         <TableCell className="font-medium">
                                             {admin.firstName} {admin.lastName}
                                             {isSelf && (
-                                                <span className="ml-2 text-xs text-muted-foreground">({t('system_users.you')})</span>
+                                                <span className="ml-2 text-xs text-muted-foreground">
+                                                    ({t('system_users.you')})
+                                                </span>
                                             )}
                                         </TableCell>
                                         <TableCell>{admin.email}</TableCell>

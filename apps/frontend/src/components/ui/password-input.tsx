@@ -1,8 +1,8 @@
-import * as React from "react";
-import { Eye, EyeOff } from "lucide-react";
-import { Input } from "./input";
-import { Button } from "./button";
-import { validatePassword, getStrengthColor, getStrengthLabel } from "../../lib/password-utils";
+import * as React from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Input } from './input';
+import { Button } from './button';
+import { validatePassword, getStrengthColor, getStrengthLabel } from '../../lib/password-utils';
 import { useTranslation } from 'react-i18next';
 
 export interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -24,7 +24,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
             <div className="space-y-2">
                 <div className="relative">
                     <Input
-                        type={showPassword ? "text" : "password"}
+                        type={showPassword ? 'text' : 'password'}
                         className={`pr-10 ${className}`}
                         value={value}
                         onChange={onChange}
@@ -54,20 +54,19 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
                             {[1, 2, 3, 4].map((step) => (
                                 <div
                                     key={step}
-                                    className={`h-full flex-1 rounded-full transition-colors ${step <= strength ? getStrengthColor(strength) : "bg-gray-200"
-                                        }`}
+                                    className={`h-full flex-1 rounded-full transition-colors ${
+                                        step <= strength ? getStrengthColor(strength) : 'bg-gray-200'
+                                    }`}
                                 />
                             ))}
                         </div>
-                        <p className="text-[10px] text-muted-foreground text-right">
-                            {t(getStrengthLabel(strength))}
-                        </p>
+                        <p className="text-[10px] text-muted-foreground text-right">{t(getStrengthLabel(strength))}</p>
                     </div>
                 )}
             </div>
         );
-    }
+    },
 );
-PasswordInput.displayName = "PasswordInput";
+PasswordInput.displayName = 'PasswordInput';
 
 export { PasswordInput };

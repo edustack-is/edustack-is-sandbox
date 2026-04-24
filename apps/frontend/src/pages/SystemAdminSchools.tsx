@@ -31,23 +31,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -81,6 +67,11 @@ interface UserOption {
     lastName: string;
 }
 
+interface UsersResponse {
+    data: UserOption[];
+    total: number;
+}
+
 // ---- Zod Schemas ----
 const createSchoolSchema = z.discriminatedUnion('principalType', [
     z.object({
@@ -103,38 +94,43 @@ const createSchoolSchema = z.discriminatedUnion('principalType', [
     }),
 ]);
 
-const editSchoolSchema = z.object({
-    name: z.string().min(1, 'School name is required'),
-    address: z.string().optional(),
-    requireSsoEmailMatch: z.boolean(),
-    hasPrincipalChange: z.boolean(),
-    principalType: z.enum(['EXISTING', 'NEW']).optional(),
-    userId: z.string().optional(),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    email: z.string().optional(),
-}).superRefine((data, ctx) => {
-    if (data.hasPrincipalChange) {
-        if (data.principalType === 'EXISTING' && (!data.userId || data.userId.length === 0)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please select a user', path: ['userId'] });
+const editSchoolSchema = z
+    .object({
+        name: z.string().min(1, 'School name is required'),
+        address: z.string().optional(),
+        requireSsoEmailMatch: z.boolean(),
+        hasPrincipalChange: z.boolean(),
+        principalType: z.enum(['EXISTING', 'NEW']).optional(),
+        userId: z.string().optional(),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        email: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.hasPrincipalChange) {
+            if (data.principalType === 'EXISTING' && (!data.userId || data.userId.length === 0)) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please select a user', path: ['userId'] });
+            }
+            if (data.principalType === 'NEW') {
+                if (!data.firstName || data.firstName.length === 0) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: 'First name is required',
+                        path: ['firstName'],
+                    });
+                }
+                if (!data.lastName || data.lastName.length === 0) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Last name is required', path: ['lastName'] });
+                }
+                if (!data.email || !z.string().email().safeParse(data.email).success) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Valid email is required', path: ['email'] });
+                }
+            }
         }
-        if (data.principalType === 'NEW') {
-            if (!data.firstName || data.firstName.length === 0) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'First name is required', path: ['firstName'] });
-            }
-            if (!data.lastName || data.lastName.length === 0) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Last name is required', path: ['lastName'] });
-            }
-            if (!data.email || !z.string().email().safeParse(data.email).success) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Valid email is required', path: ['email'] });
-            }
-        }
-    }
-});
+    });
 
 type CreateSchoolFormValues = z.infer<typeof createSchoolSchema>;
 type EditSchoolFormValues = z.infer<typeof editSchoolSchema>;
-
 
 // ---- Component ----
 export function SystemAdminSchools() {
@@ -207,14 +203,14 @@ export function SystemAdminSchools() {
 
     const fetchUsers = async (search: string, setTarget: (users: UserOption[]) => void) => {
         try {
-            const data = await getUsers({ limit: 20 });
-            const list = Array.isArray(data) ? data : data.data || [];
+            const data = (await getUsers({ limit: 20 })) as unknown as UsersResponse;
+            const list = data.data || [];
             setTarget(
                 list.filter(
                     (u: UserOption) =>
                         u.email.toLowerCase().includes(search.toLowerCase()) ||
-                        `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase())
-                )
+                        `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase()),
+                ),
             );
         } catch (err) {
             console.error('Failed to load users', err);
@@ -243,28 +239,29 @@ export function SystemAdminSchools() {
             const payload =
                 values.principalType === 'EXISTING'
                     ? {
-                        schoolName: values.schoolName,
-                        address: values.address,
-                        admin: { type: 'EXISTING' as const, userId: values.userId! },
-                    }
+                          schoolName: values.schoolName,
+                          address: values.address,
+                          admin: { type: 'EXISTING' as const, userId: values.userId! },
+                      }
                     : {
-                        schoolName: values.schoolName,
-                        address: values.address,
-                        admin: {
-                            type: 'NEW' as const,
-                            firstName: values.firstName!,
-                            lastName: values.lastName!,
-                            email: values.email!,
-                        },
-                    };
+                          schoolName: values.schoolName,
+                          address: values.address,
+                          admin: {
+                              type: 'NEW' as const,
+                              firstName: values.firstName!,
+                              lastName: values.lastName!,
+                              email: values.email!,
+                          },
+                      };
             await createSystemSchool(payload);
             setDialogOpen(false);
             form.reset();
             setSelectedUser(null);
             await fetchSchools();
-        } catch (err: any) {
-            console.error('Failed to create school', err);
-            toast.error(err?.response?.data?.message || t('system_schools.failed_create'));
+        } catch (err) {
+            const error = err as { response?: { data?: { message?: string } } };
+            console.error('Failed to create school', error);
+            toast.error(error.response?.data?.message || t('system_schools.failed_create'));
         } finally {
             setSubmitting(false);
         }
@@ -274,16 +271,29 @@ export function SystemAdminSchools() {
         if (!editingSchool) return;
         setSubmitting(true);
         try {
-            const payload: any = {
+            const payload: {
+                name: string;
+                address?: string;
+                requireSsoEmailMatch: boolean;
+                admin?:
+                    | { type: 'EXISTING'; userId: string }
+                    | { type: 'NEW'; firstName: string; lastName: string; email: string };
+            } = {
                 name: values.name,
                 address: values.address,
                 requireSsoEmailMatch: values.requireSsoEmailMatch,
             };
 
             if (values.hasPrincipalChange) {
-                payload.admin = values.principalType === 'EXISTING'
-                    ? { type: 'EXISTING', userId: values.userId }
-                    : { type: 'NEW', firstName: values.firstName, lastName: values.lastName, email: values.email };
+                payload.admin =
+                    values.principalType === 'EXISTING'
+                        ? { type: 'EXISTING', userId: values.userId! }
+                        : {
+                              type: 'NEW',
+                              firstName: values.firstName!,
+                              lastName: values.lastName!,
+                              email: values.email!,
+                          };
             }
 
             await updateSystemSchool(editingSchool.id, payload);
@@ -292,9 +302,10 @@ export function SystemAdminSchools() {
             setSelectedEditUser(null);
             toast.success(t('system_schools.updated_success'));
             await fetchSchools();
-        } catch (err: any) {
-            console.error('Failed to update school', err);
-            toast.error(t('system_schools.failed_update') + ': ' + (err.response?.data?.message || err.message));
+        } catch (err) {
+            const error = err as { response?: { data?: { message?: string } }; message: string };
+            console.error('Failed to update school', error);
+            toast.error(t('system_schools.failed_update') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setSubmitting(false);
         }
@@ -333,8 +344,9 @@ export function SystemAdminSchools() {
         try {
             navigate('/dashboard');
             await selectSchool(schoolId, role);
-        } catch (err: any) {
-            toast.error(t('system_schools.failed_select') + ': ' + (err.response?.data?.message || err.message));
+        } catch (err) {
+            const error = err as { response?: { data?: { message?: string } }; message: string };
+            toast.error(t('system_schools.failed_select') + ': ' + (error.response?.data?.message || error.message));
         } finally {
             setSelecting(null);
         }
@@ -350,8 +362,13 @@ export function SystemAdminSchools() {
             setDeletingSchool(null);
             setDeleteConfirmName('');
             await fetchSchools();
-        } catch (err: any) {
-            toast.error(t('system_schools.failed_delete', 'Smazání školy selhalo') + ': ' + (err.response?.data?.message || err.message));
+        } catch (err) {
+            const error = err as { response?: { data?: { message?: string } }; message: string };
+            toast.error(
+                t('system_schools.failed_delete', 'Smazání školy selhalo') +
+                    ': ' +
+                    (error.response?.data?.message || error.message),
+            );
         } finally {
             setDeleting(false);
         }
@@ -361,23 +378,31 @@ export function SystemAdminSchools() {
     const renderMembers = (members?: SchoolMember[]) => {
         if (!members || members.length === 0) return <span className="text-muted-foreground">—</span>;
 
-        const principals = members.filter(m => m.role === 'PRINCIPAL');
-        const deputies = members.filter(m => m.role === 'DEPUTY');
+        const principals = members.filter((m) => m.role === 'PRINCIPAL');
+        const deputies = members.filter((m) => m.role === 'DEPUTY');
 
         return (
             <div className="space-y-1">
-                {principals.map(m => (
+                {principals.map((m) => (
                     <div key={m.user.id} className="flex items-center gap-1.5">
                         <Crown size={14} className="text-amber-500 shrink-0" />
-                        <span className="text-sm font-medium">{m.user.firstName} {m.user.lastName}</span>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t('system_schools.role_principal', 'Ředitel')}</Badge>
+                        <span className="text-sm font-medium">
+                            {m.user.firstName} {m.user.lastName}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                            {t('system_schools.role_principal', 'Ředitel')}
+                        </Badge>
                     </div>
                 ))}
-                {deputies.map(m => (
+                {deputies.map((m) => (
                     <div key={m.user.id} className="flex items-center gap-1.5">
                         <Shield size={14} className="text-blue-500 shrink-0" />
-                        <span className="text-sm">{m.user.firstName} {m.user.lastName}</span>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t('system_schools.role_deputy', 'Zástupce')}</Badge>
+                        <span className="text-sm">
+                            {m.user.firstName} {m.user.lastName}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                            {t('system_schools.role_deputy', 'Zástupce')}
+                        </Badge>
                     </div>
                 ))}
             </div>
@@ -401,9 +426,7 @@ export function SystemAdminSchools() {
                     <DialogContent className="sm:max-w-[520px]">
                         <DialogHeader>
                             <DialogTitle>{t('system_schools.create_new')}</DialogTitle>
-                            <DialogDescription>
-                                {t('system_schools.create_description')}
-                            </DialogDescription>
+                            <DialogDescription>{t('system_schools.create_description')}</DialogDescription>
                         </DialogHeader>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
@@ -464,7 +487,10 @@ export function SystemAdminSchools() {
                                                         </div>
                                                         <div className="flex items-center space-x-2">
                                                             <RadioGroupItem value="EXISTING" id="principal-existing" />
-                                                            <Label htmlFor="principal-existing" className="cursor-pointer">
+                                                            <Label
+                                                                htmlFor="principal-existing"
+                                                                className="cursor-pointer"
+                                                            >
                                                                 {t('system_schools.select_existing')}
                                                             </Label>
                                                         </div>
@@ -574,11 +600,7 @@ export function SystemAdminSchools() {
                                                     <FormItem>
                                                         <FormLabel>{t('common.email')}</FormLabel>
                                                         <FormControl>
-                                                            <Input
-                                                                type="email"
-                                                                placeholder="jan@skola.cz"
-                                                                {...field}
-                                                            />
+                                                            <Input type="email" placeholder="jan@skola.cz" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -589,11 +611,7 @@ export function SystemAdminSchools() {
                                 </div>
 
                                 <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => handleOpenChange(false)}
-                                    >
+                                    <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                                         {t('common.cancel')}
                                     </Button>
                                     <Button type="submit" disabled={submitting}>
@@ -611,9 +629,7 @@ export function SystemAdminSchools() {
                 <DialogContent className="sm:max-w-[520px]">
                     <DialogHeader>
                         <DialogTitle>{t('system_schools.edit_title')}</DialogTitle>
-                        <DialogDescription>
-                            {t('system_schools.edit_description')}
-                        </DialogDescription>
+                        <DialogDescription>{t('system_schools.edit_description')}</DialogDescription>
                     </DialogHeader>
                     <Form {...editForm}>
                         <form onSubmit={editForm.handleSubmit(onUpdate)} className="space-y-4">
@@ -659,10 +675,7 @@ export function SystemAdminSchools() {
                                             </p>
                                         </div>
                                         <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -724,14 +737,26 @@ export function SystemAdminSchools() {
                                                                 className="flex gap-4"
                                                             >
                                                                 <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="EXISTING" id="edit-principal-existing" />
-                                                                    <Label htmlFor="edit-principal-existing" className="text-xs cursor-pointer">
+                                                                    <RadioGroupItem
+                                                                        value="EXISTING"
+                                                                        id="edit-principal-existing"
+                                                                    />
+                                                                    <Label
+                                                                        htmlFor="edit-principal-existing"
+                                                                        className="text-xs cursor-pointer"
+                                                                    >
                                                                         {t('system_schools.ex_user')}
                                                                     </Label>
                                                                 </div>
                                                                 <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="NEW" id="edit-principal-new" />
-                                                                    <Label htmlFor="edit-principal-new" className="text-xs cursor-pointer">
+                                                                    <RadioGroupItem
+                                                                        value="NEW"
+                                                                        id="edit-principal-new"
+                                                                    />
+                                                                    <Label
+                                                                        htmlFor="edit-principal-new"
+                                                                        className="text-xs cursor-pointer"
+                                                                    >
                                                                         {t('system_schools.new_user')}
                                                                     </Label>
                                                                 </div>
@@ -748,7 +773,9 @@ export function SystemAdminSchools() {
                                                 name="userId"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-xs">{t('system_schools.search_user')}</FormLabel>
+                                                        <FormLabel className="text-xs">
+                                                            {t('system_schools.search_user')}
+                                                        </FormLabel>
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <Input
@@ -765,24 +792,27 @@ export function SystemAdminSchools() {
                                                                         field.onChange('');
                                                                     }}
                                                                 />
-                                                                {!selectedEditUser && editUserSearch && users.length > 0 && (
-                                                                    <div className="absolute z-10 mt-1 max-h-32 w-full overflow-auto rounded-md border bg-popover shadow-md">
-                                                                        {users.map((user) => (
-                                                                            <button
-                                                                                key={user.id}
-                                                                                type="button"
-                                                                                className="flex w-full items-center gap-2 px-2 py-1 text-xs hover:bg-accent"
-                                                                                onClick={() => {
-                                                                                    setSelectedEditUser(user);
-                                                                                    field.onChange(user.id);
-                                                                                    setEditUserSearch('');
-                                                                                }}
-                                                                            >
-                                                                                {user.firstName} {user.lastName} ({user.email})
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
+                                                                {!selectedEditUser &&
+                                                                    editUserSearch &&
+                                                                    users.length > 0 && (
+                                                                        <div className="absolute z-10 mt-1 max-h-32 w-full overflow-auto rounded-md border bg-popover shadow-md">
+                                                                            {users.map((user) => (
+                                                                                <button
+                                                                                    key={user.id}
+                                                                                    type="button"
+                                                                                    className="flex w-full items-center gap-2 px-2 py-1 text-xs hover:bg-accent"
+                                                                                    onClick={() => {
+                                                                                        setSelectedEditUser(user);
+                                                                                        field.onChange(user.id);
+                                                                                        setEditUserSearch('');
+                                                                                    }}
+                                                                                >
+                                                                                    {user.firstName} {user.lastName} (
+                                                                                    {user.email})
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
                                                             </div>
                                                         </FormControl>
                                                     </FormItem>
@@ -797,8 +827,12 @@ export function SystemAdminSchools() {
                                                     name="firstName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs">{t('system_schools.first_name')}</FormLabel>
-                                                            <FormControl><Input className="h-8" {...field} /></FormControl>
+                                                            <FormLabel className="text-xs">
+                                                                {t('system_schools.first_name')}
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input className="h-8" {...field} />
+                                                            </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
@@ -807,8 +841,12 @@ export function SystemAdminSchools() {
                                                     name="lastName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs">{t('system_schools.last_name')}</FormLabel>
-                                                            <FormControl><Input className="h-8" {...field} /></FormControl>
+                                                            <FormLabel className="text-xs">
+                                                                {t('system_schools.last_name')}
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input className="h-8" {...field} />
+                                                            </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
@@ -818,8 +856,12 @@ export function SystemAdminSchools() {
                                                         name="email"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel className="text-xs">{t('common.email')}</FormLabel>
-                                                                <FormControl><Input className="h-8" type="email" {...field} /></FormControl>
+                                                                <FormLabel className="text-xs">
+                                                                    {t('common.email')}
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input className="h-8" type="email" {...field} />
+                                                                </FormControl>
                                                             </FormItem>
                                                         )}
                                                     />
@@ -831,11 +873,7 @@ export function SystemAdminSchools() {
                             </div>
 
                             <DialogFooter>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => handleEditOpenChange(false)}
-                                >
+                                <Button type="button" variant="outline" onClick={() => handleEditOpenChange(false)}>
                                     {t('common.cancel')}
                                 </Button>
                                 <Button type="submit" disabled={submitting}>
@@ -878,9 +916,7 @@ export function SystemAdminSchools() {
                                     <TableCell className="font-medium">{school.name}</TableCell>
                                     <TableCell>{school.address || '—'}</TableCell>
                                     <TableCell>{renderMembers(school.members)}</TableCell>
-                                    <TableCell>
-                                        {new Date(school.createdAt).toLocaleDateString('cs-CZ')}
-                                    </TableCell>
+                                    <TableCell>{new Date(school.createdAt).toLocaleDateString('cs-CZ')}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button
@@ -914,15 +950,21 @@ export function SystemAdminSchools() {
                                                         {t('system_schools.enter_as')}
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleSelectSchool(school.id, 'ADMIN')}>
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleSelectSchool(school.id, 'ADMIN')}
+                                                    >
                                                         <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
                                                         {t('select_school.enter_as_admin')}
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleSelectSchool(school.id, 'PRINCIPAL')}>
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleSelectSchool(school.id, 'PRINCIPAL')}
+                                                    >
                                                         <Crown className="mr-2 h-4 w-4 text-amber-500" />
                                                         {t('select_school.enter_as_principal')}
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleSelectSchool(school.id, 'DEPUTY')}>
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleSelectSchool(school.id, 'DEPUTY')}
+                                                    >
                                                         <Shield className="mr-2 h-4 w-4 text-blue-500" />
                                                         {t('select_school.enter_as_deputy')}
                                                     </DropdownMenuItem>
@@ -952,13 +994,25 @@ export function SystemAdminSchools() {
             </div>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={(open: boolean) => { setDeleteDialogOpen(open); if (!open) { setDeletingSchool(null); setDeleteConfirmName(''); } }}>
+            <AlertDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open: boolean) => {
+                    setDeleteDialogOpen(open);
+                    if (!open) {
+                        setDeletingSchool(null);
+                        setDeleteConfirmName('');
+                    }
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>{t('system_schools.delete_title', 'Smazat školu')}</AlertDialogTitle>
                         <AlertDialogDescription className="space-y-3">
                             <span className="block">
-                                {t('system_schools.delete_warning', 'Tato akce je nevratná. Budou smazána VŠECHNA data školy včetně uživatelů, tříd, známek, rozvrhů a docházky.')}
+                                {t(
+                                    'system_schools.delete_warning',
+                                    'Tato akce je nevratná. Budou smazána VŠECHNA data školy včetně uživatelů, tříd, známek, rozvrhů a docházky.',
+                                )}
                             </span>
                             <span className="block font-medium text-foreground">
                                 {t('system_schools.delete_confirm_prompt', 'Pro potvrzení napište název školy:')}{' '}
@@ -979,7 +1033,9 @@ export function SystemAdminSchools() {
                             disabled={deleting || deleteConfirmName !== deletingSchool?.name}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {deleting ? t('system_schools.deleting', 'Mazání...') : t('system_schools.delete_confirm', 'Smazat školu')}
+                            {deleting
+                                ? t('system_schools.deleting', 'Mazání...')
+                                : t('system_schools.delete_confirm', 'Smazat školu')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -1,21 +1,19 @@
-import { server } from "../server.js";
-import { PrismaClient } from "@prisma/client";
-import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { server } from '../server.js';
+import { prisma } from '../db.js';
+import { z } from 'zod';
 
 server.tool(
-    "get_attendance_summary",
-    "Vypočítá sumář docházky pro konkrétního studenta v daném období.",
+    'get_attendance_summary',
+    'Vypočítá sumář docházky pro konkrétního studenta v daném období.',
     {
-        studentId: z.string().describe("ID studenta (User ID)"),
-        startDate: z.string().describe("Počáteční datum (ISO)"),
-        endDate: z.string().describe("Koncové datum (ISO)"),
+        studentId: z.string().describe('ID studenta (User ID)'),
+        startDate: z.string().describe('Počáteční datum (ISO)'),
+        endDate: z.string().describe('Koncové datum (ISO)'),
     },
     async ({ studentId, startDate, endDate }: { studentId: string; startDate: string; endDate: string }) => {
         try {
             const summary = await prisma.attendance.groupBy({
-                by: ["status"],
+                by: ['status'],
                 where: {
                     studentId,
                     date: {
@@ -29,23 +27,23 @@ server.tool(
             });
 
             return {
-                content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
+                content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při načítání docházky: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při načítání docházky: ${error.message}` }],
             };
         }
-    }
+    },
 );
 
 server.tool(
-    "get_academic_performance",
-    "Vypočítá studijní průměry žáka podle předmětů pro daný školní rok.",
+    'get_academic_performance',
+    'Vypočítá studijní průměry žáka podle předmětů pro daný školní rok.',
     {
-        studentId: z.string().describe("ID studenta (User ID)"),
-        academicYearId: z.string().describe("ID školního roku"),
+        studentId: z.string().describe('ID studenta (User ID)'),
+        academicYearId: z.string().describe('ID školního roku'),
     },
     async ({ studentId, academicYearId }: { studentId: string; academicYearId: string }) => {
         try {
@@ -81,13 +79,13 @@ server.tool(
             }
 
             return {
-                content: [{ type: "text", text: JSON.stringify(performance, null, 2) }],
+                content: [{ type: 'text', text: JSON.stringify(performance, null, 2) }],
             };
         } catch (error: any) {
             return {
                 isError: true,
-                content: [{ type: "text", text: `Chyba při výpočtu prospěchu: ${error.message}` }],
+                content: [{ type: 'text', text: `Chyba při výpočtu prospěchu: ${error.message}` }],
             };
         }
-    }
+    },
 );

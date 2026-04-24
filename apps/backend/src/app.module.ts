@@ -31,25 +31,41 @@ import { ClassBookModule } from './classbook/classbook.module';
 import { ExportModule } from './export/export.module';
 import { ReportsModule } from './reports/reports.module';
 import { GdprModule } from './gdpr/gdpr.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
+    DatabaseModule,
     ClsModule.forRoot({
       global: true,
       middleware: { mount: true },
     }),
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', '../../.env'],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 3000,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 3000,
+      },
+    ]),
     NestScheduleModule.forRoot(),
     CryptoModule,
     MailModule,
-    UsersModule, RegistryModule, GradingModule, ScheduleModule, AiModule, AuthModule, InitModule,
-    SystemAdminModule, StudentModule, ParentModule, TeacherModule, DeputyModule, PrincipalModule,
+    UsersModule,
+    RegistryModule,
+    GradingModule,
+    ScheduleModule,
+    AiModule,
+    AuthModule,
+    InitModule,
+    SystemAdminModule,
+    StudentModule,
+    ParentModule,
+    TeacherModule,
+    DeputyModule,
+    PrincipalModule,
     MessagingModule,
     AttendanceModule,
     CommunityModule,
@@ -71,4 +87,4 @@ import { GdprModule } from './gdpr/gdpr.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

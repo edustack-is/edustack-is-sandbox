@@ -2,10 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTaskQueue, TaskItem } from '@/context/TaskQueueContext';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import {
-    ChevronUp, ChevronDown, Loader2,
-    CheckCircle2, XCircle, ListTodo, Trash2,
-} from 'lucide-react';
+import { ChevronUp, ChevronDown, Loader2, CheckCircle2, XCircle, ListTodo, Trash2 } from 'lucide-react';
 
 // ─── Tool label helper (i18n-aware) ─────────────────────────────
 
@@ -13,9 +10,7 @@ export function getToolLabel(t: (key: string, fallback?: any) => string, name: s
     const translated = t(`taskQueue.tools.${name}`, '');
     if (translated) return translated;
     // Smart fallback: convert snake_case to readable text
-    return name
-        .replace(/_/g, ' ')
-        .replace(/^\w/, c => c.toUpperCase());
+    return name.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
 
 // ─── Main Component ─────────────────────────────────────────────
@@ -46,8 +41,8 @@ export function TaskQueuePanel() {
     // Sort: running first, then by time (newest first for running, oldest first for done)
     const sortedTasks = [...tasks].sort((a, b) => b.createdAt - a.createdAt);
 
-    const doneCount = tasks.filter(t => t.status === 'done').length;
-    const errorCount = tasks.filter(t => t.status === 'error').length;
+    const doneCount = tasks.filter((t) => t.status === 'done').length;
+    const errorCount = tasks.filter((t) => t.status === 'error').length;
 
     return (
         <div
@@ -79,9 +74,7 @@ export function TaskQueuePanel() {
                             </span>
                         )}
                     </div>
-                    <span className="text-sm font-medium">
-                        {t('taskQueue.title')}
-                    </span>
+                    <span className="text-sm font-medium">{t('taskQueue.title')}</span>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         {runningCount > 0 && (
                             <span className="flex items-center gap-1 text-violet-500">
@@ -105,9 +98,12 @@ export function TaskQueuePanel() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {tasks.some(t => t.status !== 'running') && (
+                    {tasks.some((t) => t.status !== 'running') && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); clearFinished(); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                clearFinished();
+                            }}
                             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                             title={t('taskQueue.clear_finished')}
                         >
@@ -124,18 +120,14 @@ export function TaskQueuePanel() {
 
             {/* Task list */}
             {expanded && (
-                <div
-                    ref={panelRef}
-                    className="overflow-y-auto"
-                    style={{ maxHeight: '272px' }}
-                >
+                <div ref={panelRef} className="overflow-y-auto" style={{ maxHeight: '272px' }}>
                     {sortedTasks.length === 0 ? (
                         <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                             {t('taskQueue.empty')}
                         </div>
                     ) : (
                         <div className="divide-y divide-border/30">
-                            {sortedTasks.map(task => (
+                            {sortedTasks.map((task) => (
                                 <TaskRow key={task.id} task={task} />
                             ))}
                         </div>
@@ -150,9 +142,7 @@ export function TaskQueuePanel() {
 
 function TaskRow({ task }: { task: TaskItem }) {
     const { t } = useTranslation();
-    const elapsed = task.finishedAt
-        ? ((task.finishedAt - task.createdAt) / 1000).toFixed(1)
-        : null;
+    const elapsed = task.finishedAt ? ((task.finishedAt - task.createdAt) / 1000).toFixed(1) : null;
     const label = getToolLabel(t, task.name);
 
     return (
@@ -166,29 +156,23 @@ function TaskRow({ task }: { task: TaskItem }) {
         >
             {/* Status icon */}
             <div className="flex-shrink-0">
-                {task.status === 'running' && (
-                    <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
-                )}
-                {task.status === 'done' && (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                )}
-                {task.status === 'error' && (
-                    <XCircle className="h-4 w-4 text-red-500" />
-                )}
+                {task.status === 'running' && <Loader2 className="h-4 w-4 animate-spin text-violet-500" />}
+                {task.status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                {task.status === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
             </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-                <p className={cn(
-                    'text-sm truncate',
-                    task.status === 'done' && 'line-through text-muted-foreground',
-                    task.status === 'error' && 'text-red-400',
-                )}>
+                <p
+                    className={cn(
+                        'text-sm truncate',
+                        task.status === 'done' && 'line-through text-muted-foreground',
+                        task.status === 'error' && 'text-red-400',
+                    )}
+                >
                     {label}
                 </p>
-                {task.error && (
-                    <p className="text-xs text-red-400 truncate mt-0.5">{task.error}</p>
-                )}
+                {task.error && <p className="text-xs text-red-400 truncate mt-0.5">{task.error}</p>}
             </div>
 
             {/* Time info */}
