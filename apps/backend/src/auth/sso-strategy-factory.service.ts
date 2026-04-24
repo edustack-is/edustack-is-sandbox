@@ -73,30 +73,62 @@ export class SsoStrategyFactoryService implements OnModuleInit {
     switch (service.toUpperCase()) {
       case 'GOOGLE':
         strategy = new GoogleStrategy(
-          { clientID: clientId, clientSecret: clientSecret, callbackURL: callbackURL, scope: ['profile', 'email'] },
-          (accessToken, refreshToken, profile, done) => done(null, profile),
+          {
+            clientID: clientId,
+            clientSecret: clientSecret,
+            callbackURL: callbackURL,
+            scope: ['profile', 'email'],
+          },
+          (accessToken: string, refreshToken: string, profile: any, done: any) =>
+            done(null, profile),
         );
         break;
 
       case 'GITHUB':
         strategy = new GitHubStrategy(
-          { clientID: clientId, clientSecret: clientSecret, callbackURL: callbackURL, scope: ['user:email'] },
-          (accessToken, refreshToken, profile, done) => done(null, profile),
+          {
+            clientID: clientId,
+            clientSecret: clientSecret,
+            callbackURL: callbackURL,
+            scope: ['user:email'],
+          },
+          (accessToken: string, refreshToken: string, profile: any, done: any) =>
+            done(null, profile),
         );
         break;
 
       case 'MICROSOFT':
         strategy = new MicrosoftStrategy(
-          { clientID: clientId, clientSecret: clientSecret, callbackURL: callbackURL, tenant: keys['TENANT_ID'] || 'common', scope: ['user.read'] },
-          (accessToken, refreshToken, profile, done) => done(null, profile),
+          {
+            clientID: clientId,
+            clientSecret: clientSecret,
+            callbackURL: callbackURL,
+            tenant: keys['TENANT_ID'] || 'common',
+            scope: ['user.read'],
+          },
+          (accessToken: string, refreshToken: string, profile: any, done: any) =>
+            done(null, profile),
         );
         break;
 
       case 'APPLE': {
         const AppleStrategyModule = require('passport-appleid');
         strategy = new AppleStrategyModule(
-          { clientID: clientId, teamID: keys['TEAM_ID'], keyID: keys['KEY_ID'], privateKeyString: clientSecret, callbackURL: callbackURL, scope: ['name', 'email'] },
-          (accessToken, refreshToken, idToken, profile, done) => done(null, profile),
+          {
+            clientID: clientId,
+            teamID: keys['TEAM_ID'],
+            keyID: keys['KEY_ID'],
+            privateKeyString: clientSecret,
+            callbackURL: callbackURL,
+            scope: ['name', 'email'],
+          },
+          (
+            accessToken: string,
+            refreshToken: string,
+            idToken: string,
+            profile: any,
+            done: any,
+          ) => done(null, profile),
         );
         break;
       }

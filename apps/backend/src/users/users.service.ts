@@ -44,8 +44,10 @@ export class UsersService {
     skip?: number;
     take?: number;
     schoolId?: string;
+    role?: string;
+    status?: string;
   }): Promise<{ data: any[]; total: number }> {
-    const { skip = 0, take = 20, schoolId } = params;
+    const { skip = 0, take = 20, schoolId, role, status } = params;
 
     let whereClause = 'WHERE u.deletedAt IS NULL';
     const queryParams: any[] = [];
@@ -54,7 +56,14 @@ export class UsersService {
       whereClause += ' AND m.schoolId = ?';
       queryParams.push(schoolId);
     }
-
+    if (role) {
+      whereClause += ' AND m.role = ?';
+      queryParams.push(role);
+    }
+    if (status) {
+      whereClause += ' AND m.status = ?';
+      queryParams.push(status);
+    }
     const sql = `
       SELECT u.*, 
              sp.id as studentProfileId, sp.classroomId,
@@ -136,8 +145,8 @@ export class UsersService {
         .pipe(csv())
         .on('data', (data) => results.push(data))
         .on('end', async () => {
-          const validUsers = [];
-          const errors = [];
+          const validUsers: any[] = [];
+          const errors: string[] = [];
 
           for (const row of results) {
             try {

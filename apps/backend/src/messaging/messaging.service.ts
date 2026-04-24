@@ -316,9 +316,40 @@ export class MessagingService {
       `SELECT u.id, u.firstName, u.lastName, u.email, u.avatarUrl, m.role 
        FROM "SchoolMembership" m 
        JOIN "User" u ON m.userId = u.id 
-       WHERE m.schoolId = ? AND m.userId != ? AND m.status = 'ACTIVE'`,
-      [schoolId, userId],
+       WHERE m.schoolId = ? AND m.userId != ? AND m.status = ?`,
+      [schoolId, userId, 'ACTIVE'],
     );
+  }
+
+  async getAvailableClassrooms(userId: string, schoolId: string) {
+    const membership = await this.db.queryOne<SchoolMembership>(
+      'SELECT role FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?',
+      [userId, schoolId],
+    );
+    if (!membership) return [];
+
+    if (
+      ['PRINCIPAL', 'DEPUTY', 'ADMIN', 'SYSTEM_ADMIN'].includes(membership.role)
+    ) {
+      return this.db.query(
+        'SELECT * FROM "Classroom" WHERE schoolId = ? ORDER BY grade ASC, name ASC',
+        [schoolId],
+      );
+    }
+
+    if (membership.role === 'TEACHER') {
+      const profile = await this.db.queryOne(
+        'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+        [userId],
+      );
+      if (!profile) return [];
+      return this.db.query(
+        'SELECT DISTINCT c.* FROM "Classroom" c JOIN "ScheduleEvent" se ON c.id = se.classroomId WHERE se.teacherId = ? AND c.schoolId = ?',
+        [(profile as any).id, schoolId],
+      );
+    }
+
+    return [];
   }
 
   private async moderateContent(

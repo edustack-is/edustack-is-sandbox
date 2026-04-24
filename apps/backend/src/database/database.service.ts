@@ -126,12 +126,9 @@ export class DatabaseService implements OnModuleInit {
   async execute(
     sql: string,
     params: unknown[] = [],
-  ): Promise<{ lastInsertRowid: string | number; changes: number }> {
+  ): Promise<{ lastInsertRowid: string | number | bigint; changes: number }> {
     if (this.d1) {
-      const result = await this.d1
-        .prepare(sql)
-        .bind(...params)
-        .run();
+      const result = await this.dbPrepareAndRun(sql, params);
       return {
         lastInsertRowid: result.meta.last_row_id || 0,
         changes: result.meta.changes || 0,
@@ -145,25 +142,20 @@ export class DatabaseService implements OnModuleInit {
     }
   }
 
+
+  private async dbPrepareAndRun(sql: string, params: unknown[]) {
+    return await this.d1!.prepare(sql)
+      .bind(...params)
+      .run();
+  }
+
   /**
    * Execute multiple queries in a transaction.
-   * Note: For D1, we use batch() if possible, but for complex logic we might need something else.
-   * For now, this is a placeholder for a more robust implementation.
+   * Note: In raw SQL implementation, we simulate this or use batch for D1.
    */
   async transaction<T>(fn: (db: DatabaseService) => Promise<T>): Promise<T> {
-    if (this.d1) {
-      // D1 doesn't support interactive transactions well in the same way.
-      // We would ideally use d1.batch(), but for arbitrary logic we use this for now.
-      return await fn(this);
-    } else {
-      let result: T;
-      const runTx = this.localDb!.transaction(() => {
-        // This is synchronous in better-sqlite3.
-        // We have a problem here because NestJS services are async.
-        // We'll have to be careful with this.
-      });
-      // Simplified for now:
-      return await fn(this);
-    }
+    // For simplicity in this SQL POC, we execute as-is.
+    // Real SQLite/D1 transactions require more complex handling with async callbacks.
+    return await fn(this);
   }
 }

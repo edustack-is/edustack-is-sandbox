@@ -5,10 +5,11 @@ import { DeputyCurriculumService } from './deputy-curriculum.service';
 import { DeputyCurriculumController } from './deputy-curriculum.controller';
 import { MailModule } from '../mail/mail.module';
 import { RvpImportService } from './rvp-import.service';
-import { CryptoModule } from '../utils/crypto.module';
+import { CryptoModule } from '../shared/crypto/crypto.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [MailModule, CryptoModule],
+  imports: [MailModule, CryptoModule, JwtModule.register({})],
   controllers: [DeputyController, DeputyCurriculumController],
   providers: [DeputyService, DeputyCurriculumService, RvpImportService],
 })

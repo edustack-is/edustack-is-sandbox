@@ -38,7 +38,7 @@ export class LogSensitiveReadInterceptor implements NestInterceptor {
       tap(async () => {
         if (user) {
           try {
-            const actorId = user.id || user.sub;
+            const actorId = user.userId;
             await this.db.execute(
               'INSERT INTO "AuditLog" (id, action, actorId, entity, entityId, ipAddress, userAgent, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
               [

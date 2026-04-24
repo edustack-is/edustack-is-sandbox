@@ -892,25 +892,20 @@ export class MetricsResponseDto {
   @ApiProperty({ example: '2d 5h 30m' }) uptime: string;
 }
 
+export class RvpAreaDto {
+  @ApiProperty({ example: 'Jazyk a jazyková komunikace' }) name: string;
+  @ApiProperty({ example: ['Český jazyk', 'Cizí jazyk'] }) subjects: string[];
+}
+
+export class RvpPreviewDto {
+  @ApiProperty({ type: [RvpAreaDto] }) areas: RvpAreaDto[];
+}
+
 // ─── RVP ────────────────────────────────────────────────
 export class RvpUploadResponseDto {
-  @ApiProperty({
-    description: 'Náhled dat z RVP souboru',
-    example: {
-      areas: [
-        {
-          name: 'Jazyk a jazyková komunikace',
-          subjects: ['Český jazyk', 'Cizí jazyk'],
-        },
-      ],
-    },
-  })
-  preview: {
-    areas: Array<{
-      name: string;
-      subjects: string[];
-    }>;
-  };
+  @ApiProperty({ description: 'Náhled dat z RVP souboru' })
+  preview: RvpPreviewDto;
+
   @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' })
   uploadId: string;
 }
@@ -1027,6 +1022,17 @@ export class ReportStatsResponseDto {
   };
 }
 
+export class RegistryStudentUserDto {
+  @ApiProperty({ example: 'Jan' }) firstName: string;
+  @ApiProperty({ example: 'Novák' }) lastName: string;
+}
+
+export class RegistryStudentDto {
+  @ApiProperty({ example: 'sp-uuid' }) id: string;
+  @ApiProperty({ example: 'u-uuid' }) userId: string;
+  @ApiProperty({ type: RegistryStudentUserDto }) user: RegistryStudentUserDto;
+}
+
 // ─── CLASSROOM FOR REGISTRY ─────────────────────────────
 export class RegistryClassroomResponseDto {
   @ApiProperty({ example: 'c3a1f2d4-5e6b-7c8d-9e0f-1a2b3c4d5e6f' }) id: string;
@@ -1034,19 +1040,9 @@ export class RegistryClassroomResponseDto {
   @ApiProperty({ example: 5 }) grade: number;
   @ApiProperty({
     description: 'Studenti s uživatelskými daty',
-    example: [
-      {
-        id: 'sp-uuid',
-        userId: 'u-uuid',
-        user: { firstName: 'Jan', lastName: 'Novák' },
-      },
-    ],
+    type: [RegistryStudentDto],
   })
-  students: Array<{
-    id: string;
-    userId: string;
-    user: { firstName: string; lastName: string };
-  }>;
+  students: RegistryStudentDto[];
 }
 
 // ─── SETTINGS ───────────────────────────────────────────

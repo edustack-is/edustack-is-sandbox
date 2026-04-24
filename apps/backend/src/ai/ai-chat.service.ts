@@ -738,15 +738,12 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
     };
   }
 
-  // ─── RESILIENCY (Exponential Backoff) ───────────────────────
-
   private async generateWithRetry<T>(
     operation: () => Promise<T>,
     retries = 3,
     baseDelay = 1000,
   ): Promise<T> {
     let lastError: any;
-
     for (let i = 0; i < retries; i++) {
       try {
         return await operation();
@@ -756,20 +753,21 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
           error.status === 429 ||
           error.statusCode === 429 ||
           error.message?.includes('429');
-
         if (isRateLimit && i < retries - 1) {
-          const delay = baseDelay * Math.pow(2, i); // 1s, 2s, 4s
+          const delay = baseDelay * Math.pow(2, i);
           this.logger.warn(
             `Rate limit hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`,
           );
           await new Promise((res) => setTimeout(res, delay));
           continue;
         }
-        throw error; // Not a rate limit or retries exhausted
+        throw error;
       }
     }
     throw lastError;
   }
+
+  // ─── RESILIENCY (Exponential Backoff) ───────────────────────
 
   // ─── USAGE TRACKING ─────────────────────────────────────────
 

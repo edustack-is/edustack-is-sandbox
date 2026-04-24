@@ -66,7 +66,7 @@ export class DeputyController {
   @Get('dashboard')
   @Roles(
     UserRole.ADMIN,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
     UserRole.PRINCIPAL,
     UserRole.DEPUTY,
     UserRole.TEACHER,
@@ -758,7 +758,7 @@ export class DeputyController {
   @Get('events')
   @Roles(
     UserRole.ADMIN,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
     UserRole.PRINCIPAL,
     UserRole.DEPUTY,
     UserRole.TEACHER,
@@ -790,7 +790,7 @@ export class DeputyController {
   @Get('events/upcoming')
   @Roles(
     UserRole.ADMIN,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
     UserRole.PRINCIPAL,
     UserRole.DEPUTY,
     UserRole.TEACHER,

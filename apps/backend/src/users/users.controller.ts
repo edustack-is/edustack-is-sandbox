@@ -6,6 +6,10 @@ import {
   Get,
   Query,
   Param,
+  Req,
+  Body,
+  UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +22,7 @@ import { UsersService } from './users.service';
 import { UserRole, UserStatus } from '../database/types';
 import { LogSensitiveRead } from '../auth/log-sensitive-read.decorator';
 import { LogSensitiveReadInterceptor } from '../auth/log-sensitive-read.interceptor';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 import {
   ImportResultDto,
@@ -27,8 +32,15 @@ import {
 @ApiTags('users')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/users')
+@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  private ensureTenant(req: any) {
+    if (!req.user.schoolId) {
+      throw new ForbiddenException('School context required.');
+    }
+  }
 
   @Post('import')
   @UseInterceptors(FileInterceptor('file'))
@@ -50,8 +62,9 @@ export class UsersController {
     status: 400,
     description: 'Neplatný požadavek – chyba validace vstupních dat.',
   })
-  async importUsers(@UploadedFile() file: any) {
-    return this.usersService.importUsersFromCsv(file.buffer);
+  async importUsers(@Req() req: any, @UploadedFile() file: any) {
+    this.ensureTenant(req);
+    return this.usersService.importUsersFromCsv(file.buffer, req.user.schoolId);
   }
 
   @Get()

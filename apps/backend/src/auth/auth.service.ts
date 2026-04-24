@@ -195,7 +195,7 @@ export class AuthService {
       );
 
       await db.execute(
-        'UPDATE "SchoolMembership" SET status = "ACTIVE" WHERE userId = ? AND status = "PENDING"',
+        'UPDATE "SchoolMembership" SET status = \'ACTIVE\' WHERE userId = ? AND status = \'PENDING\'',
         [user.id],
       );
 
@@ -292,7 +292,7 @@ export class AuthService {
       );
 
       await db.execute(
-        'UPDATE "SchoolMembership" SET status = "ACTIVE" WHERE userId = ? AND status = "PENDING"',
+        'UPDATE "SchoolMembership" SET status = \'ACTIVE\' WHERE userId = ? AND status = \'PENDING\'',
         [user.id],
       );
 
@@ -412,7 +412,7 @@ export class AuthService {
       `SELECT m.*, s.name as schoolName, s.address as schoolAddress 
        FROM "SchoolMembership" m 
        JOIN "School" s ON m.schoolId = s.id 
-       WHERE m.userId = ? AND m.status = "ACTIVE"`,
+       WHERE m.userId = ? AND m.status = 'ACTIVE'`,
       [userId],
     );
   }
@@ -431,8 +431,8 @@ export class AuthService {
       );
       if (!school) throw new NotFoundException('School not found');
 
-      const membership = await this.db.queryOne<SchoolMembership>(
-        'SELECT role FROM "SchoolMembership" WHERE userId = ? AND schoolId = ? AND status = "ACTIVE"',
+      const membership = await this.db.queryOne<{ role: string }>(
+        'SELECT role FROM "SchoolMembership" WHERE userId = ? AND schoolId = ? AND status = \'ACTIVE\'',
         [userId, schoolId],
       );
 
@@ -457,8 +457,8 @@ export class AuthService {
     >(
       `SELECT m.*, u.email 
        FROM "SchoolMembership" m 
-       JOIN "User" u ON m.userId = u.id 
-       WHERE m.userId = ? AND m.schoolId = ? AND m.status = "ACTIVE"`,
+       JOIN "School" s ON m.schoolId = s.id 
+       WHERE m.userId = ? AND m.schoolId = ? AND m.status = 'ACTIVE'`,
       [userId, schoolId],
     );
 
@@ -650,10 +650,10 @@ export class AuthService {
 
   async getCallerManagementSchools(userId: string): Promise<string[]> {
     const memberships = await this.db.query<{ schoolId: string }>(
-      'SELECT schoolId FROM "SchoolMembership" WHERE userId = ? AND role IN ("ADMIN", "DEPUTY", "PRINCIPAL") AND status = "ACTIVE"',
+      'SELECT schoolId FROM "SchoolMembership" WHERE userId = ? AND role IN (\'ADMIN\', \'DEPUTY\', \'PRINCIPAL\') AND status = \'ACTIVE\'',
       [userId],
     );
-    return memberships.map((m) => m.schoolId);
+    return memberships.map((m: any) => m.schoolId);
   }
 
   async getUserSchoolIds(userId: string): Promise<string[]> {
@@ -749,7 +749,8 @@ export class AuthService {
       .map((r) => r.trim().toUpperCase());
 
     const users = await this.db.query<User>(
-      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND email LIKE "%.demo.test" LIMIT 100',
+      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND (email LIKE ? OR email LIKE ? OR email LIKE ?) LIMIT 100',
+      ['%@demo.test', '%@skola.test', '%@zak.skola.test'],
     );
 
     const helperUsers: LoginHelperUser[] = [];

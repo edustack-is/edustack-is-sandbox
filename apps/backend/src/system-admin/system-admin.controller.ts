@@ -11,7 +11,8 @@ import {
   BadRequestException,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { UserRole, User } from '../database/types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
@@ -104,16 +105,14 @@ export class SystemAdminController {
 
   @Post('schools/:id/admins')
   assignAdmin(
+    @Req() req: any,
     @Param('id') id: string,
-    @Body('email') email: string,
-    @Body('firstName') firstName: string,
-    @Body('lastName') lastName: string,
+    @Body('userId') userId: string,
   ) {
     return this.systemAdminService.assignSchoolAdmin(
       id,
-      email,
-      firstName,
-      lastName,
+      userId,
+      req.user.userId,
     );
   }
 

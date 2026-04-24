@@ -298,7 +298,8 @@ export class RvpImportService {
 
   private async getApiKeys() {
     const secrets = await this.db.query(
-      'SELECT * FROM "SystemSecret" WHERE type = "AI"',
+      'SELECT * FROM "SystemSecret" WHERE type = ?',
+      ['AI'],
     );
     const find = (service: string, key: string) => {
       const s = secrets.find(

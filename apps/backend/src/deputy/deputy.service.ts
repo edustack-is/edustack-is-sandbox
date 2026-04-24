@@ -55,11 +55,11 @@ export class DeputyService {
       pendingMembersResult,
     ] = await Promise.all([
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = "STUDENT" AND status = "ACTIVE"',
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = \'STUDENT\' AND status = \'ACTIVE\'',
         [schoolId],
       ),
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = "TEACHER" AND status = "ACTIVE"',
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = \'TEACHER\' AND status = \'ACTIVE\'',
         [schoolId],
       ),
       this.db.queryOne<{ count: number }>(
@@ -99,7 +99,7 @@ export class DeputyService {
         [schoolId],
       ),
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND status = "PENDING"',
+        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND status = \'PENDING\'',
         [schoolId],
       ),
     ]);
@@ -203,8 +203,8 @@ export class DeputyService {
     );
     if (!existing) throw new NotFoundException('Classroom not found');
 
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     if (data.name !== undefined) {
       fields.push('"name" = ?');
       values.push(data.name);
@@ -295,8 +295,8 @@ export class DeputyService {
     );
     if (!existing) throw new NotFoundException('Subject template not found');
 
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     if (data.name !== undefined) {
       fields.push('"name" = ?');
       values.push(data.name);
@@ -848,7 +848,7 @@ export class DeputyService {
 
     if (data.role === UserRole.PRINCIPAL) {
       const existingPrincipal = await this.db.queryOne(
-        'SELECT id FROM "SchoolMembership" WHERE schoolId = ? AND role = "PRINCIPAL"',
+        'SELECT id FROM "SchoolMembership" WHERE schoolId = ? AND role = \'PRINCIPAL\'',
         [schoolId],
       );
       if (existingPrincipal) {
@@ -1390,8 +1390,8 @@ export class DeputyService {
       );
 
     await this.db.execute(
-      'UPDATE "SchoolMembership" SET status = "ARCHIVED", updatedAt = ? WHERE id = ?',
-      [new Date().toISOString(), (membership as any).id],
+      'UPDATE "SchoolMembership" SET status = ?, updatedAt = ? WHERE id = ?',
+      ['ARCHIVED', new Date().toISOString(), (membership as any).id],
     );
 
     await this.audit(
@@ -1432,8 +1432,8 @@ export class DeputyService {
 
     const oldStatus = (membership as any).status;
     await this.db.execute(
-      'UPDATE "SchoolMembership" SET status = "ALUMNI", updatedAt = ? WHERE id = ?',
-      [new Date().toISOString(), (membership as any).id],
+      'UPDATE "SchoolMembership" SET status = ?, updatedAt = ? WHERE id = ?',
+      ['ALUMNI', new Date().toISOString(), (membership as any).id],
     );
 
     await this.audit(
@@ -1600,8 +1600,8 @@ export class DeputyService {
       throw new BadRequestException('User is already suspended.');
 
     await this.db.execute(
-      'UPDATE "SchoolMembership" SET status = "SUSPENDED", updatedAt = ? WHERE id = ?',
-      [new Date().toISOString(), (membership as any).id],
+      'UPDATE "SchoolMembership" SET status = ?, updatedAt = ? WHERE id = ?',
+      ['SUSPENDED', new Date().toISOString(), (membership as any).id],
     );
 
     await this.audit(
@@ -1629,8 +1629,8 @@ export class DeputyService {
       throw new BadRequestException('User is not suspended.');
 
     await this.db.execute(
-      'UPDATE "SchoolMembership" SET status = "ACTIVE", updatedAt = ? WHERE id = ?',
-      [new Date().toISOString(), (membership as any).id],
+      'UPDATE "SchoolMembership" SET status = ?, updatedAt = ? WHERE id = ?',
+      ['ACTIVE', new Date().toISOString(), (membership as any).id],
     );
 
     await this.audit(
@@ -2232,8 +2232,8 @@ export class DeputyService {
     );
     if (!existing) throw new NotFoundException('Teaching material not found');
 
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     const keys = [
       'title',
       'description',
@@ -2338,8 +2338,8 @@ export class DeputyService {
     );
     if (!existing) throw new NotFoundException('Competency not found');
 
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     ['code', 'name', 'area', 'description'].forEach((k) => {
       if ((data as any)[k] !== undefined) {
         fields.push(`"${k}" = ?`);

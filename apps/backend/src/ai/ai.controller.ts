@@ -244,7 +244,12 @@ export class AiController {
       topics?: string;
     },
   ) {
-    return this.aiService.generateThematicPlan(body);
+    return this.aiService.generateThematicPlan({
+      subjectName: body.subjectName,
+      grade: body.grade,
+      hoursPerWeek: body.hoursPerWeek,
+      topic: body.topics || 'všeobecná',
+    });
   }
 
   @Post('student-recommendations')
@@ -283,7 +288,10 @@ export class AiController {
       subjectName?: string;
     },
   ) {
-    return this.aiService.analyzeClassPerformance(body);
+    return this.aiService.analyzeClassPerformance({
+      className: body.className,
+      stats: body.grades,
+    });
   }
 
   @Post('generate-test')
@@ -330,6 +338,10 @@ export class AiController {
       variantCount?: number;
     },
   ) {
-    return this.aiService.generateWrittenTest(body);
+    return this.aiService.generateWrittenTest({
+      subjectName: body.subjectName,
+      grade: body.grade,
+      topic: body.topics.join(', '),
+    });
   }
 }

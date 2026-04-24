@@ -242,8 +242,15 @@ export class AttendanceService {
 
     if (status === 'APPROVED') {
       await this.db.execute(
-        'UPDATE "Attendance" SET status = "EXCUSED" WHERE studentId = ? AND schoolId = ? AND status = "ABSENT" AND date >= ? AND date <= ?',
-        [excuse.studentId, schoolId, excuse.dateFrom, excuse.dateTo],
+        'UPDATE "Attendance" SET status = ? WHERE studentId = ? AND schoolId = ? AND status = ? AND date >= ? AND date <= ?',
+        [
+          'EXCUSED',
+          excuse.studentId,
+          schoolId,
+          'ABSENT',
+          excuse.dateFrom,
+          excuse.dateTo,
+        ],
       );
     }
 
@@ -354,8 +361,8 @@ export class AttendanceService {
        FROM "Attendance" a 
        JOIN "StudentProfile" sp ON a.studentId = sp.id 
        LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
-       WHERE a.schoolId = ? AND a.status = "ABSENT" AND a.date >= ?`,
-      [schoolId, monthStart],
+       WHERE a.schoolId = ? AND a.status = ? AND a.date >= ?`,
+      [schoolId, 'ABSENT', monthStart],
     );
 
     const byStudent = new Map<string, any>();

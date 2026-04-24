@@ -22,7 +22,7 @@ import { SystemAdminModule } from '../system-admin/system-admin.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, SsoStrategyFactoryService],
+  providers: [AuthService, JwtStrategy],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

@@ -171,13 +171,30 @@ function removeDiacritics(s: string): string {
     .toLowerCase();
 }
 
+export interface GenerateConfig {
+  schoolName: string;
+  schoolType: string;
+  teacherCount: number;
+  teacherActiveCount?: number;
+  teacherInvitedCount?: number;
+  studentCount?: number;
+  studentActiveCount?: number;
+  studentInvitedCount?: number;
+  parentCount?: number;
+  generateSubjects?: boolean;
+  generateSchedule?: boolean;
+  generateGrades?: boolean;
+  generateCommunication?: boolean;
+  studentCountPerClass?: number;
+}
+
 @Injectable()
 export class TestDataService {
   private readonly logger = new Logger(TestDataService.name);
 
   constructor(private db: DatabaseService) {}
 
-  async generateAll(config: any): Promise<any> {
+  async generateAll(config: GenerateConfig): Promise<any> {
     this.logger.log(`Generating test data for ${config.schoolName}`);
 
     const demoPassword = process.env.DEMO_PASSWORD || 'Demo1234!';

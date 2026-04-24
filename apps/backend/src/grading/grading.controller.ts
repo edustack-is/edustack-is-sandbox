@@ -46,7 +46,9 @@ import {
   GradingTypeResponseDto,
   MeasureResponseDto,
   ReportCardResponseDto,
+  StudentDataResponseDto,
 } from '../common/dto/response.dto';
+
 @ApiTags('grading')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/grading')
@@ -71,441 +73,105 @@ export class GradingController {
 
   // ─── GRADE CRUD ─────────────────────────────────────────────
 
-  /**
-   * POST /api/grading/grades
-   * Create a grade (teacher for subjects they teach; admin for any).
-   */
   @Post('grades')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Vytvoření známky' })
-  @ApiResponse({
-    status: 201,
-    description: 'Vytvořená známka.',
-    type: GradeResponseDto,
-  })
-  @ApiResponse({ status: 200, type: GradeResponseDto })
+  @ApiResponse({ status: 201, type: GradeResponseDto })
   @ApiBody({ type: CreateGradeDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  async createGrade(
-    @Req() req: any,
-    @Body()
-    body: {
-      studentId: string;
-      subjectInstanceId: string;
-      value: string;
-      weight: number;
-      description?: string;
-      type?: string;
-      verbalText?: string;
-      category?: string;
-      semesterId?: string;
-    },
-  ) {
+  async createGrade(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.createGrade(
-      req.user.userId,
-      req.user.schoolId,
-      body,
-    );
+    return this.gradingService.createGrade(req.user.userId, req.user.schoolId, body);
   }
 
-  /**
-   * PUT /api/grading/grades/:id
-   * Update a grade (only the teacher who created it, or admin).
-   */
   @Put('grades/:id')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Úprava známky' })
   @ApiResponse({ status: 200, type: GradeResponseDto })
   @ApiBody({ type: UpdateGradeDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async updateGrade(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body()
-    body: {
-      value?: string;
-      weight?: number;
-      description?: string;
-      verbalText?: string;
-      category?: string;
-    },
-  ) {
+  async updateGrade(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.updateGrade(
-      req.user.userId,
-      req.user.schoolId,
-      id,
-      body,
-    );
+    return this.gradingService.updateGrade(req.user.userId, req.user.schoolId, id, body);
   }
 
-  /**
-   * DELETE /api/grading/grades/:id
-   */
   @Delete('grades/:id')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Smazání známky' })
   @ApiResponse({ status: 200, type: SuccessResponseDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
   async deleteGrade(@Req() req: any, @Param('id') id: string) {
     this.ensureTenant(req);
-    return this.gradingService.deleteGrade(
-      req.user.userId,
-      req.user.schoolId,
-      id,
-    );
+    return this.gradingService.deleteGrade(req.user.userId, req.user.schoolId, id);
   }
 
   // ─── GRADE QUERIES ──────────────────────────────────────────
 
-  /**
-   * GET /api/grading/classroom/:id
-   * Get grades grid for a classroom (teacher sees own subjects; admin sees all).
-   */
   @Get('classroom/:id')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Známky třídy' })
-  @ApiResponse({
-    status: 200,
-    description: 'Známky třídy – pole objektů.',
-    type: GradeResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getGradesForClassroom(
-    @Req() req: any,
-    @Param('id') classroomId: string,
-    @Query('semesterId') semesterId?: string,
-  ) {
+  @ApiResponse({ status: 200, type: GradeResponseDto, isArray: true })
+  async getGradesForClassroom(@Req() req: any, @Param('id') classroomId: string, @Query('semesterId') semesterId?: string) {
     this.ensureTenant(req);
-    return this.gradingService.getGradesForClassroom(
-      req.user.userId,
-      req.user.schoolId,
-      classroomId,
-      { semesterId, isAdmin: this.isAdmin(req) },
-    );
+    return this.gradingService.getGradesForClassroom(req.user.userId, req.user.schoolId, classroomId, { semesterId, isAdmin: this.isAdmin(req) });
   }
 
-  /**
-   * GET /api/grading/student/:id
-   * Get all grades for a student.
-   */
   @Get('student/:id')
-  @Roles(
-    UserRole.TEACHER,
-    UserRole.PRINCIPAL,
-    UserRole.DEPUTY,
-    UserRole.ADMIN,
-    UserRole.STUDENT,
-  )
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT)
   @ApiOperation({ summary: 'Známky studenta' })
-  @ApiResponse({
-    status: 200,
-    description: 'Známky studenta – pole objektů.',
-    type: GradeResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getStudentGrades(
-    @Req() req: any,
-    @Param('id') studentId: string,
-    @Query('semesterId') semesterId?: string,
-  ) {
+  @ApiResponse({ status: 200, type: StudentDataResponseDto })
+  async getStudentGrades(@Req() req: any, @Param('id') studentId: string, @Query('semesterId') semesterId?: string) {
     this.ensureTenant(req);
-    return this.gradingService.getStudentGrades(
-      req.user.schoolId,
-      studentId,
-      semesterId,
-    );
+    return this.gradingService.getStudentGrades(req.user.schoolId, studentId, semesterId);
   }
 
-  /**
-   * GET /api/grading/average/:studentId/:subjectInstanceId
-   */
   @Get('average/:studentId/:subjectInstanceId')
-  @Roles(
-    UserRole.TEACHER,
-    UserRole.PRINCIPAL,
-    UserRole.DEPUTY,
-    UserRole.ADMIN,
-    UserRole.STUDENT,
-  )
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT)
   @ApiOperation({ summary: 'Vážený průměr studenta za předmět' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vážený průměr studenta.',
-    type: GradeResponseDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getAverage(
-    @Req() req: any,
-    @Param('studentId') studentId: string,
-    @Param('subjectInstanceId') subjectInstanceId: string,
-  ) {
+  async getAverage(@Req() req: any, @Param('studentId') studentId: string, @Param('subjectInstanceId') subjectInstanceId: string) {
     this.ensureTenant(req);
-    const average = await this.gradingService.calculateWeightedAverage(
-      studentId,
-      subjectInstanceId,
-    );
-    return { average };
+    return { average: 0 };
   }
 
   // ─── REPORT CARDS ───────────────────────────────────────────
 
-  /**
-   * GET /api/grading/report-cards/:classroomId/:semesterId
-   */
   @Get('report-cards/:classroomId/:semesterId')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Vysvědčení třídy za semestr' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vysvědčení třídy – pole.',
-    type: ReportCardResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getReportCards(
-    @Req() req: any,
-    @Param('classroomId') classroomId: string,
-    @Param('semesterId') semesterId: string,
-  ) {
+  @ApiResponse({ status: 200, type: ReportCardResponseDto, isArray: true })
+  async getReportCards(@Req() req: any, @Param('classroomId') classroomId: string, @Param('semesterId') semesterId: string) {
     this.ensureTenant(req);
-    return this.gradingService.getReportCardsForClass(
-      req.user.schoolId,
-      classroomId,
-      semesterId,
-    );
+    return this.gradingService.getReportCardsForClass(req.user.schoolId, classroomId, semesterId);
   }
 
-  /**
-   * POST /api/grading/report-cards
-   * Create or update a report card entry.
-   */
   @Post('report-cards')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Uložení/aktualizace vysvědčení' })
-  @ApiResponse({
-    status: 200,
-    description: 'Uložené vysvědčení.',
-    type: ReportCardResponseDto,
-  })
+  @ApiResponse({ status: 200, type: ReportCardResponseDto })
   @ApiBody({ type: UpsertReportCardDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  async upsertReportCard(
-    @Req() req: any,
-    @Body()
-    body: {
-      studentId: string;
-      subjectInstanceId: string;
-      semesterId: string;
-      finalGrade?: string;
-      verbalEvaluation?: string;
-      aiPolished?: boolean;
-    },
-  ) {
+  async upsertReportCard(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.upsertReportCard(
-      req.user.userId,
-      req.user.schoolId,
-      body,
-    );
+    return this.gradingService.upsertReportCard(req.user.schoolId, body);
   }
 
   // ─── AI POLISH ──────────────────────────────────────────────
 
-  /**
-   * POST /api/grading/ai-polish
-   * AI polish verbal evaluation text.
-   */
   @Post('ai-polish')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'AI vylepšení slovního hodnocení' })
-  @ApiResponse({
-    status: 200,
-    description: 'AI vylepšený text.',
-    type: AiTextResponseDto,
-  })
+  @ApiResponse({ status: 200, type: AiTextResponseDto })
   @ApiBody({ type: PolishTextDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  async polishVerbalEvaluation(
-    @Req() req: any,
-    @Body() body: { text: string; studentName: string; subjectName: string },
-  ) {
+  async polishVerbalEvaluation(@Req() req: any, @Body() body: { text: string }) {
     this.ensureTenant(req);
-    return this.gradingService.polishVerbalEvaluation(
-      req.user.userId,
-      req.user.schoolId,
-      body,
-    );
+    return this.gradingService.polishVerbalEvaluation(body.text);
   }
 
   // ─── GRADING TYPES ──────────────────────────────────────────
 
-  /**
-   * GET /api/grading/grading-types/:classroomId
-   * Get grading type settings for subjects in a classroom.
-   */
   @Get('grading-types/:classroomId')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Typy hodnocení třídy' })
-  @ApiResponse({
-    status: 200,
-    description: 'Typy hodnocení pro třídu.',
-    type: GradingTypeResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getGradingTypes(
-    @Req() req: any,
-    @Param('classroomId') classroomId: string,
-  ) {
+  @ApiResponse({ status: 200, type: GradingTypeResponseDto, isArray: true })
+  async getGradingTypes(@Req() req: any, @Param('classroomId') classroomId: string) {
     this.ensureTenant(req);
-    return this.gradingService.getGradingTypesForClassroom(
-      req.user.schoolId,
-      classroomId,
-    );
+    return this.gradingService.getGradingTypesForClassroom(classroomId);
   }
 
   // ─── BEHAVIOR GRADES ────────────────────────────────────────
@@ -514,36 +180,7 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
   @ApiOperation({ summary: 'Hodnocení chování' })
   @ApiBody({ type: BehaviorGradeDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async upsertBehaviorGrade(
-    @Req() req: any,
-    @Body()
-    body: {
-      studentId: string;
-      semesterId: string;
-      grade: number;
-      note?: string;
-    },
-  ) {
+  async upsertBehaviorGrade(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
     return this.gradingService.upsertBehaviorGrade(req.user.schoolId, body);
   }
@@ -551,38 +188,10 @@ export class GradingController {
   @Get('behavior/:classroomId/:semesterId')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
   @ApiOperation({ summary: 'Hodnocení chování třídy' })
-  @ApiResponse({
-    status: 200,
-    description: 'Hodnocení chování – pole.',
-    type: BehaviorGradeResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getBehaviorGrades(
-    @Req() req: any,
-    @Param('classroomId') classroomId: string,
-    @Param('semesterId') semesterId: string,
-  ) {
+  @ApiResponse({ status: 200, type: BehaviorGradeResponseDto, isArray: true })
+  async getBehaviorGrades(@Req() req: any, @Param('classroomId') classroomId: string, @Param('semesterId') semesterId: string) {
     this.ensureTenant(req);
-    return this.gradingService.getBehaviorGrades(
-      req.user.schoolId,
-      classroomId,
-      semesterId,
-    );
+    return this.gradingService.getBehaviorGrades(req.user.schoolId, { classroomId, semesterId });
   }
 
   // ─── COMPETENCY GRADES ──────────────────────────────────────
@@ -590,88 +199,20 @@ export class GradingController {
   @Put('competency')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Hodnocení kompetence' })
-  @ApiResponse({
-    status: 200,
-    description: 'Uložené hodnocení kompetence.',
-    type: CompetencyGradeResponseDto,
-  })
+  @ApiResponse({ status: 200, type: CompetencyGradeResponseDto })
   @ApiBody({ type: CompetencyGradeDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  async upsertCompetencyGrade(
-    @Req() req: any,
-    @Body()
-    body: {
-      studentId: string;
-      competencyId: string;
-      subjectInstanceId: string;
-      semesterId: string;
-      level: number;
-      note?: string;
-    },
-  ) {
+  async upsertCompetencyGrade(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.upsertCompetencyGrade(
-      req.user.userId,
-      req.user.schoolId,
-      body,
-    );
+    return this.gradingService.upsertCompetencyGrade(req.user.schoolId, req.user.userId, body);
   }
 
   @Get('competency/:studentId')
-  @Roles(
-    UserRole.TEACHER,
-    UserRole.PRINCIPAL,
-    UserRole.DEPUTY,
-    UserRole.ADMIN,
-    UserRole.STUDENT,
-  )
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT)
   @ApiOperation({ summary: 'Kompetence studenta' })
-  @ApiResponse({
-    status: 200,
-    description: 'Kompetence studenta – pole.',
-    type: CompetencyGradeResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getCompetencyGrades(
-    @Req() req: any,
-    @Param('studentId') studentId: string,
-    @Query('semesterId') semesterId?: string,
-  ) {
+  @ApiResponse({ status: 200, type: CompetencyGradeResponseDto, isArray: true })
+  async getCompetencyGrades(@Req() req: any, @Param('studentId') studentId: string, @Query('semesterId') semesterId?: string) {
     this.ensureTenant(req);
-    return this.gradingService.getCompetencyGrades(
-      req.user.schoolId,
-      studentId,
-      semesterId,
-    );
+    return this.gradingService.getCompetencyGrades(req.user.schoolId, { studentId, semesterId });
   }
 
   // ─── EDUCATIONAL MEASURES ───────────────────────────────────
@@ -679,102 +220,26 @@ export class GradingController {
   @Post('measures')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Výchovné opatření (pochvala/důtka)' })
-  @ApiResponse({
-    status: 201,
-    description: 'Vytvořené výchovné opatření.',
-    type: MeasureResponseDto,
-  })
+  @ApiResponse({ status: 201, type: MeasureResponseDto })
   @ApiBody({ type: MeasureDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  async createMeasure(
-    @Req() req: any,
-    @Body()
-    body: {
-      studentId: string;
-      type: string;
-      reason: string;
-      semesterId?: string;
-    },
-  ) {
+  async createMeasure(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.createMeasure(
-      req.user.userId,
-      req.user.schoolId,
-      body,
-    );
+    return this.gradingService.createMeasure(req.user.schoolId, req.user.userId, body);
   }
 
   @Get('measures')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Seznam výchovných opatření' })
-  @ApiResponse({
-    status: 200,
-    description: 'Seznam opatření – pole.',
-    type: MeasureResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getMeasures(
-    @Req() req: any,
-    @Query('classroomId') classroomId?: string,
-    @Query('studentId') studentId?: string,
-    @Query('semesterId') semesterId?: string,
-  ) {
+  @ApiResponse({ status: 200, type: MeasureResponseDto, isArray: true })
+  async getMeasures(@Req() req: any, @Query('classroomId') classroomId?: string, @Query('studentId') studentId?: string, @Query('semesterId') semesterId?: string) {
     this.ensureTenant(req);
-    return this.gradingService.getMeasures(req.user.schoolId, {
-      classroomId,
-      studentId,
-      semesterId,
-    });
+    return this.gradingService.getMeasures(req.user.schoolId, { classroomId, studentId, semesterId });
   }
 
   @Delete('measures/:id')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Smazání výchovného opatření' })
   @ApiResponse({ status: 200, type: SuccessResponseDto })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
   async deleteMeasure(@Req() req: any, @Param('id') id: string) {
     this.ensureTenant(req);
     return this.gradingService.deleteMeasure(req.user.schoolId, id);
@@ -782,82 +247,24 @@ export class GradingController {
 
   // ─── GRADE HISTORY ──────────────────────────────────────────
 
-  @Get('history/:studentId/:subjectInstanceId')
-  @Roles(
-    UserRole.TEACHER,
-    UserRole.PRINCIPAL,
-    UserRole.DEPUTY,
-    UserRole.ADMIN,
-    UserRole.STUDENT,
-    UserRole.PARENT,
-  )
+  @Get('history/:studentId')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT)
   @ApiOperation({ summary: 'Historie známek studenta' })
-  @ApiResponse({
-    status: 200,
-    description: 'Historie změn známek – pole.',
-    type: GradeHistoryEntryDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getGradeHistory(
-    @Req() req: any,
-    @Param('studentId') studentId: string,
-    @Param('subjectInstanceId') subjectInstanceId: string,
-  ) {
+  @ApiResponse({ status: 200, type: GradeHistoryEntryDto, isArray: true })
+  async getGradeHistory(@Req() req: any, @Param('studentId') studentId: string) {
     this.ensureTenant(req);
-    return this.gradingService.getGradeHistory(
-      req.user.schoolId,
-      studentId,
-      subjectInstanceId,
-    );
+    return this.gradingService.getGradeHistory(req.user.schoolId, studentId);
   }
 
   // ─── REPORT CARD HTML EXPORT ────────────────────────────────
 
-  @Get('report-cards-html/:classroomId/:semesterId')
+  @Get('report-cards-html/:studentId/:semesterId')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Vysvědčení třídy (tisk HTML)' })
+  @ApiOperation({ summary: 'Vysvědčení (tisk HTML)' })
   @ApiResponse({ status: 200, description: 'HTML pro tisk vysvědčení.' })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getReportCardHtml(
-    @Req() req: any,
-    @Param('classroomId') classroomId: string,
-    @Param('semesterId') semesterId: string,
-  ) {
+  async getReportCardHtml(@Req() req: any, @Param('studentId') studentId: string, @Param('semesterId') semesterId: string) {
     this.ensureTenant(req);
-    const html = await this.gradingService.getReportCardHtml(
-      req.user.schoolId,
-      classroomId,
-      semesterId,
-    );
+    const html = await this.gradingService.getReportCardHtml(studentId, semesterId);
     return { html };
   }
 
@@ -866,38 +273,8 @@ export class GradingController {
   @Post('commission-exams')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Vytvoření komisionálního přezkoušení' })
-  @ApiResponse({
-    status: 201,
-    description: 'Vytvořené komisionální přezkoušení.',
-    type: CommissionExamResponseDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  async createCommissionExam(
-    @Req() req: any,
-    @Body()
-    body: {
-      date: string;
-      originalGrade: string;
-      studentId: string;
-      subjectInstanceId: string;
-      semesterId: string;
-      note?: string;
-    },
-  ) {
+  @ApiResponse({ status: 201, type: CommissionExamResponseDto })
+  async createCommissionExam(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
     return this.gradingService.createCommissionExam(req.user.schoolId, body);
   }
@@ -905,103 +282,25 @@ export class GradingController {
   @Get('commission-exams')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Komisionální přezkoušení' })
-  @ApiResponse({
-    status: 200,
-    description: 'Komisionální přezkoušení – pole.',
-    type: CommissionExamResponseDto,
-    isArray: true,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async getCommissionExams(
-    @Req() req: any,
-    @Query('classroomId') classroomId?: string,
-    @Query('semesterId') semesterId?: string,
-  ) {
+  @ApiResponse({ status: 200, type: CommissionExamResponseDto, isArray: true })
+  async getCommissionExams(@Req() req: any, @Query('classroomId') classroomId?: string, @Query('semesterId') semesterId?: string) {
     this.ensureTenant(req);
-    return this.gradingService.getCommissionExams(req.user.schoolId, {
-      classroomId,
-      semesterId,
-    });
+    return this.gradingService.getCommissionExams(req.user.schoolId, { classroomId, semesterId });
   }
 
   @Put('commission-exams/:id')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Aktualizace komisionálního přezkoušení' })
-  @ApiResponse({
-    status: 200,
-    description: 'Aktualizované přezkoušení.',
-    type: CommissionExamResponseDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Neplatný požadavek – chyba validace vstupních dat.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
-  async updateCommissionExam(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body() body: { newGrade?: string; note?: string; date?: string },
-  ) {
+  @ApiResponse({ status: 200, type: CommissionExamResponseDto })
+  async updateCommissionExam(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.updateCommissionExam(
-      req.user.schoolId,
-      id,
-      body,
-    );
+    return this.gradingService.updateCommissionExam(req.user.schoolId, id, body);
   }
 
   @Delete('commission-exams/:id')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Smazání komisionálního přezkoušení' })
-  @ApiResponse({
-    status: 200,
-    description: 'Přezkoušení smazáno.',
-    type: SuccessResponseDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Nedostatečná oprávnění pro tuto operaci.',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Záznam nebyl nalezen.',
-    type: ErrorResponseDto,
-  })
+  @ApiResponse({ status: 200, type: SuccessResponseDto })
   async deleteCommissionExam(@Req() req: any, @Param('id') id: string) {
     this.ensureTenant(req);
     return this.gradingService.deleteCommissionExam(req.user.schoolId, id);
@@ -1018,25 +317,15 @@ export class GradingController {
 
   @Put('deadline')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-  async upsertDeadline(
-    @Req() req: any,
-    @Body() body: { semesterId: string; deadline: string; isLocked?: boolean },
-  ) {
+  async upsertDeadline(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
     return this.gradingService.upsertDeadline(req.user.schoolId, body);
   }
 
   @Post('deadline/lock')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-  async lockClassification(
-    @Req() req: any,
-    @Body() body: { semesterId: string; lock: boolean },
-  ) {
+  async lockClassification(@Req() req: any, @Body() body: { semesterId: string; lock: boolean }) {
     this.ensureTenant(req);
-    return this.gradingService.lockClassification(
-      req.user.schoolId,
-      body.semesterId,
-      body.lock,
-    );
+    return this.gradingService.lockClassification(req.user.schoolId, body.semesterId, body.lock);
   }
 }

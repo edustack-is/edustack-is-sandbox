@@ -140,13 +140,14 @@ export class TeacherService {
 
     const gradeId = randomUUID();
     await this.db.execute(
-      'INSERT INTO "Grade" (id, value, weight, description, date, type, schoolId, studentId, subjectInstanceId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, "NUMERIC", ?, ?, ?, ?, ?)',
+      'INSERT INTO "Grade" (id, value, weight, description, date, type, schoolId, studentId, subjectInstanceId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         gradeId,
         data.value,
         data.weight,
         data.description || null,
         new Date().toISOString(),
+        'NUMERIC',
         schoolId,
         data.studentId,
         data.subjectInstanceId,

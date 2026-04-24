@@ -115,7 +115,7 @@ export class DeputyCurriculumService {
     }
     if (data.levelNumber !== undefined) {
       fields.push('levelNumber = ?');
-      values.push(data.levelNumber);
+      values.push(data.levelNumber as any);
     }
 
     await this.db.execute(
@@ -165,7 +165,7 @@ export class DeputyCurriculumService {
        FROM "SchoolMembership" m 
        JOIN "User" u ON m.userId = u.id 
        LEFT JOIN "TeacherProfile" tp ON u.id = tp.userId 
-       WHERE m.schoolId = ? AND m.role = "TEACHER" AND m.status = "ACTIVE"`,
+       WHERE m.schoolId = ? AND m.role = 'TEACHER' AND m.status = 'ACTIVE'`,
       [schoolId],
     );
     return teachers.map((t: any) => ({
@@ -554,7 +554,9 @@ export class DeputyCurriculumService {
     }
     if (data.validTo !== undefined) {
       fields.push('validTo = ?');
-      values.push(data.validTo ? new Date(data.validTo).toISOString() : null);
+      values.push(
+        data.validTo ? new Date(data.validTo).toISOString() : (null as any),
+      );
     }
 
     await this.db.execute(
@@ -956,8 +958,8 @@ export class DeputyCurriculumService {
     const memberships = await this.db.query(
       'SELECT userId FROM "SchoolMembership" WHERE userId IN (' +
         data.studentIds.map(() => '?').join(',') +
-        ') AND schoolId = ? AND role = "STUDENT"',
-      [...data.studentIds, schoolId],
+        ') AND schoolId = ? AND role = ?',
+      [...data.studentIds, schoolId, 'STUDENT'],
     );
     const validIds = memberships.map((m: any) => m.userId);
     const invalidIds = data.studentIds.filter((id) => !validIds.includes(id));
@@ -1029,9 +1031,9 @@ export class DeputyCurriculumService {
       `SELECT u.id, u.firstName, u.lastName, u.email, u.avatarUrl, m.role 
        FROM "SchoolMembership" m 
        JOIN "User" u ON m.userId = u.id 
-       WHERE m.schoolId = ? AND m.status = "ACTIVE" AND m.role NOT IN ("STUDENT", "PARENT") 
+       WHERE m.schoolId = ? AND m.status = ? AND m.role NOT IN (?, ?) 
        ORDER BY u.lastName ASC`,
-      [schoolId],
+      [schoolId, 'ACTIVE', 'STUDENT', 'PARENT'],
     );
     return staff;
   }
@@ -1101,8 +1103,8 @@ export class DeputyCurriculumService {
     if (!year) throw new NotFoundException('Academic year not found.');
 
     const membership = await this.db.queryOne(
-      'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ? AND status = "ACTIVE" AND role NOT IN ("STUDENT", "PARENT")',
-      [data.userId, schoolId],
+      'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ? AND status = ? AND role NOT IN (?, ?)',
+      [data.userId, schoolId, 'ACTIVE', 'STUDENT', 'PARENT'],
     );
     if (!membership)
       throw new NotFoundException('User is not an active staff member.');

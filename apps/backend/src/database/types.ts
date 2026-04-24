@@ -6,6 +6,7 @@ export enum UserRole {
   PRINCIPAL = 'PRINCIPAL',
   STUDENT = 'STUDENT',
   PARENT = 'PARENT',
+  DIRECTOR = 'DIRECTOR',
 }
 
 export enum UserStatus {
@@ -86,7 +87,8 @@ export interface SchoolMembership {
     | 'DEPUTY'
     | 'PRINCIPAL'
     | 'STUDENT'
-    | 'PARENT';
+    | 'PARENT'
+    | 'DIRECTOR';
   status: 'PENDING' | 'ACTIVE' | 'INVITED' | 'REJECTED';
   workloadPercentage: number | null;
   createdAt: Date;
@@ -656,4 +658,51 @@ export interface TeacherSignature {
   teacherId: string;
   signedAt: Date;
   ipAddress: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  subject: string | null;
+  type: string;
+  schoolId: string;
+  classroomId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ConversationParticipant {
+  id: string;
+  conversationId: string;
+  userId: string;
+  lastReadAt: Date | null;
+  createdAt: Date;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  createdAt: Date;
+}
+
+export interface MessageAttachment {
+  id: string;
+  messageId: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: Date;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string | null;
+  linkUrl: string | null;
+  read: boolean;
+  createdAt: Date;
 }

@@ -180,15 +180,15 @@ export class SeedService {
     return this.db.transaction(async (db) => {
       const schoolId = crypto.randomUUID();
       await db.execute('INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)', [schoolId, seed.school.name, seed.school.address || null, new Date().toISOString(), new Date().toISOString()]);
-      await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, "ACTIVE", ?, ?)', [crypto.randomUUID(), adminUserId, schoolId, UserRole.ADMIN, new Date().toISOString(), new Date().toISOString()]);
+      await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), adminUserId, schoolId, UserRole.ADMIN, 'ACTIVE', new Date().toISOString(), new Date().toISOString()]);
 
       // SSO
       if (seed.sso) {
         for (const [provider, config] of Object.entries(seed.sso)) {
           if (config?.clientId && config?.clientSecret) {
             const svc = provider.toLowerCase();
-            await db.execute('INSERT INTO "SystemSecret" (id, type, service, key, value, isActive, createdAt, updatedAt) VALUES (?, "SSO", ?, "CLIENT_ID", ?, ?, ?, ?)', [crypto.randomUUID(), svc, config.clientId, config.isActive ? 1 : 0, new Date().toISOString(), new Date().toISOString()]);
-            await db.execute('INSERT INTO "SystemSecret" (id, type, service, key, value, isActive, createdAt, updatedAt) VALUES (?, "SSO", ?, "CLIENT_SECRET", ?, ?, ?, ?)', [crypto.randomUUID(), svc, this.cryptoService.encrypt(config.clientSecret), config.isActive ? 1 : 0, new Date().toISOString(), new Date().toISOString()]);
+            await db.execute('INSERT INTO "SystemSecret" (id, type, service, key, value, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), 'SSO', svc, 'CLIENT_ID', config.clientId, config.isActive ? 1 : 0, new Date().toISOString(), new Date().toISOString()]);
+            await db.execute('INSERT INTO "SystemSecret" (id, type, service, key, value, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), 'SSO', svc, 'CLIENT_SECRET', this.cryptoService.encrypt(config.clientSecret), config.isActive ? 1 : 0, new Date().toISOString(), new Date().toISOString()]);
             counts.ssoProviders++;
           }
         }
@@ -199,7 +199,7 @@ export class SeedService {
         const mappings: [string, string | undefined][] = [['google', seed.ai.geminiApiKey], ['openai', seed.ai.openAiApiKey], ['anthropic', seed.ai.anthropicApiKey]];
         for (const [svc, val] of mappings) {
           if (val && val.length > 5) {
-            await db.execute('INSERT INTO "SystemSecret" (id, type, service, key, value, isActive, createdAt, updatedAt) VALUES (?, "AI", ?, "API_KEY", ?, 1, ?, ?)', [crypto.randomUUID(), svc, this.cryptoService.encrypt(val), new Date().toISOString(), new Date().toISOString()]);
+            await db.execute('INSERT INTO "SystemSecret" (id, type, service, key, value, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), 'AI', svc, 'API_KEY', this.cryptoService.encrypt(val), 1, new Date().toISOString(), new Date().toISOString()]);
             counts.aiKeys++;
           }
         }
@@ -259,7 +259,19 @@ export class SeedService {
         for (const s of seed.staff) {
           const uId = crypto.randomUUID();
           await db.execute('INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [uId, s.email, s.firstName, s.lastName, hashedPassword, new Date().toISOString()]);
-          await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, "ACTIVE", ?, ?)', [crypto.randomUUID(), uId, schoolId, s.role, new Date().toISOString(), new Date().toISOString()]);
+          await db.execute(
+            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              uId,
+              schoolId,
+              s.role,
+              'ACTIVE',
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+
           if (s.role === 'TEACHER' || s.role === 'DEPUTY') await db.execute('INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)', [crypto.randomUUID(), uId]);
           counts.staff++;
         }
@@ -271,7 +283,7 @@ export class SeedService {
           const uId = crypto.randomUUID();
           const email = st.email || `${st.firstName.toLowerCase()}.${st.lastName.toLowerCase().replace(/[^a-z]/g, '')}@zak.skola.test`;
           await db.execute('INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [uId, email, st.firstName, st.lastName, hashedPassword, new Date().toISOString()]);
-          await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, "STUDENT", "ACTIVE", ?, ?)', [crypto.randomUUID(), uId, schoolId, new Date().toISOString(), new Date().toISOString()]);
+          await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), uId, schoolId, 'STUDENT', 'ACTIVE', new Date().toISOString(), new Date().toISOString()]);
           const gId = glMap.get(st.grade);
           if (ayId && gId) await db.execute('INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), uId, ayId, gId, new Date().toISOString(), new Date().toISOString()]);
           counts.students++;

@@ -417,6 +417,57 @@ export class SystemAdminService {
     return { message: `Škola '${school.name}' byla úspěšně smazána.` };
   }
 
+  async assignSchoolAdmin(schoolId: string, userId: string, actorId: string) {
+    const school = await this.db.queryOne<School>('SELECT * FROM "School" WHERE id = ?', [schoolId]);
+    if (!school) throw new NotFoundException('School not found');
+
+    const user = await this.db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [userId]);
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.db.transaction(async (db) => {
+      // Demote current admin
+      await db.execute(
+        'UPDATE "SchoolMembership" SET role = ?, updatedAt = ? WHERE schoolId = ? AND role = ?',
+        [UserRole.TEACHER, new Date().toISOString(), schoolId, UserRole.ADMIN],
+      );
+
+      const existing = await db.queryOne(
+        'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?',
+        [userId, schoolId],
+      );
+      if (existing) {
+        await db.execute(
+          'UPDATE "SchoolMembership" SET role = ?, status = ?, updatedAt = ? WHERE id = ?',
+          [
+            UserRole.ADMIN,
+            UserStatus.ACTIVE,
+            new Date().toISOString(),
+            (existing as any).id,
+          ],
+        );
+      } else {
+        await db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            userId,
+            schoolId,
+            UserRole.ADMIN,
+            UserStatus.ACTIVE,
+            new Date().toISOString(),
+          ],
+        );
+      }
+    });
+
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [crypto.randomUUID(), actorId, 'ASSIGN_SCHOOL_ADMIN', 'School', schoolId, JSON.stringify({ userId }), new Date().toISOString()]
+    );
+
+    return { success: true };
+  }
+
   async getSystemAdmins() {
     return this.db.query(
       'SELECT id, email, firstName, lastName, lastLogin, createdAt FROM "User" WHERE isSystemAdmin = 1 AND deletedAt IS NULL ORDER BY lastName ASC',

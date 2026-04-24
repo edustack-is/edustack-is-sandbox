@@ -218,11 +218,7 @@ export class AuthController {
             email,
             provider,
             profile.id,
-            profile.name?.givenName || profile.displayName?.split(' ')[0],
-            profile.name?.familyName ||
-              profile.displayName?.split(' ').slice(1).join(' '),
           );
-
           // Set token as httpOnly cookie, redirect without token in URL
           setTokenCookie(result.access_token);
           return res.redirect(`${FRONTEND_URL}/login?sso=ok`);

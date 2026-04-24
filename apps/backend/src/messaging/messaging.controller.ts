@@ -68,7 +68,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Seznam konverzací' })
   @ApiResponse({
@@ -108,7 +108,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Zprávy v konverzaci' })
   @ApiResponse({
@@ -154,7 +154,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Odeslání zprávy' })
   @ApiBody({ type: SendMessageDto })
@@ -194,7 +194,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Vytvoření konverzace' })
   @ApiResponse({
@@ -251,7 +251,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Dostupní příjemci' })
   @ApiResponse({
@@ -284,7 +284,7 @@ export class MessagingController {
     UserRole.PRINCIPAL,
     UserRole.DEPUTY,
     UserRole.ADMIN,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Dostupné třídy pro broadcast' })
   @ApiResponse({
@@ -319,7 +319,7 @@ export class MessagingController {
     UserRole.PRINCIPAL,
     UserRole.DEPUTY,
     UserRole.ADMIN,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Hromadná zpráva třídě' })
   @ApiResponse({
@@ -404,7 +404,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Seznam notifikací' })
   @ApiResponse({
@@ -443,7 +443,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Počet nepřečtených notifikací' })
   @ApiResponse({ status: 200, type: CountResponseDto })
@@ -477,7 +477,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Označení notifikace jako přečtené' })
   @ApiResponse({ status: 200, type: SuccessResponseDto })
@@ -508,7 +508,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Označení všech notifikací jako přečtených' })
   @ApiResponse({ status: 200, type: SuccessResponseDto })
@@ -536,7 +536,7 @@ export class MessagingController {
     UserRole.ADMIN,
     UserRole.STUDENT,
     UserRole.PARENT,
-    UserRole.DIRECTOR,
+    UserRole.ADMIN,
   )
   @ApiOperation({ summary: 'Zapnutí/vypnutí e-mailových notifikací' })
   @ApiResponse({ status: 200, type: ToggleResponseDto })
@@ -559,10 +559,10 @@ export class MessagingController {
     @Req() req: any,
     @Body() body: { enabled: boolean },
   ) {
-    await this.db.user.update({
-      where: { id: req.user.userId },
-      data: { emailNotificationsEnabled: body.enabled },
-    });
+    await this.db.execute(
+      'UPDATE "User" SET emailNotificationsEnabled = ? WHERE id = ?',
+      [body.enabled ? 1 : 0, req.user.userId],
+    );
     return { success: true, enabled: body.enabled };
   }
 }

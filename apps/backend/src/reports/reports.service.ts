@@ -155,8 +155,8 @@ export class ReportsService {
       [schoolId],
     );
     const teacherCount = await this.db.queryOne<{ count: number }>(
-      'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = "TEACHER"',
-      [schoolId],
+      'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = ?',
+      [schoolId, 'TEACHER'],
     );
 
     return {
@@ -172,5 +172,37 @@ export class ReportsService {
       })),
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  renderReportHtml(report: any, type: string): string {
+    const title = report.title || 'Systémový report';
+    const body = `
+      <div class="report-section">
+        <h2>${report.school?.name || ''}</h2>
+        <pre>${JSON.stringify(report, null, 2)}</pre>
+      </div>
+    `;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+          h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+          .report-section { margin-bottom: 30px; }
+          pre { background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #dee2e6; overflow-x: auto; }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+        ${body}
+        <footer style="margin-top: 50px; font-size: 0.8em; color: #7f8c8d;">
+          Vygenerováno: ${new Date().toLocaleString('cs-CZ')}
+        </footer>
+      </body>
+      </html>
+    `;
   }
 }
