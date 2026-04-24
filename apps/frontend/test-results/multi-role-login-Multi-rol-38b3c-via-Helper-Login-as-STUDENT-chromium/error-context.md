@@ -1,0 +1,185 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e5]
+      - button "🇨🇿 CZ" [ref=e8] [cursor=pointer]:
+        - generic [ref=e9]: 🇨🇿
+        - generic [ref=e10]: CZ
+      - button "🇬🇧 EN" [ref=e11] [cursor=pointer]:
+        - generic [ref=e12]: 🇬🇧
+        - generic [ref=e13]: EN
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - img [ref=e18]
+          - heading "Vítejte zpět" [level=2] [ref=e20]
+          - paragraph [ref=e21]: Přihlaste se ke svému účtu
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - generic [ref=e25]: Emailová adresa
+              - textbox "Emailová adresa" [ref=e26]:
+                - /placeholder: name@example.com
+            - generic [ref=e27]:
+              - generic [ref=e28]: Heslo
+              - textbox "Heslo" [ref=e29]:
+                - /placeholder: ••••••••
+          - link "Zapomenuté heslo?" [ref=e31] [cursor=pointer]:
+            - /url: /forgot-password
+          - button "Přihlásit se" [ref=e32] [cursor=pointer]
+        - generic [ref=e33]:
+          - generic [ref=e38]: Nebo pokračujte přes
+          - button "Google" [ref=e40] [cursor=pointer]:
+            - img
+            - text: Google
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - heading "Rychlé přihlášení" [level=3] [ref=e43]:
+            - img [ref=e44]
+            - text: Rychlé přihlášení
+          - paragraph [ref=e47]: Vyberte si uživatele pro okamžité přihlášení (pouze pro demo účely).
+        - generic [ref=e48]:
+          - combobox [ref=e49]:
+            - option "Všechny školy" [selected]
+            - option "Základní škola T. G. Masaryka"
+          - combobox [ref=e50]:
+            - option "Všechny role" [selected]
+            - option "Žák"
+        - generic [ref=e52]:
+          - button "Adam Novotný adam.novotn@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e53] [cursor=pointer]:
+            - generic [ref=e54]:
+              - generic [ref=e55]:
+                - img [ref=e57]
+                - generic [ref=e61]:
+                  - generic [ref=e62]: Adam Novotný
+                  - generic [ref=e63]: adam.novotn@zak.skola.test
+              - img [ref=e64]
+            - generic [ref=e67]:
+              - img [ref=e68]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Barbora Černá barbora.ern@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e72] [cursor=pointer]:
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - img [ref=e76]
+                - generic [ref=e80]:
+                  - generic [ref=e81]: Barbora Černá
+                  - generic [ref=e82]: barbora.ern@zak.skola.test
+              - img [ref=e83]
+            - generic [ref=e86]:
+              - img [ref=e87]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Cyril Pokorný cyril.pokorn@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e91] [cursor=pointer]:
+            - generic [ref=e92]:
+              - generic [ref=e93]:
+                - img [ref=e95]
+                - generic [ref=e99]:
+                  - generic [ref=e100]: Cyril Pokorný
+                  - generic [ref=e101]: cyril.pokorn@zak.skola.test
+              - img [ref=e102]
+            - generic [ref=e105]:
+              - img [ref=e106]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Daniela Králová daniela.krlov@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]:
+              - generic [ref=e112]:
+                - img [ref=e114]
+                - generic [ref=e118]:
+                  - generic [ref=e119]: Daniela Králová
+                  - generic [ref=e120]: daniela.krlov@zak.skola.test
+              - img [ref=e121]
+            - generic [ref=e124]:
+              - img [ref=e125]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Eliáš Jelínek eliáš.jelnek@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e129] [cursor=pointer]:
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - img [ref=e133]
+                - generic [ref=e137]:
+                  - generic [ref=e138]: Eliáš Jelínek
+                  - generic [ref=e139]: eliáš.jelnek@zak.skola.test
+              - img [ref=e140]
+            - generic [ref=e143]:
+              - img [ref=e144]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Františka Benešová františka.beneov@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e148] [cursor=pointer]:
+            - generic [ref=e149]:
+              - generic [ref=e150]:
+                - img [ref=e152]
+                - generic [ref=e156]:
+                  - generic [ref=e157]: Františka Benešová
+                  - generic [ref=e158]: františka.beneov@zak.skola.test
+              - img [ref=e159]
+            - generic [ref=e162]:
+              - img [ref=e163]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Gustav Fialka gustav.fialka@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e167] [cursor=pointer]:
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - img [ref=e171]
+                - generic [ref=e175]:
+                  - generic [ref=e176]: Gustav Fialka
+                  - generic [ref=e177]: gustav.fialka@zak.skola.test
+              - img [ref=e178]
+            - generic [ref=e181]:
+              - img [ref=e182]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Helena Šťastná helena.astn@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e186] [cursor=pointer]:
+            - generic [ref=e187]:
+              - generic [ref=e188]:
+                - img [ref=e190]
+                - generic [ref=e194]:
+                  - generic [ref=e195]: Helena Šťastná
+                  - generic [ref=e196]: helena.astn@zak.skola.test
+              - img [ref=e197]
+            - generic [ref=e200]:
+              - img [ref=e201]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Ivan Dostál ivan.dostl@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e205] [cursor=pointer]:
+            - generic [ref=e206]:
+              - generic [ref=e207]:
+                - img [ref=e209]
+                - generic [ref=e213]:
+                  - generic [ref=e214]: Ivan Dostál
+                  - generic [ref=e215]: ivan.dostl@zak.skola.test
+              - img [ref=e216]
+            - generic [ref=e219]:
+              - img [ref=e220]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Julie Krejčí julie.krej@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e224] [cursor=pointer]:
+            - generic [ref=e225]:
+              - generic [ref=e226]:
+                - img [ref=e228]
+                - generic [ref=e232]:
+                  - generic [ref=e233]: Julie Krejčí
+                  - generic [ref=e234]: julie.krej@zak.skola.test
+              - img [ref=e235]
+            - generic [ref=e238]:
+              - img [ref=e239]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Karel Pospíšil karel.pospil@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e243] [cursor=pointer]:
+            - generic [ref=e244]:
+              - generic [ref=e245]:
+                - img [ref=e247]
+                - generic [ref=e251]:
+                  - generic [ref=e252]: Karel Pospíšil
+                  - generic [ref=e253]: karel.pospil@zak.skola.test
+              - img [ref=e254]
+            - generic [ref=e257]:
+              - img [ref=e258]
+              - text: Základní škola T. G. Masaryka • Žák
+          - button "Lenka Vlčková lenka.vlkov@zak.skola.test Základní škola T. G. Masaryka • Žák" [ref=e262] [cursor=pointer]:
+            - generic [ref=e263]:
+              - generic [ref=e264]:
+                - img [ref=e266]
+                - generic [ref=e270]:
+                  - generic [ref=e271]: Lenka Vlčková
+                  - generic [ref=e272]: lenka.vlkov@zak.skola.test
+              - img [ref=e273]
+            - generic [ref=e276]:
+              - img [ref=e277]
+              - text: Základní škola T. G. Masaryka • Žák
+```

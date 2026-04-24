@@ -408,15 +408,25 @@ export class AuthService {
   }
 
   async getSchools(userId: string) {
-    return this.db.query(
-      `SELECT m.*, s.name as schoolName, s.address as schoolAddress 
-       FROM "SchoolMembership" m 
-       JOIN "School" s ON m.schoolId = s.id 
-       WHERE m.userId = ? AND m.status = 'ACTIVE'`,
-      [userId],
+    const raw = await this.db.query(
+      `SELECT m.*, s.name as sName, s.address as sAddress
+       FROM "SchoolMembership" m
+       JOIN "School" s ON m.schoolId = s.id
+       WHERE m.userId = ? AND m.status = ?`,
+      [userId, 'ACTIVE'],
     );
+    return raw.map((r: any) => ({
+      ...r,
+      id: r.id, // membership ID
+      schoolId: r.schoolId,
+      role: r.role,
+      school: {
+        id: r.schoolId,
+        name: r.sName,
+        address: r.sAddress,
+      },
+    }));
   }
-
   async selectSchool(userId: string, schoolId: string, role?: string) {
     const user = await this.db.queryOne<User>(
       'SELECT id, email, isSystemAdmin FROM "User" WHERE id = ?',
@@ -436,7 +446,6 @@ export class AuthService {
         [userId, schoolId],
       );
 
-      const effectiveRole = role || membership?.role || 'ADMIN';
       const isSysAdminOverride = !membership;
 
       const payload = {
@@ -445,7 +454,7 @@ export class AuthService {
         isSystemAdmin: true,
         isSysAdminOverride,
         schoolId: school.id,
-        role: effectiveRole,
+        role: role || membership?.role || 'ADMIN',
         type: 'TENANT',
       };
 
@@ -455,13 +464,12 @@ export class AuthService {
     const membership = await this.db.queryOne<
       SchoolMembership & { email: string }
     >(
-      `SELECT m.*, u.email 
-       FROM "SchoolMembership" m 
-       JOIN "School" s ON m.schoolId = s.id 
-       WHERE m.userId = ? AND m.schoolId = ? AND m.status = 'ACTIVE'`,
-      [userId, schoolId],
+      `SELECT m.*, u.email
+       FROM "SchoolMembership" m
+       JOIN "User" u ON m.userId = u.id
+       WHERE m.userId = ? AND m.schoolId = ? AND m.status = ?`,
+      [userId, schoolId, 'ACTIVE'],
     );
-
     if (!membership) {
       throw new UnauthorizedException(
         'User is not an active member of this school.',
@@ -750,7 +758,7 @@ export class AuthService {
 
     const users = await this.db.query<User>(
       'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL AND (email LIKE ? OR email LIKE ? OR email LIKE ?) LIMIT 100',
-      ['%@demo.test', '%@skola.test', '%@zak.skola.test'],
+      ['%.skola.test', '%.demo.test', '%@zak.skola.test'],
     );
 
     const helperUsers: LoginHelperUser[] = [];

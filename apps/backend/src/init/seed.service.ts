@@ -227,6 +227,19 @@ export class SeedService {
         }
       }
 
+      // Classrooms
+      const classroomMap = new Map<string, string>(); // name -> id
+      const gradesToCreate = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      for (const g of gradesToCreate) {
+        const id = crypto.randomUUID();
+        const name = `${g}.A`;
+        await db.execute(
+          'INSERT INTO "Classroom" (id, name, grade, schoolId) VALUES (?, ?, ?, ?)',
+          [id, name, g, schoolId],
+        );
+        classroomMap.set(name, id);
+      }
+
       // Curriculum
       let cvId: string | null = null;
       if (seed.curriculumVersion) {
@@ -259,20 +272,12 @@ export class SeedService {
         for (const s of seed.staff) {
           const uId = crypto.randomUUID();
           await db.execute('INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [uId, s.email, s.firstName, s.lastName, hashedPassword, new Date().toISOString()]);
-          await db.execute(
-            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [
-              crypto.randomUUID(),
-              uId,
-              schoolId,
-              s.role,
-              'ACTIVE',
-              new Date().toISOString(),
-              new Date().toISOString(),
-            ],
-          );
-
-          if (s.role === 'TEACHER' || s.role === 'DEPUTY') await db.execute('INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)', [crypto.randomUUID(), uId]);
+          await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), uId, schoolId, s.role, 'ACTIVE', new Date().toISOString(), new Date().toISOString()]);
+          if (s.role === 'TEACHER' || s.role === 'DEPUTY') {
+             const tProfileId = crypto.randomUUID();
+             const hId = (s.role === 'TEACHER' && s.lastName === 'Svoboda') ? classroomMap.get('5.A') : null;
+             await db.execute('INSERT INTO "TeacherProfile" (id, userId, homeroomClassId) VALUES (?, ?, ?)', [tProfileId, uId, hId]);
+          }
           counts.staff++;
         }
       }
@@ -284,8 +289,15 @@ export class SeedService {
           const email = st.email || `${st.firstName.toLowerCase()}.${st.lastName.toLowerCase().replace(/[^a-z]/g, '')}@zak.skola.test`;
           await db.execute('INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [uId, email, st.firstName, st.lastName, hashedPassword, new Date().toISOString()]);
           await db.execute('INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), uId, schoolId, 'STUDENT', 'ACTIVE', new Date().toISOString(), new Date().toISOString()]);
+          
+          const cId = classroomMap.get(`${st.grade}.A`);
+          await db.execute(
+            'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId) VALUES (?, ?, ?, ?, ?)',
+            [crypto.randomUUID(), uId, st.firstName, st.lastName, cId || null],
+          );
+
           const gId = glMap.get(st.grade);
-          if (ayId && gId) await db.execute('INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), uId, ayId, gId, new Date().toISOString(), new Date().toISOString()]);
+          if (ayId && gId) await db.execute('INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), uId, ayId, gId, cId || null, new Date().toISOString(), new Date().toISOString()]);
           counts.students++;
         }
       }
