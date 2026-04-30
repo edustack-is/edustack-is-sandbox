@@ -625,6 +625,35 @@ export class AuthService {
     );
   }
 
+  async changePassword(
+    userId: string,
+    oldPass: string,
+    newPass: string,
+  ): Promise<{ message: string }> {
+    const user = await this.db.queryOne<User>(
+      'SELECT id, passwordHash FROM "User" WHERE id = ?',
+      [userId],
+    );
+    if (!user || !user.passwordHash) {
+      throw new NotFoundException('User not found or has no password set.');
+    }
+
+    const isMatch = await bcrypt.compare(oldPass, user.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('invalid_current_password');
+    }
+
+    validatePasswordStrength(newPass);
+    const newHash = await bcrypt.hash(newPass, 10);
+
+    await this.db.execute('UPDATE "User" SET passwordHash = ? WHERE id = ?', [
+      newHash,
+      userId,
+    ]);
+
+    return { message: 'password_changed_success' };
+  }
+
   async getMe(userId: string) {
     const user = await this.db.queryOne<User>(
       'SELECT * FROM "User" WHERE id = ?',

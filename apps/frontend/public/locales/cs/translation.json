@@ -683,7 +683,16 @@
     "custom_image": "Vlastní obrázek",
     "upload_image": "Nahrát obrázek",
     "upload_hint": "JPEG, PNG, WebP nebo GIF. Max 10 MB. Obrázek bude oříznut do kruhu.",
-    "user_role": "Uživatel"
+    "user_role": "Uživatel",
+    "security_title": "Zabezpečení",
+    "security_description": "Správa zabezpečení účtu a hesla.",
+    "current_password": "Stávající heslo",
+    "new_password": "Nové heslo",
+    "confirm_new_password": "Potvrzení nového hesla",
+    "change_password_button": "Aktualizovat heslo",
+    "password_changed_success": "Heslo bylo úspěšně změněno!",
+    "password_change_failed": "Změna hesla selhala. Zkontrolujte stávající heslo.",
+    "passwords_mismatch": "Nová hesla se neshodují."
   },
   "taskQueue": {
     "title": "Fronta úkolů",

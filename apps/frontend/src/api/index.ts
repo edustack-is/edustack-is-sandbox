@@ -309,6 +309,11 @@ export const resetPassword = async (payload: { token: string; password: string }
     const response = await api.post('/api/auth/reset-password', payload);
     return response.data;
 };
+
+export const changePassword = async (payload: { oldPassword: string; newPassword: string }) => {
+    const response = await api.post('/api/auth/change-password', payload);
+    return response.data;
+};
 export const login = async (credentials: { email: string; password: string }) => {
     const response = await api.post('/api/auth/login', credentials);
     return response.data; // { access_token: string }

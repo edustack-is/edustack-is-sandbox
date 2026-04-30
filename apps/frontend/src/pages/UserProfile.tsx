@@ -4,6 +4,8 @@ import type { Area } from 'react-easy-crop';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
     Loader2,
     User,
@@ -20,8 +22,17 @@ import {
     ZoomIn,
     ZoomOut,
     Crop,
+    KeyRound,
 } from 'lucide-react';
-import { getMe, getUserIdentities, linkIdentity, getSsoOptions, updateProfile, uploadAvatar } from '@/api';
+import {
+    getMe,
+    getUserIdentities,
+    linkIdentity,
+    getSsoOptions,
+    updateProfile,
+    uploadAvatar,
+    changePassword,
+} from '@/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -98,6 +109,12 @@ export function UserProfile() {
     const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // ─── Change Password state ─────────────────────────
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
 
     // ─── Cropper state ───────────────────────────────
     const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -202,6 +219,27 @@ export function UserProfile() {
             toast.success(t('profile.avatar_removed'));
         } catch {
             toast.error(t('profile.avatar_remove_failed'));
+        }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword !== confirmNewPassword) {
+            toast.error(t('profile.passwords_mismatch'));
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            await changePassword({ oldPassword: currentPassword, newPassword });
+            toast.success(t('profile.password_changed_success'));
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmNewPassword('');
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || t('profile.password_change_failed'));
+        } finally {
+            setChangingPassword(false);
         }
     };
 
@@ -453,6 +491,56 @@ export function UserProfile() {
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* ══════ Change Password Card ══════ */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <KeyRound className="w-5 h-5 text-primary" />
+                                {t('profile.security_title')}
+                            </CardTitle>
+                            <CardDescription>{t('profile.security_description')}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleChangePassword} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="currentPassword">{t('profile.current_password')}</Label>
+                                    <PasswordInput
+                                        id="currentPassword"
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="newPassword">{t('profile.new_password')}</Label>
+                                        <PasswordInput
+                                            id="newPassword"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirmNewPassword">{t('profile.confirm_new_password')}</Label>
+                                        <PasswordInput
+                                            id="confirmNewPassword"
+                                            value={confirmNewPassword}
+                                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end pt-2">
+                                    <Button type="submit" disabled={changingPassword} className="gap-2">
+                                        {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        {t('profile.change_password_button')}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
 
                     {/* ══════ SSO Card ══════ */}
                     <Card>

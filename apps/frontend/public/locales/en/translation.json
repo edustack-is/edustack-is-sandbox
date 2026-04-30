@@ -668,7 +668,16 @@
     "custom_image": "Custom Image",
     "upload_image": "Upload Image",
     "upload_hint": "JPEG, PNG, WebP, or GIF. Max 10 MB. The image will be cropped to a circle.",
-    "user_role": "User"
+    "user_role": "User",
+    "security_title": "Security",
+    "security_description": "Manage your account security and password.",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "confirm_new_password": "Confirm New Password",
+    "change_password_button": "Update Password",
+    "password_changed_success": "Password updated successfully!",
+    "password_change_failed": "Failed to update password. Check your current password.",
+    "passwords_mismatch": "New passwords do not match."
   },
   "taskQueue": {
     "title": "Task Queue",

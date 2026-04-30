@@ -68,12 +68,14 @@ interface SidebarNavItemProps {
     icon: React.ElementType;
     label: string;
     collapsed: boolean;
+    'data-testid'?: string;
 }
 
-const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ to, icon: Icon, label, collapsed }) => {
+const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ to, icon: Icon, label, collapsed, 'data-testid': testId }) => {
     const link = (
         <NavLink
             to={to}
+            data-testid={testId}
             className={({ isActive }) =>
                 clsx(
                     'nav-item flex items-center rounded-md transition-colors duration-200',
@@ -295,18 +297,21 @@ export const Sidebar: React.FC = () => {
                                 icon={Building2}
                                 label={t('sidebar.schools')}
                                 collapsed={collapsed}
+                                data-testid="sidebar-schools"
                             />
                             <SidebarNavItem
                                 to="/system/users"
                                 icon={Users2}
                                 label={t('sidebar.users')}
                                 collapsed={collapsed}
+                                data-testid="sidebar-users"
                             />
                             <SidebarNavItem
                                 to="/system/settings"
                                 icon={Settings}
                                 label={t('sidebar.system_settings')}
                                 collapsed={collapsed}
+                                data-testid="sidebar-system-settings"
                             />
                         </>
                     )}

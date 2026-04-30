@@ -36,6 +36,7 @@ import {
   SuccessResponseDto,
   LoginHelperConfigDto,
   LoginHelperUserDto,
+  ChangePasswordDto,
 } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
@@ -551,6 +552,26 @@ export class AuthController {
     return this.authService.updateProfile(req.user.userId, {
       avatarUrl: body.avatarUrl,
     });
+  }
+
+  @Post('change-password')
+  @ApiOperation({ summary: 'Změna hesla' })
+  @ApiResponse({
+    status: 200,
+    description: 'Heslo bylo změněno.',
+    type: SuccessResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Neplatné stávající heslo nebo slabé nové heslo.',
+    type: ErrorResponseDto,
+  })
+  async changePassword(@Req() req: any, @Body() body: ChangePasswordDto) {
+    return this.authService.changePassword(
+      req.user.userId,
+      body.oldPassword,
+      body.newPassword,
+    );
   }
 
   @Post('avatar')
