@@ -15,3 +15,5 @@ test-results/
 blob-report/
 playwright/.cache/
 be-tests.txt
+apps/frontend/playwright-report/
+apps/frontend/test-results/
