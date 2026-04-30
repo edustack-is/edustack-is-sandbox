@@ -19,10 +19,16 @@ interface D1PreparedStatement {
   raw<T = unknown>(): Promise<T[]>;
 }
 
+interface D1Meta {
+  last_row_id?: string | number | bigint;
+  changes?: number;
+  [key: string]: unknown;
+}
+
 interface D1Result<T = unknown> {
   results: T[];
   success: boolean;
-  meta: Record<string, unknown>;
+  meta: D1Meta;
   lastRowId?: string | number;
   changes?: number;
 }
@@ -170,8 +176,8 @@ export class DatabaseService implements OnModuleInit {
       if (this.d1) {
         const result = await this.dbPrepareAndRun(sql, params);
         return {
-          lastInsertRowid: result.meta.last_row_id || 0,
-          changes: result.meta.changes || 0,
+          lastInsertRowid: (result.meta.last_row_id as string | number | bigint) || 0,
+          changes: (result.meta.changes as number) || 0,
         };
       } else {
         const result = this.localDb!.prepare(sql).run(...params);

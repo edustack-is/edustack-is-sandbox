@@ -147,11 +147,11 @@ export class RvpImportService {
     schoolId: string,
   ): Promise<RvpPreviewData> {
     const [existingSubjects, existingGradeLevels] = await Promise.all([
-      this.db.query(
+      this.db.query<{ id: string; name: string; code: string }>(
         'SELECT id, name, code FROM "SubjectTemplate" WHERE schoolId = ? ORDER BY name ASC',
         [schoolId],
       ),
-      this.db.query(
+      this.db.query<{ id: string; name: string; levelNumber: number }>(
         'SELECT id, name, levelNumber FROM "GradeLevel" WHERE schoolId = ? ORDER BY levelNumber ASC',
         [schoolId],
       ),
@@ -159,16 +159,16 @@ export class RvpImportService {
 
     const matchedSubjects = extraction.subjects.map((es: RvpSubject) => {
       const match = existingSubjects.find(
-        (s: any) =>
+        (s) =>
           s.code.toLowerCase() === es.code.toLowerCase() ||
           s.name.toLowerCase() === es.name.toLowerCase(),
       );
       return {
         extractedName: es.name,
         extractedCode: es.code,
-        existingId: (match as any)?.id || null,
-        existingName: (match as any)?.name || null,
-        action: match ? 'match' : ('create' as any),
+        existingId: match?.id || null,
+        existingName: match?.name || null,
+        action: match ? 'match' as const : ('create' as const),
       };
     });
 
@@ -178,12 +178,12 @@ export class RvpImportService {
       ),
     ].sort((a, b) => a - b);
     const matchedGrades = allGrades.map((gl) => {
-      const match = existingGradeLevels.find((g: any) => g.levelNumber === gl);
+      const match = existingGradeLevels.find((g) => g.levelNumber === gl);
       return {
         gradeLevel: gl,
-        existingId: (match as any)?.id || null,
-        existingName: (match as any)?.name || null,
-        action: match ? 'match' : ('create' as any),
+        existingId: match?.id || null,
+        existingName: match?.name || null,
+        action: match ? 'match' as const : 'create' as const,
       };
     });
 

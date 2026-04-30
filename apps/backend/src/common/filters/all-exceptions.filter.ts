@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { DatabaseError } from '../database/database.service';
+import { DatabaseError } from '../../database/database.service';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -32,9 +32,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code = (exceptionResponse as any).code || code;
       }
     } else if (exception instanceof DatabaseError) {
+      const dbError = exception as DatabaseError;
       status = HttpStatus.BAD_REQUEST;
-      message = exception.message;
-      code = exception.code || 'DATABASE_ERROR';
+      message = dbError.message;
+      code = dbError.code || 'DATABASE_ERROR';
     } else if (exception instanceof Error) {
       message = exception.message;
     }
