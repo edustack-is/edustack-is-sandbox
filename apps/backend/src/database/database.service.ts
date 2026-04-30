@@ -22,9 +22,30 @@ interface D1PreparedStatement {
 interface D1Result<T = unknown> {
   results: T[];
   success: boolean;
-  meta: any;
+  meta: Record<string, unknown>;
   lastRowId?: string | number;
   changes?: number;
+}
+
+export interface DatabaseQueryResult<T = Record<string, unknown>> {
+  results: T[];
+  success: boolean;
+  lastInsertRowid?: string | number | bigint;
+  changes?: number;
+}
+
+/**
+ * Custom error class for database operations
+ */
+export class DatabaseError extends Error {
+  constructor(
+    message: string,
+    public readonly code?: string,
+    public readonly originalError?: unknown,
+  ) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
 }
 
 @Injectable()
@@ -89,34 +110,52 @@ export class DatabaseService implements OnModuleInit {
   /**
    * Execute a query and return all results.
    */
-  async query<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
-    if (this.d1) {
-      const result = await this.d1
-        .prepare(sql)
-        .bind(...params)
-        .all<T>();
-      return result.results;
-    } else {
-      const stmt = this.localDb!.prepare(sql);
-      return stmt.all(...params) as T[];
+  async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+    try {
+      if (this.d1) {
+        const result = await this.d1
+          .prepare(sql)
+          .bind(...params)
+          .all<T>();
+        return result.results;
+      } else {
+        const stmt = this.localDb!.prepare(sql);
+        return stmt.all(...params) as T[];
+      }
+    } catch (error) {
+      this.logger.error(`Query failed: ${sql}`, error);
+      throw new DatabaseError(
+        `Database query failed: ${sql}`,
+        'QUERY_ERROR',
+        error,
+      );
     }
   }
 
   /**
    * Execute a query that returns a single row.
    */
-  async queryOne<T = any>(
+  async queryOne<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = [],
   ): Promise<T | null> {
-    if (this.d1) {
-      return await this.d1
-        .prepare(sql)
-        .bind(...params)
-        .first<T>();
-    } else {
-      const stmt = this.localDb!.prepare(sql);
-      return (stmt.get(...params) as T) || null;
+    try {
+      if (this.d1) {
+        return await this.d1
+          .prepare(sql)
+          .bind(...params)
+          .first<T>();
+      } else {
+        const stmt = this.localDb!.prepare(sql);
+        return (stmt.get(...params) as T) || null;
+      }
+    } catch (error) {
+      this.logger.error(`QueryOne failed: ${sql}`, error);
+      throw new DatabaseError(
+        `Database queryOne failed: ${sql}`,
+        'QUERY_ONE_ERROR',
+        error,
+      );
     }
   }
 
@@ -127,18 +166,27 @@ export class DatabaseService implements OnModuleInit {
     sql: string,
     params: unknown[] = [],
   ): Promise<{ lastInsertRowid: string | number | bigint; changes: number }> {
-    if (this.d1) {
-      const result = await this.dbPrepareAndRun(sql, params);
-      return {
-        lastInsertRowid: result.meta.last_row_id || 0,
-        changes: result.meta.changes || 0,
-      };
-    } else {
-      const result = this.localDb!.prepare(sql).run(...params);
-      return {
-        lastInsertRowid: result.lastInsertRowid,
-        changes: result.changes,
-      };
+    try {
+      if (this.d1) {
+        const result = await this.dbPrepareAndRun(sql, params);
+        return {
+          lastInsertRowid: result.meta.last_row_id || 0,
+          changes: result.meta.changes || 0,
+        };
+      } else {
+        const result = this.localDb!.prepare(sql).run(...params);
+        return {
+          lastInsertRowid: result.lastInsertRowid,
+          changes: result.changes,
+        };
+      }
+    } catch (error) {
+      this.logger.error(`Execute failed: ${sql}`, error);
+      throw new DatabaseError(
+        `Database execute failed: ${sql}`,
+        'EXECUTE_ERROR',
+        error,
+      );
     }
   }
 

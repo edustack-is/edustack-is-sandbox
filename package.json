@@ -11,7 +11,8 @@
     "format": "prettier --write \".\"",
     "test:e2e": "npm run test:e2e -w frontend",
     "test:e2e:ui": "npm run test:e2e:ui -w frontend",
-    "test:e2e:install": "npm run test:e2e:install -w frontend"
+    "test:e2e:install": "npm run test:e2e:install -w frontend",
+    "prepare": "husky"
   },
   "workspaces": [
     "apps/*",
@@ -19,5 +20,9 @@
   ],
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": ["prettier --write", "eslint --fix"],
+    "*.{json,md}": ["prettier --write"]
   }
 }

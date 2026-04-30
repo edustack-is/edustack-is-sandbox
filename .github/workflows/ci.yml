@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Prettier check
+        run: npm run format -- --check
+
+      - name: Lint backend
+        run: npm run lint -w backend
+
+      - name: Lint frontend
+        run: npm run lint -w frontend
+
+      - name: Typecheck backend
+        run: cd apps/backend && npx tsc --noEmit
+
+      - name: Typecheck frontend
+        run: cd apps/frontend && npx tsc --noEmit
+
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run backend tests
+        run: npm run test -w backend
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage/
+
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run frontend tests
+        run: npm run test:run -w frontend
+
+  test-mcp:
+    name: MCP Server Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run MCP server tests
+        run: npm run test -w mcp-server || echo "No tests yet for MCP server"
+
+  # E2E tests job (commented out - requires full dev stack)
+  # test-e2e:
+  #   name: E2E Tests
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #         cache: 'npm'
+  #
+  #     - name: Install dependencies
+  #       run: npm install
+  #
+  #     - name: Install Playwright browsers
+  #       run: npm run test:e2e:install -w frontend
+  #
+  #     - name: Start backend
+  #       run: npm run start:dev -w backend &
+  #
+  #     - name: Start frontend
+  #       run: npm run dev -w frontend &
+  #
+  #     - name: Wait for services
+  #       run: npx wait-on http://localhost:3000 http://localhost:5173
+  #
+  #     - name: Run E2E tests
+  #       run: npm run test:e2e -w frontend

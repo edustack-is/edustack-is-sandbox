@@ -112,14 +112,18 @@ import {
   PaginatedUsersResponseDto,
 } from './common/dto/response.dto';
 import { AppModule } from './app.module';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe, INestApplication } from '@nestjs/common';
 import { InitService } from './init/init.service';
 import { SeedService } from './init/seed.service';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
 import helmet from 'helmet';
 
 async function bootstrap() {
   // ─── Fail-fast: required environment variables ──────────────
   const missingVars: string[] = [];
+  const warnings: string[] = [];
+
   if (!process.env.JWT_SECRET)
     missingVars.push(
       'JWT_SECRET       (generate with: openssl rand -base64 64)',
@@ -128,6 +132,30 @@ async function bootstrap() {
     missingVars.push(
       'ENCRYPTION_KEY   (generate with: openssl rand -base64 32)',
     );
+
+  // Validate CORS_ORIGIN format if set
+  if (process.env.CORS_ORIGIN) {
+    const origins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+    for (const origin of origins) {
+      try {
+        new URL(origin);
+      } catch {
+        warnings.push(`CORS_ORIGIN contains invalid URL: ${origin}`);
+      }
+    }
+  }
+
+  // Warn about missing AI keys in production
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.GOOGLE_AI_API_KEY && !process.env.OPENAI_API_KEY) {
+      warnings.push('No AI API key set (GOOGLE_AI_API_KEY or OPENAI_API_KEY) - AI features will be disabled');
+    }
+  }
+
+  // Validate NODE_ENV if set
+  if (process.env.NODE_ENV && !['development', 'production', 'test'].includes(process.env.NODE_ENV)) {
+    warnings.push(`NODE_ENV should be 'development', 'production', or 'test', got: ${process.env.NODE_ENV}`);
+  }
 
   if (missingVars.length > 0) {
     console.error(
@@ -138,6 +166,15 @@ async function bootstrap() {
         '    Add them to your .env file and restart.\n',
     );
     process.exit(1);
+  }
+
+  // Log warnings but don't fail
+  if (warnings.length > 0) {
+    console.warn(
+      '\n⚠️  Environment Warnings:\n' +
+        warnings.map((w) => `    • ${w}`).join('\n') +
+        '\n',
+    );
   }
 
   const app = await NestFactory.create(AppModule);
@@ -191,6 +228,14 @@ async function bootstrap() {
       transform: true, // auto-transform payloads to DTO instances
     }),
   );
+
+  // ─── Global exception filter ────────────────────────────
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // ─── Request logging middleware ────────────────────────────
+  app.use(new RequestLoggingMiddleware().use);
+
+
 
   // ─── Swagger / OpenAPI (disabled in production) ─────────────────
   if (process.env.NODE_ENV !== 'production') {

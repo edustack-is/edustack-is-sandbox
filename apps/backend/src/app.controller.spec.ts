@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
-import { PrismaService } from './prisma/prisma.service';
+import { DatabaseService } from './database/database.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -10,9 +10,11 @@ describe('AppController', () => {
       controllers: [AppController],
       providers: [
         {
-          provide: PrismaService,
+          provide: DatabaseService,
           useValue: {
-            $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]),
+            query: jest.fn().mockResolvedValue([]),
+            queryOne: jest.fn().mockResolvedValue(null),
+            execute: jest.fn().mockResolvedValue({ lastInsertRowid: 0, changes: 0 }),
           },
         },
       ],

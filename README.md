@@ -4,14 +4,14 @@
 
 ## Technologie
 
-| Vrstva     | Stack                                                |
-| ---------- | ---------------------------------------------------- |
-| Backend    | NestJS, Prisma ORM                                   |
-| Databáze   | Cloudflare D1 (SQLite)                               |
-| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui  |
-| MCP Server | Node.js, SSE transport, 36 AI nástrojů               |
-| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
-| Infra      | Cloudflare Workers, Cloudflare Pages                 |
+| Vrstva     | Stack                                                          |
+| ---------- | -------------------------------------------------------------- |
+| Backend    | NestJS, Custom SQLite/D1 service (better-sqlite3)              |
+| Databáze   | Cloudflare D1 (SQLite)                                         |
+| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui            |
+| MCP Server | Node.js, SSE transport, 36 AI nástrojů                         |
+| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic)           |
+| Infra      | Cloudflare Workers, Cloudflare Pages                           |
 
 ## Rychlý start
 
@@ -49,10 +49,7 @@ Aplikace je plně integrovaná s **Cloudflare D1**. Pro lokální vývoj i produ
 # 1. Instalace závislostí
 npm install
 
-# 2. Vygenerování Prisma klienta (pro TypeScript typy)
-npm run db:generate
-
-# 3. Inicializace lokální D1 databáze (vytvoří schéma přes Wrangler)
+# 2. Inicializace lokální D1 databáze (vytvoří schéma přes Wrangler)
 npm run db:init
 ```
 

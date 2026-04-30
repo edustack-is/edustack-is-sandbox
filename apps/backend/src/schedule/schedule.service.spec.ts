@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScheduleService } from './schedule.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 describe('ScheduleService', () => {
   let service: ScheduleService;
@@ -10,8 +10,12 @@ describe('ScheduleService', () => {
       providers: [
         ScheduleService,
         {
-          provide: PrismaService,
-          useValue: {},
+          provide: DatabaseService,
+          useValue: {
+            query: jest.fn().mockResolvedValue([]),
+            queryOne: jest.fn().mockResolvedValue(null),
+            execute: jest.fn().mockResolvedValue({ lastInsertRowid: 0, changes: 0 }),
+          },
         },
       ],
     }).compile();

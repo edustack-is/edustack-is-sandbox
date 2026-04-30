@@ -47,7 +47,7 @@ import { DatabaseModule } from './database/database.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 3000,
+        limit: 100,
       },
     ]),
     NestScheduleModule.forRoot(),

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
 
@@ -12,8 +12,12 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         {
-          provide: PrismaService,
-          useValue: {},
+          provide: DatabaseService,
+          useValue: {
+            query: jest.fn().mockResolvedValue([]),
+            queryOne: jest.fn().mockResolvedValue(null),
+            execute: jest.fn().mockResolvedValue({ lastInsertRowid: 0, changes: 0 }),
+          },
         },
         {
           provide: JwtService,

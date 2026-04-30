@@ -71,6 +71,18 @@ export class ResetPasswordDto {
   password: string;
 }
 
+export class ChangePasswordDto {
+  @ApiProperty({ description: 'Současné heslo' })
+  @IsString()
+  @IsNotEmpty()
+  oldPassword: string;
+
+  @ApiProperty({ description: 'Nové heslo', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
+}
+
 export class SelectSchoolResponseDto {
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   @IsString()
