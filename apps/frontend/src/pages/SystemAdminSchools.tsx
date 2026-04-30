@@ -418,7 +418,7 @@ export function SystemAdminSchools() {
                 </div>
                 <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
-                        <Button className="gap-2">
+                        <Button className="gap-2" data-testid="create-school-btn">
                             <Plus size={16} />
                             {t('system_schools.create_new')}
                         </Button>
