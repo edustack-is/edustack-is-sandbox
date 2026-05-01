@@ -13,6 +13,7 @@ import { CalendarDays, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { getSchoolEvents, createSchoolEvent, updateSchoolEvent, deleteSchoolEvent } from '@/api/deputy';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 const EVENT_TYPES = ['HOLIDAY', 'EXAM_PERIOD', 'PARENT_MEETING', 'SCHOOL_TRIP', 'SPORTS_DAY', 'OTHER'] as const;
 
@@ -70,6 +71,7 @@ export default function SchoolEvents() {
     const [editing, setEditing] = useState<SchoolEvent | null>(null);
     const [form, setForm] = useState<EventForm>(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
     const fetchEvents = useCallback(() => {
         getSchoolEvents()
@@ -130,18 +132,28 @@ export default function SchoolEvents() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm(t('events.delete_confirm', 'Smazat tuto událost?'))) return;
         try {
             await deleteSchoolEvent(id);
             toast.success(t('events.deleted', 'Událost smazána'));
             fetchEvents();
         } catch {
             toast.error(t('events.delete_error', 'Chyba při mazání'));
+        } finally {
+            setConfirmDelete(null);
         }
     };
 
     return (
         <div className="container mx-auto py-6 space-y-6">
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('events.delete_title', 'Smazat událost')}
+                description={t('events.delete_confirm', 'Smazat tuto událost?')}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+            />
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -212,7 +224,7 @@ export default function SchoolEvents() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className="text-destructive hover:text-destructive"
-                                                    onClick={() => handleDelete(evt.id)}
+                                                    onClick={() => setConfirmDelete(evt.id)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

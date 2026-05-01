@@ -876,10 +876,14 @@ export class DeputyCurriculumController {
 
     if (file) {
       // PDF upload
-      documentText = await this.rvpImportService.extractTextFromPdf(file.buffer);
+      documentText = await this.rvpImportService.extractTextFromPdf(
+        file.buffer,
+      );
     } else if (body.url) {
       // URL fetch
-      throw new BadRequestException('URL extraction not yet implemented in SQL POC.');
+      throw new BadRequestException(
+        'URL extraction not yet implemented in SQL POC.',
+      );
     } else {
       throw new BadRequestException('Zadejte URL nebo nahrajte PDF soubor.');
     }

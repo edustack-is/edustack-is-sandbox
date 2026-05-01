@@ -69,16 +69,32 @@ export class AttendanceController {
   @ApiBody({ type: RecordAttendanceDto })
   async recordAttendance(@Req() req: UserRequest, @Body() body: any) {
     const schoolId = this.ensureTenant(req);
-    return this.attendanceService.recordAttendance(req.user.userId, schoolId, body);
+    return this.attendanceService.recordAttendance(
+      req.user.userId,
+      schoolId,
+      body,
+    );
   }
 
   @Get('classroom/:classroomId')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Docházka třídy za den' })
-  @ApiResponse({ status: 200, type: AttendanceRecordResponseDto, isArray: true })
-  async getClassroomAttendance(@Req() req: UserRequest, @Param('classroomId') classroomId: string, @Query('date') date: string) {
+  @ApiResponse({
+    status: 200,
+    type: AttendanceRecordResponseDto,
+    isArray: true,
+  })
+  async getClassroomAttendance(
+    @Req() req: UserRequest,
+    @Param('classroomId') classroomId: string,
+    @Query('date') date: string,
+  ) {
     const schoolId = this.ensureTenant(req);
-    return this.attendanceService.getClassroomAttendance(schoolId, classroomId, date);
+    return this.attendanceService.getClassroomAttendance(
+      schoolId,
+      classroomId,
+      date,
+    );
   }
 
   @Post('excuses')
@@ -95,7 +111,11 @@ export class AttendanceController {
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Seznam omluvenek' })
   @ApiResponse({ status: 200, type: ExcuseResponseDto, isArray: true })
-  async getExcuses(@Req() req: UserRequest, @Query('classroomId') classroomId?: string, @Query('status') status?: string) {
+  async getExcuses(
+    @Req() req: UserRequest,
+    @Query('classroomId') classroomId?: string,
+    @Query('status') status?: string,
+  ) {
     const schoolId = this.ensureTenant(req);
     return this.attendanceService.getExcuses(schoolId, { classroomId, status });
   }
@@ -104,26 +124,56 @@ export class AttendanceController {
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Schválení/zamítnutí omluvenky' })
   @ApiBody({ type: ReviewExcuseDto })
-  async reviewExcuse(@Req() req: UserRequest, @Param('id') id: string, @Body() body: { status: 'APPROVED' | 'REJECTED' }) {
+  async reviewExcuse(
+    @Req() req: UserRequest,
+    @Param('id') id: string,
+    @Body() body: { status: 'APPROVED' | 'REJECTED' },
+  ) {
     const schoolId = this.ensureTenant(req);
-    return this.attendanceService.reviewExcuse(req.user.userId, schoolId, id, body.status);
+    return this.attendanceService.reviewExcuse(
+      req.user.userId,
+      schoolId,
+      id,
+      body.status,
+    );
   }
 
   @Get('stats/:classroomId')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Statistiky docházky třídy' })
   @ApiResponse({ status: 200, type: AttendanceStatsResponseDto })
-  async getClassStatistics(@Req() req: UserRequest, @Param('classroomId') classroomId: string, @Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string) {
+  async getClassStatistics(
+    @Req() req: UserRequest,
+    @Param('classroomId') classroomId: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
     const schoolId = this.ensureTenant(req);
-    return this.attendanceService.getClassStatistics(schoolId, classroomId, dateFrom, dateTo);
+    return this.attendanceService.getClassStatistics(
+      schoolId,
+      classroomId,
+      dateFrom,
+      dateTo,
+    );
   }
 
   @Get('export/:classroomId')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Export docházky (CSV)' })
-  async exportCsv(@Req() req: UserRequest, @Res() res: Response, @Param('classroomId') classroomId: string, @Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string) {
+  async exportCsv(
+    @Req() req: UserRequest,
+    @Res() res: Response,
+    @Param('classroomId') classroomId: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
     const schoolId = this.ensureTenant(req);
-    const csv = await this.attendanceService.exportAttendanceCsv(schoolId, classroomId, dateFrom, dateTo);
+    const csv = await this.attendanceService.exportAttendanceCsv(
+      schoolId,
+      classroomId,
+      dateFrom,
+      dateTo,
+    );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=dochazka.csv');
     res.send(csv);
@@ -133,8 +183,14 @@ export class AttendanceController {
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Upozornění na neomluvené hodiny' })
   @ApiResponse({ status: 200, type: UnexcusedAlertDto, isArray: true })
-  async getUnexcusedAlerts(@Req() req: UserRequest, @Query('threshold') threshold?: string) {
+  async getUnexcusedAlerts(
+    @Req() req: UserRequest,
+    @Query('threshold') threshold?: string,
+  ) {
     const schoolId = this.ensureTenant(req);
-    return this.attendanceService.getUnexcusedAlerts(schoolId, threshold ? parseInt(threshold) : 5);
+    return this.attendanceService.getUnexcusedAlerts(
+      schoolId,
+      threshold ? parseInt(threshold) : 5,
+    );
   }
 }

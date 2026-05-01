@@ -336,7 +336,6 @@ export class TestDataService {
     this.logger.warn(`Wiping data for school ${schoolId}`);
     const tables = [
       'AuditLog',
-      'SystemLog',
       'AiTokenUsage',
       'Notification',
       'MessageAttachment',
@@ -403,7 +402,6 @@ export class TestDataService {
     this.logger.warn('Wiping ALL data');
     const tables = [
       'AuditLog',
-      'SystemLog',
       'AiTokenUsage',
       'Notification',
       'MessageAttachment',

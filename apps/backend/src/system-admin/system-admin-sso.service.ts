@@ -121,4 +121,16 @@ export class SystemAdminSsoService {
 
     return this.getSsoSettings();
   }
+
+  async removeSsoProvider(provider: string) {
+    await this.db.execute(
+      'DELETE FROM "SystemSecret" WHERE type = ? AND service = ?',
+      [SecretType.SSO, provider],
+    );
+
+    // Trigger strategy reload
+    await this.ssoStrategyFactory.reloadStrategies();
+
+    return this.getSsoSettings();
+  }
 }

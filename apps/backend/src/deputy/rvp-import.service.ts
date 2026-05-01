@@ -168,7 +168,7 @@ export class RvpImportService {
         extractedCode: es.code,
         existingId: match?.id || null,
         existingName: match?.name || null,
-        action: match ? 'match' as const : ('create' as const),
+        action: match ? ('match' as const) : ('create' as const),
       };
     });
 
@@ -183,7 +183,7 @@ export class RvpImportService {
         gradeLevel: gl,
         existingId: match?.id || null,
         existingName: match?.name || null,
-        action: match ? 'match' as const : 'create' as const,
+        action: match ? ('match' as const) : ('create' as const),
       };
     });
 

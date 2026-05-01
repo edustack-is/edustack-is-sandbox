@@ -13,20 +13,6 @@ export interface LoginHelperConfig {
     defaultPassword?: string;
 }
 
-export interface SetupWithSeedPayload {
-    adminFirstName: string;
-    adminLastName: string;
-    adminEmail: string;
-    adminPassword: string;
-    seedFilename?: string;
-    seedData?: any;
-    aiKeys?: {
-        geminiApiKey?: string;
-        openAiApiKey?: string;
-        anthropicApiKey?: string;
-    };
-}
-
 export const api = axios.create({
     baseURL: '/',
     withCredentials: true,
@@ -267,20 +253,6 @@ export const setupApp = async (data: any, setupToken?: string) => {
     const { confirmPassword, ...payload } = data;
     const response = await api.post('/api/init/setup', payload, { headers: setupHeaders(setupToken) });
     return response.data; // { school: SchoolConfig, admin: User }
-};
-
-export const getSeedFiles = async (setupToken?: string) => {
-    const response = await api.get('/api/init/seed-files', { headers: setupHeaders(setupToken) });
-    return response.data; // Array<{ filename, name, description }>
-};
-
-export const setupWithSeed = async (data: SetupWithSeedPayload, setupToken?: string) => {
-    const { confirmPassword, ...payload } = data as any;
-    const response = await api.post('/api/init/setup-with-seed', payload, {
-        timeout: 60000,
-        headers: setupHeaders(setupToken),
-    });
-    return response.data; // { admin, seed: SeedResult }
 };
 
 export const restoreBackup = async (file: File, setupToken?: string) => {

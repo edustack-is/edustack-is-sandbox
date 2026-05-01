@@ -141,7 +141,30 @@ export default function Users() {
     const [users, setUsers] = useState<SchoolUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('student');
+
+    // ─── Tab Persistence ────────────────────────────────────
+    const [activeTab, setActiveTab] = useState(() => {
+        const hash = window.location.hash.replace('#', '');
+        return ['student', 'staff'].includes(hash) ? hash : 'student';
+    });
+
+    const handleTabChange = (value: string) => {
+        setActiveTab(value);
+        window.location.hash = value;
+    };
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.replace('#', '');
+            if (['student', 'staff'].includes(hash)) {
+                setActiveTab(hash);
+            }
+        };
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+    // ────────────────────────────────────────────────────────
+
     const [submitting, setSubmitting] = useState(false);
 
     // Filters
@@ -675,7 +698,6 @@ export default function Users() {
                 <Button
                     onClick={() => {
                         setDialogOpen(true);
-                        setActiveTab('student');
                     }}
                 >
                     <Plus className="h-4 w-4 mr-2" />
@@ -761,7 +783,7 @@ export default function Users() {
                         <DialogDescription>{t('users_page.add_dialog_description')}</DialogDescription>
                     </DialogHeader>
 
-                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <Tabs value={activeTab} onValueChange={handleTabChange}>
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="student">{t('users_page.tab_student')}</TabsTrigger>
                             <TabsTrigger value="staff">{t('users_page.tab_staff')}</TabsTrigger>

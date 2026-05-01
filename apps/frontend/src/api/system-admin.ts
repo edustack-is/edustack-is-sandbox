@@ -30,7 +30,15 @@ export const getHealth = async (): Promise<HealthStatus> => {
 
 // ─── System Audit Log ───────────────────────────────────────────
 
-export const getSystemAuditLog = async (params?: { page?: number; limit?: number; action?: string }) => {
+export const getSystemAuditLog = async (params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entity?: string;
+    actorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+}) => {
     const response = await api.get('/api/system/audit-log', { params });
     return response.data;
 };
@@ -38,7 +46,7 @@ export const getSystemAuditLog = async (params?: { page?: number; limit?: number
 // ─── Backups ────────────────────────────────────────────────────
 
 export const createBackup = async (name?: string) => {
-    const response = await api.post('/api/system/backups', null, { params: { name } });
+    const response = await api.post('/api/system/backups', {}, { params: { name } });
     return response.data;
 };
 

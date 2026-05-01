@@ -116,7 +116,10 @@ export class DatabaseService implements OnModuleInit {
   /**
    * Execute a query and return all results.
    */
-  async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<T[]> {
     try {
       if (this.d1) {
         const result = await this.d1
@@ -176,7 +179,8 @@ export class DatabaseService implements OnModuleInit {
       if (this.d1) {
         const result = await this.dbPrepareAndRun(sql, params);
         return {
-          lastInsertRowid: (result.meta.last_row_id as string | number | bigint) || 0,
+          lastInsertRowid:
+            (result.meta.last_row_id as string | number | bigint) || 0,
           changes: (result.meta.changes as number) || 0,
         };
       } else {
@@ -195,7 +199,6 @@ export class DatabaseService implements OnModuleInit {
       );
     }
   }
-
 
   private async dbPrepareAndRun(sql: string, params: unknown[]) {
     return await this.d1!.prepare(sql)

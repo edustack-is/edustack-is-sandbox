@@ -31,7 +31,9 @@ export class SsoStrategyFactoryService implements OnModuleInit {
       );
     } catch (err: any) {
       if (err.message?.includes('no such table')) {
-        this.logger.warn('SystemSecret table not found. Skipping SSO strategy loading.');
+        this.logger.warn(
+          'SystemSecret table not found. Skipping SSO strategy loading.',
+        );
         return;
       }
       throw err;
@@ -48,10 +50,17 @@ export class SsoStrategyFactoryService implements OnModuleInit {
 
     for (const [service, keys] of Object.entries(grouped)) {
       try {
-        const normalizedService = service.startsWith('sso_') ? service.substring(4) : service;
-        this.registerStrategy(normalizedService, keys as Record<string, string>);
+        const normalizedService = service.startsWith('sso_')
+          ? service.substring(4)
+          : service;
+        this.registerStrategy(
+          normalizedService,
+          keys as Record<string, string>,
+        );
       } catch (err: any) {
-        this.logger.error(`Failed to register ${service} strategy: ${err.message}`);
+        this.logger.error(
+          `Failed to register ${service} strategy: ${err.message}`,
+        );
       }
     }
   }
@@ -61,7 +70,9 @@ export class SsoStrategyFactoryService implements OnModuleInit {
     const encryptedSecret = keys['CLIENT_SECRET'] || keys['PRIVATE_KEY'];
 
     if (!clientId || !encryptedSecret) {
-      this.logger.warn(`Skipping ${service} - missing CLIENT_ID or CLIENT_SECRET/PRIVATE_KEY`);
+      this.logger.warn(
+        `Skipping ${service} - missing CLIENT_ID or CLIENT_SECRET/PRIVATE_KEY`,
+      );
       return;
     }
 
@@ -79,8 +90,12 @@ export class SsoStrategyFactoryService implements OnModuleInit {
             callbackURL: callbackURL,
             scope: ['profile', 'email'],
           },
-          (accessToken: string, refreshToken: string, profile: any, done: any) =>
-            done(null, profile),
+          (
+            accessToken: string,
+            refreshToken: string,
+            profile: any,
+            done: any,
+          ) => done(null, profile),
         );
         break;
 
@@ -92,8 +107,12 @@ export class SsoStrategyFactoryService implements OnModuleInit {
             callbackURL: callbackURL,
             scope: ['user:email'],
           },
-          (accessToken: string, refreshToken: string, profile: any, done: any) =>
-            done(null, profile),
+          (
+            accessToken: string,
+            refreshToken: string,
+            profile: any,
+            done: any,
+          ) => done(null, profile),
         );
         break;
 
@@ -106,8 +125,12 @@ export class SsoStrategyFactoryService implements OnModuleInit {
             tenant: keys['TENANT_ID'] || 'common',
             scope: ['user.read'],
           },
-          (accessToken: string, refreshToken: string, profile: any, done: any) =>
-            done(null, profile),
+          (
+            accessToken: string,
+            refreshToken: string,
+            profile: any,
+            done: any,
+          ) => done(null, profile),
         );
         break;
 

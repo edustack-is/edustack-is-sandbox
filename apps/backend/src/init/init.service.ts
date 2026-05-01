@@ -50,7 +50,9 @@ export class InitService {
         'SELECT COUNT(*) as count FROM "User"',
       );
       const isInitialized = (result?.count || 0) > 0;
-      this.logger.log(`Init status check: count=${result?.count}, initialized=${isInitialized}`);
+      this.logger.log(
+        `Init status check: count=${result?.count}, initialized=${isInitialized}`,
+      );
       return { initialized: isInitialized };
     } catch (error: any) {
       this.logger.warn(`Status check failed: ${error.message}`);

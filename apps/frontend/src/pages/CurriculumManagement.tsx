@@ -48,6 +48,7 @@ import {
     deleteCurriculumEntry,
 } from '../api/deputy';
 import { RvpImportDialog } from '../components/RvpImportDialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,12 +118,38 @@ export default function CurriculumManagement() {
     // Selected version for editing
     const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
 
-    // Active tab
-    const [activeTab, setActiveTab] = useState<'versions' | 'subjects' | 'grades'>('versions');
+    // ─── Tab Persistence ────────────────────────────────────
+    const [activeTab, setActiveTab] = useState<'versions' | 'subjects' | 'grades'>(() => {
+        const hash = window.location.hash.replace('#', '');
+        return ['versions', 'subjects', 'grades'].includes(hash) ? (hash as any) : 'versions';
+    });
+
+    const handleTabChange = (value: string) => {
+        setActiveTab(value as any);
+        window.location.hash = value;
+    };
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.replace('#', '');
+            if (['versions', 'subjects', 'grades'].includes(hash)) {
+                setActiveTab(hash as any);
+            }
+        };
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+    // ────────────────────────────────────────────────────────
+
     const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
     const [isCreatingSubject, setIsCreatingSubject] = useState(false);
     const [showRvpImport, setShowRvpImport] = useState(false);
     const [showCompare, setShowCompare] = useState(false);
+    const [confirmAction, setConfirmAction] = useState<{
+        type: 'delete_subject' | 'delete_grade' | 'delete_version' | 'remove_entry';
+        id: string;
+        name?: string;
+    } | null>(null);
 
     const subjectForm = useForm<{ name: string; code: string; svpDescription: string }>({
         defaultValues: { name: '', code: '', svpDescription: '' },
@@ -199,13 +226,13 @@ export default function CurriculumManagement() {
     });
 
     const handleDeleteSubject = async (id: string) => {
-        const s = subjects.find((x) => x.id === id);
-        if (!confirm(t('curriculum.delete_confirm', { name: s?.name }))) return;
         try {
             await deleteSubject(id);
             await loadData();
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
+        } finally {
+            setConfirmAction(null);
         }
     };
 
@@ -220,6 +247,25 @@ export default function CurriculumManagement() {
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                open={!!confirmAction}
+                onOpenChange={(open) => !open && setConfirmAction(null)}
+                title={
+                    confirmAction?.type === 'delete_subject'
+                        ? t('curriculum.delete_subject_title', 'Smazat předmět')
+                        : ''
+                }
+                description={
+                    confirmAction?.type === 'delete_subject'
+                        ? t('curriculum.delete_confirm', { name: confirmAction?.name })
+                        : ''
+                }
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => {
+                    if (confirmAction?.type === 'delete_subject') handleDeleteSubject(confirmAction.id);
+                }}
+            />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{t('curriculum.title')}</h1>
@@ -238,7 +284,7 @@ export default function CurriculumManagement() {
 
             {showCompare && <VersionCompareDialog versions={versions} onClose={() => setShowCompare(false)} />}
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList>
                     <TabsTrigger value="versions" className="gap-1.5">
                         <History className="h-4 w-4" /> {t('curriculum.versions_title')}
@@ -337,7 +383,13 @@ export default function CurriculumManagement() {
                                                     size="sm"
                                                     variant="ghost"
                                                     className="h-7 px-2 text-destructive hover:text-destructive"
-                                                    onClick={() => handleDeleteSubject(s.id)}
+                                                    onClick={() =>
+                                                        setConfirmAction({
+                                                            type: 'delete_subject',
+                                                            id: s.id,
+                                                            name: s.name,
+                                                        })
+                                                    }
                                                 >
                                                     <Trash2 className="h-3 w-3" />
                                                 </Button>
@@ -421,6 +473,7 @@ function GradeLevelManager({ gradeLevels, onRefresh }: { gradeLevels: GradeLevel
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editLevel, setEditLevel] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState<GradeLevel | null>(null);
 
     const handleCreate = async () => {
         if (!newName.trim() || !newLevel) {
@@ -454,13 +507,13 @@ function GradeLevelManager({ gradeLevels, onRefresh }: { gradeLevels: GradeLevel
     };
 
     const handleDelete = async (id: string) => {
-        const gl = gradeLevels.find((x) => x.id === id);
-        if (!confirm(t('curriculum.grade_delete_confirm', { name: gl?.name }))) return;
         try {
             await deleteGradeLevel(id);
             await onRefresh();
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
+        } finally {
+            setConfirmDelete(null);
         }
     };
 
@@ -472,6 +525,15 @@ function GradeLevelManager({ gradeLevels, onRefresh }: { gradeLevels: GradeLevel
 
     return (
         <Card>
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('curriculum.delete_grade_title', 'Smazat ročník')}
+                description={t('curriculum.grade_delete_confirm', { name: confirmDelete?.name })}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => confirmDelete && handleDelete(confirmDelete.id)}
+            />
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -594,7 +656,7 @@ function GradeLevelManager({ gradeLevels, onRefresh }: { gradeLevels: GradeLevel
                                         size="sm"
                                         variant="ghost"
                                         className="h-7 px-2 text-destructive hover:text-destructive"
-                                        onClick={() => handleDelete(gl.id)}
+                                        onClick={() => setConfirmDelete(gl)}
                                     >
                                         <Trash2 className="h-3 w-3" />
                                     </Button>
@@ -638,6 +700,7 @@ function VersionManager({
     const [dupValidFrom, setDupValidFrom] = useState('');
     const [dupValidTo, setDupValidTo] = useState('');
     const [duplicating, setDuplicating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
     const handleCreate = async () => {
         if (!name.trim() || !validFrom) {
@@ -666,7 +729,6 @@ function VersionManager({
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm(t('curriculum.version_delete_confirm'))) return;
         try {
             await deleteCurriculumVersion(id);
             if (selectedVersionId === id) onSelect(null);
@@ -674,6 +736,8 @@ function VersionManager({
             toast.success(t('curriculum.version_deleted'));
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
+        } finally {
+            setConfirmDelete(null);
         }
     };
 
@@ -714,6 +778,15 @@ function VersionManager({
 
     return (
         <Card>
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('curriculum.delete_version_title', 'Smazat verzi ŠVP')}
+                description={t('curriculum.version_delete_confirm')}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+            />
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -834,7 +907,7 @@ function VersionManager({
                                             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleDelete(v.id);
+                                                setConfirmDelete(v.id);
                                             }}
                                         >
                                             <Trash2 className="h-3 w-3" />
@@ -1104,6 +1177,7 @@ function EntryForm({
     const [gradingType, setGradingType] = useState(existing?.gradingType || 'BOTH');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [showConfirmRemove, setShowConfirmRemove] = useState(false);
 
     // Sync with existing when switching tabs
     useEffect(() => {
@@ -1147,18 +1221,28 @@ function EntryForm({
 
     const handleRemove = async () => {
         if (!existing) return;
-        if (!confirm(t('curriculum.remove_entry_confirm'))) return;
         try {
             await deleteCurriculumEntry(existing.id);
             await onRefresh();
             toast.success(t('curriculum.entry_removed'));
         } catch (error: any) {
             toast.error(error.response?.data?.message || t('common.error'));
+        } finally {
+            setShowConfirmRemove(false);
         }
     };
 
     return (
         <div className="space-y-4">
+            <ConfirmDialog
+                open={showConfirmRemove}
+                onOpenChange={setShowConfirmRemove}
+                title={t('curriculum.remove_entry_title', 'Odebrat předmět')}
+                description={t('curriculum.remove_entry_confirm')}
+                confirmText={t('common.remove', 'Odebrat')}
+                variant="destructive"
+                onConfirm={handleRemove}
+            />
             {/* Hours + computer lab */}
             <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
                 <Label className="font-medium whitespace-nowrap">{t('curriculum.hours_per_week')}</Label>
@@ -1283,7 +1367,7 @@ function EntryForm({
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={handleRemove}
+                        onClick={() => setShowConfirmRemove(true)}
                     >
                         <Trash2 className="h-3 w-3 mr-1" /> {t('curriculum.remove_from_plan')}
                     </Button>

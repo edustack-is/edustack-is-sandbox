@@ -305,7 +305,11 @@ export const Dashboard: React.FC = () => {
     // System Admin in GLOBAL mode → admin dashboard
     if (tokenType === 'GLOBAL') {
         if (isSystemAdmin) return <SystemAdminDashboard />;
-        return <div className="flex items-center justify-center h-full text-muted-foreground">Redirecting to school selection...</div>;
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+                Redirecting to school selection...
+            </div>
+        );
     }
 
     // TENANT mode (school selected) → school dashboard

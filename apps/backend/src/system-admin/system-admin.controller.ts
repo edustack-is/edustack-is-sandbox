@@ -11,7 +11,12 @@ import {
   BadRequestException,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { UserRole, User } from '../database/types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
@@ -51,6 +56,11 @@ export class SystemAdminController {
     @Body() body: UpsertSsoDto,
   ) {
     return this.ssoService.upsertSsoProvider(provider, body);
+  }
+
+  @Delete('sso/:provider')
+  async deleteSsoProvider(@Param('provider') provider: string) {
+    return this.ssoService.removeSsoProvider(provider);
   }
 
   @Post('sso/reload')

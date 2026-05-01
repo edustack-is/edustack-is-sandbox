@@ -30,7 +30,7 @@ import { CreateBackupDto } from './dto/create-backup.dto';
 @ApiTags('system')
 @ApiBearerAuth('JWT-auth')
 @Controller('api/system/backups')
-@UseGuards(IsSystemAdminGuard)
+@UseGuards(JwtAuthGuard, IsSystemAdminGuard)
 export class BackupController {
   constructor(private readonly backupService: BackupService) {}
 

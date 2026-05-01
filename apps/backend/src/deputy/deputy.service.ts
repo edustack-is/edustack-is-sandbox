@@ -55,11 +55,11 @@ export class DeputyService {
       pendingMembersResult,
     ] = await Promise.all([
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = \'STUDENT\' AND status = \'ACTIVE\'',
+        "SELECT COUNT(*) as count FROM \"SchoolMembership\" WHERE schoolId = ? AND role = 'STUDENT' AND status = 'ACTIVE'",
         [schoolId],
       ),
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND role = \'TEACHER\' AND status = \'ACTIVE\'',
+        "SELECT COUNT(*) as count FROM \"SchoolMembership\" WHERE schoolId = ? AND role = 'TEACHER' AND status = 'ACTIVE'",
         [schoolId],
       ),
       this.db.queryOne<{ count: number }>(

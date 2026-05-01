@@ -12,7 +12,7 @@ test.describe('Schools Management & Multi-role Login', () => {
     test('Create, Edit and Manage School', async ({ page }) => {
         // 1. Create School
         await page.getByTestId('sidebar-schools').click();
-        
+
         await page.getByTestId('create-school-btn').click();
 
         await page.fill('input[placeholder*="Základní škola"]', TEST_SCHOOL_NAME);

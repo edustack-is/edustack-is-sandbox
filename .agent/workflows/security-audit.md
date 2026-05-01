@@ -18,8 +18,6 @@ description: Run a security audit on the backend and frontend codebase
    - Check password policy enforcement (server-side, not just frontend)
 
 3. **Review infrastructure security**
-   - Check `docker-compose.yml` for exposed ports (bind to `127.0.0.1`)
-   - Verify Adminer/PgAdmin only available in dev profiles
    - Check that DB credentials are not hardcoded defaults in production
    - Verify `CORS_ORIGIN` is explicitly configured
 

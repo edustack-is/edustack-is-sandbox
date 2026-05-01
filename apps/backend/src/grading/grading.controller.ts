@@ -80,7 +80,11 @@ export class GradingController {
   @ApiBody({ type: CreateGradeDto })
   async createGrade(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.createGrade(req.user.userId, req.user.schoolId, body);
+    return this.gradingService.createGrade(
+      req.user.userId,
+      req.user.schoolId,
+      body,
+    );
   }
 
   @Put('grades/:id')
@@ -88,9 +92,18 @@ export class GradingController {
   @ApiOperation({ summary: 'Úprava známky' })
   @ApiResponse({ status: 200, type: GradeResponseDto })
   @ApiBody({ type: UpdateGradeDto })
-  async updateGrade(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+  async updateGrade(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.updateGrade(req.user.userId, req.user.schoolId, id, body);
+    return this.gradingService.updateGrade(
+      req.user.userId,
+      req.user.schoolId,
+      id,
+      body,
+    );
   }
 
   @Delete('grades/:id')
@@ -99,7 +112,11 @@ export class GradingController {
   @ApiResponse({ status: 200, type: SuccessResponseDto })
   async deleteGrade(@Req() req: any, @Param('id') id: string) {
     this.ensureTenant(req);
-    return this.gradingService.deleteGrade(req.user.userId, req.user.schoolId, id);
+    return this.gradingService.deleteGrade(
+      req.user.userId,
+      req.user.schoolId,
+      id,
+    );
   }
 
   // ─── GRADE QUERIES ──────────────────────────────────────────
@@ -108,24 +125,58 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Známky třídy' })
   @ApiResponse({ status: 200, type: GradeResponseDto, isArray: true })
-  async getGradesForClassroom(@Req() req: any, @Param('id') classroomId: string, @Query('semesterId') semesterId?: string) {
+  async getGradesForClassroom(
+    @Req() req: any,
+    @Param('id') classroomId: string,
+    @Query('semesterId') semesterId?: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getGradesForClassroom(req.user.userId, req.user.schoolId, classroomId, { semesterId, isAdmin: this.isAdmin(req) });
+    return this.gradingService.getGradesForClassroom(
+      req.user.userId,
+      req.user.schoolId,
+      classroomId,
+      { semesterId, isAdmin: this.isAdmin(req) },
+    );
   }
 
   @Get('student/:id')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Známky studenta' })
   @ApiResponse({ status: 200, type: StudentDataResponseDto })
-  async getStudentGrades(@Req() req: any, @Param('id') studentId: string, @Query('semesterId') semesterId?: string) {
+  async getStudentGrades(
+    @Req() req: any,
+    @Param('id') studentId: string,
+    @Query('semesterId') semesterId?: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getStudentGrades(req.user.schoolId, studentId, semesterId);
+    return this.gradingService.getStudentGrades(
+      req.user.schoolId,
+      studentId,
+      semesterId,
+    );
   }
 
   @Get('average/:studentId/:subjectInstanceId')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+  )
   @ApiOperation({ summary: 'Vážený průměr studenta za předmět' })
-  async getAverage(@Req() req: any, @Param('studentId') studentId: string, @Param('subjectInstanceId') subjectInstanceId: string) {
+  async getAverage(
+    @Req() req: any,
+    @Param('studentId') studentId: string,
+    @Param('subjectInstanceId') subjectInstanceId: string,
+  ) {
     this.ensureTenant(req);
     return { average: 0 };
   }
@@ -136,9 +187,17 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Vysvědčení třídy za semestr' })
   @ApiResponse({ status: 200, type: ReportCardResponseDto, isArray: true })
-  async getReportCards(@Req() req: any, @Param('classroomId') classroomId: string, @Param('semesterId') semesterId: string) {
+  async getReportCards(
+    @Req() req: any,
+    @Param('classroomId') classroomId: string,
+    @Param('semesterId') semesterId: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getReportCardsForClass(req.user.schoolId, classroomId, semesterId);
+    return this.gradingService.getReportCardsForClass(
+      req.user.schoolId,
+      classroomId,
+      semesterId,
+    );
   }
 
   @Post('report-cards')
@@ -158,7 +217,10 @@ export class GradingController {
   @ApiOperation({ summary: 'AI vylepšení slovního hodnocení' })
   @ApiResponse({ status: 200, type: AiTextResponseDto })
   @ApiBody({ type: PolishTextDto })
-  async polishVerbalEvaluation(@Req() req: any, @Body() body: { text: string }) {
+  async polishVerbalEvaluation(
+    @Req() req: any,
+    @Body() body: { text: string },
+  ) {
     this.ensureTenant(req);
     return this.gradingService.polishVerbalEvaluation(body.text);
   }
@@ -169,7 +231,10 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Typy hodnocení třídy' })
   @ApiResponse({ status: 200, type: GradingTypeResponseDto, isArray: true })
-  async getGradingTypes(@Req() req: any, @Param('classroomId') classroomId: string) {
+  async getGradingTypes(
+    @Req() req: any,
+    @Param('classroomId') classroomId: string,
+  ) {
     this.ensureTenant(req);
     return this.gradingService.getGradingTypesForClassroom(classroomId);
   }
@@ -189,9 +254,16 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
   @ApiOperation({ summary: 'Hodnocení chování třídy' })
   @ApiResponse({ status: 200, type: BehaviorGradeResponseDto, isArray: true })
-  async getBehaviorGrades(@Req() req: any, @Param('classroomId') classroomId: string, @Param('semesterId') semesterId: string) {
+  async getBehaviorGrades(
+    @Req() req: any,
+    @Param('classroomId') classroomId: string,
+    @Param('semesterId') semesterId: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getBehaviorGrades(req.user.schoolId, { classroomId, semesterId });
+    return this.gradingService.getBehaviorGrades(req.user.schoolId, {
+      classroomId,
+      semesterId,
+    });
   }
 
   // ─── COMPETENCY GRADES ──────────────────────────────────────
@@ -203,16 +275,33 @@ export class GradingController {
   @ApiBody({ type: CompetencyGradeDto })
   async upsertCompetencyGrade(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.upsertCompetencyGrade(req.user.schoolId, req.user.userId, body);
+    return this.gradingService.upsertCompetencyGrade(
+      req.user.schoolId,
+      req.user.userId,
+      body,
+    );
   }
 
   @Get('competency/:studentId')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+  )
   @ApiOperation({ summary: 'Kompetence studenta' })
   @ApiResponse({ status: 200, type: CompetencyGradeResponseDto, isArray: true })
-  async getCompetencyGrades(@Req() req: any, @Param('studentId') studentId: string, @Query('semesterId') semesterId?: string) {
+  async getCompetencyGrades(
+    @Req() req: any,
+    @Param('studentId') studentId: string,
+    @Query('semesterId') semesterId?: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getCompetencyGrades(req.user.schoolId, { studentId, semesterId });
+    return this.gradingService.getCompetencyGrades(req.user.schoolId, {
+      studentId,
+      semesterId,
+    });
   }
 
   // ─── EDUCATIONAL MEASURES ───────────────────────────────────
@@ -224,16 +313,29 @@ export class GradingController {
   @ApiBody({ type: MeasureDto })
   async createMeasure(@Req() req: any, @Body() body: any) {
     this.ensureTenant(req);
-    return this.gradingService.createMeasure(req.user.schoolId, req.user.userId, body);
+    return this.gradingService.createMeasure(
+      req.user.schoolId,
+      req.user.userId,
+      body,
+    );
   }
 
   @Get('measures')
   @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Seznam výchovných opatření' })
   @ApiResponse({ status: 200, type: MeasureResponseDto, isArray: true })
-  async getMeasures(@Req() req: any, @Query('classroomId') classroomId?: string, @Query('studentId') studentId?: string, @Query('semesterId') semesterId?: string) {
+  async getMeasures(
+    @Req() req: any,
+    @Query('classroomId') classroomId?: string,
+    @Query('studentId') studentId?: string,
+    @Query('semesterId') semesterId?: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getMeasures(req.user.schoolId, { classroomId, studentId, semesterId });
+    return this.gradingService.getMeasures(req.user.schoolId, {
+      classroomId,
+      studentId,
+      semesterId,
+    });
   }
 
   @Delete('measures/:id')
@@ -248,10 +350,20 @@ export class GradingController {
   // ─── GRADE HISTORY ──────────────────────────────────────────
 
   @Get('history/:studentId')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.STUDENT, UserRole.PARENT)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Historie známek studenta' })
   @ApiResponse({ status: 200, type: GradeHistoryEntryDto, isArray: true })
-  async getGradeHistory(@Req() req: any, @Param('studentId') studentId: string) {
+  async getGradeHistory(
+    @Req() req: any,
+    @Param('studentId') studentId: string,
+  ) {
     this.ensureTenant(req);
     return this.gradingService.getGradeHistory(req.user.schoolId, studentId);
   }
@@ -262,9 +374,16 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Vysvědčení (tisk HTML)' })
   @ApiResponse({ status: 200, description: 'HTML pro tisk vysvědčení.' })
-  async getReportCardHtml(@Req() req: any, @Param('studentId') studentId: string, @Param('semesterId') semesterId: string) {
+  async getReportCardHtml(
+    @Req() req: any,
+    @Param('studentId') studentId: string,
+    @Param('semesterId') semesterId: string,
+  ) {
     this.ensureTenant(req);
-    const html = await this.gradingService.getReportCardHtml(studentId, semesterId);
+    const html = await this.gradingService.getReportCardHtml(
+      studentId,
+      semesterId,
+    );
     return { html };
   }
 
@@ -283,18 +402,33 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Komisionální přezkoušení' })
   @ApiResponse({ status: 200, type: CommissionExamResponseDto, isArray: true })
-  async getCommissionExams(@Req() req: any, @Query('classroomId') classroomId?: string, @Query('semesterId') semesterId?: string) {
+  async getCommissionExams(
+    @Req() req: any,
+    @Query('classroomId') classroomId?: string,
+    @Query('semesterId') semesterId?: string,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.getCommissionExams(req.user.schoolId, { classroomId, semesterId });
+    return this.gradingService.getCommissionExams(req.user.schoolId, {
+      classroomId,
+      semesterId,
+    });
   }
 
   @Put('commission-exams/:id')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Aktualizace komisionálního přezkoušení' })
   @ApiResponse({ status: 200, type: CommissionExamResponseDto })
-  async updateCommissionExam(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+  async updateCommissionExam(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.updateCommissionExam(req.user.schoolId, id, body);
+    return this.gradingService.updateCommissionExam(
+      req.user.schoolId,
+      id,
+      body,
+    );
   }
 
   @Delete('commission-exams/:id')
@@ -324,8 +458,15 @@ export class GradingController {
 
   @Post('deadline/lock')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-  async lockClassification(@Req() req: any, @Body() body: { semesterId: string; lock: boolean }) {
+  async lockClassification(
+    @Req() req: any,
+    @Body() body: { semesterId: string; lock: boolean },
+  ) {
     this.ensureTenant(req);
-    return this.gradingService.lockClassification(req.user.schoolId, body.semesterId, body.lock);
+    return this.gradingService.lockClassification(
+      req.user.schoolId,
+      body.semesterId,
+      body.lock,
+    );
   }
 }

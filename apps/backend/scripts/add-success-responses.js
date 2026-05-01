@@ -432,8 +432,6 @@ const RESPONSES = {
   'init/init.controller.ts': {
     getStatus: { s: 200, d: 'Stav inicializace systému.' },
     setup: { s: 201, d: 'Administrátor vytvořen.' },
-    setupWithSeed: { s: 201, d: 'Admin + seed data vytvořeny.' },
-    getSeedFiles: { s: 200, d: 'Dostupné seed soubory – pole.' },
   },
 };
 

@@ -4,14 +4,14 @@
 
 ## Technologie
 
-| Vrstva     | Stack                                                          |
-| ---------- | -------------------------------------------------------------- |
-| Backend    | NestJS, Custom SQLite/D1 service (better-sqlite3)              |
-| Databáze   | Cloudflare D1 (SQLite)                                         |
-| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui            |
-| MCP Server | Node.js, SSE transport, 36 AI nástrojů                         |
-| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic)           |
-| Infra      | Cloudflare Workers, Cloudflare Pages                           |
+| Vrstva     | Stack                                                |
+| ---------- | ---------------------------------------------------- |
+| Backend    | NestJS, Custom SQLite/D1 service (better-sqlite3)    |
+| Databáze   | Cloudflare D1 (SQLite)                               |
+| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui  |
+| MCP Server | Node.js, SSE transport, 36 AI nástrojů               |
+| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
+| Infra      | Cloudflare Workers, Cloudflare Pages                 |
 
 ## Rychlý start
 
@@ -63,13 +63,9 @@ npm run db:init
 
 ### 3. Demo Data
 
-Chcete-li databázi naplnit kompletním školním nastavením (akademické roky, školy, uživatelé, třídy atd.), spusťte:
+Systém podporuje automatické naplnění daty při startu, pokud je v `.env` nastavena proměnná `AUTO_SEED=true`.
 
-```bash
-npm run seed:demo
-```
-
-**Přihlašovací údaje (Heslo: `password123`):**
+**Výchozí přihlašovací údaje (pokud jsou data načtena):**
 
 - Systémový administrátor: `admin@edustack.cz`
 - Ředitel: `headmaster@tgmasaryk.cz`

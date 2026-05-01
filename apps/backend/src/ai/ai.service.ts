@@ -21,12 +21,16 @@ export class AiService {
   private async getModel() {
     if (this.cachedModel) return this.cachedModel;
 
-    const googleKey = await this.systemAdminAiService.getDecryptedApiKey('google');
+    const googleKey =
+      await this.systemAdminAiService.getDecryptedApiKey('google');
     if (googleKey) {
       try {
-        const available = await this.systemAdminAiService.getDiscoverableGoogleModels();
+        const available =
+          await this.systemAdminAiService.getDiscoverableGoogleModels();
         if (available.length > 0) {
-          const modelName = available.find((n) => n.toLowerCase().includes('flash')) || available[0];
+          const modelName =
+            available.find((n) => n.toLowerCase().includes('flash')) ||
+            available[0];
           const google = createGoogleGenerativeAI({ apiKey: googleKey });
           this.cachedModel = google(modelName);
           return this.cachedModel;
@@ -36,7 +40,8 @@ export class AiService {
       }
     }
 
-    const openAiKey = await this.systemAdminAiService.getDecryptedApiKey('openai');
+    const openAiKey =
+      await this.systemAdminAiService.getDecryptedApiKey('openai');
     if (openAiKey) {
       const openai = createOpenAI({ apiKey: openAiKey });
       this.cachedModel = openai('gpt-4o-mini');
@@ -53,40 +58,74 @@ export class AiService {
 
     let studentsData = [];
     try {
-      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[([\s\S]*?)\]/);
-      studentsData = JSON.parse(jsonMatch ? jsonMatch[1] || jsonMatch[0] : text);
+      const jsonMatch =
+        text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[([\s\S]*?)\]/);
+      studentsData = JSON.parse(
+        jsonMatch ? jsonMatch[1] || jsonMatch[0] : text,
+      );
     } catch (e) {
       return { success: false, message: 'Failed to parse AI response' };
     }
 
-    const classroom = await this.db.queryOne<Classroom>('SELECT schoolId FROM "Classroom" WHERE id = ?', [classroomId]);
+    const classroom = await this.db.queryOne<Classroom>(
+      'SELECT schoolId FROM "Classroom" WHERE id = ?',
+      [classroomId],
+    );
     if (!classroom) throw new Error('Classroom not found');
 
     const createdStudents = [];
     for (const student of studentsData) {
       const email = `${student.firstName.toLowerCase()}.${student.lastName.toLowerCase()}.${crypto.randomBytes(2).toString('hex')}@skola.cz`;
       const userId = crypto.randomUUID();
-      
+
       await this.db.transaction(async (db) => {
         await db.execute(
           'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-          [userId, email, student.firstName, student.lastName, 'seeded_password', new Date().toISOString()]
+          [
+            userId,
+            email,
+            student.firstName,
+            student.lastName,
+            'seeded_password',
+            new Date().toISOString(),
+          ],
         );
         await db.execute(
           'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-          [crypto.randomUUID(), userId, classroom.schoolId, UserRole.STUDENT, UserStatus.ACTIVE, new Date().toISOString()]
+          [
+            crypto.randomUUID(),
+            userId,
+            classroom.schoolId,
+            UserRole.STUDENT,
+            UserStatus.ACTIVE,
+            new Date().toISOString(),
+          ],
         );
         await db.execute(
           'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId) VALUES (?, ?, ?, ?, ?)',
-          [crypto.randomUUID(), userId, student.firstName, student.lastName, classroomId]
+          [
+            crypto.randomUUID(),
+            userId,
+            student.firstName,
+            student.lastName,
+            classroomId,
+          ],
         );
       });
       createdStudents.push({ id: userId, email });
     }
-    return { success: true, count: createdStudents.length, students: createdStudents };
+    return {
+      success: true,
+      count: createdStudents.length,
+      students: createdStudents,
+    };
   }
 
-  async refineText(data: { existingText?: string, context: string, instruction: string }) {
+  async refineText(data: {
+    existingText?: string;
+    context: string;
+    instruction: string;
+  }) {
     const prompt = `Jsi asistent. ${data.context}. ${data.instruction}. ${data.existingText || ''}`;
     const model = await this.getModel();
     const { text } = await generateText({ model, prompt });
@@ -100,35 +139,54 @@ export class AiService {
     return { name: text.trim().replace(/^["']|["']$/g, '') };
   }
 
-  async generateThematicPlan(data: { subjectName: string, grade: string, topic: string, hoursPerWeek: number }) {
+  async generateThematicPlan(data: {
+    subjectName: string;
+    grade: string;
+    topic: string;
+    hoursPerWeek: number;
+  }) {
     const prompt = `Vytvoř tematický plán pro předmět "${data.subjectName}", ${data.grade}. ročník. Dotace: ${data.hoursPerWeek}h/týden. Téma: ${data.topic}.`;
     const model = await this.getModel();
     const { text } = await generateText({ model, prompt });
     return { plan: text.trim() };
   }
 
-  async generateStudentRecommendations(data: { studentName: string, grades: any[], attendance?: any, behavior?: string }) {
+  async generateStudentRecommendations(data: {
+    studentName: string;
+    grades: any[];
+    attendance?: any;
+    behavior?: string;
+  }) {
     const prompt = `Navrhni doporučení pro studenta ${data.studentName} na základě jeho výsledků: ${JSON.stringify(data.grades)}.`;
     const model = await this.getModel();
     const { text } = await generateText({ model, prompt });
     return { recommendations: text.trim() };
   }
 
-  async analyzeClassPerformance(data: { className: string, stats: any }) {
+  async analyzeClassPerformance(data: { className: string; stats: any }) {
     const prompt = `Analyzuj prospěch třídy ${data.className}: ${JSON.stringify(data.stats)}`;
     const model = await this.getModel();
     const { text } = await generateText({ model, prompt });
     return { analysis: text.trim() };
   }
 
-  async generateTest(data: { subjectName: string, grade: string, topic: string, questionCount?: number }) {
+  async generateTest(data: {
+    subjectName: string;
+    grade: string;
+    topic: string;
+    questionCount?: number;
+  }) {
     const prompt = `Vytvoř test pro předmět "${data.subjectName}", ${data.grade}. ročník. Téma: ${data.topic}.`;
     const model = await this.getModel();
     const { text } = await generateText({ model, prompt });
     return { test: text.trim() };
   }
 
-  async generateWrittenTest(data: { subjectName: string, grade: string, topic: string }) {
+  async generateWrittenTest(data: {
+    subjectName: string;
+    grade: string;
+    topic: string;
+  }) {
     const prompt = `Vytvoř písemku pro předmět "${data.subjectName}", ${data.grade}. ročník. Téma: ${data.topic}.`;
     const model = await this.getModel();
     const { text } = await generateText({ model, prompt });

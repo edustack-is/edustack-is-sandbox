@@ -36,12 +36,6 @@ export enum AttendanceStatus {
   UNEXCUSED = 'UNEXCUSED',
 }
 
-export interface SystemLog {
-  id: number;
-  message: string;
-  createdAt: Date;
-}
-
 export interface School {
   id: string;
   name: string;

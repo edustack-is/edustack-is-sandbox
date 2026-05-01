@@ -361,21 +361,17 @@ Klíčové datové entity systému.
 
 Stručný přehled technologické vrstvy.
 
-| ID    | Element                   | Typ (ArchiMate)       | Popis                                             |
-| ----- | ------------------------- | --------------------- | ------------------------------------------------- |
-| TN-01 | Docker Host               | Node                  | Hostitelský stroj provozující Docker Engine.      |
-| TN-02 | Frontend Container        | Node                  | Docker kontejner s Vite dev serverem (port 5173). |
-| TN-03 | Backend Container         | Node                  | Docker kontejner s NestJS API (port 3000).        |
-| TN-04 | MCP Container             | Node                  | Docker kontejner s MCP serverem (port 3001).      |
-| TN-05 | PostgreSQL Container      | Node                  | Docker kontejner s PostgreSQL 15 (port 5432).     |
-| TA-01 | React SPA                 | Artifact              | Buildovaná React aplikace (TypeScript, Vite).     |
-| TA-02 | NestJS API                | Artifact              | TypeScript backend s Prisma ORM.                  |
-| TA-03 | MCP Server App            | Artifact              | TypeScript MCP server s přímým DB přístupem.      |
-| TA-04 | PostgreSQL Database       | Artifact              | Relační databáze s Prisma schématem.              |
-| TC-01 | HTTP / REST               | Communication Network | Komunikace frontend ↔ backend.                    |
-| TC-02 | TCP / PostgreSQL Protocol | Communication Network | Komunikace backend/MCP ↔ databáze.                |
-| TC-03 | SSE (Server-Sent Events)  | Communication Network | Komunikace backend ↔ MCP server.                  |
-| TC-04 | HTTPS (external)          | Communication Network | Komunikace s Google/Microsoft OAuth a AI API.     |
+| ID    | Element                  | Typ (ArchiMate)       | Popis                                         |
+| ----- | ------------------------ | --------------------- | --------------------------------------------- |
+| TN-01 | Host Machine             | Node                  | Hostitelský stroj (lokální nebo server).      |
+| TA-01 | React SPA                | Artifact              | Buildovaná React aplikace (TypeScript, Vite). |
+| TA-02 | NestJS API               | Artifact              | TypeScript backend s DatabaseService.         |
+| TA-03 | MCP Server App           | Artifact              | TypeScript MCP server s přímým DB přístupem.  |
+| TA-04 | SQLite / D1 Database     | Artifact              | Relační databáze (lokální nebo Cloudflare).   |
+| TC-01 | HTTP / REST              | Communication Network | Komunikace frontend ↔ backend.                |
+| TC-02 | SQLite Protocol          | Communication Network | Lokální nebo síťový přístup k databázi.       |
+| TC-03 | SSE (Server-Sent Events) | Communication Network | Komunikace backend ↔ MCP server.              |
+| TC-04 | HTTPS (external)         | Communication Network | Komunikace s Google/Microsoft OAuth a AI API. |
 
 **Vztahy:**
 
@@ -405,12 +401,12 @@ Stručný přehled technologické vrstvy.
 
 ### Application → Technology (Deployment)
 
-| Application Component | Nasazen na (Technology)    |
-| --------------------- | -------------------------- |
-| AC-01 Frontend SPA    | TN-02 Frontend Container   |
-| AC-02 Backend API     | TN-03 Backend Container    |
-| AC-03 MCP Server      | TN-04 MCP Container        |
-| Data Objects (DO-\*)  | TN-05 PostgreSQL Container |
+| Application Component | Nasazen na (Technology) |
+| --------------------- | ----------------------- |
+| AC-01 Frontend SPA    | TN-01 Host Machine      |
+| AC-02 Backend API     | TN-01 Host Machine      |
+| AC-03 MCP Server      | TN-01 Host Machine      |
+| Data Objects (DO-\*)  | TA-04 Database          |
 
 ### Actor → Service (Serving / Access)
 

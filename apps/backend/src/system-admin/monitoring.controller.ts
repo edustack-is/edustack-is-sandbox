@@ -14,20 +14,6 @@ import { DatabaseService } from '../database/database.service';
 import { Public } from '../auth/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 
-// ─── In-memory Prometheus-style metrics ─────────────────────────
-const metrics = {
-  httpRequestsTotal: 0,
-  httpErrorsTotal: 0,
-  loginAttemptsSuccess: 0,
-  loginAttemptsFailed: 0,
-  startTime: Date.now(),
-};
-
-/** Call from middleware or interceptors to increment counters */
-export function incrementMetric(key: keyof typeof metrics) {
-  (metrics as any)[key]++;
-}
-
 @ApiTags('system')
 @Controller('api')
 export class MonitoringController {
@@ -49,7 +35,7 @@ export class MonitoringController {
     const mem = process.memoryUsage();
     return {
       status: dbStatus === 'ok' ? 'healthy' : 'degraded',
-      uptime: Math.floor((Date.now() - metrics.startTime) / 1000),
+      uptime: Math.floor(process.uptime()),
       database: dbStatus,
       memory: {
         rss: Math.round(mem.rss / 1024 / 1024),
@@ -100,44 +86,6 @@ export class MonitoringController {
     return { received: true };
   }
 
-  // ─── Prometheus-style metrics (admin only) ──────────────────
-  @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
-  @Get('metrics')
-  getMetrics() {
-    const uptimeSeconds = Math.floor((Date.now() - metrics.startTime) / 1000);
-    const mem = process.memoryUsage();
-
-    // Prometheus text format
-    const lines = [
-      '# HELP edustack_uptime_seconds Backend uptime in seconds',
-      '# TYPE edustack_uptime_seconds gauge',
-      `edustack_uptime_seconds ${uptimeSeconds}`,
-      '',
-      '# HELP edustack_http_requests_total Total HTTP requests',
-      '# TYPE edustack_http_requests_total counter',
-      `edustack_http_requests_total ${metrics.httpRequestsTotal}`,
-      '',
-      '# HELP edustack_http_errors_total Total HTTP errors',
-      '# TYPE edustack_http_errors_total counter',
-      `edustack_http_errors_total ${metrics.httpErrorsTotal}`,
-      '',
-      '# HELP edustack_login_attempts_total Login attempts',
-      '# TYPE edustack_login_attempts_total counter',
-      `edustack_login_attempts_total{result="success"} ${metrics.loginAttemptsSuccess}`,
-      `edustack_login_attempts_total{result="failed"} ${metrics.loginAttemptsFailed}`,
-      '',
-      '# HELP edustack_memory_rss_bytes Process RSS memory',
-      '# TYPE edustack_memory_rss_bytes gauge',
-      `edustack_memory_rss_bytes ${mem.rss}`,
-      '',
-      '# HELP edustack_memory_heap_used_bytes Heap used',
-      '# TYPE edustack_memory_heap_used_bytes gauge',
-      `edustack_memory_heap_used_bytes ${mem.heapUsed}`,
-    ];
-
-    return lines.join('\n');
-  }
-
   // ─── System Audit Log (admin only) ──────────────────────────
   @UseGuards(JwtAuthGuard, IsSystemAdminGuard)
   @Get('system/audit-log')
@@ -145,6 +93,10 @@ export class MonitoringController {
     @Query('page') page = '1',
     @Query('limit') limit = '50',
     @Query('action') action?: string,
+    @Query('entity') entity?: string,
+    @Query('actorId') actorId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     const take = Math.min(Number(limit) || 50, 100);
     const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
@@ -154,6 +106,26 @@ export class MonitoringController {
     if (action) {
       whereClause += ' AND action = ?';
       params.push(action);
+    }
+    if (entity) {
+      whereClause += ' AND entity = ?';
+      params.push(entity);
+    }
+    if (actorId) {
+      whereClause += ' AND actorId = ?';
+      params.push(actorId);
+    }
+    if (dateFrom) {
+      whereClause += ' AND a.createdAt >= ?';
+      params.push(new Date(dateFrom).toISOString());
+    }
+    if (dateTo) {
+      whereClause += ' AND a.createdAt <= ?';
+      // Append end of day if only date is provided
+      const to = dateTo.includes('T')
+        ? new Date(dateTo).toISOString()
+        : new Date(dateTo + 'T23:59:59.999Z').toISOString();
+      params.push(to);
     }
 
     const sql = `
@@ -165,7 +137,7 @@ export class MonitoringController {
       LIMIT ? OFFSET ?
     `;
 
-    const countSql = `SELECT COUNT(*) as count FROM AuditLog ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as count FROM AuditLog a ${whereClause}`;
 
     const [rows, countResult] = await Promise.all([
       this.db.query(sql, [...params, take, skip]),

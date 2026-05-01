@@ -418,10 +418,16 @@ export class SystemAdminService {
   }
 
   async assignSchoolAdmin(schoolId: string, userId: string, actorId: string) {
-    const school = await this.db.queryOne<School>('SELECT * FROM "School" WHERE id = ?', [schoolId]);
+    const school = await this.db.queryOne<School>(
+      'SELECT * FROM "School" WHERE id = ?',
+      [schoolId],
+    );
     if (!school) throw new NotFoundException('School not found');
 
-    const user = await this.db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [userId]);
+    const user = await this.db.queryOne<User>(
+      'SELECT * FROM "User" WHERE id = ?',
+      [userId],
+    );
     if (!user) throw new NotFoundException('User not found');
 
     await this.db.transaction(async (db) => {
@@ -462,7 +468,15 @@ export class SystemAdminService {
 
     await this.db.execute(
       'INSERT INTO "AuditLog" (id, actorId, action, entity, entityId, newValues, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [crypto.randomUUID(), actorId, 'ASSIGN_SCHOOL_ADMIN', 'School', schoolId, JSON.stringify({ userId }), new Date().toISOString()]
+      [
+        crypto.randomUUID(),
+        actorId,
+        'ASSIGN_SCHOOL_ADMIN',
+        'School',
+        schoolId,
+        JSON.stringify({ userId }),
+        new Date().toISOString(),
+      ],
     );
 
     return { success: true };
@@ -470,7 +484,7 @@ export class SystemAdminService {
 
   async getSystemAdmins() {
     return this.db.query(
-      'SELECT id, email, firstName, lastName, lastLogin, createdAt FROM "User" WHERE isSystemAdmin = 1 AND deletedAt IS NULL ORDER BY lastName ASC',
+      'SELECT id, email, firstName, lastName, lastLogin, createdAt FROM "User" WHERE (isSystemAdmin = 1 OR isSystemAdmin = \'true\') AND deletedAt IS NULL ORDER BY lastName ASC',
     );
   }
 

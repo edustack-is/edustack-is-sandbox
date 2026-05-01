@@ -288,8 +288,6 @@ const MAP = {
   'init/init.controller.ts': {
     getStatus: { t: 'InitStatusResponseDto' },
     setup: { t: 'LoginResponseDto' },
-    setupWithSeed: { t: 'LoginResponseDto' },
-    getSeedFiles: { t: 'SeedFileResponseDto', arr: true },
   },
 };
 
@@ -370,7 +368,6 @@ const RESPONSE_DTOS = new Set([
   'GenerateScheduleResultDto',
   'GdprDataResponseDto',
   'InitStatusResponseDto',
-  'SeedFileResponseDto',
   'ReportStatsResponseDto',
   'RegistryClassroomResponseDto',
   'SystemSettingsResponseDto',

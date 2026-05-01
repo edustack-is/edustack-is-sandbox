@@ -59,8 +59,7 @@ graph TB
 
     subgraph TL["⚙️ TECHNOLOGY LAYER"]
         direction LR
-        TN1["Docker"]
-        TN2["PostgreSQL"]
+        TN2["SQLite / D1"]
         TN3["Node.js"]
         TN4["OAuth\nProviders"]
         TN5["AI API\n(OpenAI/Anthropic)"]
@@ -469,8 +468,8 @@ graph TB
     end
 
     Frontend -->|"REST API\n(HTTP/JSON)"| Backend
-    MCP -->|"Prisma\n(Direct DB)"| DB[("PostgreSQL")]
-    Backend -->|"Prisma ORM"| DB
+    MCP -->|"Direct DB"| DB[("SQLite / D1")]
+    Backend -->|Database| DB
     Backend -->|"OAuth 2.0"| OAuth["Google / Microsoft"]
     Backend -->|"API calls"| AIProvider["OpenAI / Anthropic"]
 
@@ -486,27 +485,25 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph Docker["DOCKER COMPOSE"]
-        subgraph FrontendContainer["📦 frontend"]
+    subgraph Infrastructure["INFRSTRUKTURA"]
+        subgraph FrontendLayer["🌐 frontend"]
             Vite["Vite Dev Server\n:5173"]
             React["React 18\n+ TypeScript"]
         end
 
-        subgraph BackendContainer["📦 backend"]
+        subgraph BackendLayer["⚙️ backend"]
             NestJS["NestJS\n:3000"]
-            Prisma["Prisma ORM"]
+            DBService["DatabaseService"]
             Passport["Passport.js\n(JWT + OAuth)"]
         end
 
-        subgraph MCPContainer["📦 mcp-server"]
+        subgraph MCPLayer["🤖 mcp-server"]
             MCPNode["Node.js\n:3001"]
-            MCPPrisma["Prisma Client"]
             MCPSDK["@modelcontextprotocol\n/sdk"]
         end
 
-        subgraph DBContainer["📦 postgres"]
-            PG["PostgreSQL 15\n:5432"]
-            PGData[("Volume:\npostgres-data")]
+        subgraph DatabaseLayer["📦 database"]
+            DB[("SQLite / D1")]
         end
     end
 
@@ -518,22 +515,20 @@ graph TB
         SMTP["SMTP Server\n(e-mail notifikace)"]
     end
 
-    FrontendContainer -->|"HTTP :3000"| BackendContainer
-    BackendContainer -->|"TCP :5432"| DBContainer
-    MCPContainer -->|"TCP :5432"| DBContainer
-    BackendContainer -->|"SSE :3001"| MCPContainer
+    FrontendLayer -->|"HTTP :3000"| BackendLayer
+    BackendLayer -->|Database| DatabaseLayer
+    MCPLayer -->|Database| DatabaseLayer
+    BackendLayer -->|"SSE :3001"| MCPLayer
 
-    BackendContainer --> Google & Microsoft
-    BackendContainer --> OpenAI & Anthropic
-    BackendContainer --> SMTP
+    BackendLayer --> Google & Microsoft
+    BackendLayer --> OpenAI & Anthropic
+    BackendLayer --> SMTP
 
-    PG --- PGData
-
-    style Docker fill:#2496ed,color:#fff
-    style FrontendContainer fill:#61dafb,color:#000
-    style BackendContainer fill:#e0234e,color:#fff
-    style MCPContainer fill:#8e44ad,color:#fff
-    style DBContainer fill:#336791,color:#fff
+    style Infrastructure fill:#f8f9fa,color:#333
+    style FrontendLayer fill:#61dafb,color:#000
+    style BackendLayer fill:#e0234e,color:#fff
+    style MCPLayer fill:#8e44ad,color:#fff
+    style DatabaseLayer fill:#336791,color:#fff
 ```
 
 ---
@@ -574,7 +569,7 @@ graph LR
     end
 
     subgraph Data["DATOVÁ VRSTVA"]
-        DB[("PostgreSQL\n(Prisma)")]
+        DB[("SQLite / D1")]
     end
 
     subgraph ExtServices["EXTERNÍ"]

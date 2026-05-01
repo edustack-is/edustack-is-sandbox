@@ -47,7 +47,8 @@ import {
 import { TestDataGenerator } from './TestDataGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
-import { getSsoSettings, updateSsoProvider } from '@/api/system-sso';
+import { getSsoSettings, updateSsoProvider, deleteSsoProvider } from '@/api/system-sso';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
     getSystemSettings,
     updateSystemSettings,
@@ -132,6 +133,29 @@ export function SystemAdminSettings() {
     const [ssoSettings, setSsoSettings] = useState<SsoSettings | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // ─── Tab Persistence ────────────────────────────────────
+    const [activeTab, setActiveTab] = useState(() => {
+        const hash = window.location.hash.replace('#', '');
+        return ['ai', 'sso', 'system', 'monitoring', 'backups', 'testdata'].includes(hash) ? hash : 'ai';
+    });
+
+    const handleTabChange = (value: string) => {
+        setActiveTab(value);
+        window.location.hash = value;
+    };
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.replace('#', '');
+            if (['ai', 'sso', 'system', 'monitoring', 'backups', 'testdata'].includes(hash)) {
+                setActiveTab(hash);
+            }
+        };
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+    // ────────────────────────────────────────────────────────
+
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
@@ -172,7 +196,7 @@ export function SystemAdminSettings() {
                 </div>
             </div>
 
-            <Tabs defaultValue="ai" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
                 <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 lg:w-[900px]">
                     <TabsTrigger value="ai" className="flex items-center gap-2">
                         <Zap className="h-4 w-4" />
@@ -285,6 +309,8 @@ export function SystemAdminSettings() {
 
 function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; onSaved: () => void }) {
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState<string | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     const { t } = useTranslation();
 
     const providers = [
@@ -294,21 +320,67 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
         { id: 'apple', name: 'Apple', icon: Apple, color: 'bg-black' },
     ];
 
+    const handleDelete = async (provider: string) => {
+        try {
+            setDeleting(provider);
+            await deleteSsoProvider(provider);
+            toast.success(t('system_settings.provider_config_deleted', 'Konfigurace smazána'));
+            onSaved();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || t('system_settings.delete_config_failed'));
+        } finally {
+            setDeleting(null);
+            setConfirmDelete(null);
+        }
+    };
+
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('system_settings.delete_provider_confirm_title', 'Smazat konfiguraci')}
+                description={t(
+                    'system_settings.delete_provider_confirm',
+                    'Opravdu chcete smazat konfiguraci tohoto providera?',
+                )}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {providers.map((p) => {
                     const config = settings?.[p.id as keyof SsoSettings];
                     return (
                         <Card
                             key={p.id}
-                            className="cursor-pointer hover:border-primary transition-colors"
+                            className="cursor-pointer hover:border-primary transition-colors group relative"
                             onClick={() => setSelectedProvider(p.id)}
                         >
+                            {config?.isConfigured && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setConfirmDelete(p.id);
+                                    }}
+                                    disabled={deleting === p.id}
+                                    className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2 z-10"
+                                >
+                                    {deleting === p.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            )}
                             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                                 <CardTitle className="text-sm font-medium">{p.name}</CardTitle>
-                                <div className={`p-2 rounded-lg ${p.color} text-white`}>
-                                    <p.icon className="h-4 w-4" />
+                                <div
+                                    className={`p-2.5 rounded-xl ${p.color} text-white transition-transform group-hover:scale-110 translate-y-3 -translate-x-3`}
+                                >
+                                    <p.icon className="h-5 w-5" />
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -336,11 +408,64 @@ function SsoIntegrations({ settings, onSaved }: { settings: SsoSettings | null; 
                     <CardTitle className="text-lg">{t('system_settings.sso_config_guide')}</CardTitle>
                     <CardDescription>{t('system_settings.sso_config_guide_description')}</CardDescription>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground leading-relaxed">
-                    {t('system_settings.sso_callback_url_hint')}
-                    <code className="block mt-2 p-2 bg-muted rounded font-mono text-xs">
-                        https://your-domain.com/api/auth/callback/[provider]
-                    </code>
+                <CardContent className="space-y-4">
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                        {t('system_settings.sso_callback_url_hint')}
+                        <code className="block mt-2 p-2 bg-muted rounded font-mono text-xs">
+                            https://your-domain.com/api/auth/callback/[provider]
+                        </code>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <a
+                            href="https://console.cloud.google.com/apis/credentials"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Globe className="h-4 w-4 text-blue-500" />
+                                <span className="text-sm font-medium text-gray-700">Google Cloud</span>
+                            </div>
+                            <ExternalLink className="h-3 w-3 text-gray-300 group-hover:text-blue-500" />
+                        </a>
+                        <a
+                            href="https://github.com/settings/developers"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-slate-300 hover:bg-slate-50/30 transition-all group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Github className="h-4 w-4 text-slate-900" />
+                                <span className="text-sm font-medium text-gray-700">GitHub Dev</span>
+                            </div>
+                            <ExternalLink className="h-3 w-3 text-gray-300 group-hover:text-slate-900" />
+                        </a>
+                        <a
+                            href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/30 transition-all group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Mail className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-gray-700">Azure Portal</span>
+                            </div>
+                            <ExternalLink className="h-3 w-3 text-gray-300 group-hover:text-blue-600" />
+                        </a>
+                        <a
+                            href="https://developer.apple.com/account/resources/authkeys/list"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-gray-300 hover:bg-gray-50/30 transition-all group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Apple className="h-4 w-4 text-black" />
+                                <span className="text-sm font-medium text-gray-700">Apple Dev</span>
+                            </div>
+                            <ExternalLink className="h-3 w-3 text-gray-300 group-hover:text-black" />
+                        </a>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -376,6 +501,15 @@ function SsoConfigDialog({
         keyId: config?.keyId || '',
     });
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+    const providerLinks: Record<string, string> = {
+        google: 'https://console.cloud.google.com/apis/credentials',
+        github: 'https://github.com/settings/developers',
+        microsoft: 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+        apple: 'https://developer.apple.com/account/resources/authkeys/list',
+    };
 
     const handleSave = async () => {
         try {
@@ -391,19 +525,98 @@ function SsoConfigDialog({
         }
     };
 
+    const handleDelete = async () => {
+        try {
+            setDeleting(true);
+            await deleteSsoProvider(provider);
+            toast.success(t('system_settings.provider_config_deleted', 'Konfigurace smazána'));
+            onSaved();
+            onClose();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || t('system_settings.delete_config_failed'));
+        } finally {
+            setDeleting(false);
+            setShowConfirmDelete(false);
+        }
+    };
+
     return (
         <Dialog open={true} onOpenChange={onClose}>
+            <ConfirmDialog
+                open={showConfirmDelete}
+                onOpenChange={setShowConfirmDelete}
+                title={t('system_settings.delete_provider_confirm_title', 'Smazat konfiguraci')}
+                description={t(
+                    'system_settings.delete_provider_confirm',
+                    'Opravdu chcete smazat konfiguraci tohoto providera?',
+                )}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={handleDelete}
+            />
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle className="capitalize">
-                        {provider} {t('system_settings.integration')}
-                    </DialogTitle>
+                    <div className="flex justify-between items-center pr-6">
+                        <DialogTitle className="capitalize">
+                            {provider} {t('system_settings.integration')}
+                        </DialogTitle>
+                        {config?.isConfigured && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowConfirmDelete(true)}
+                                disabled={deleting}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                            >
+                                {deleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
                     <DialogDescription>{t('system_settings.configure_oauth', { provider })}</DialogDescription>
                 </DialogHeader>
 
+                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-3 flex items-start gap-3 mt-2">
+                    <div className="p-1.5 bg-blue-500 rounded-md">
+                        <ExternalLink className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-xs font-semibold text-blue-900">
+                            {t('system_settings.need_credentials_title', 'Potřebujete přihlašovací údaje?')}
+                        </p>
+                        <p className="text-[11px] text-blue-700 leading-relaxed">
+                            {t(
+                                'system_settings.need_credentials_desc',
+                                'Pro získání Client ID a Secret navštivte portál pro vývojáře.',
+                            )}
+                            <a
+                                href={providerLinks[provider]}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ml-1 font-bold underline hover:text-blue-900 transition-colors"
+                            >
+                                {t('system_settings.get_key_here', 'Přejít na portál')} →
+                            </a>
+                        </p>
+                    </div>
+                </div>
+
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="clientId">{t('system_settings.client_id')}</Label>
+                        <div className="flex justify-between items-center">
+                            <Label htmlFor="clientId">{t('system_settings.client_id')}</Label>
+                            <a
+                                href={providerLinks[provider]}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"
+                            >
+                                {t('system_settings.get_key')} <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                        </div>
                         <Input
                             id="clientId"
                             value={formData.clientId}
@@ -954,6 +1167,13 @@ function MonitoringTab() {
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [auditLog, setAuditLog] = useState<any>(null);
     const [page, setPage] = useState(1);
+    const [filters, setFilters] = useState({
+        dateFrom: '',
+        dateTo: '',
+        action: '',
+        entity: '',
+        actorId: '',
+    });
 
     const fetchHealth = useCallback(() => {
         getHealth()
@@ -962,10 +1182,14 @@ function MonitoringTab() {
     }, []);
 
     const fetchAuditLog = useCallback(() => {
-        getSystemAuditLog({ page, limit: 25 })
+        getSystemAuditLog({
+            page,
+            limit: 25,
+            ...filters,
+        })
             .then(setAuditLog)
             .catch(() => {});
-    }, [page]);
+    }, [page, filters]);
 
     useEffect(() => {
         fetchHealth();
@@ -997,7 +1221,7 @@ function MonitoringTab() {
                 <KpiCard
                     title={t('system_settings.database', 'Databáze')}
                     value={health?.database === 'ok' ? '✅ OK' : '❌ Error'}
-                    subtitle="PostgreSQL"
+                    subtitle="SQLite / D1"
                     icon={<Database className="h-5 w-5" />}
                     color={health?.database === 'ok' ? 'text-emerald-500' : 'text-red-500'}
                     bg={health?.database === 'ok' ? 'bg-emerald-500/10' : 'bg-red-500/10'}
@@ -1012,29 +1236,62 @@ function MonitoringTab() {
                 />
             </div>
 
-            {/* External links */}
-            <div className="flex gap-3">
-                <a href="http://localhost:5601" target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Kibana
-                    </Button>
-                </a>
-                <a href="http://localhost:3100" target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Grafana
-                    </Button>
-                </a>
-            </div>
-
             {/* Audit Log */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">{t('system_settings.system_audit_log', 'Systémový log')}</CardTitle>
-                    <CardDescription>
-                        {t('system_settings.system_events', 'Systémové události (bez školy)')}
-                    </CardDescription>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle className="text-lg">
+                                {t('system_settings.system_audit_log', 'Systémový log')}
+                            </CardTitle>
+                            <CardDescription>
+                                {t('system_settings.system_events', 'Systémové události (bez školy)')}
+                            </CardDescription>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                                type="date"
+                                className="w-[140px] h-8 text-xs"
+                                value={filters.dateFrom}
+                                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                            />
+                            <span className="text-muted-foreground">—</span>
+                            <Input
+                                type="date"
+                                className="w-[140px] h-8 text-xs"
+                                value={filters.dateTo}
+                                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                            />
+                            <Input
+                                placeholder={t('system_settings.filter_action', 'Akce...')}
+                                className="w-[120px] h-8 text-xs"
+                                value={filters.action}
+                                onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                            />
+                            <Input
+                                placeholder={t('system_settings.filter_entity', 'Entita...')}
+                                className="w-[120px] h-8 text-xs"
+                                value={filters.entity}
+                                onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
+                            />
+                            <Input
+                                placeholder={t('system_settings.filter_user_id', 'ID uživatele...')}
+                                className="w-[150px] h-8 text-xs"
+                                value={filters.actorId}
+                                onChange={(e) => setFilters({ ...filters, actorId: e.target.value })}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() =>
+                                    setFilters({ dateFrom: '', dateTo: '', action: '', entity: '', actorId: '' })
+                                }
+                            >
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {auditLog?.data?.length > 0 ? (
@@ -1127,6 +1384,10 @@ function BackupsTab() {
     const [uploading, setUploading] = useState(false);
     const [restoring, setRestoring] = useState<string | null>(null);
 
+    // Confirm dialog states
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+    const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
+
     // New state for custom name dialog
     const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
     const [customName, setCustomName] = useState('');
@@ -1175,15 +1436,6 @@ function BackupsTab() {
     };
 
     const handleRestore = async (filename: string) => {
-        if (
-            !confirm(
-                t(
-                    'system_settings.restore_confirm',
-                    'Opravdu chcete obnovit databázi z této zálohy? Všechna aktuální data budou přepsána!',
-                ),
-            )
-        )
-            return;
         try {
             setRestoring(filename);
             await restoreBackup(filename);
@@ -1192,17 +1444,19 @@ function BackupsTab() {
             toast.error(t('system_settings.restore_error', 'Obnova selhala'));
         } finally {
             setRestoring(null);
+            setConfirmRestore(null);
         }
     };
 
     const handleDelete = async (filename: string) => {
-        if (!confirm(t('system_settings.delete_backup_confirm', 'Smazat tuto zálohu?'))) return;
         try {
             await deleteBackup(filename);
             toast.success(t('system_settings.backup_deleted', 'Záloha smazána'));
             fetch();
         } catch {
             toast.error(t('system_settings.backup_delete_error', 'Smazání selhalo'));
+        } finally {
+            setConfirmDelete(null);
         }
     };
 
@@ -1214,6 +1468,27 @@ function BackupsTab() {
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                open={!!confirmRestore}
+                onOpenChange={(open) => !open && setConfirmRestore(null)}
+                title={t('system_settings.restore_confirm_title', 'Obnovit databázi')}
+                description={t(
+                    'system_settings.restore_confirm',
+                    'Opravdu chcete obnovit databázi z této zálohy? Všechna aktuální data budou přepsána!',
+                )}
+                confirmText={t('common.restore', 'Obnovit')}
+                variant="destructive"
+                onConfirm={() => confirmRestore && handleRestore(confirmRestore)}
+            />
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('system_settings.delete_backup_confirm_title', 'Smazat zálohu')}
+                description={t('system_settings.delete_backup_confirm', 'Smazat tuto zálohu?')}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+            />
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-lg font-semibold">{t('system_settings.backups_title', 'Zálohy databáze')}</h3>
@@ -1347,7 +1622,7 @@ function BackupsTab() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => handleRestore(b.filename)}
+                                                    onClick={() => setConfirmRestore(b.filename)}
                                                     disabled={restoring === b.filename}
                                                 >
                                                     {restoring === b.filename ? (
@@ -1360,7 +1635,7 @@ function BackupsTab() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className="text-destructive hover:text-destructive"
-                                                    onClick={() => handleDelete(b.filename)}
+                                                    onClick={() => setConfirmDelete(b.filename)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

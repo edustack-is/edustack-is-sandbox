@@ -29,7 +29,8 @@ export class LogSensitiveReadInterceptor implements NestInterceptor {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    const ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
+    const ip =
+      request.headers['x-forwarded-for'] || request.connection.remoteAddress;
     const userAgent = request.headers['user-agent'];
     const method = request.method;
     const url = request.url;

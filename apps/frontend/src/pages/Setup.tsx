@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { setupApp, getSeedFiles, setupWithSeed, restoreBackup } from '../api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { setupApp, restoreBackup } from '../api';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
 import { useTranslation } from 'react-i18next';
@@ -9,15 +9,8 @@ import {
     Loader2,
     CheckCircle2,
     Database,
-    Key,
-    Users,
-    BookOpen,
-    GraduationCap,
     School,
-    ChevronRight,
-    ChevronDown,
     Layers,
-    Building2,
     Upload,
     History,
     FileCode,
@@ -25,22 +18,6 @@ import {
 import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-
-type SeedFile = { filename: string; name: string; description: string };
-
-interface SeedResult {
-    school: { id: string; name: string };
-    counts: {
-        gradeLevels: number;
-        subjects: number;
-        curriculumEntries: number;
-        staff: number;
-        students: number;
-        rooms: number;
-    };
-    defaultPassword: string;
-    summary: string;
-}
 
 export const Setup = () => {
     const { t } = useTranslation();
@@ -64,33 +41,16 @@ export const Setup = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // ─── Seed state ─────────────────────────────────────────
-    const [seedMode, setSeedMode] = useState<'none' | 'file' | 'restore'>('none');
-    const [seedFiles, setSeedFiles] = useState<SeedFile[]>([]);
-    const [selectedSeed, setSelectedSeed] = useState('');
+    // ─── Setup state ────────────────────────────────────────
+    const [mode, setMode] = useState<'new' | 'restore'>('new');
     const [backupFile, setBackupFile] = useState<File | null>(null);
     const [backupFileName, setBackupFileName] = useState('');
-    const [showAiKeys, setShowAiKeys] = useState(false);
-    const [aiKeys, setAiKeys] = useState({ geminiApiKey: '', openAiApiKey: '', anthropicApiKey: '' });
-    const [seedResult, setSeedResult] = useState<SeedResult | null>(null);
     const [restoreSuccess, setRestoreSuccess] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [isDraggingOverSeed, setIsDraggingOverSeed] = useState(false);
     const [isDraggingOverRestore, setIsDraggingOverRestore] = useState(false);
 
-    // ─── Load seed files on mount ───────────────────────────
-    useEffect(() => {
-        getSeedFiles(setupToken)
-            .then((files: SeedFile[]) => {
-                setSeedFiles(files);
-                if (files.length > 0) setSelectedSeed(files[0].filename);
-            })
-            .catch(() => {
-                /* no seed files available */
-            });
-    }, [setupToken]);
+    // ─── Setup/Restore completed ─────────────────────────────
 
-    // ─── Robust Global Drag & Drop ──────────────────────────
     useEffect(() => {
         const onDragOver = (e: DragEvent) => {
             e.preventDefault();
@@ -142,27 +102,32 @@ export const Setup = () => {
             window.removeEventListener('dragleave', onDragLeave);
             window.removeEventListener('drop', onDrop);
         };
-    }, []);
+    }, [handleDroppedFile]);
 
-    const handleDroppedFile = (file: File) => {
-        const name = file.name.toLowerCase();
-        if (name.endsWith('.sqlite') || name.endsWith('.db')) {
-            setSeedMode('restore');
-            processSqliteFile(file);
-            toast.success(t('setup.sqlite_detected', 'Detekována SQLite záloha'));
-        } else {
-            toast.error(t('setup.invalid_file_type_sqlite', 'Nepodporovaný typ souboru. Použijte .sqlite nebo .db.'));
-        }
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const processSqliteFile = (file: File) => {
+    const processSqliteFile = useCallback((file: File) => {
         setBackupFile(file);
         setBackupFileName(file.name);
         setError('');
+    }, []);
+
+    const handleDroppedFile = useCallback(
+        (file: File) => {
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.sqlite') || name.endsWith('.db')) {
+                setMode('restore');
+                processSqliteFile(file);
+                toast.success(t('setup.sqlite_detected', 'Detekována SQLite záloha'));
+            } else {
+                toast.error(
+                    t('setup.invalid_file_type_sqlite', 'Nepodporovaný typ souboru. Použijte .sqlite nebo .db.'),
+                );
+            }
+        },
+        [processSqliteFile, t],
+    );
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleBackupUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,23 +172,8 @@ export const Setup = () => {
 
         setLoading(true);
         try {
-            if (seedMode === 'file' && selectedSeed) {
-                const result = await setupWithSeed(
-                    {
-                        ...formData,
-                        seedFilename: selectedSeed,
-                        aiKeys: hasAnyAiKey() ? aiKeys : undefined,
-                    },
-                    setupToken,
-                );
-                setSeedResult(result.seed);
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 4000);
-            } else {
-                await setupApp(formData, setupToken);
-                window.location.href = '/login';
-            }
+            await setupApp(formData, setupToken);
+            window.location.href = '/login';
         } catch (err) {
             const error = err as { response?: { data?: { message?: string }; status?: number } };
             const msg = error.response?.data?.message || 'Setup failed';
@@ -236,8 +186,6 @@ export const Setup = () => {
             setLoading(false);
         }
     };
-
-    const hasAnyAiKey = () => aiKeys.geminiApiKey || aiKeys.openAiApiKey || aiKeys.anthropicApiKey;
 
     // ─── Seed/Restore completed ─────────────────────────────
     if (restoreSuccess) {
@@ -281,88 +229,7 @@ export const Setup = () => {
         );
     }
 
-    if (seedResult) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4">
-                <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-indigo-100 animate-in zoom-in duration-300">
-                    <div className="text-center space-y-3">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
-                            <CheckCircle2 className="h-8 w-8 text-green-600" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900">{t('setup.seed_complete')}</h2>
-                        <p className="text-muted-foreground">{t('setup.seed_complete_desc')}</p>
-                    </div>
-
-                    <div className="bg-slate-50 rounded-xl p-5 space-y-3">
-                        <div className="flex items-center gap-3">
-                            <Building2 className="h-5 w-5 text-indigo-500" />
-                            <span className="font-medium">{seedResult.school.name}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                            {[
-                                {
-                                    icon: <GraduationCap className="h-4 w-4" />,
-                                    label: t('setup.seed_grades'),
-                                    count: seedResult.counts.gradeLevels,
-                                },
-                                {
-                                    icon: <BookOpen className="h-4 w-4" />,
-                                    label: t('setup.seed_subjects'),
-                                    count: seedResult.counts.subjects,
-                                },
-                                {
-                                    icon: <Layers className="h-4 w-4" />,
-                                    label: t('setup.seed_entries'),
-                                    count: seedResult.counts.curriculumEntries,
-                                },
-                                {
-                                    icon: <Users className="h-4 w-4" />,
-                                    label: t('setup.seed_staff'),
-                                    count: seedResult.counts.staff,
-                                },
-                                {
-                                    icon: <User className="h-4 w-4" />,
-                                    label: t('setup.seed_students'),
-                                    count: seedResult.counts.students,
-                                },
-                                {
-                                    icon: <School className="h-4 w-4" />,
-                                    label: t('setup.seed_rooms'),
-                                    count: seedResult.counts.rooms,
-                                },
-                            ]
-                                .filter((i) => i.count > 0)
-                                .map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 text-gray-600">
-                                        {item.icon}
-                                        <span>
-                                            {item.count} {item.label}
-                                        </span>
-                                    </div>
-                                ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-                        <div className="font-medium mb-1">{t('setup.seed_password_title')}</div>
-                        <code className="bg-amber-100 px-2 py-0.5 rounded text-amber-900 font-mono text-sm">
-                            {seedResult.defaultPassword}
-                        </code>
-                        <p className="mt-1 text-xs text-amber-600">{t('setup.seed_password_hint')}</p>
-                    </div>
-
-                    <div className="text-center">
-                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            {t('setup.redirecting')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    const isAnyLocalDragging = isDraggingOverSeed || isDraggingOverRestore;
+    const isAnyLocalDragging = isDraggingOverRestore;
 
     // ─── Main setup form ────────────────────────────────────
     return (
@@ -379,7 +246,7 @@ export const Setup = () => {
                                 {t('setup.drop_to_upload', 'Pusťte pro nahrání')}
                             </h2>
                             <p className="text-gray-500 font-medium">
-                                {t('setup.drop_hint', 'Automaticky rozpoznáme JSON dataset nebo SQLite zálohu.')}
+                                {t('setup.drop_hint', 'Automaticky rozpoznáme SQLite zálohu.')}
                             </p>
                         </div>
                     </div>
@@ -420,10 +287,10 @@ export const Setup = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"
-                                onClick={() => setSeedMode('none')}
+                                onClick={() => setMode('new')}
                                 className={cn(
                                     'p-4 rounded-xl border-2 text-left transition-all',
-                                    seedMode !== 'restore'
+                                    mode !== 'restore'
                                         ? 'border-indigo-500 bg-indigo-50/50 shadow-sm'
                                         : 'border-gray-100 hover:border-indigo-200',
                                 )}
@@ -433,15 +300,15 @@ export const Setup = () => {
                                     {t('setup.mode_new', 'Nová instalace')}
                                 </div>
                                 <div className="text-xs text-indigo-600/70">
-                                    {t('setup.mode_new_desc', 'Vytvořit prázdný systém nebo načíst demo data.')}
+                                    {t('setup.mode_new_desc', 'Vytvořit prázdný systém.')}
                                 </div>
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setSeedMode('restore')}
+                                onClick={() => setMode('restore')}
                                 className={cn(
                                     'p-4 rounded-xl border-2 text-left transition-all',
-                                    seedMode === 'restore'
+                                    mode === 'restore'
                                         ? 'border-violet-500 bg-violet-50/50 shadow-sm'
                                         : 'border-gray-100 hover:border-violet-200',
                                 )}
@@ -457,7 +324,7 @@ export const Setup = () => {
                         </div>
                     </div>
 
-                    {seedMode === 'restore' ? (
+                    {mode === 'restore' ? (
                         /* ─── RESTORE FORM ────────────────────────── */
                         <form
                             onSubmit={handleRestore}
@@ -648,201 +515,6 @@ export const Setup = () => {
                                 </div>
                             </div>
 
-                            {/* Demo Data Card */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
-                                <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                                    <Database className="h-5 w-5 text-violet-500" />
-                                    {t('setup.demo_data_section')}
-                                </div>
-
-                                <p className="text-sm text-gray-500">{t('setup.demo_data_desc')}</p>
-
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSeedMode('none')}
-                                        className={cn(
-                                            'p-3 rounded-xl border-2 text-sm font-medium transition-all',
-                                            seedMode === 'none'
-                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                                : 'border-gray-200 hover:border-indigo-200 text-gray-600',
-                                        )}
-                                    >
-                                        {t('setup.no_demo_data')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSeedMode('file')}
-                                        disabled={seedFiles.length === 0}
-                                        className={cn(
-                                            'p-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2',
-                                            seedMode === 'file'
-                                                ? 'border-violet-500 bg-violet-50 text-violet-700'
-                                                : seedFiles.length === 0
-                                                  ? 'opacity-50 grayscale cursor-not-allowed'
-                                                  : 'border-gray-200 hover:border-violet-200 text-gray-600',
-                                        )}
-                                    >
-                                        <Sparkles className="h-4 w-4" />
-                                        {t('setup.load_demo_data')}
-                                    </button>
-                                </div>
-
-                                {seedMode === 'file' && (
-                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="space-y-2">
-                                            {seedFiles.map((sf) => (
-                                                <label
-                                                    key={sf.filename}
-                                                    className={cn(
-                                                        'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all',
-                                                        selectedSeed === sf.filename
-                                                            ? 'border-violet-400 bg-violet-50'
-                                                            : 'border-gray-200 hover:border-violet-200',
-                                                    )}
-                                                >
-                                                    <input
-                                                        type="radio"
-                                                        name="seedFile"
-                                                        value={sf.filename}
-                                                        checked={selectedSeed === sf.filename}
-                                                        onChange={() => setSelectedSeed(sf.filename)}
-                                                        className="mt-1 accent-violet-500"
-                                                    />
-                                                    <div>
-                                                        <div className="font-medium text-sm">{sf.name}</div>
-                                                        {sf.description && (
-                                                            <div className="text-xs text-gray-500 mt-0.5">
-                                                                {sf.description}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {seedMode === 'restore' && (
-                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="relative">
-                                            <input
-                                                type="file"
-                                                accept=".sqlite,.db"
-                                                onChange={handleBackupUpload}
-                                                className="hidden"
-                                                id="restore-file-upload-inline"
-                                            />
-                                            <label
-                                                htmlFor="restore-file-upload-inline"
-                                                onDragEnter={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setIsDraggingOverRestore(true);
-                                                }}
-                                                onDragOver={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setIsDraggingOverRestore(true);
-                                                }}
-                                                onDragLeave={() => setIsDraggingOverRestore(false)}
-                                                onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setIsDraggingOverRestore(false);
-                                                    setIsDragging(false);
-                                                    dragCounter.current = 0;
-                                                    const files = e.dataTransfer?.files;
-                                                    if (files && files.length > 0) {
-                                                        handleDroppedFile(files[0]);
-                                                    }
-                                                }}
-                                                className={cn(
-                                                    'flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all',
-                                                    isDraggingOverRestore
-                                                        ? 'border-violet-500 bg-violet-50'
-                                                        : backupFile
-                                                          ? 'border-green-400 bg-green-50'
-                                                          : 'border-gray-300 hover:border-violet-400 hover:bg-violet-50',
-                                                )}
-                                            >
-                                                <div className="pointer-events-none flex flex-col items-center justify-center">
-                                                    <Database
-                                                        className={cn(
-                                                            'h-8 w-8 mb-2',
-                                                            backupFile ? 'text-green-500' : 'text-gray-400',
-                                                        )}
-                                                    />
-                                                    <span className="text-sm font-medium text-gray-700">
-                                                        {backupFileName ||
-                                                            t(
-                                                                'setup.select_backup_file',
-                                                                'Vyberte soubor zálohy (.sqlite)',
-                                                            )}
-                                                    </span>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {seedMode === 'file' && (
-                                    <div className="border-t pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowAiKeys(!showAiKeys)}
-                                            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-                                        >
-                                            {showAiKeys ? (
-                                                <ChevronDown className="h-4 w-4" />
-                                            ) : (
-                                                <ChevronRight className="h-4 w-4" />
-                                            )}
-                                            <Key className="h-4 w-4" />
-                                            {t('setup.ai_keys_optional')}
-                                        </button>
-
-                                        {showAiKeys && (
-                                            <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                <p className="text-xs text-gray-500">{t('setup.ai_keys_hint')}</p>
-                                                {[
-                                                    {
-                                                        key: 'geminiApiKey',
-                                                        label: 'Google Gemini API Key',
-                                                        placeholder: 'AIza...',
-                                                    },
-                                                    {
-                                                        key: 'openAiApiKey',
-                                                        label: 'OpenAI API Key',
-                                                        placeholder: 'sk-...',
-                                                    },
-                                                    {
-                                                        key: 'anthropicApiKey',
-                                                        label: 'Anthropic API Key',
-                                                        placeholder: 'sk-ant-...',
-                                                    },
-                                                ].map(({ key, label, placeholder }) => (
-                                                    <div key={key} className="space-y-1">
-                                                        <label className="text-xs font-medium text-gray-600">
-                                                            {label}
-                                                        </label>
-                                                        <input
-                                                            type="password"
-                                                            placeholder={placeholder}
-                                                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                                            value={aiKeys[key as keyof AiKeys]}
-                                                            onChange={(e) =>
-                                                                setAiKeys({ ...aiKeys, [key]: e.target.value })
-                                                            }
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
                             <button
                                 type="submit"
                                 disabled={loading}
@@ -854,13 +526,10 @@ export const Setup = () => {
                                 {loading ? (
                                     <>
                                         <Loader2 className="h-5 w-5 animate-spin" />
-                                        {seedMode === 'file' ? t('setup.creating_with_seed') : t('setup.creating')}
+                                        {t('setup.creating')}
                                     </>
                                 ) : (
-                                    <>
-                                        {seedMode === 'file' && <Sparkles className="h-5 w-5" />}
-                                        {seedMode === 'file' ? t('setup.create_with_seed') : t('setup.create_button')}
-                                    </>
+                                    <>{t('setup.create_button')}</>
                                 )}
                             </button>
                         </form>

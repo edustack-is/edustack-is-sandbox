@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ════════════════════════════════════════════════════════
-// RESPONSE DTOs matching actual Prisma model returns
+// RESPONSE DTOs matching actual DatabaseService returns
 // Examples use realistic UUID and ISO date formats
 // ════════════════════════════════════════════════════════
 
@@ -983,15 +983,6 @@ export class GdprDataResponseDto {
 // ─── INIT STATUS ────────────────────────────────────────
 export class InitStatusResponseDto {
   @ApiProperty({ example: true }) initialized: boolean;
-}
-
-// ─── SEED FILE ──────────────────────────────────────────
-export class SeedFileResponseDto {
-  @ApiProperty({ example: 'demo-zs-prikladna.json' }) filename: string;
-  @ApiPropertyOptional({
-    example: 'Demo škola ZŠ Příkladná – 5 tříd, 150 studentů',
-  })
-  description?: string;
 }
 
 // ─── REPORT STATS ───────────────────────────────────────

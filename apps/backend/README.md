@@ -4,16 +4,14 @@ NestJS REST API pro školní informační systém.
 
 ## Spuštění
 
-Backend běží v Docker kontejneru (viz kořenový `docker-compose.yml`). Pro lokální vývoj bez Dockeru:
+Pro lokální vývoj:
 
 ```bash
 npm install
-npx prisma generate
-npx prisma db push
 npm run start:dev
 ```
 
-Vyžaduje běžící PostgreSQL s `DATABASE_URL` v `.env`.
+Využívá SQLite přes `better-sqlite3`. Produkční nasazení na Cloudflare D1.
 
 ## API dokumentace
 
@@ -21,13 +19,11 @@ Swagger UI je dostupný na `/api/docs` (pouze v non-production režimu).
 
 ## Hlavní příkazy
 
-| Příkaz               | Popis                  |
-| -------------------- | ---------------------- |
-| `npm run start:dev`  | Vývoj s hot reload     |
-| `npm run build`      | Produkční build        |
-| `npm run start:prod` | Produkční spuštění     |
-| `npx prisma studio`  | GUI pro databázi       |
-| `npx prisma db push` | Synchronizace schématu |
+| Příkaz               | Popis              |
+| -------------------- | ------------------ |
+| `npm run start:dev`  | Vývoj s hot reload |
+| `npm run build`      | Produkční build    |
+| `npm run start:prod` | Produkční spuštění |
 
 ## Adresářová struktura
 

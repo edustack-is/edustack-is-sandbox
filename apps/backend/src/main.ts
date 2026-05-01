@@ -105,7 +105,6 @@ import {
   GenerateScheduleResultDto,
   GdprDataResponseDto,
   InitStatusResponseDto,
-  SeedFileResponseDto,
   ReportStatsResponseDto,
   RegistryClassroomResponseDto,
   SystemSettingsResponseDto,
@@ -135,7 +134,7 @@ async function bootstrap() {
 
   // Validate CORS_ORIGIN format if set
   if (process.env.CORS_ORIGIN) {
-    const origins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+    const origins = process.env.CORS_ORIGIN.split(',').map((o) => o.trim());
     for (const origin of origins) {
       try {
         new URL(origin);
@@ -148,13 +147,20 @@ async function bootstrap() {
   // Warn about missing AI keys in production
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.GOOGLE_AI_API_KEY && !process.env.OPENAI_API_KEY) {
-      warnings.push('No AI API key set (GOOGLE_AI_API_KEY or OPENAI_API_KEY) - AI features will be disabled');
+      warnings.push(
+        'No AI API key set (GOOGLE_AI_API_KEY or OPENAI_API_KEY) - AI features will be disabled',
+      );
     }
   }
 
   // Validate NODE_ENV if set
-  if (process.env.NODE_ENV && !['development', 'production', 'test'].includes(process.env.NODE_ENV)) {
-    warnings.push(`NODE_ENV should be 'development', 'production', or 'test', got: ${process.env.NODE_ENV}`);
+  if (
+    process.env.NODE_ENV &&
+    !['development', 'production', 'test'].includes(process.env.NODE_ENV)
+  ) {
+    warnings.push(
+      `NODE_ENV should be 'development', 'production', or 'test', got: ${process.env.NODE_ENV}`,
+    );
   }
 
   if (missingVars.length > 0) {
@@ -234,8 +240,6 @@ async function bootstrap() {
 
   // ─── Request logging middleware ────────────────────────────
   app.use(new RequestLoggingMiddleware().use);
-
-
 
   // ─── Swagger / OpenAPI (disabled in production) ─────────────────
   if (process.env.NODE_ENV !== 'production') {
@@ -376,7 +380,6 @@ async function bootstrap() {
         GenerateScheduleResultDto,
         GdprDataResponseDto,
         InitStatusResponseDto,
-        SeedFileResponseDto,
         ReportStatsResponseDto,
         RegistryClassroomResponseDto,
         SystemSettingsResponseDto,
@@ -391,7 +394,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log(`Backend API is running on: http://127.0.0.1:${port}`);
 
-  // ─── Auto-seed (docker-compose.demo.yml) ─────────────────────
+  // ─── Auto-seed ──────────────────────────────────────────────
   if (process.env.AUTO_SEED === 'true') {
     const logger = new Logger('AutoSeed');
     try {

@@ -21,4 +21,5 @@
 
 - Adhere to the established patterns in the monorepo (Apps in `apps/`, shared logic in `packages/`).
 - Protect system integrity: never modify `.wrangler` or `.sqlite` files directly.
-- Use the established `PrismaService` for database operations.
+- Use the established `DatabaseService` for database operations.
+- **No Native Dialogs:** Never use browser-native `alert()`, `confirm()`, or `prompt()`. Always use custom modal components (e.g., Shadcn `Dialog`, `AlertDialog` or the project's `ConfirmDialog`).

@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Global exception filter for standardized error responses
 - Request logging middleware
-- Docker setup (Dockerfile + docker-compose.yml)
 - GitHub Actions CI/CD pipeline
 - MCP Server tests
 - Frontend tests with Vitest + React Testing Library
@@ -19,18 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines (CONTRIBUTING.md)
 
 ### Changed
+
 - Updated README to reflect actual tech stack (removed Prisma references)
 - Rate limiting reduced from 3000 to 100 requests/minute
 - Backend tests fixed (replaced PrismaService mocks with DatabaseService)
 - DatabaseService improved with better type safety and error handling
 
 ### Fixed
+
 - 8 failing backend test suites (PrismaService import errors)
 - React version compatibility in frontend tests
 
 ## [1.0.0] - 2026-04-30
 
 ### Added
+
 - Initial release
 - NestJS backend with 15+ modules
 - React frontend with shadcn/ui

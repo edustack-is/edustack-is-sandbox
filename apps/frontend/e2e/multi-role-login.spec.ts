@@ -11,8 +11,8 @@ test.describe('Multi-role Login via Helper', () => {
 
     for (const role of roles) {
         test(`Login as ${role.name}`, async ({ page }) => {
-            page.on('console', msg => console.log(`BROWSER CONSOLE [${role.name}]: ${msg.text()}`));
-            
+            page.on('console', (msg) => console.log(`BROWSER CONSOLE [${role.name}]: ${msg.text()}`));
+
             // Go to home first to set localStorage, then to login
             await page.goto('http://127.0.0.1:5173/');
             await page.evaluate(() => localStorage.setItem('ENABLE_LOGIN_HELPER', 'true'));
@@ -25,8 +25,14 @@ test.describe('Multi-role Login via Helper', () => {
 
             // School selection might appear if not auto-redirected
             try {
-                await page.waitForURL(url => url.pathname.includes('/select-school') || url.pathname.includes('/dashboard') || url.pathname.includes('/system/'), { timeout: 10000 });
-                
+                await page.waitForURL(
+                    (url) =>
+                        url.pathname.includes('/select-school') ||
+                        url.pathname.includes('/dashboard') ||
+                        url.pathname.includes('/system/'),
+                    { timeout: 10000 },
+                );
+
                 if (page.url().includes('/select-school')) {
                     // Check if there are schools listed
                     const enterButton = page.locator('button >> text=/Vstoupit|Enter/i').first();
@@ -39,16 +45,19 @@ test.describe('Multi-role Login via Helper', () => {
             }
 
             // Redirection to dashboard or system admin
-            await page.waitForURL(url => !url.pathname.includes('/login') && !url.pathname.includes('/select-school'), { timeout: 30000 });
-            
+            await page.waitForURL(
+                (url) => !url.pathname.includes('/login') && !url.pathname.includes('/select-school'),
+                { timeout: 30000 },
+            );
+
             // Check for navigation sidebar
             await expect(page.locator('nav')).toBeVisible({ timeout: 15000 });
-            
+
             // Logout
             const logoutButton = page.getByRole('button', { name: /Logout|Odhlásit/i });
             await expect(logoutButton).toBeVisible({ timeout: 15000 });
             await logoutButton.click();
-            
+
             await expect(page).toHaveURL(/.*\/login/);
         });
     }

@@ -15,7 +15,9 @@ describe('AiService', () => {
           useValue: {
             query: jest.fn().mockResolvedValue([]),
             queryOne: jest.fn().mockResolvedValue(null),
-            execute: jest.fn().mockResolvedValue({ lastInsertRowid: 0, changes: 0 }),
+            execute: jest
+              .fn()
+              .mockResolvedValue({ lastInsertRowid: 0, changes: 0 }),
           },
         },
         { provide: SystemAdminAiService, useValue: {} },

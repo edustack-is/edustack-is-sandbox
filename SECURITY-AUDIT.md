@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-16 (updated after remediation)  
 **Auditor:** Antigravity Security Auditor  
-**Scope:** Full application (backend NestJS, frontend React/Vite, Docker Compose infrastructure)
+**Scope:** Full application (backend NestJS, frontend React/Vite)
 
 ---
 
@@ -144,17 +144,6 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 
 ---
 
-### M4. ✅ FIXED — Adminer Bound to Localhost
-
-**File:** `docker-compose.yml`  
-**Fix:**
-
-1. Adminer bound to `127.0.0.1:8080`
-2. Added `profiles: [dev]` — only starts with `docker compose --profile dev up`
-3. PostgreSQL also bound to `127.0.0.1:5432`
-
----
-
 ### M5. ✅ MITIGATED — JWT in localStorage (XSS Risk)
 
 **Files:** `main.ts` (CSP), `frontend/api/index.ts`  
@@ -207,7 +196,7 @@ async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
 | Feature                | Assessment                                                  |
 | ---------------------- | ----------------------------------------------------------- |
 | Password hashing       | ✅ bcrypt with 10 rounds                                    |
-| Parameterized queries  | ✅ Prisma ORM prevents SQL injection                        |
+| Parameterized queries  | ✅ Parameterized queries prevent SQL injection              |
 | Audit logging          | ✅ Login attempts, impersonation, sensitive reads logged    |
 | JWT-based auth         | ✅ Global guard via `APP_GUARD`, no hardcoded secrets       |
 | Role-based access      | ✅ RolesGuard + Roles decorator + school context validation |
@@ -250,9 +239,7 @@ Before deploying to production, ensure:
 - [ ] `ENCRYPTION_KEY` is set (generate: `openssl rand -base64 32`)
 - [ ] `SETUP_TOKEN` is set during initial setup (generate: `openssl rand -hex 32`)
 - [ ] `CORS_ORIGIN` is set to the production frontend URL
-- [ ] `POSTGRES_PASSWORD` is changed from the default `student`
 - [ ] `NODE_ENV=production` is set
-- [ ] Adminer is NOT started (don't use `--profile dev` in production)
 - [ ] `npm audit fix` has been run
 - [ ] HTTPS is configured via reverse proxy (nginx/traefik)
 

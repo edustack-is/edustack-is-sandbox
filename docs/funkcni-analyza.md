@@ -63,20 +63,20 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 
 ## 3. Správa systému
 
-| ID   | Funkce                            | Stav | Poznámka                                                 |
-| :--- | --------------------------------- | :--: | -------------------------------------------------------- |
-| F018 | Dashboard systému                 |  ✅  | Počet škol, uživatelů, členství                          |
-| F019 | CRUD škol                         |  ✅  | Název, adresa, kontakt, typ                              |
-| F020 | Správa systémových administrátorů |  ✅  | Povýšení/degradace                                       |
-| F021 | Konfigurace SSO providerů         |  ✅  | Google, Microsoft                                        |
-| F022 | Konfigurace AI                    |  ✅  | API klíče, výběr poskytovatele                           |
-| F023 | Statistiky spotřeby AI            |  ✅  |                                                          |
-| F024 | Generování testovacích dat        |  ✅  | Kompletní škola s uživateli a daty                       |
-| F025 | Soft delete škol                  |  ✅  | Data zůstávají v databázi                                |
-| F026 | Globální nastavení systému        |  ✅  | Key-value configuř (bezpečnost, obecné), UI záložka      |
-| F027 | Monitoring a log systému          |  ✅  | Health endpoint, ELK stack, Grafana, systémový audit log |
-| F028 | Záloha a obnova dat               |  ✅  | pg_dump/restore přes API, UI správa záloh                |
-| F029 | Multi-tenancy konfigurace         |  ✅  | Vícero škol v jedné instanci                             |
+| ID   | Funkce                            | Stav | Poznámka                                            |
+| :--- | --------------------------------- | :--: | --------------------------------------------------- |
+| F018 | Dashboard systému                 |  ✅  | Počet škol, uživatelů, členství                     |
+| F019 | CRUD škol                         |  ✅  | Název, adresa, kontakt, typ                         |
+| F020 | Správa systémových administrátorů |  ✅  | Povýšení/degradace                                  |
+| F021 | Konfigurace SSO providerů         |  ✅  | Google, Microsoft                                   |
+| F022 | Konfigurace AI                    |  ✅  | API klíče, výběr poskytovatele                      |
+| F023 | Statistiky spotřeby AI            |  ✅  |                                                     |
+| F024 | Generování testovacích dat        |  ✅  | Kompletní škola s uživateli a daty                  |
+| F025 | Soft delete škol                  |  ✅  | Data zůstávají v databázi                           |
+| F026 | Globální nastavení systému        |  ✅  | Key-value configuř (bezpečnost, obecné), UI záložka |
+| F027 | Monitoring a log systému          |  ✅  | Health endpoint, systémový audit log                |
+| F028 | Záloha a obnova dat               |  ✅  | UI správa záloh                                     |
+| F029 | Multi-tenancy konfigurace         |  ✅  | Vícero škol v jedné instanci                        |
 
 ---
 
@@ -290,8 +290,6 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 
 | ID   | Funkce                      | Stav | Poznámka                             |
 | :--- | --------------------------- | :--: | ------------------------------------ |
-| F160 | Docker deployment           |  ✅  | docker-compose                       |
-| F161 | PostgreSQL databáze         |  ✅  | Via Prisma ORM                       |
 | F162 | Responsivní webové rozhraní |  ✅  | React s mobilním layoutem            |
 | F163 | Lokalizace (CZ/EN)          |  ✅  | Přepínání jazyku                     |
 | F164 | Dark mode                   |  ✅  | ThemeToggle (light/dark/system)      |

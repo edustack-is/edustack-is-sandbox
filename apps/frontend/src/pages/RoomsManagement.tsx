@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export default function RoomsManagement() {
     const [submitting, setSubmitting] = useState(false);
     const [equipmentTags, setEquipmentTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState<Room | null>(null);
 
     const form = useForm<RoomFormData>({
         defaultValues: { name: '', capacity: '30', isComputerLab: false },
@@ -154,12 +156,13 @@ export default function RoomsManagement() {
 
     // ── Delete ──────────────────────────────────────────────
     const handleDelete = async (room: Room) => {
-        if (!confirm(t('rooms.delete_confirm', { name: room.name }))) return;
         try {
             await deleteRoom(room.id);
             loadRooms();
         } catch (error: any) {
             toast.error(t('rooms.delete_failed') + ': ' + (error.response?.data?.message || error.message));
+        } finally {
+            setConfirmDelete(null);
         }
     };
 
@@ -219,7 +222,7 @@ export default function RoomsManagement() {
                         variant="ghost"
                         size="icon"
                         title={t('common.delete')}
-                        onClick={() => handleDelete(row.original)}
+                        onClick={() => setConfirmDelete(row.original)}
                     >
                         <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -231,6 +234,15 @@ export default function RoomsManagement() {
     // ── Render ──────────────────────────────────────────────
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('rooms.delete_title', 'Smazat učebnu')}
+                description={t('rooms.delete_confirm', { name: confirmDelete?.name })}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+            />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{t('rooms.title')}</h1>

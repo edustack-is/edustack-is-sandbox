@@ -1,11 +1,4 @@
 -- CreateTable
-CREATE TABLE "SystemLog" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "message" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- CreateTable
 CREATE TABLE "School" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
