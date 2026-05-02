@@ -14,11 +14,15 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Network-first for API calls
-    if (event.request.url.includes('/api/')) {
+    // Skip caching for development environments and API calls
+    if (
+        self.location.hostname === 'localhost' ||
+        self.location.hostname === '127.0.0.1' ||
+        event.request.url.includes('/api/')
+    ) {
         return;
     }
-    // Cache-first for static assets
+    // Cache-first for static assets in production
     event.respondWith(
         caches.match(event.request).then((cached) => {
             return (
