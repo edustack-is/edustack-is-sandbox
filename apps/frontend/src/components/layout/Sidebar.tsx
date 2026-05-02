@@ -24,7 +24,6 @@ import {
     GitCompare,
     History,
     Presentation,
-    Monitor,
 } from 'lucide-react';
 // Force refresh: 2026-05-02 18:45:00
 import { ThemeToggle } from '../ThemeToggle';
@@ -318,13 +317,6 @@ export const Sidebar: React.FC = () => {
                                 label={t('sidebar.system_settings')}
                                 collapsed={collapsed}
                                 data-testid="sidebar-system-settings"
-                            />
-                            <SidebarNavItem
-                                to="/system/settings#monitoring"
-                                icon={Monitor}
-                                label={t('sidebar.monitoring', 'Monitoring')}
-                                collapsed={collapsed}
-                                data-testid="sidebar-system-monitoring"
                             />
                         </>
                     )}
