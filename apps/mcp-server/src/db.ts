@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import Database from 'better-sqlite3';
 import dotenv from 'dotenv';
-
 import fs from 'fs';
 import path from 'path';
 
@@ -48,6 +46,9 @@ if (!dbPath) {
 export const databasePath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
 console.log(`[MCP] 🚀 Opening database at: ${databasePath}`);
 
-const adapter = new PrismaBetterSqlite3({ url: databasePath });
+export const db = new Database(databasePath);
 
-export const prisma = new PrismaClient({ adapter });
+// Helper for Prisma-like transactions (simplistic)
+export const transaction = (fn: (db: any) => any) => {
+    return db.transaction(fn)(db);
+};

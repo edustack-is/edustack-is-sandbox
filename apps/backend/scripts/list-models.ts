@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import Database from 'better-sqlite3';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -42,16 +41,18 @@ async function main() {
     return;
   }
 
-  console.log(`📂 Using database: ${dbPath}`);
-  const adapter = new PrismaBetterSqlite3({ url: dbPath });
-  const prisma = new PrismaClient({ adapter });
+  console.log(`📂 Using database: \${dbPath}`);
+  const db = new Database(dbPath);
 
-  const secret = await prisma.systemSecret.findFirst({
-    where: { type: 'AI', service: 'google', key: 'API_KEY' },
-  });
+  const secret = db
+    .prepare(
+      "SELECT value FROM SystemSecret WHERE type = 'AI' AND service = 'google' AND key = 'API_KEY'",
+    )
+    .get() as any;
 
   if (!secret) {
     console.error('❌ No API key found in database');
+    db.close();
     return;
   }
 
@@ -63,10 +64,10 @@ async function main() {
     try {
       const model = genAI.getGenerativeModel({ model: name });
       await model.generateContent('hi');
-      console.log(`✅ ${name} is AVAILABLE`);
+      console.log(`✅ \${name} is AVAILABLE`);
       return true;
-    } catch (e) {
-      console.log(`❌ ${name} is NOT available: ${e.message}`);
+    } catch (e: any) {
+      console.log(`❌ \${name} is NOT available: \${e.message}`);
       return false;
     }
   };
@@ -77,7 +78,7 @@ async function main() {
   await testModel('gemini-1.0-pro');
   await testModel('gemini-2.0-flash-exp');
 
-  await prisma.$disconnect();
+  db.close();
 }
 
 main();

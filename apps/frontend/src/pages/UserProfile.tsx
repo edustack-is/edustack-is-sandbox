@@ -33,6 +33,7 @@ import {
     uploadAvatar,
     changePassword,
 } from '@/api';
+import { useSchool } from '@/context/SchoolContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -102,6 +103,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area, outputSize = 256
 
 export function UserProfile() {
     const { t } = useTranslation();
+    const { role, isSystemAdmin, tokenType } = useSchool();
     const [user, setUser] = useState<any>(null);
     const [identities, setIdentities] = useState<Identity[]>([]);
     const [activeSsoOptions, setActiveSsoOptions] = useState<string[]>([]);
@@ -310,7 +312,12 @@ export function UserProfile() {
                         <div className="flex items-center gap-2 text-sm">
                             <Shield className="w-4 h-4 text-muted-foreground" />
                             <span>
-                                {t('common.role')}: {user?.isSystemAdmin ? 'System Admin' : t('profile.user_role')}
+                                {t('common.role')}:{' '}
+                                {tokenType === 'GLOBAL' && isSystemAdmin
+                                    ? t('roles.SYSTEM_ADMIN')
+                                    : role
+                                      ? t(`roles.${role}`, { defaultValue: role })
+                                      : t('profile.user_role')}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">

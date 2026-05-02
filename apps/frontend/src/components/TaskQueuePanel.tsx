@@ -67,9 +67,9 @@ export function TaskQueuePanel() {
             >
                 <div className="flex items-center gap-2.5">
                     <div className="relative">
-                        <ListTodo className="h-4 w-4 text-violet-500" />
+                        <ListTodo className="h-4 w-4 text-primary" />
                         {runningCount > 0 && (
-                            <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-violet-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                            <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
                                 {runningCount}
                             </span>
                         )}
@@ -77,7 +77,7 @@ export function TaskQueuePanel() {
                     <span className="text-sm font-medium">{t('taskQueue.title')}</span>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         {runningCount > 0 && (
-                            <span className="flex items-center gap-1 text-violet-500">
+                            <span className="flex items-center gap-1 text-primary">
                                 <Loader2 className="h-3 w-3 animate-spin" />
                                 {runningCount} {t('taskQueue.running')}
                             </span>
@@ -149,14 +149,14 @@ function TaskRow({ task }: { task: TaskItem }) {
         <div
             className={cn(
                 'flex items-center gap-3 px-4 py-2.5 transition-colors',
-                task.status === 'running' && 'bg-violet-500/5',
+                task.status === 'running' && 'bg-primary/5',
                 task.status === 'error' && 'bg-red-500/5',
                 task.status === 'done' && 'opacity-60',
             )}
         >
             {/* Status icon */}
             <div className="flex-shrink-0">
-                {task.status === 'running' && <Loader2 className="h-4 w-4 animate-spin text-violet-500" />}
+                {task.status === 'running' && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                 {task.status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
                 {task.status === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
             </div>
@@ -199,5 +199,5 @@ function RunningTimer({ startTime }: { startTime: number }) {
         return () => clearInterval(interval);
     }, [startTime]);
 
-    return <span className="text-violet-400 tabular-nums">{elapsed}s</span>;
+    return <span className="text-primary tabular-nums">{elapsed}s</span>;
 }

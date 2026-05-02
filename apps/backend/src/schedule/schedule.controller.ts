@@ -494,6 +494,49 @@ export class ScheduleController {
     );
   }
 
+  @Get('view/room/:id')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
+  @ApiOperation({ summary: 'Rozvrh učebny' })
+  @ApiResponse({
+    status: 200,
+    description: 'Rozvrh učebny – matice.',
+    type: ScheduleMatrixResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Neautorizovaný přístup – chybí nebo neplatný JWT token.',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Nedostatečná oprávnění pro tuto operaci.',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Záznam nebyl nalezen.',
+    type: ErrorResponseDto,
+  })
+  async getRoomSchedule(
+    @Req() req: any,
+    @Param('id') roomId: string,
+    @Query('academicYearId') academicYearId?: string,
+  ) {
+    this.ensureTenant(req);
+    return this.scheduleService.getRoomSchedule(
+      req.user.schoolId,
+      roomId,
+      academicYearId,
+    );
+  }
+
   // ─── SUBSTITUTIONS ──────────────────────────────────────────
 
   @Get('substitutions')

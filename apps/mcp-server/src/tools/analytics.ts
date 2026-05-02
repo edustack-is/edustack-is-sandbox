@@ -1,5 +1,5 @@
 import { server } from '../server.js';
-import { prisma } from '../db.js';
+import { db } from '../db.js';
 import { z } from 'zod';
 
 server.tool(
@@ -12,28 +12,23 @@ server.tool(
     },
     async ({ studentId, startDate, endDate }: { studentId: string; startDate: string; endDate: string }) => {
         try {
-            const summary = await prisma.attendance.groupBy({
-                by: ['status'],
-                where: {
-                    studentId,
-                    date: {
-                        gte: new Date(startDate),
-                        lte: new Date(endDate),
-                    },
-                },
-                _count: {
-                    status: true,
-                },
-            });
+            const start = new Date(startDate).toISOString().split('T')[0];
+            const end = new Date(endDate).toISOString().split('T')[0];
 
-            return {
-                content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
-            };
+            const summary = db
+                .prepare(
+                    `
+                SELECT status, COUNT(*) as count
+                FROM "Attendance"
+                WHERE studentId = ? AND date >= ? AND date <= ?
+                GROUP BY status
+            `,
+                )
+                .all(studentId, start, end);
+
+            return { content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }] };
         } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při načítání docházky: ${error.message}` }],
-            };
+            return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }
     },
 );
@@ -47,45 +42,38 @@ server.tool(
     },
     async ({ studentId, academicYearId }: { studentId: string; academicYearId: string }) => {
         try {
-            const grades = await prisma.grade.findMany({
-                where: {
-                    studentId,
-                    subjectInstance: {
-                        academicYearId,
-                    },
-                },
-                include: {
-                    subjectInstance: {
-                        include: {
-                            template: true,
-                        },
-                    },
-                },
-            });
+            const grades = db
+                .prepare(
+                    `
+                SELECT g.value, g.weight, t.name as subjectName
+                FROM "Grade" g
+                JOIN "SubjectInstance" i ON g.subjectInstanceId = i.id
+                JOIN "SubjectTemplate" t ON i.templateId = t.id
+                WHERE g.studentId = ? AND i.academicYearId = ?
+            `,
+                )
+                .all(studentId, academicYearId) as any[];
 
             const performance: Record<string, { total: number; count: number; average: number }> = {};
 
             for (const g of grades) {
-                const subjectName = g.subjectInstance.template.name;
-                if (!performance[subjectName]) {
-                    performance[subjectName] = { total: 0, count: 0, average: 0 };
+                const val = parseFloat(g.value);
+                if (isNaN(val)) continue;
+
+                if (!performance[g.subjectName]) {
+                    performance[g.subjectName] = { total: 0, count: 0, average: 0 };
                 }
-                performance[subjectName].total += Number(g.value) * Number(g.weight);
-                performance[subjectName].count += Number(g.weight);
+                performance[g.subjectName].total += val * g.weight;
+                performance[g.subjectName].count += g.weight;
             }
 
             for (const subject in performance) {
                 performance[subject].average = performance[subject].total / performance[subject].count;
             }
 
-            return {
-                content: [{ type: 'text', text: JSON.stringify(performance, null, 2) }],
-            };
+            return { content: [{ type: 'text', text: JSON.stringify(performance, null, 2) }] };
         } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při výpočtu prospěchu: ${error.message}` }],
-            };
+            return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }
     },
 );

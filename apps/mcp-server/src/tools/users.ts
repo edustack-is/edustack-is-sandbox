@@ -1,6 +1,7 @@
 import { server } from '../server.js';
-import { prisma } from '../db.js';
+import { db, transaction } from '../db.js';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 // ─── LIST / SEARCH USERS ────────────────────────────────────────
 
@@ -23,52 +24,66 @@ server.tool(
             const take = limit ?? 50;
             const skip = offset ?? 0;
 
-            const where: any = {};
+            let sql = `
+                SELECT DISTINCT u.id, u.email, u.firstName, u.lastName, u.isSystemAdmin, u.lastLogin, u.createdAt
+                FROM "User" u
+            `;
+            const params: any[] = [];
+            const conditions: string[] = [];
 
             if (schoolId || role || status) {
-                where.schoolMemberships = {
-                    some: {
-                        ...(schoolId ? { schoolId } : {}),
-                        ...(role ? { role } : {}),
-                        ...(status ? { status } : {}),
-                    },
-                };
+                sql += ` JOIN "SchoolMembership" m ON u.id = m.userId`;
+                if (schoolId) {
+                    conditions.push(`m.schoolId = ?`);
+                    params.push(schoolId);
+                }
+                if (role) {
+                    conditions.push(`m.role = ?`);
+                    params.push(role);
+                }
+                if (status) {
+                    conditions.push(`m.status = ?`);
+                    params.push(status);
+                }
             }
 
             if (search) {
-                where.OR = [
-                    { firstName: { contains: search, mode: 'insensitive' } },
-                    { lastName: { contains: search, mode: 'insensitive' } },
-                    { email: { contains: search, mode: 'insensitive' } },
-                ];
+                conditions.push(`(u.firstName LIKE ? OR u.lastName LIKE ? OR u.email LIKE ?)`);
+                const s = `%${search}%`;
+                params.push(s, s, s);
             }
 
-            const [users, total] = await Promise.all([
-                prisma.user.findMany({
-                    where,
-                    take,
-                    skip,
-                    select: {
-                        id: true,
-                        email: true,
-                        firstName: true,
-                        lastName: true,
-                        isSystemAdmin: true,
-                        lastLogin: true,
-                        createdAt: true,
-                        schoolMemberships: {
-                            select: {
-                                schoolId: true,
-                                role: true,
-                                status: true,
-                                school: { select: { name: true } },
-                            },
-                        },
-                    },
-                    orderBy: { lastName: 'asc' },
-                }),
-                prisma.user.count({ where }),
-            ]);
+            if (conditions.length > 0) {
+                sql += ' WHERE ' + conditions.join(' AND ');
+            }
+
+            const countSql = `SELECT COUNT(*) as total FROM (${sql})`;
+            const total = (db.prepare(countSql).get(...params) as any).total;
+
+            sql += ` ORDER BY u.lastName ASC LIMIT ? OFFSET ?`;
+            params.push(take, skip);
+
+            const users = db.prepare(sql).all(...params) as any[];
+
+            // Add memberships to results
+            for (const user of users) {
+                const memberships = db
+                    .prepare(
+                        `
+                    SELECT m.schoolId, m.role, m.status, s.name as schoolName
+                    FROM "SchoolMembership" m
+                    JOIN "School" s ON m.schoolId = s.id
+                    WHERE m.userId = ?
+                `,
+                    )
+                    .all(user.id) as any[];
+                user.schoolMemberships = memberships.map((m) => ({
+                    schoolId: m.schoolId,
+                    role: m.role,
+                    status: m.status,
+                    school: { name: m.schoolName },
+                }));
+            }
 
             return {
                 content: [
@@ -97,61 +112,7 @@ server.tool(
     },
     async ({ userId }) => {
         try {
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    isSystemAdmin: true,
-                    lastLogin: true,
-                    createdAt: true,
-                    deletedAt: true,
-                    schoolMemberships: {
-                        select: {
-                            id: true,
-                            schoolId: true,
-                            role: true,
-                            status: true,
-                            workloadPercentage: true,
-                            school: { select: { name: true } },
-                        },
-                    },
-                    studentProfile: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            classroomId: true,
-                            classroom: { select: { name: true, grade: true } },
-                        },
-                    },
-                    teacherProfile: {
-                        select: {
-                            id: true,
-                            degree: true,
-                            approbation: true,
-                            homeroomClassId: true,
-                            homeroomClass: { select: { name: true } },
-                        },
-                    },
-                    parentOf: {
-                        select: {
-                            student: {
-                                select: { id: true, firstName: true, lastName: true, email: true },
-                            },
-                        },
-                    },
-                    childOf: {
-                        select: {
-                            parent: {
-                                select: { id: true, firstName: true, lastName: true, email: true },
-                            },
-                        },
-                    },
-                },
-            });
+            const user = db.prepare('SELECT * FROM "User" WHERE id = ?').get(userId) as any;
 
             if (!user) {
                 return {
@@ -159,6 +120,82 @@ server.tool(
                     content: [{ type: 'text', text: `Uživatel s ID '${userId}' nebyl nalezen.` }],
                 };
             }
+
+            // Memberships
+            user.schoolMemberships = db
+                .prepare(
+                    `
+                SELECT m.*, s.name as schoolName
+                FROM "SchoolMembership" m
+                JOIN "School" s ON m.schoolId = s.id
+                WHERE m.userId = ?
+            `,
+                )
+                .all(userId)
+                .map((m: any) => ({
+                    ...m,
+                    school: { name: m.schoolName },
+                }));
+
+            // Profiles
+            user.studentProfile = db
+                .prepare(
+                    `
+                SELECT sp.*, c.name as classroomName, c.grade
+                FROM "StudentProfile" sp
+                LEFT JOIN "Classroom" c ON sp.classroomId = c.id
+                WHERE sp.userId = ?
+            `,
+                )
+                .get(userId);
+            if (user.studentProfile) {
+                user.studentProfile.classroom = {
+                    name: (user.studentProfile as any).classroomName,
+                    grade: (user.studentProfile as any).grade,
+                };
+            }
+
+            user.teacherProfile = db
+                .prepare(
+                    `
+                SELECT tp.*, c.name as homeroomClassName
+                FROM "TeacherProfile" tp
+                LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id
+                WHERE tp.userId = ?
+            `,
+                )
+                .get(userId);
+            if (user.teacherProfile) {
+                user.teacherProfile.homeroomClass = { name: (user.teacherProfile as any).homeroomClassName };
+            }
+
+            // Family ties
+            user.parentOf = db
+                .prepare(
+                    `
+                SELECT u.id, u.firstName, u.lastName, u.email
+                FROM "ParentStudent" ps
+                JOIN "User" u ON ps.studentId = u.id
+                WHERE ps.parentId = ?
+            `,
+                )
+                .all(userId)
+                .map((s) => ({ student: s }));
+
+            user.childOf = db
+                .prepare(
+                    `
+                SELECT u.id, u.firstName, u.lastName, u.email
+                FROM "ParentStudent" ps
+                JOIN "User" u ON ps.parentId = u.id
+                WHERE ps.studentId = ?
+            `,
+                )
+                .all(userId)
+                .map((p) => ({ parent: p }));
+
+            // Clean up password hash
+            delete user.passwordHash;
 
             return {
                 content: [{ type: 'text', text: JSON.stringify(user, null, 2) }],
@@ -190,49 +227,29 @@ server.tool(
     },
     async ({ email, firstName, lastName, schoolId, role, isSystemAdmin }) => {
         try {
-            const data: any = {
-                email,
-                firstName,
-                lastName,
-                passwordHash: 'awaiting_activation',
-                isSystemAdmin: isSystemAdmin ?? false,
-            };
+            const id = randomUUID();
+            const now = new Date().toISOString();
 
-            if (schoolId && role) {
-                data.schoolMemberships = {
-                    create: {
-                        schoolId,
-                        role,
-                        status: 'ACTIVE',
-                    },
-                };
+            transaction(() => {
+                db.prepare(
+                    'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, isSystemAdmin, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                ).run(id, email, firstName, lastName, 'awaiting_activation', isSystemAdmin ? 1 : 0, now, now);
 
-                if (role === 'TEACHER') {
-                    data.teacherProfile = { create: {} };
+                if (schoolId && role) {
+                    db.prepare(
+                        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    ).run(randomUUID(), id, schoolId, role, 'ACTIVE', now, now);
+
+                    if (role === 'TEACHER') {
+                        db.prepare('INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)').run(randomUUID(), id);
+                    }
+
+                    if (role === 'STUDENT') {
+                        db.prepare(
+                            'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+                        ).run(randomUUID(), id, firstName, lastName, now, now);
+                    }
                 }
-
-                if (role === 'STUDENT') {
-                    data.studentProfile = {
-                        create: {
-                            firstName,
-                            lastName,
-                        },
-                    };
-                }
-            }
-
-            const user = await prisma.user.create({
-                data,
-                select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    isSystemAdmin: true,
-                    schoolMemberships: {
-                        select: { schoolId: true, role: true, status: true },
-                    },
-                },
             });
 
             return {
@@ -240,7 +257,7 @@ server.tool(
                     {
                         type: 'text',
                         text:
-                            `Uživatel '${firstName} ${lastName}' (${email}) byl úspěšně vytvořen s ID: ${user.id}` +
+                            `Uživatel '${firstName} ${lastName}' (${email}) byl úspěšně vytvořen s ID: ${id}` +
                             (role ? ` a rolí ${role}` : '') +
                             (schoolId ? ` ve škole ${schoolId}` : ''),
                     },
@@ -269,31 +286,37 @@ server.tool(
     },
     async ({ userId, firstName, lastName, email, isSystemAdmin }) => {
         try {
-            const data: any = {};
-            if (firstName !== undefined) data.firstName = firstName;
-            if (lastName !== undefined) data.lastName = lastName;
-            if (email !== undefined) data.email = email;
-            if (isSystemAdmin !== undefined) data.isSystemAdmin = isSystemAdmin;
+            const fields: string[] = [];
+            const params: any[] = [];
+            if (firstName !== undefined) {
+                fields.push('firstName = ?');
+                params.push(firstName);
+            }
+            if (lastName !== undefined) {
+                fields.push('lastName = ?');
+                params.push(lastName);
+            }
+            if (email !== undefined) {
+                fields.push('email = ?');
+                params.push(email);
+            }
+            if (isSystemAdmin !== undefined) {
+                fields.push('isSystemAdmin = ?');
+                params.push(isSystemAdmin ? 1 : 0);
+            }
 
-            const user = await prisma.user.update({
-                where: { id: userId },
-                data,
-                select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    isSystemAdmin: true,
-                },
-            });
+            if (fields.length === 0) {
+                return { content: [{ type: 'text', text: 'Nebyly zadány žádné změny.' }] };
+            }
+
+            fields.push('updatedAt = ?');
+            params.push(new Date().toISOString());
+            params.push(userId);
+
+            db.prepare(`UPDATE "User" SET ${fields.join(', ')} WHERE id = ?`).run(...params);
 
             return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Uživatel ${user.firstName} ${user.lastName} (${user.id}) byl úspěšně aktualizován.`,
-                    },
-                ],
+                content: [{ type: 'text', text: `Uživatel (${userId}) byl úspěšně aktualizován.` }],
             };
         } catch (error: any) {
             return {
@@ -322,57 +345,49 @@ server.tool(
     },
     async ({ userId, schoolId, role, status }) => {
         try {
-            const membership = await prisma.schoolMembership.upsert({
-                where: {
-                    userId_schoolId: { userId, schoolId },
-                },
-                update: {
-                    role,
-                    status: status ?? 'ACTIVE',
-                },
-                create: {
-                    userId,
-                    schoolId,
-                    role,
-                    status: status ?? 'ACTIVE',
-                },
-                include: {
-                    user: { select: { firstName: true, lastName: true } },
-                    school: { select: { name: true } },
-                },
+            const now = new Date().toISOString();
+            transaction(() => {
+                const existing = db
+                    .prepare('SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?')
+                    .get(userId, schoolId);
+
+                if (existing) {
+                    db.prepare('UPDATE "SchoolMembership" SET role = ?, status = ?, updatedAt = ? WHERE id = ?').run(
+                        role,
+                        status ?? 'ACTIVE',
+                        now,
+                        (existing as any).id,
+                    );
+                } else {
+                    db.prepare(
+                        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    ).run(randomUUID(), userId, schoolId, role, status ?? 'ACTIVE', now, now);
+                }
+
+                // Create teacher/student profile if needed
+                if (role === 'TEACHER') {
+                    const prof = db.prepare('SELECT id FROM "TeacherProfile" WHERE userId = ?').get(userId);
+                    if (!prof) {
+                        db.prepare('INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)').run(randomUUID(), userId);
+                    }
+                }
+
+                if (role === 'STUDENT') {
+                    const prof = db.prepare('SELECT id FROM "StudentProfile" WHERE userId = ?').get(userId);
+                    if (!prof) {
+                        const user = db
+                            .prepare('SELECT firstName, lastName FROM "User" WHERE id = ?')
+                            .get(userId) as any;
+                        db.prepare(
+                            'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+                        ).run(randomUUID(), userId, user?.firstName ?? '', user?.lastName ?? '', now, now);
+                    }
+                }
             });
-
-            // Create teacher/student profile if needed
-            if (role === 'TEACHER') {
-                await prisma.teacherProfile.upsert({
-                    where: { userId },
-                    update: {},
-                    create: { userId },
-                });
-            }
-
-            if (role === 'STUDENT') {
-                const user = await prisma.user.findUnique({
-                    where: { id: userId },
-                    select: { firstName: true, lastName: true },
-                });
-                await prisma.studentProfile.upsert({
-                    where: { userId },
-                    update: {},
-                    create: {
-                        userId,
-                        firstName: user?.firstName ?? '',
-                        lastName: user?.lastName ?? '',
-                    },
-                });
-            }
 
             return {
                 content: [
-                    {
-                        type: 'text',
-                        text: `Uživatel '${membership.user.firstName} ${membership.user.lastName}' má nyní roli ${role} ve škole '${membership.school.name}'.`,
-                    },
+                    { type: 'text', text: `Role ${role} byla úspěšně přiřazena uživateli ve škole ${schoolId}.` },
                 ],
             };
         } catch (error: any) {
@@ -395,19 +410,9 @@ server.tool(
     },
     async ({ userId, schoolId }) => {
         try {
-            await prisma.schoolMembership.delete({
-                where: {
-                    userId_schoolId: { userId, schoolId },
-                },
-            });
-
+            db.prepare('DELETE FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?').run(userId, schoolId);
             return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Členství uživatele ${userId} ve škole ${schoolId} bylo odstraněno.`,
-                    },
-                ],
+                content: [{ type: 'text', text: `Členství uživatele ${userId} ve škole ${schoolId} bylo odstraněno.` }],
             };
         } catch (error: any) {
             return {
@@ -428,37 +433,29 @@ server.tool(
     },
     async ({ search }) => {
         try {
-            const where: any = { deletedAt: null };
+            let sql = `SELECT * FROM "School" WHERE deletedAt IS NULL`;
+            const params: any[] = [];
             if (search) {
-                where.name = { contains: search, mode: 'insensitive' };
+                sql += ' AND name LIKE ?';
+                params.push(`%${search}%`);
+            }
+            sql += ' ORDER BY name ASC';
+
+            const schools = db.prepare(sql).all(...params) as any[];
+
+            for (const school of schools) {
+                const memberCount = (
+                    db
+                        .prepare('SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ?')
+                        .get(school.id) as any
+                ).count;
+                const classCount = (
+                    db.prepare('SELECT COUNT(*) as count FROM "Classroom" WHERE schoolId = ?').get(school.id) as any
+                ).count;
+                school._count = { members: memberCount, classrooms: classCount };
             }
 
-            const schools = await prisma.school.findMany({
-                where,
-                select: {
-                    id: true,
-                    name: true,
-                    address: true,
-                    contactEmail: true,
-                    createdAt: true,
-                    _count: {
-                        select: {
-                            members: true,
-                            classrooms: true,
-                        },
-                    },
-                },
-                orderBy: { name: 'asc' },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify(schools, null, 2),
-                    },
-                ],
-            };
+            return { content: [{ type: 'text', text: JSON.stringify(schools, null, 2) }] };
         } catch (error: any) {
             return {
                 isError: true,
@@ -478,37 +475,7 @@ server.tool(
     },
     async ({ schoolId }) => {
         try {
-            const school = await prisma.school.findUnique({
-                where: { id: schoolId },
-                select: {
-                    id: true,
-                    name: true,
-                    address: true,
-                    contactEmail: true,
-                    allowStudentSelfRegistration: true,
-                    createdAt: true,
-                    classrooms: {
-                        select: {
-                            id: true,
-                            name: true,
-                            grade: true,
-                            _count: { select: { students: true } },
-                        },
-                        orderBy: { grade: 'asc' },
-                    },
-                    academicYears: {
-                        select: {
-                            id: true,
-                            name: true,
-                            startDate: true,
-                            endDate: true,
-                            isCurrent: true,
-                        },
-                        orderBy: { startDate: 'desc' },
-                    },
-                },
-            });
-
+            const school = db.prepare('SELECT * FROM "School" WHERE id = ?').get(schoolId) as any;
             if (!school) {
                 return {
                     isError: true,
@@ -516,70 +483,37 @@ server.tool(
                 };
             }
 
-            // Count members by role
-            const membersByRole = await prisma.schoolMembership.groupBy({
-                by: ['role'],
-                where: { schoolId, status: 'ACTIVE' },
-                _count: { role: true },
-            });
+            school.classrooms = db
+                .prepare('SELECT * FROM "Classroom" WHERE schoolId = ? ORDER BY grade ASC')
+                .all(schoolId) as any[];
+            for (const cls of school.classrooms) {
+                cls._count = {
+                    students: (
+                        db
+                            .prepare('SELECT COUNT(*) as count FROM "StudentProfile" WHERE classroomId = ?')
+                            .get(cls.id) as any
+                    ).count,
+                };
+            }
 
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({ ...school, membersByRole }, null, 2),
-                    },
-                ],
-            };
+            school.academicYears = db
+                .prepare('SELECT * FROM "AcademicYear" WHERE schoolId = ? ORDER BY startDate DESC')
+                .all(schoolId);
+
+            const membersByRole = db
+                .prepare(
+                    `
+                SELECT role, COUNT(*) as count
+                FROM "SchoolMembership"
+                WHERE schoolId = ? AND status = 'ACTIVE'
+                GROUP BY role
+            `,
+                )
+                .all(schoolId);
+
+            return { content: [{ type: 'text', text: JSON.stringify({ ...school, membersByRole }, null, 2) }] };
         } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při načítání školy: ${error.message}` }],
-            };
-        }
-    },
-);
-
-// ─── UPDATE SCHOOL ──────────────────────────────────────────────
-
-server.tool(
-    'update_school',
-    'Aktualizuje údaje existující školy (název, adresa, kontakní email, povolení self-registrace).',
-    {
-        schoolId: z.string().describe('ID školy'),
-        name: z.string().optional().describe('Nový název školy'),
-        address: z.string().optional().describe('Nová adresa'),
-        contactEmail: z.string().optional().describe('Nový kontaktní email'),
-        allowStudentSelfRegistration: z.boolean().optional().describe('Povolit/zakázat self-registraci studentů'),
-    },
-    async ({ schoolId, name, address, contactEmail, allowStudentSelfRegistration }) => {
-        try {
-            const data: any = {};
-            if (name !== undefined) data.name = name;
-            if (address !== undefined) data.address = address;
-            if (contactEmail !== undefined) data.contactEmail = contactEmail;
-            if (allowStudentSelfRegistration !== undefined)
-                data.allowStudentSelfRegistration = allowStudentSelfRegistration;
-
-            const school = await prisma.school.update({
-                where: { id: schoolId },
-                data,
-                select: { id: true, name: true, address: true, contactEmail: true },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Škola '${school.name}' (${school.id}) byla úspěšně aktualizována.`,
-                    },
-                ],
-            };
-        } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při aktualizaci školy: ${error.message}` }],
-            };
+            return { isError: true, content: [{ type: 'text', text: `Chyba při načítání školy: ${error.message}` }] };
         }
     },
 );
@@ -594,189 +528,34 @@ server.tool(
     },
     async ({ schoolId }) => {
         try {
-            const classrooms = await prisma.classroom.findMany({
-                where: { schoolId },
-                select: {
-                    id: true,
-                    name: true,
-                    grade: true,
-                    homeroomTeacher: {
-                        select: {
-                            user: { select: { firstName: true, lastName: true } },
-                        },
-                    },
-                    _count: { select: { students: true } },
-                },
-                orderBy: { grade: 'asc' },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify(classrooms, null, 2),
-                    },
-                ],
-            };
-        } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při načítání tříd: ${error.message}` }],
-            };
-        }
-    },
-);
-
-// ─── CREATE CLASSROOM ───────────────────────────────────────────
-
-server.tool(
-    'create_classroom',
-    'Vytvoří novou třídu v dané škole.',
-    {
-        schoolId: z.string().describe('ID školy'),
-        name: z.string().describe("Název třídy (např. '1.A')"),
-        grade: z.number().describe('Ročník (číslo, např. 1)'),
-    },
-    async ({ schoolId, name, grade }) => {
-        try {
-            const classroom = await prisma.classroom.create({
-                data: { name, grade, schoolId },
-                select: { id: true, name: true, grade: true },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Třída '${classroom.name}' (ročník ${classroom.grade}) byla vytvořena s ID: ${classroom.id}`,
-                    },
-                ],
-            };
-        } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při vytváření třídy: ${error.message}` }],
-            };
-        }
-    },
-);
-
-// ─── ASSIGN STUDENT TO CLASSROOM ────────────────────────────────
-
-server.tool(
-    'assign_student_to_classroom',
-    'Přiřadí studenta do třídy (aktualizuje StudentProfile).',
-    {
-        userId: z.string().describe('ID uživatele (studenta)'),
-        classroomId: z.string().describe('ID třídy'),
-    },
-    async ({ userId, classroomId }) => {
-        try {
-            const profile = await prisma.studentProfile.update({
-                where: { userId },
-                data: { classroomId },
-                select: {
-                    userId: true,
-                    firstName: true,
-                    lastName: true,
-                    classroom: { select: { name: true } },
-                },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Student '${profile.firstName} ${profile.lastName}' byl přiřazen do třídy '${profile.classroom?.name}'.`,
-                    },
-                ],
-            };
-        } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při přiřazení studenta do třídy: ${error.message}` }],
-            };
-        }
-    },
-);
-
-// ─── LINK PARENT TO STUDENT ─────────────────────────────────────
-
-server.tool(
-    'link_parent_to_student',
-    'Propojí rodiče se studentem (vytvoří ParentStudent vazbu).',
-    {
-        parentUserId: z.string().describe('ID uživatele (rodiče)'),
-        studentUserId: z.string().describe('ID uživatele (studenta)'),
-    },
-    async ({ parentUserId, studentUserId }) => {
-        try {
-            await prisma.parentStudent.create({
-                data: {
-                    parentId: parentUserId,
-                    studentId: studentUserId,
-                },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Rodič ${parentUserId} byl úspěšně propojen se studentem ${studentUserId}.`,
-                    },
-                ],
-            };
-        } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při propojování rodiče a studenta: ${error.message}` }],
-            };
-        }
-    },
-);
-
-// ─── DELETE SCHOOL (SOFT DELETE) ────────────────────────────────
-
-server.tool(
-    'delete_school',
-    'Smaže školu (soft delete – nastaví deletedAt). Škola se přestane zobrazovat v seznamech, ale data zůstanou v databázi.',
-    {
-        schoolId: z.string().describe('ID školy ke smazání'),
-    },
-    async ({ schoolId }) => {
-        try {
-            const school = await prisma.school.findUnique({ where: { id: schoolId } });
-            if (!school) {
-                return {
-                    isError: true,
-                    content: [{ type: 'text', text: `Škola s ID '${schoolId}' nebyla nalezena.` }],
+            const classrooms = db
+                .prepare('SELECT * FROM "Classroom" WHERE schoolId = ? ORDER BY grade ASC')
+                .all(schoolId) as any[];
+            for (const cls of classrooms) {
+                const teacher = db
+                    .prepare(
+                        `
+                    SELECT u.firstName, u.lastName
+                    FROM "TeacherProfile" tp
+                    JOIN "User" u ON tp.userId = u.id
+                    WHERE tp.homeroomClassId = ?
+                `,
+                    )
+                    .get(cls.id) as any;
+                if (teacher) {
+                    cls.homeroomTeacher = { user: teacher };
+                }
+                cls._count = {
+                    students: (
+                        db
+                            .prepare('SELECT COUNT(*) as count FROM "StudentProfile" WHERE classroomId = ?')
+                            .get(cls.id) as any
+                    ).count,
                 };
             }
-            if (school.deletedAt) {
-                return {
-                    isError: true,
-                    content: [{ type: 'text', text: `Škola '${school.name}' je již smazaná.` }],
-                };
-            }
-
-            await prisma.school.update({
-                where: { id: schoolId },
-                data: { deletedAt: new Date() },
-            });
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Škola '${school.name}' byla úspěšně smazána (soft delete).`,
-                    },
-                ],
-            };
+            return { content: [{ type: 'text', text: JSON.stringify(classrooms, null, 2) }] };
         } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při mazání školy: ${error.message}` }],
-            };
+            return { isError: true, content: [{ type: 'text', text: `Chyba při načítání tříd: ${error.message}` }] };
         }
     },
 );
@@ -810,124 +589,78 @@ server.tool(
     },
     async ({ schoolId, users }) => {
         try {
-            const result = await prisma.$transaction(async (tx) => {
-                const created: { id: string; name: string; role: string; email: string }[] = [];
-                const parentMap = new Map<string, string>(); // email -> userId
+            const now = new Date().toISOString();
+            const created = transaction(() => {
+                const results: any[] = [];
+                const parentMap = new Map<string, string>();
 
-                // First pass: create all users
                 for (const u of users) {
-                    // Check if user already exists
-                    let user = await tx.user.findUnique({ where: { email: u.email } });
+                    let user = db.prepare('SELECT id FROM "User" WHERE email = ?').get(u.email) as any;
+                    let userId = user?.id;
 
-                    if (!user) {
-                        const data: any = {
-                            email: u.email,
-                            firstName: u.firstName,
-                            lastName: u.lastName,
-                            passwordHash: 'awaiting_activation',
-                            schoolMemberships: {
-                                create: {
-                                    schoolId,
-                                    role: u.role,
-                                    status: 'ACTIVE',
-                                },
-                            },
-                        };
+                    if (!userId) {
+                        userId = randomUUID();
+                        db.prepare(
+                            'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        ).run(userId, u.email, u.firstName, u.lastName, 'awaiting_activation', now, now);
 
                         if (u.role === 'STUDENT') {
-                            data.studentProfile = {
-                                create: {
-                                    firstName: u.firstName,
-                                    lastName: u.lastName,
-                                    ...(u.classroomId ? { classroomId: u.classroomId } : {}),
-                                },
-                            };
+                            db.prepare(
+                                'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                            ).run(randomUUID(), userId, u.firstName, u.lastName, u.classroomId || null, now, now);
                         }
-
                         if (u.role === 'TEACHER') {
-                            data.teacherProfile = { create: {} };
-                        }
-
-                        user = await tx.user.create({ data });
-                    } else {
-                        // User exists, just add membership if not already present
-                        const existingMembership = await tx.schoolMembership.findUnique({
-                            where: { userId_schoolId: { userId: user.id, schoolId } },
-                        });
-                        if (!existingMembership) {
-                            await tx.schoolMembership.create({
-                                data: { userId: user.id, schoolId, role: u.role, status: 'ACTIVE' },
-                            });
+                            db.prepare('INSERT INTO "TeacherProfile" (id, userId) VALUES (?, ?)').run(
+                                randomUUID(),
+                                userId,
+                            );
                         }
                     }
 
-                    created.push({ id: user.id, name: `${u.firstName} ${u.lastName}`, role: u.role, email: u.email });
-
-                    if (u.role === 'PARENT') {
-                        parentMap.set(u.email, user.id);
+                    // Membership
+                    const exists = db
+                        .prepare('SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ?')
+                        .get(userId, schoolId);
+                    if (!exists) {
+                        db.prepare(
+                            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        ).run(randomUUID(), userId, schoolId, u.role, 'ACTIVE', now, now);
                     }
+
+                    results.push({ id: userId, name: `${u.firstName} ${u.lastName}`, role: u.role, email: u.email });
+                    if (u.role === 'PARENT') parentMap.set(u.email, userId);
                 }
 
-                // Second pass: create parent-student links
+                // Links
                 for (const u of users) {
-                    if (u.role === 'STUDENT' && u.parentEmails && u.parentEmails.length > 0) {
-                        const studentUser = created.find((c) => c.email === u.email);
-                        if (!studentUser) continue;
-
-                        for (const parentEmail of u.parentEmails) {
-                            let parentId = parentMap.get(parentEmail);
-
-                            if (!parentId) {
-                                // Try to find existing parent user
-                                const existingParent = await tx.user.findUnique({ where: { email: parentEmail } });
-                                if (existingParent) {
-                                    parentId = existingParent.id;
-                                }
+                    if (u.role === 'STUDENT' && u.parentEmails) {
+                        const studentId = results.find((r) => r.email === u.email)?.id;
+                        if (!studentId) continue;
+                        for (const pEmail of u.parentEmails) {
+                            let pId = parentMap.get(pEmail);
+                            if (!pId) {
+                                const pUser = db.prepare('SELECT id FROM "User" WHERE email = ?').get(pEmail) as any;
+                                pId = pUser?.id;
                             }
-
-                            if (parentId) {
-                                // Check if link already exists
-                                const existingLink = await tx.parentStudent.findUnique({
-                                    where: { parentId_studentId: { parentId, studentId: studentUser.id } },
-                                });
-                                if (!existingLink) {
-                                    await tx.parentStudent.create({
-                                        data: { parentId, studentId: studentUser.id },
-                                    });
+                            if (pId) {
+                                const linkExists = db
+                                    .prepare('SELECT id FROM "ParentStudent" WHERE parentId = ? AND studentId = ?')
+                                    .get(pId, studentId);
+                                if (!linkExists) {
+                                    db.prepare(
+                                        'INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)',
+                                    ).run(randomUUID(), pId, studentId);
                                 }
                             }
                         }
                     }
                 }
-
-                return created;
+                return results;
             });
 
-            const summary = {
-                total: result.length,
-                byRole: result.reduce(
-                    (acc, u) => {
-                        acc[u.role] = (acc[u.role] || 0) + 1;
-                        return acc;
-                    },
-                    {} as Record<string, number>,
-                ),
-                users: result,
-            };
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Úspěšně vytvořeno ${result.length} uživatelů.\n${JSON.stringify(summary, null, 2)}`,
-                    },
-                ],
-            };
+            return { content: [{ type: 'text', text: `Úspěšně vytvořeno ${created.length} uživatelů.` }] };
         } catch (error: any) {
-            return {
-                isError: true,
-                content: [{ type: 'text', text: `Chyba při hromadném vytváření uživatelů: ${error.message}` }],
-            };
+            return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }
     },
 );

@@ -1,6 +1,7 @@
 import { server } from '../server.js';
-import { prisma } from '../db.js';
+import { db, transaction } from '../db.js';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 // ═══════════════════════════════════════════════════════════════
 // ACADEMIC YEAR
@@ -18,7 +19,7 @@ server.tool(
     },
     async ({ schoolId, name, startDate, endDate, isCurrent }) => {
         try {
-            const school = await prisma.school.findFirst({ where: { id: schoolId, deletedAt: null } });
+            const school = db.prepare('SELECT id FROM "School" WHERE id = ? AND deletedAt IS NULL').get(schoolId);
             if (!school) {
                 return {
                     isError: true,
@@ -26,47 +27,40 @@ server.tool(
                 };
             }
 
-            // Check uniqueness
-            const existing = await prisma.academicYear.findUnique({
-                where: { name_schoolId: { name, schoolId } },
-            });
+            const existing = db
+                .prepare('SELECT id FROM "AcademicYear" WHERE name = ? AND schoolId = ?')
+                .get(name, schoolId);
             if (existing) {
                 return {
                     isError: true,
                     content: [
                         {
                             type: 'text',
-                            text: `Školní rok '${name}' pro tuto školu již existuje (ID: ${existing.id}).`,
+                            text: `Školní rok '${name}' pro tuto školu již existuje (ID: ${(existing as any).id}).`,
                         },
                     ],
                 };
             }
 
-            const result = await prisma.$transaction(async (tx) => {
-                // If setting as current, unset others
-                if (isCurrent) {
-                    await tx.academicYear.updateMany({
-                        where: { schoolId, isCurrent: true },
-                        data: { isCurrent: false },
-                    });
-                }
+            const now = new Date().toISOString();
+            const id = randomUUID();
 
-                return tx.academicYear.create({
-                    data: {
-                        name,
-                        startDate: new Date(startDate),
-                        endDate: new Date(endDate),
-                        isCurrent: isCurrent || false,
+            transaction(() => {
+                if (isCurrent) {
+                    db.prepare('UPDATE "AcademicYear" SET isCurrent = 0 WHERE schoolId = ? AND isCurrent = 1').run(
                         schoolId,
-                    },
-                });
+                    );
+                }
+                db.prepare(
+                    'INSERT INTO "AcademicYear" (id, name, startDate, endDate, isCurrent, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                ).run(id, name, startDate, endDate, isCurrent ? 1 : 0, schoolId, now, now);
             });
 
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Školní rok '${name}' vytvořen (ID: ${result.id})${isCurrent ? ' – nastaven jako aktuální' : ''}.`,
+                        text: `Školní rok '${name}' vytvořen (ID: ${id})${isCurrent ? ' – nastaven jako aktuální' : ''}.`,
                     },
                 ],
             };
@@ -84,22 +78,27 @@ server.tool(
     },
     async ({ schoolId }) => {
         try {
-            const years = await prisma.academicYear.findMany({
-                where: { schoolId },
-                orderBy: { startDate: 'desc' },
-                include: {
-                    _count: { select: { studentEnrollments: true, subjectInstances: true } },
-                },
-            });
+            const years = db
+                .prepare('SELECT * FROM "AcademicYear" WHERE schoolId = ? ORDER BY startDate DESC')
+                .all(schoolId) as any[];
 
             if (years.length === 0) {
                 return { content: [{ type: 'text', text: 'Škola nemá žádné školní roky.' }] };
             }
 
-            const lines = years.map(
-                (y) =>
-                    `- ${y.name} (${y.startDate.toISOString().slice(0, 10)} – ${y.endDate.toISOString().slice(0, 10)})${y.isCurrent ? ' ★ aktuální' : ''} | zápisů: ${y._count.studentEnrollments}, instancí: ${y._count.subjectInstances} | ID: ${y.id}`,
-            );
+            const lines = years.map((y) => {
+                const enrollmentCount = (
+                    db
+                        .prepare('SELECT COUNT(*) as count FROM "StudentEnrollment" WHERE academicYearId = ?')
+                        .get(y.id) as any
+                ).count;
+                const instanceCount = (
+                    db
+                        .prepare('SELECT COUNT(*) as count FROM "SubjectInstance" WHERE academicYearId = ?')
+                        .get(y.id) as any
+                ).count;
+                return `- ${y.name} (${y.startDate} – ${y.endDate})${y.isCurrent ? ' ★ aktuální' : ''} | zápisů: ${enrollmentCount}, instancí: ${instanceCount} | ID: ${y.id}`;
+            });
 
             return { content: [{ type: 'text', text: `Školní roky (${years.length}):\n${lines.join('\n')}` }] };
         } catch (error: any) {
@@ -120,13 +119,9 @@ server.tool(
     },
     async ({ schoolId }) => {
         try {
-            const levels = await prisma.gradeLevel.findMany({
-                where: { schoolId },
-                orderBy: { levelNumber: 'asc' },
-                include: {
-                    _count: { select: { studentEnrollments: true, subjectInstances: true } },
-                },
-            });
+            const levels = db
+                .prepare('SELECT * FROM "GradeLevel" WHERE schoolId = ? ORDER BY levelNumber ASC')
+                .all(schoolId) as any[];
 
             if (levels.length === 0) {
                 return {
@@ -136,10 +131,19 @@ server.tool(
                 };
             }
 
-            const lines = levels.map(
-                (l) =>
-                    `- ${l.name} (úroveň ${l.levelNumber}) | zápisů: ${l._count.studentEnrollments}, předmětů: ${l._count.subjectInstances} | ID: ${l.id}`,
-            );
+            const lines = levels.map((l) => {
+                const enrollmentCount = (
+                    db
+                        .prepare('SELECT COUNT(*) as count FROM "StudentEnrollment" WHERE gradeLevelId = ?')
+                        .get(l.id) as any
+                ).count;
+                const instanceCount = (
+                    db
+                        .prepare('SELECT COUNT(*) as count FROM "SubjectInstance" WHERE gradeLevelId = ?')
+                        .get(l.id) as any
+                ).count;
+                return `- ${l.name} (úroveň ${l.levelNumber}) | zápisů: ${enrollmentCount}, předmětů: ${instanceCount} | ID: ${l.id}`;
+            });
 
             return { content: [{ type: 'text', text: `Ročníky (${levels.length}):\n${lines.join('\n')}` }] };
         } catch (error: any) {
@@ -160,22 +164,20 @@ server.tool(
     },
     async ({ schoolId }) => {
         try {
-            const templates = await prisma.subjectTemplate.findMany({
-                where: { schoolId },
-                orderBy: { name: 'asc' },
-                include: {
-                    _count: { select: { instances: true } },
-                },
-            });
+            const templates = db
+                .prepare('SELECT * FROM "SubjectTemplate" WHERE schoolId = ? ORDER BY name ASC')
+                .all(schoolId) as any[];
 
             if (templates.length === 0) {
                 return { content: [{ type: 'text', text: 'Škola nemá žádné šablony předmětů.' }] };
             }
 
-            const lines = templates.map(
-                (t) =>
-                    `- ${t.name} (${t.code})${t.svpDescription ? ` – ${t.svpDescription}` : ''} | instancí: ${t._count.instances} | ID: ${t.id}`,
-            );
+            const lines = templates.map((t) => {
+                const instanceCount = (
+                    db.prepare('SELECT COUNT(*) as count FROM "SubjectInstance" WHERE templateId = ?').get(t.id) as any
+                ).count;
+                return `- ${t.name} (${t.code})${t.svpDescription ? ` – ${t.svpDescription}` : ''} | instancí: ${instanceCount} | ID: ${t.id}`;
+            });
 
             return {
                 content: [{ type: 'text', text: `Šablony předmětů (${templates.length}):\n${lines.join('\n')}` }],
@@ -197,27 +199,28 @@ server.tool(
     },
     async ({ schoolId, name, code, svpDescription }) => {
         try {
-            const existing = await prisma.subjectTemplate.findUnique({
-                where: { code_schoolId: { code, schoolId } },
-            });
+            const existing = db
+                .prepare('SELECT id FROM "SubjectTemplate" WHERE code = ? AND schoolId = ?')
+                .get(code, schoolId);
             if (existing) {
                 return {
                     isError: true,
                     content: [
                         {
                             type: 'text',
-                            text: `Předmět s kódem '${code}' v této škole již existuje (ID: ${existing.id}).`,
+                            text: `Předmět s kódem '${code}' v této škole již existuje (ID: ${(existing as any).id}).`,
                         },
                     ],
                 };
             }
 
-            const template = await prisma.subjectTemplate.create({
-                data: { name, code, svpDescription, schoolId },
-            });
+            const id = randomUUID();
+            db.prepare(
+                'INSERT INTO "SubjectTemplate" (id, name, code, svpDescription, schoolId) VALUES (?, ?, ?, ?, ?)',
+            ).run(id, name, code, svpDescription || null, schoolId);
 
             return {
-                content: [{ type: 'text', text: `Předmět '${name}' (${code}) vytvořen s ID: ${template.id}` }],
+                content: [{ type: 'text', text: `Předmět '${name}' (${code}) vytvořen s ID: ${id}` }],
             };
         } catch (error: any) {
             return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
@@ -241,12 +244,15 @@ server.tool(
     },
     async ({ schoolId, templateId, academicYearId, gradeLevelId, hoursPerWeek }) => {
         try {
-            // Validate references
-            const [template, year, grade] = await Promise.all([
-                prisma.subjectTemplate.findFirst({ where: { id: templateId, schoolId } }),
-                prisma.academicYear.findFirst({ where: { id: academicYearId, schoolId } }),
-                prisma.gradeLevel.findFirst({ where: { id: gradeLevelId, schoolId } }),
-            ]);
+            const template = db
+                .prepare('SELECT name, code FROM "SubjectTemplate" WHERE id = ? AND schoolId = ?')
+                .get(templateId, schoolId) as any;
+            const year = db
+                .prepare('SELECT name FROM "AcademicYear" WHERE id = ? AND schoolId = ?')
+                .get(academicYearId, schoolId) as any;
+            const grade = db
+                .prepare('SELECT name FROM "GradeLevel" WHERE id = ? AND schoolId = ?')
+                .get(gradeLevelId, schoolId) as any;
 
             if (!template)
                 return {
@@ -261,31 +267,29 @@ server.tool(
             if (!grade)
                 return { isError: true, content: [{ type: 'text', text: `Ročník '${gradeLevelId}' nebyl nalezen.` }] };
 
-            // Check uniqueness
-            const existing = await prisma.subjectInstance.findUnique({
-                where: { templateId_academicYearId_gradeLevelId: { templateId, academicYearId, gradeLevelId } },
-            });
+            const existing = db
+                .prepare(
+                    'SELECT id FROM "SubjectInstance" WHERE templateId = ? AND academicYearId = ? AND gradeLevelId = ?',
+                )
+                .get(templateId, academicYearId, gradeLevelId);
             if (existing) {
                 return {
                     isError: true,
-                    content: [
-                        {
-                            type: 'text',
-                            text: `Instance '${template.name}' pro ${grade.name} v ${year.name} již existuje (ID: ${existing.id}).`,
-                        },
-                    ],
+                    content: [{ type: 'text', text: `Instance již existuje (ID: ${(existing as any).id}).` }],
                 };
             }
 
-            const instance = await prisma.subjectInstance.create({
-                data: { templateId, academicYearId, gradeLevelId, schoolId, hoursPerWeek },
-            });
+            const id = randomUUID();
+            const now = new Date().toISOString();
+            db.prepare(
+                'INSERT INTO "SubjectInstance" (id, templateId, academicYearId, gradeLevelId, schoolId, hoursPerWeek, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            ).run(id, templateId, academicYearId, gradeLevelId, schoolId, hoursPerWeek, now, now);
 
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Instance předmětu vytvořena: ${template.name} (${template.code}) → ${grade.name}, ${year.name}, ${hoursPerWeek}h/týden. ID: ${instance.id}`,
+                        text: `Instance předmětu vytvořena: ${template.name} (${template.code}) → ${grade.name}, ${year.name}, ${hoursPerWeek}h/týden. ID: ${id}`,
                     },
                 ],
             };
@@ -305,29 +309,44 @@ server.tool(
     },
     async ({ schoolId, academicYearId, gradeLevelId }) => {
         try {
-            const where: any = { schoolId };
-            if (academicYearId) where.academicYearId = academicYearId;
-            if (gradeLevelId) where.gradeLevelId = gradeLevelId;
+            let sql = `
+                SELECT i.*, t.name as templateName, t.code as templateCode, y.name as yearName, g.name as gradeName
+                FROM "SubjectInstance" i
+                JOIN "SubjectTemplate" t ON i.templateId = t.id
+                JOIN "AcademicYear" y ON i.academicYearId = y.id
+                JOIN "GradeLevel" g ON i.gradeLevelId = g.id
+                WHERE i.schoolId = ?
+            `;
+            const params: any[] = [schoolId];
 
-            const instances = await prisma.subjectInstance.findMany({
-                where,
-                include: {
-                    template: true,
-                    academicYear: true,
-                    gradeLevel: true,
-                    _count: { select: { grades: true, scheduleEvents: true } },
-                },
-                orderBy: [{ gradeLevel: { levelNumber: 'asc' } }, { template: { name: 'asc' } }],
-            });
+            if (academicYearId) {
+                sql += ' AND i.academicYearId = ?';
+                params.push(academicYearId);
+            }
+            if (gradeLevelId) {
+                sql += ' AND i.gradeLevelId = ?';
+                params.push(gradeLevelId);
+            }
+
+            sql += ' ORDER BY g.levelNumber ASC, t.name ASC';
+
+            const instances = db.prepare(sql).all(...params) as any[];
 
             if (instances.length === 0) {
                 return { content: [{ type: 'text', text: 'Žádné instance předmětů nenalezeny.' }] };
             }
 
-            const lines = instances.map(
-                (i) =>
-                    `- ${i.template.name} (${i.template.code}) | ${i.gradeLevel.name} | ${i.academicYear.name} | ${i.hoursPerWeek}h/tý | známek: ${i._count.grades}, rozvrh: ${i._count.scheduleEvents} | ID: ${i.id}`,
-            );
+            const lines = instances.map((i) => {
+                const gradeCount = (
+                    db.prepare('SELECT COUNT(*) as count FROM "Grade" WHERE subjectInstanceId = ?').get(i.id) as any
+                ).count;
+                const scheduleCount = (
+                    db
+                        .prepare('SELECT COUNT(*) as count FROM "ScheduleEvent" WHERE subjectInstanceId = ?')
+                        .get(i.id) as any
+                ).count;
+                return `- ${i.templateName} (${i.templateCode}) | ${i.gradeName} | ${i.yearName} | ${i.hoursPerWeek}h/tý | známek: ${gradeCount}, rozvrh: ${scheduleCount} | ID: ${i.id}`;
+            });
 
             return {
                 content: [{ type: 'text', text: `Instance předmětů (${instances.length}):\n${lines.join('\n')}` }],
@@ -354,11 +373,13 @@ server.tool(
     },
     async ({ schoolId, studentIds, academicYearId, gradeLevelId, classroomId }) => {
         try {
-            // Validate references
-            const [year, grade] = await Promise.all([
-                prisma.academicYear.findFirst({ where: { id: academicYearId, schoolId } }),
-                prisma.gradeLevel.findFirst({ where: { id: gradeLevelId, schoolId } }),
-            ]);
+            const year = db
+                .prepare('SELECT name FROM "AcademicYear" WHERE id = ? AND schoolId = ?')
+                .get(academicYearId, schoolId) as any;
+            const grade = db
+                .prepare('SELECT name FROM "GradeLevel" WHERE id = ? AND schoolId = ?')
+                .get(gradeLevelId, schoolId) as any;
+
             if (!year)
                 return {
                     isError: true,
@@ -368,7 +389,9 @@ server.tool(
                 return { isError: true, content: [{ type: 'text', text: `Ročník '${gradeLevelId}' nebyl nalezen.` }] };
 
             if (classroomId) {
-                const classroom = await prisma.classroom.findFirst({ where: { id: classroomId, schoolId } });
+                const classroom = db
+                    .prepare('SELECT name FROM "Classroom" WHERE id = ? AND schoolId = ?')
+                    .get(classroomId, schoolId);
                 if (!classroom)
                     return {
                         isError: true,
@@ -379,21 +402,21 @@ server.tool(
             let enrolled = 0;
             let skipped = 0;
             const errors: string[] = [];
+            const now = new Date().toISOString();
 
             for (const studentId of studentIds) {
                 try {
-                    // Check if already enrolled
-                    const existing = await prisma.studentEnrollment.findUnique({
-                        where: { studentId_academicYearId: { studentId, academicYearId } },
-                    });
+                    const existing = db
+                        .prepare('SELECT id FROM "StudentEnrollment" WHERE studentId = ? AND academicYearId = ?')
+                        .get(studentId, academicYearId);
                     if (existing) {
                         skipped++;
                         continue;
                     }
 
-                    await prisma.studentEnrollment.create({
-                        data: { studentId, academicYearId, gradeLevelId, classroomId },
-                    });
+                    db.prepare(
+                        'INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    ).run(randomUUID(), studentId, academicYearId, gradeLevelId, classroomId || null, now, now);
                     enrolled++;
                 } catch (err: any) {
                     errors.push(`${studentId}: ${err.message}`);

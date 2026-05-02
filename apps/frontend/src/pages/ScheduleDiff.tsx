@@ -113,8 +113,10 @@ export default function ScheduleDiff() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Porovnání rozvrhů (Diff)</h1>
-                    <p className="text-muted-foreground">Vytvořte snapshoty rozvrhu a porovnávejte změny</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.substitutions_compare')}</h1>
+                    <p className="text-muted-foreground">
+                        {t('schedule.diff_desc', 'Vytvořte snapshoty rozvrhu a porovnávejte změny')}
+                    </p>
                 </div>
                 <div className="flex gap-2 items-center">
                     <Select
@@ -126,7 +128,7 @@ export default function ScheduleDiff() {
                         }}
                     >
                         <SelectTrigger className="w-44">
-                            <SelectValue placeholder="Školní rok" />
+                            <SelectValue placeholder={t('sidebar.year_setup')} />
                         </SelectTrigger>
                         <SelectContent>
                             {years.map((y: any) => (
@@ -138,7 +140,7 @@ export default function ScheduleDiff() {
                     </Select>
                     <Button onClick={() => setCreateOpen(true)}>
                         <Camera className="h-4 w-4 mr-2" />
-                        Nový snapshot
+                        {t('schedule.new_snapshot')}
                     </Button>
                 </div>
             </div>
@@ -152,12 +154,12 @@ export default function ScheduleDiff() {
                     {/* Snapshots list */}
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Snapshoty</CardTitle>
+                            <CardTitle className="text-base">{t('schedule.snapshots', 'Snapshoty')}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {snapshots.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
-                                    Žádné snapshoty. Vytvořte první pro porovnávání.
+                                    {t('schedule.no_snapshots', 'Žádné snapshoty. Vytvořte první pro porovnávání.')}
                                 </p>
                             ) : (
                                 <div className="space-y-2">
@@ -205,29 +207,35 @@ export default function ScheduleDiff() {
                     {/* Diff result */}
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Výsledek porovnání</CardTitle>
+                            <CardTitle className="text-base">
+                                {t('schedule.diff_result', 'Výsledek porovnání')}
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
                             {!diff ? (
                                 <p className="text-muted-foreground text-sm">
-                                    Vyberte snapshot a klikněte na "Diff" pro porovnání s aktuálním rozvrhem.
+                                    {t(
+                                        'schedule.diff_select_prompt',
+                                        'Vyberte snapshot a klikněte na "Diff" pro porovnání s aktuálním rozvrhem.',
+                                    )}
                                 </p>
                             ) : (
                                 <div className="space-y-4">
                                     <p className="text-sm">
-                                        Porovnání snapshotu <strong>{diff.snapshotName}</strong> (
-                                        {new Date(diff.snapshotDate).toLocaleDateString('cs-CZ')}) s aktuálním rozvrhem:
+                                        {t('schedule.comparing_snapshot', { name: diff.snapshotName })} (
+                                        {new Date(diff.snapshotDate).toLocaleDateString('cs-CZ')}){' '}
+                                        {t('schedule.with_current', 's aktuálním rozvrhem:')}
                                     </p>
 
                                     {diff.added.length > 0 && (
                                         <div>
                                             <Badge className="bg-green-500/10 text-green-700 mb-2">
-                                                + Přidáno ({diff.added.length})
+                                                + {t('curriculum.added')} ({diff.added.length})
                                             </Badge>
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>Událost</TableHead>
+                                                        <TableHead>{t('common.event')}</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -246,12 +254,12 @@ export default function ScheduleDiff() {
                                     {diff.removed.length > 0 && (
                                         <div>
                                             <Badge className="bg-red-500/10 text-red-700 mb-2">
-                                                − Odebráno ({diff.removed.length})
+                                                − {t('curriculum.removed_label')} ({diff.removed.length})
                                             </Badge>
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>Událost</TableHead>
+                                                        <TableHead>{t('common.event')}</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -270,13 +278,13 @@ export default function ScheduleDiff() {
                                     {diff.changed.length > 0 && (
                                         <div>
                                             <Badge className="bg-yellow-500/10 text-yellow-700 mb-2">
-                                                ~ Změněno ({diff.changed.length})
+                                                ~ {t('curriculum.changed_label')} ({diff.changed.length})
                                             </Badge>
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>Původní</TableHead>
-                                                        <TableHead>Aktuální</TableHead>
+                                                        <TableHead>{t('schedule.original', 'Původní')}</TableHead>
+                                                        <TableHead>{t('schedule.current', 'Aktuální')}</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -313,11 +321,11 @@ export default function ScheduleDiff() {
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Nový snapshot rozvrhu</DialogTitle>
+                        <DialogTitle>{t('schedule.new_snapshot')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
-                            <Label>Název</Label>
+                            <Label>{t('common.title')}</Label>
                             <Input
                                 value={snapshotName}
                                 onChange={(e) => setSnapshotName(e.target.value)}
@@ -333,7 +341,7 @@ export default function ScheduleDiff() {
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>
                             Zrušit
                         </Button>
-                        <Button onClick={handleCreateSnapshot}>Vytvořit snapshot</Button>
+                        <Button onClick={handleCreateSnapshot}>{t('schedule.create_snapshot')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -342,16 +350,16 @@ export default function ScheduleDiff() {
             <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Smazat snapshot?</AlertDialogTitle>
-                        <AlertDialogDescription>Tato akce je nevratná.</AlertDialogDescription>
+                        <AlertDialogTitle>{t('common.delete_snapshot_title')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('common.delete_snapshot_confirm')}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground"
                         >
-                            Smazat
+                            {t('common.delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

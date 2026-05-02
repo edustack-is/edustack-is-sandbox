@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
+const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
@@ -23,16 +22,15 @@ async function check() {
         return;
     }
 
-    const adapter = new PrismaBetterSqlite3({ url: dbPath });
-    const prisma = new PrismaClient({ adapter });
+    const db = new Database(dbPath);
 
     try {
-        const secrets = await prisma.systemSecret.findMany();
+        const secrets = db.prepare('SELECT * FROM SystemSecret').all();
         console.log(`✅ Success! Found ${secrets.length} secrets in SystemSecret table.`);
     } catch (e) {
         console.error('❌ Error query SystemSecret table:', e.message);
     } finally {
-        await prisma.$disconnect();
+        db.close();
     }
 }
 

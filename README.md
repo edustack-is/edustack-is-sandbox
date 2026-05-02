@@ -59,7 +59,7 @@ npm run db:init
 | :--------------- | :------------------ | :------------------------------------------ |
 | **Reset / Init** | `npm run db:init`   | Vytvoří/aktualizuje lokální D1 schéma       |
 | **Deploy**       | `npm run db:deploy` | Přenese změny schématu do Cloudflare Cloudu |
-| **Prohlížení**   | `npm run db:studio` | Otevře grafické rozhraní Prisma Studio      |
+| **Prohlížení**   | `npm run db:view`   | Otevře SQLite prohlížeč (např. DBeaver)     |
 
 ### 3. Demo Data
 

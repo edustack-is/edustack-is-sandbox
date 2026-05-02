@@ -220,7 +220,7 @@ export function SystemAdminSettings() {
                     </TabsTrigger>
                     <TabsTrigger value="testdata" className="flex items-center gap-2">
                         <Database className="h-4 w-4" />
-                        Testovací data
+                        {t('system_settings.test_data_tab', 'Testovací data')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -1146,11 +1146,11 @@ function SystemConfigTab() {
             <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving ? (
                     <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" /> Ukládám...
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('common.saving')}
                     </>
                 ) : (
                     <>
-                        <Save className="h-4 w-4 mr-2" /> Uložit nastavení
+                        <Save className="h-4 w-4 mr-2" /> {t('system_settings.save_button', 'Uložit nastavení')}
                     </>
                 )}
             </Button>

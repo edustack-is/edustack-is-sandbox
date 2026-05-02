@@ -145,7 +145,7 @@ export default function CompetencyMapping() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Výstupy dle RVP</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.rvp_outputs')}</h1>
                     <p className="text-muted-foreground">Mapování kompetencí na předměty a ročníky</p>
                 </div>
                 <Button
@@ -300,7 +300,7 @@ export default function CompetencyMapping() {
                                                             className="p-1 rounded hover:bg-muted transition-colors"
                                                         >
                                                             {isMapped(comp.id, s.id, g.id) ? (
-                                                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                                                <CheckCircle className="h-5 w-5 text-primary" />
                                                             ) : (
                                                                 <Circle className="h-5 w-5 text-muted-foreground/30" />
                                                             )}

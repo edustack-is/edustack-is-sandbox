@@ -357,7 +357,7 @@ export function SystemAdminSchools() {
         setDeleting(true);
         try {
             await deleteSystemSchool(deletingSchool.id);
-            toast.success(t('system_schools.deleted_success', `Škola '${deletingSchool.name}' byla smazána.`));
+            toast.success(t('system_schools.deleted_success', { name: deletingSchool.name }));
             setDeleteDialogOpen(false);
             setDeletingSchool(null);
             setDeleteConfirmName('');
@@ -396,12 +396,12 @@ export function SystemAdminSchools() {
                 ))}
                 {deputies.map((m) => (
                     <div key={m.user.id} className="flex items-center gap-1.5">
-                        <Shield size={14} className="text-blue-500 shrink-0" />
+                        <Shield size={14} className="text-primary shrink-0" />
                         <span className="text-sm">
                             {m.user.firstName} {m.user.lastName}
                         </span>
                         <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                            {t('system_schools.role_deputy', 'Zástupce')}
+                            {t('roles.DEPUTY')}
                         </Badge>
                     </div>
                 ))}
@@ -586,7 +586,13 @@ export function SystemAdminSchools() {
                                                         <FormItem>
                                                             <FormLabel>{t('system_schools.last_name')}</FormLabel>
                                                             <FormControl>
-                                                                <Input placeholder="Novák" {...field} />
+                                                                <Input
+                                                                    placeholder={t(
+                                                                        'common.last_name_placeholder',
+                                                                        'Novák',
+                                                                    )}
+                                                                    {...field}
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -1006,12 +1012,15 @@ export function SystemAdminSchools() {
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>{t('system_schools.delete_title', 'Smazat školu')}</AlertDialogTitle>
+                        <AlertDialogTitle>{t('system_schools.delete_title')}</AlertDialogTitle>
                         <AlertDialogDescription className="space-y-3">
                             <span className="block">
                                 {t(
                                     'system_schools.delete_warning',
-                                    'Tato akce je nevratná. Budou smazána VŠECHNA data školy včetně uživatelů, tříd, známek, rozvrhů a docházky.',
+                                    t(
+                                        'system_schools.delete_irreversible_warning',
+                                        'Tato akce je nevratná. Budou smazána VŠECHNA data školy včetně uživatelů, tříd, známek, rozvrhů a docházky.',
+                                    ),
                                 )}
                             </span>
                             <span className="block font-medium text-foreground">
@@ -1033,9 +1042,7 @@ export function SystemAdminSchools() {
                             disabled={deleting || deleteConfirmName !== deletingSchool?.name}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {deleting
-                                ? t('system_schools.deleting', 'Mazání...')
-                                : t('system_schools.delete_confirm', 'Smazat školu')}
+                            {deleting ? t('common.deleting', 'Mazání...') : t('system_schools.delete_confirm')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

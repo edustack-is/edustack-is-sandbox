@@ -3,7 +3,6 @@ import { SystemAdminService } from './system-admin.service';
 import { SystemAdminController } from './system-admin.controller';
 import { SystemSettingsService } from './system-settings.service';
 import { SystemAdminAiService } from './system-admin-ai.service';
-import { SystemAdminAiController } from './system-admin-ai.controller';
 import { CryptoModule } from '../shared/crypto/crypto.module';
 import { BackupService } from './backup.service';
 import { BackupController } from './backup.controller';
@@ -19,7 +18,6 @@ import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service'
   imports: [CryptoModule, MailModule],
   controllers: [
     SystemAdminController,
-    SystemAdminAiController,
     BackupController,
     TestDataController,
     MonitoringController,

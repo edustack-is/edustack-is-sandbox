@@ -17,14 +17,16 @@ import {
     Globe,
     PanelLeftClose,
     PanelLeftOpen,
-    ClipboardList,
     FileText,
     MessageSquare,
     Target,
-    Presentation,
     Clock,
     GitCompare,
+    History,
+    Presentation,
+    Monitor,
 } from 'lucide-react';
+// Force refresh: 2026-05-02 18:45:00
 import { ThemeToggle } from '../ThemeToggle';
 import clsx from 'clsx';
 import { getMe } from '@/api';
@@ -78,15 +80,15 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ to, icon: Icon, label, 
             data-testid={testId}
             className={({ isActive }) =>
                 clsx(
-                    'nav-item flex items-center rounded-md transition-colors duration-200',
-                    'hover:bg-accent hover:text-accent-foreground',
+                    'nav-item flex items-center rounded-md transition-all duration-200 group',
+                    'hover:bg-primary/5 hover:text-primary',
                     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
                     collapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-4 py-2.5',
-                    { 'bg-accent text-accent-foreground font-medium': isActive },
+                    { 'bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20': isActive },
                 )
             }
         >
-            <Icon size={collapsed ? 21 : 18} className="shrink-0" />
+            <Icon size={collapsed ? 21 : 18} className={clsx('shrink-0 transition-transform group-hover:scale-110')} />
             {!collapsed && <span>{label}</span>}
         </NavLink>
     );
@@ -126,7 +128,7 @@ export const Sidebar: React.FC = () => {
         { path: '/dashboard', label: t('common.dashboard'), icon: LayoutDashboard },
         { path: '/schedule', label: t('sidebar.schedule', 'Rozvrh'), icon: Calendar },
         { path: '/grading', label: t('sidebar.grading', 'Klasifikace'), icon: GraduationCap },
-        { path: '/attendance', label: t('sidebar.attendance', 'Docházka'), icon: Calendar },
+        { path: '/attendance', label: t('sidebar.attendance', 'Docházka'), icon: CalendarDays },
         { path: '/classbook', label: t('sidebar.classbook', 'Třídní kniha'), icon: BookOpen },
         { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
         { path: '/messages', label: t('sidebar.messages', 'Zprávy'), icon: MessageSquare },
@@ -137,28 +139,30 @@ export const Sidebar: React.FC = () => {
         { path: '/school/rooms', label: t('sidebar.rooms', 'Učebny'), icon: DoorOpen },
         { path: '/school/events', label: t('sidebar.events', 'Události'), icon: CalendarDays },
         { path: '/school/curriculum', label: t('sidebar.curriculum', 'Předměty a ŠVP'), icon: BookOpen },
-        { path: '/school/thematic-plans', label: t('sidebar.thematic_plans', 'Tematické plány'), icon: ClipboardList },
+        { path: '/school/thematic-plans', label: t('sidebar.thematic_plans', 'Tematické plány'), icon: FileText },
         {
             path: '/school/lesson-preparations',
             label: t('sidebar.lesson_preparations', 'Přípravy na hodiny'),
             icon: FileText,
         },
-        { path: '/school/teaching-materials', label: t('sidebar.teaching_materials', 'Materiály'), icon: Presentation },
-        { path: '/school/competency-mapping', label: t('sidebar.competency_mapping', 'Výstupy RVP'), icon: Target },
-        { path: '/schedule/planner', label: t('sidebar.schedule_planner', 'Plánování rozvrhu'), icon: CalendarDays },
+        { path: '/school/teaching-materials', label: t('sidebar.materials', 'Materiály'), icon: Presentation },
+        { path: '/school/competency-mapping', label: t('sidebar.rvp_outputs', 'Výstupy RVP'), icon: Target },
+        { path: '/schedule/planner', label: t('sidebar.planner', 'Plánování rozvrhu'), icon: CalendarDays },
         { path: '/schedule/substitutions', label: t('sidebar.substitutions', 'Suplování'), icon: CalendarDays },
         { path: '/schedule/bell', label: t('sidebar.bell_schedule', 'Zvonění'), icon: Clock },
-        { path: '/schedule/diff', label: t('sidebar.schedule_diff', 'Porovnání rozvrhů'), icon: GitCompare },
-        { path: '/schedule/recurring-events', label: t('sidebar.recurring_events', 'Kroužky'), icon: Calendar },
+        { path: '/schedule/diff', label: t('sidebar.substitutions_compare', 'Porovnání rozvrhů'), icon: GitCompare },
+        { path: '/schedule/recurring-events', label: t('sidebar.clubs', 'Kroužky'), icon: Calendar },
         { path: '/grading/report-cards', label: t('sidebar.report_cards', 'Vysvědčení'), icon: FileText },
         { path: '/grading/measures', label: t('sidebar.measures', 'Výchovná opatření'), icon: FileText },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
+        { path: '/school/users', label: t('sidebar.users', 'Uživatelé'), icon: Users },
+        { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
     ];
 
     // Principal/Deputy items (also visible to ADMIN)
     const principalItems = [
         { path: '/school/users', label: t('common.users'), icon: Users },
-        { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: ClipboardList },
+        { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
     ];
 
     useEffect(() => {
@@ -203,7 +207,9 @@ export const Sidebar: React.FC = () => {
                     {!collapsed ? (
                         <>
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-xl font-bold text-primary">EduStack</h1>
+                                <h1 className="text-xl font-black text-primary tracking-tighter uppercase italic">
+                                    EduStack
+                                </h1>
                                 {hasSchoolContext && currentSchool && (
                                     <div className="mt-3 space-y-2">
                                         <div className="flex items-center gap-2">
@@ -255,7 +261,7 @@ export const Sidebar: React.FC = () => {
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={toggleCollapsed}
-                                    className="p-1.5 rounded-md text-primary hover:bg-accent transition-colors"
+                                    className="p-1.5 rounded-md text-primary hover:bg-primary/10 transition-colors"
                                     title={t('sidebar.expand', 'Rozbalit menu')}
                                 >
                                     <PanelLeftOpen size={22} />
@@ -312,6 +318,13 @@ export const Sidebar: React.FC = () => {
                                 label={t('sidebar.system_settings')}
                                 collapsed={collapsed}
                                 data-testid="sidebar-system-settings"
+                            />
+                            <SidebarNavItem
+                                to="/system/settings#monitoring"
+                                icon={Monitor}
+                                label={t('sidebar.monitoring', 'Monitoring')}
+                                collapsed={collapsed}
+                                data-testid="sidebar-system-monitoring"
                             />
                         </>
                     )}
@@ -466,7 +479,7 @@ export const Sidebar: React.FC = () => {
                 </div>
 
                 {/* User section */}
-                <div className={clsx('border-t border-border', collapsed ? 'p-2' : 'p-4')}>
+                <div className={clsx('border-t border-border', collapsed ? 'p-2' : 'p-4 bg-primary/[0.03]')}>
                     {user ? (
                         collapsed ? (
                             /* Collapsed user section — just avatar with tooltip */
@@ -475,9 +488,9 @@ export const Sidebar: React.FC = () => {
                                     <TooltipTrigger asChild>
                                         <button
                                             onClick={() => navigate('/profile')}
-                                            className="rounded-full hover:ring-2 hover:ring-primary/30 transition-all"
+                                            className="rounded-full hover:ring-2 hover:ring-primary/30 transition-all shadow-sm"
                                         >
-                                            <Avatar className="h-9 w-9">
+                                            <Avatar className="h-9 w-9 border border-primary/10">
                                                 {user.avatarUrl?.startsWith('emoji:') ? (
                                                     <div
                                                         className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getEmojiAvatarBg(user.avatarUrl)}`}
@@ -493,7 +506,7 @@ export const Sidebar: React.FC = () => {
                                                         className="w-full h-full object-cover rounded-full"
                                                     />
                                                 ) : (
-                                                    <AvatarFallback className="text-xs">
+                                                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                                                         {user.firstName?.[0]}
                                                         {user.lastName?.[0]}
                                                     </AvatarFallback>
@@ -526,7 +539,7 @@ export const Sidebar: React.FC = () => {
                             /* Expanded user section — full info */
                             <div className="flex flex-col space-y-3">
                                 <div className="flex items-center space-x-3">
-                                    <Avatar>
+                                    <Avatar className="border border-primary/10 shadow-sm">
                                         {user.avatarUrl?.startsWith('emoji:') ? (
                                             <div
                                                 className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getEmojiAvatarBg(user.avatarUrl)}`}
@@ -540,7 +553,7 @@ export const Sidebar: React.FC = () => {
                                                 className="w-full h-full object-cover rounded-full"
                                             />
                                         ) : (
-                                            <AvatarFallback>
+                                            <AvatarFallback className="bg-primary text-primary-foreground font-bold">
                                                 {user.firstName?.[0]}
                                                 {user.lastName?.[0]}
                                             </AvatarFallback>
@@ -559,8 +572,12 @@ export const Sidebar: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2 w-full mt-2">
-                                    <Badge variant="outline" className="w-fit">
-                                        {user.role || (isSystemAdmin ? 'System Admin' : 'User')}
+                                    <Badge className="w-fit">
+                                        {tokenType === 'GLOBAL' && isSystemAdmin
+                                            ? t('roles.SYSTEM_ADMIN')
+                                            : role
+                                              ? t(`roles.${role}`, { defaultValue: role })
+                                              : t('profile.user_role')}
                                     </Badge>
                                     <div className="space-y-1 w-full">
                                         <Button

@@ -363,7 +363,7 @@ export function RvpImportDialog({ onClose, onImported }: { onClose: () => void; 
                                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-600/20 flex items-center justify-center">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
-                                <Sparkles className="h-5 w-5 text-violet-500 absolute -top-1 -right-1 animate-pulse" />
+                                <Sparkles className="h-5 w-5 text-primary absolute -top-1 -right-1 animate-pulse" />
                             </div>
                             <div className="text-center space-y-1">
                                 <p className="font-semibold">{t('rvp_import.analyzing_title')}</p>
@@ -379,7 +379,7 @@ export function RvpImportDialog({ onClose, onImported }: { onClose: () => void; 
                             <Card className="border-violet-200 dark:border-violet-800">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-base flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4 text-violet-500" />
+                                        <BookOpen className="h-4 w-4 text-primary" />
                                         {preview.extraction.documentTitle}
                                     </CardTitle>
                                     <CardDescription>

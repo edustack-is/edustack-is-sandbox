@@ -113,7 +113,7 @@ export default function LessonPreparations() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Přípravy na hodiny</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.lesson_preparations')}</h1>
                     <p className="text-muted-foreground">Plánování a reflexe vyučovacích hodin</p>
                 </div>
                 <Button
@@ -144,8 +144,8 @@ export default function LessonPreparations() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Datum</TableHead>
-                            <TableHead>Název</TableHead>
-                            <TableHead>Téma</TableHead>
+                            <TableHead>{t('common.title')}</TableHead>
+                            <TableHead>{t('common.topic')}</TableHead>
                             <TableHead>Předmět</TableHead>
                             <TableHead>Min</TableHead>
                             <TableHead></TableHead>
@@ -242,7 +242,7 @@ export default function LessonPreparations() {
                             <Input
                                 value={form.topic}
                                 onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
-                                placeholder="Téma hodiny"
+                                placeholder={t('common.topic')}
                             />
                         </div>
                         <div className="space-y-1">
@@ -262,7 +262,7 @@ export default function LessonPreparations() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Pomůcky</Label>
+                            <Label>{t('common.tools')}</Label>
                             <Input
                                 value={form.materials}
                                 onChange={(e) => setForm((f) => ({ ...f, materials: e.target.value }))}

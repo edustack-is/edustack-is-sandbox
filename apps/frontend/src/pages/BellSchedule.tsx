@@ -86,8 +86,12 @@ export default function BellSchedule() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Zvonění (Bell Schedule)</h1>
-                    <p className="text-muted-foreground">Nastavení časů vyučovacích hodin a přestávek</p>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        {t('sidebar.bell_schedule', 'Zvonění (Bell Schedule)')}
+                    </h1>
+                    <p className="text-muted-foreground">
+                        {t('schedule.bell_desc', 'Nastavení časů vyučovacích hodin a přestávek')}
+                    </p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={addSlot}>
@@ -95,7 +99,7 @@ export default function BellSchedule() {
                     </Button>
                     <Button onClick={handleSave} disabled={saving}>
                         <Save className="h-4 w-4 mr-2" />
-                        {saving ? 'Ukládám...' : 'Uložit'}
+                        {saving ? t('common.saving') : t('common.save')}
                     </Button>
                 </div>
             </div>
@@ -109,7 +113,7 @@ export default function BellSchedule() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Clock className="h-5 w-5" />
-                            Přehled zvonění
+                            {t('schedule.bell_overview', 'Přehled zvonění')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -117,10 +121,10 @@ export default function BellSchedule() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-16">#</TableHead>
-                                    <TableHead>Označení</TableHead>
-                                    <TableHead>Začátek</TableHead>
-                                    <TableHead>Konec</TableHead>
-                                    <TableHead>Přestávka (min)</TableHead>
+                                    <TableHead>{t('common.label', 'Označení')}</TableHead>
+                                    <TableHead>{t('common.start')}</TableHead>
+                                    <TableHead>{t('common.end')}</TableHead>
+                                    <TableHead>{t('schedule.break', 'Přestávka')} (min)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -170,7 +174,9 @@ export default function BellSchedule() {
 
                         {/* Visual timeline */}
                         <div className="mt-6 space-y-1">
-                            <Label className="text-sm font-medium">Vizuální přehled</Label>
+                            <Label className="text-sm font-medium">
+                                {t('schedule.visual_overview', 'Vizuální přehled')}
+                            </Label>
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {slots.map((slot, i) => (
                                     <div key={i} className="flex items-center gap-1">

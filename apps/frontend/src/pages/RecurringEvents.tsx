@@ -217,7 +217,7 @@ export default function RecurringEvents() {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
-                            <Label>Název</Label>
+                            <Label>{t('common.title')}</Label>
                             <Input
                                 value={form.title}
                                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -264,7 +264,7 @@ export default function RecurringEvents() {
                             <Label>Místnost (volitelné)</Label>
                             <Select value={form.roomId} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v }))}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte místnost" />
+                                    <SelectValue placeholder={t('common.select_room')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">—</SelectItem>
@@ -285,7 +285,7 @@ export default function RecurringEvents() {
                                 onValueChange={(v) => setForm((f) => ({ ...f, teacherId: v }))}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte učitele" />
+                                    <SelectValue placeholder={t('common.select_teacher')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">—</SelectItem>
@@ -316,7 +316,7 @@ export default function RecurringEvents() {
                         <AlertDialogDescription>Tato akce je nevratná.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground"

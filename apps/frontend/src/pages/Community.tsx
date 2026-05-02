@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pin, Trash2, Calendar, BarChart3, Megaphone } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import {
     getBulletinPosts,
     createBulletinPost,
@@ -23,6 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 
 export default function Community() {
+    const { t } = useTranslation();
+
     // Bulletin
     const [posts, setPosts] = useState<any[]>([]);
     const [postDialog, setPostDialog] = useState(false);
@@ -48,21 +51,21 @@ export default function Community() {
         try {
             setPosts(await getBulletinPosts());
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
     const loadPolls = async () => {
         try {
             setPolls(await getPolls());
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
     const loadEvents = async () => {
         try {
             setEvents(await getCalendarEvents());
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
@@ -72,78 +75,80 @@ export default function Community() {
 
     const handleCreatePost = async () => {
         if (!postForm.title || !postForm.content) {
-            toast.error('Vyplňte název a obsah');
+            toast.error(t('test_data.generate_error', 'Vyplňte název a obsah'));
             return;
         }
         try {
             await createBulletinPost(postForm);
-            toast.success('Příspěvek vytvořen');
+            toast.success(t('common.success'));
             setPostDialog(false);
             setPostForm({ title: '', content: '', pinned: false });
             loadPosts();
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
     const handleCreatePoll = async () => {
         const opts = pollForm.options.filter((o) => o.trim());
         if (!pollForm.question || opts.length < 2) {
-            toast.error('Zadejte otázku a alespoň 2 možnosti');
+            toast.error(t('common.error'));
             return;
         }
         try {
             await createPoll({ ...pollForm, options: opts });
-            toast.success('Anketa vytvořena');
+            toast.success(t('common.success'));
             setPollDialog(false);
             setPollForm({ question: '', options: ['', ''], multiSelect: false, endsAt: '' });
             loadPolls();
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
     const handleVote = async (optionId: string) => {
         try {
             await votePoll(optionId);
-            toast.success('Hlas odeslán');
+            toast.success(t('common.success'));
             loadPolls();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
     const handleCreateEvent = async () => {
         if (!eventForm.title || !eventForm.startDate) {
-            toast.error('Vyplňte název a datum');
+            toast.error(t('common.error'));
             return;
         }
         try {
             await createCalendarEvent(eventForm);
-            toast.success('Událost vytvořena');
+            toast.success(t('common.success'));
             setEventDialog(false);
             setEventForm({ title: '', description: '', startDate: '', endDate: '', location: '' });
             loadEvents();
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
     const handleRsvp = async (eventId: string, status: 'YES' | 'NO' | 'MAYBE') => {
         try {
             await rsvpEvent(eventId, status);
-            toast.success('Odpověď uložena');
+            toast.success(t('common.success'));
             loadEvents();
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight">Komunita</h1>
-                <p className="text-muted-foreground">Nástěnka, ankety a kalendář událostí</p>
+                <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.community')}</h1>
+                <p className="text-muted-foreground">
+                    {t('community.subtitle', 'Nástěnka, ankety a kalendář událostí')}
+                </p>
             </div>
 
             <Tabs
@@ -156,15 +161,15 @@ export default function Community() {
                 <TabsList>
                     <TabsTrigger value="bulletin">
                         <Megaphone className="h-4 w-4 mr-1" />
-                        Nástěnka
+                        {t('community.bulletin', 'Nástěnka')}
                     </TabsTrigger>
                     <TabsTrigger value="polls">
                         <BarChart3 className="h-4 w-4 mr-1" />
-                        Ankety
+                        {t('community.polls', 'Ankety')}
                     </TabsTrigger>
                     <TabsTrigger value="events">
                         <Calendar className="h-4 w-4 mr-1" />
-                        Události
+                        {t('sidebar.events')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -173,13 +178,13 @@ export default function Community() {
                     <div className="flex justify-end mb-4">
                         <Button onClick={() => setPostDialog(true)}>
                             <Plus className="h-4 w-4 mr-1" />
-                            Nový příspěvek
+                            {t('community.new_post', 'Nový příspěvek')}
                         </Button>
                     </div>
                     {posts.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
-                                Žádné příspěvky
+                                {t('community.no_posts', 'Žádné příspěvky')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -225,12 +230,14 @@ export default function Community() {
                     <div className="flex justify-end mb-4">
                         <Button onClick={() => setPollDialog(true)}>
                             <Plus className="h-4 w-4 mr-1" />
-                            Nová anketa
+                            {t('common.new_poll')}
                         </Button>
                     </div>
                     {polls.length === 0 ? (
                         <Card>
-                            <CardContent className="py-12 text-center text-muted-foreground">Žádné ankety</CardContent>
+                            <CardContent className="py-12 text-center text-muted-foreground">
+                                {t('community.no_polls', 'Žádné ankety')}
+                            </CardContent>
                         </Card>
                     ) : (
                         <div className="space-y-4">
@@ -247,7 +254,7 @@ export default function Community() {
                                                     ` · do ${new Date(poll.endsAt).toLocaleDateString('cs-CZ')}`}
                                                 {poll.multiSelect && (
                                                     <Badge variant="outline" className="ml-2 text-xs">
-                                                        Více odpovědí
+                                                        {t('community.multi_select', 'Více odpovědí')}
                                                     </Badge>
                                                 )}
                                             </CardDescription>
@@ -280,7 +287,7 @@ export default function Community() {
                                                 );
                                             })}
                                             <p className="text-xs text-muted-foreground mt-2">
-                                                Celkem hlasů: {totalVotes}
+                                                {t('common.total', 'Celkem')} {t('common.votes', 'hlasů')}: {totalVotes}
                                             </p>
                                         </CardContent>
                                     </Card>
@@ -295,13 +302,13 @@ export default function Community() {
                     <div className="flex justify-end mb-4">
                         <Button onClick={() => setEventDialog(true)}>
                             <Plus className="h-4 w-4 mr-1" />
-                            Nová událost
+                            {t('community.new_event', 'Nová událost')}
                         </Button>
                     </div>
                     {events.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
-                                Žádné události
+                                {t('community.no_events', 'Žádné události')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -329,7 +336,7 @@ export default function Community() {
                                                     className="text-green-600"
                                                     onClick={() => handleRsvp(ev.id, 'YES')}
                                                 >
-                                                    ✓ Ano ({yes})
+                                                    ✓ {t('common.yes', 'Ano')} ({yes})
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -337,7 +344,7 @@ export default function Community() {
                                                     className="text-yellow-600"
                                                     onClick={() => handleRsvp(ev.id, 'MAYBE')}
                                                 >
-                                                    ? Možná ({maybe})
+                                                    ? {t('common.maybe', 'Možná')} ({maybe})
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -345,7 +352,7 @@ export default function Community() {
                                                     className="text-red-600"
                                                     onClick={() => handleRsvp(ev.id, 'NO')}
                                                 >
-                                                    ✗ Ne ({no})
+                                                    ✗ {t('common.no', 'Ne')} ({no})
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -361,18 +368,18 @@ export default function Community() {
             <Dialog open={postDialog} onOpenChange={setPostDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Nový příspěvek</DialogTitle>
+                        <DialogTitle>{t('community.new_post', 'Nový příspěvek')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div>
-                            <Label>Název</Label>
+                            <Label>{t('common.title')}</Label>
                             <Input
                                 value={postForm.title}
                                 onChange={(e) => setPostForm((f) => ({ ...f, title: e.target.value }))}
                             />
                         </div>
                         <div>
-                            <Label>Obsah</Label>
+                            <Label>{t('community.content', 'Obsah')}</Label>
                             <Textarea
                                 value={postForm.content}
                                 onChange={(e) => setPostForm((f) => ({ ...f, content: e.target.value }))}
@@ -384,14 +391,14 @@ export default function Community() {
                                 checked={postForm.pinned}
                                 onCheckedChange={(v) => setPostForm((f) => ({ ...f, pinned: v }))}
                             />
-                            <Label>Připnout</Label>
+                            <Label>{t('common.pin')}</Label>
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setPostDialog(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleCreatePost}>Vytvořit</Button>
+                        <Button onClick={handleCreatePost}>{t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -400,11 +407,11 @@ export default function Community() {
             <Dialog open={pollDialog} onOpenChange={setPollDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Nová anketa</DialogTitle>
+                        <DialogTitle>{t('common.new_poll')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div>
-                            <Label>Otázka</Label>
+                            <Label>{t('common.question')}</Label>
                             <Input
                                 value={pollForm.question}
                                 onChange={(e) => setPollForm((f) => ({ ...f, question: e.target.value }))}
@@ -412,7 +419,9 @@ export default function Community() {
                         </div>
                         {pollForm.options.map((opt, i) => (
                             <div key={i}>
-                                <Label>Možnost {i + 1}</Label>
+                                <Label>
+                                    {t('community.option', 'Možnost')} {i + 1}
+                                </Label>
                                 <Input
                                     value={opt}
                                     onChange={(e) => {
@@ -428,17 +437,19 @@ export default function Community() {
                             size="sm"
                             onClick={() => setPollForm((f) => ({ ...f, options: [...f.options, ''] }))}
                         >
-                            + Přidat možnost
+                            {t('community.add_option', '+ Přidat možnost')}
                         </Button>
                         <div className="flex items-center gap-2">
                             <Switch
                                 checked={pollForm.multiSelect}
                                 onCheckedChange={(v) => setPollForm((f) => ({ ...f, multiSelect: v }))}
                             />
-                            <Label>Více odpovědí</Label>
+                            <Label>{t('community.multi_select', 'Více odpovědí')}</Label>
                         </div>
                         <div>
-                            <Label>Konec (volitelné)</Label>
+                            <Label>
+                                {t('common.end')} ({t('common.optional', 'volitelné')})
+                            </Label>
                             <Input
                                 type="datetime-local"
                                 value={pollForm.endsAt}
@@ -448,9 +459,9 @@ export default function Community() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setPollDialog(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleCreatePoll}>Vytvořit</Button>
+                        <Button onClick={handleCreatePoll}>{t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -459,18 +470,18 @@ export default function Community() {
             <Dialog open={eventDialog} onOpenChange={setEventDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Nová událost</DialogTitle>
+                        <DialogTitle>{t('community.new_event', 'Nová událost')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div>
-                            <Label>Název</Label>
+                            <Label>{t('common.title')}</Label>
                             <Input
                                 value={eventForm.title}
                                 onChange={(e) => setEventForm((f) => ({ ...f, title: e.target.value }))}
                             />
                         </div>
                         <div>
-                            <Label>Popis</Label>
+                            <Label>{t('common.description', 'Popis')}</Label>
                             <Textarea
                                 value={eventForm.description}
                                 onChange={(e) => setEventForm((f) => ({ ...f, description: e.target.value }))}
@@ -479,7 +490,7 @@ export default function Community() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <Label>Od</Label>
+                                <Label>{t('common.from', 'Od')}</Label>
                                 <Input
                                     type="datetime-local"
                                     value={eventForm.startDate}
@@ -487,7 +498,7 @@ export default function Community() {
                                 />
                             </div>
                             <div>
-                                <Label>Do</Label>
+                                <Label>{t('common.to', 'Do')}</Label>
                                 <Input
                                     type="datetime-local"
                                     value={eventForm.endDate}
@@ -496,7 +507,7 @@ export default function Community() {
                             </div>
                         </div>
                         <div>
-                            <Label>Místo</Label>
+                            <Label>{t('common.location')}</Label>
                             <Input
                                 value={eventForm.location}
                                 onChange={(e) => setEventForm((f) => ({ ...f, location: e.target.value }))}
@@ -505,9 +516,9 @@ export default function Community() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEventDialog(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleCreateEvent}>Vytvořit</Button>
+                        <Button onClick={handleCreateEvent}>{t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

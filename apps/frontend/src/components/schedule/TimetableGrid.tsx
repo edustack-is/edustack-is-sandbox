@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -58,14 +59,6 @@ interface TimetableGridProps {
 
 // ─── Constants ──────────────────────────────────────────────
 
-const DAYS = [
-    { num: 1, label: 'Po', full: 'Pondělí' },
-    { num: 2, label: 'Út', full: 'Úterý' },
-    { num: 3, label: 'St', full: 'Středa' },
-    { num: 4, label: 'Čt', full: 'Čtvrtek' },
-    { num: 5, label: 'Pá', full: 'Pátek' },
-];
-
 const SUBJECT_COLORS: Record<string, string> = {
     // Predefined color palette for subjects
     ČJ: 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300',
@@ -96,27 +89,6 @@ function getSubjectColor(code: string): string {
     return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
 }
 
-function getSubstitutionBadge(type: SubstitutionData['type']) {
-    switch (type) {
-        case 'CANCELLED':
-            return (
-                <Badge variant="destructive" className="text-[10px] px-1 py-0">
-                    Odpadá
-                </Badge>
-            );
-        case 'SUBSTITUTION':
-            return <Badge className="text-[10px] px-1 py-0 bg-amber-500">Suplování</Badge>;
-        case 'MERGED':
-            return <Badge className="text-[10px] px-1 py-0 bg-violet-500">Spojeno</Badge>;
-        case 'ROOM_CHANGE':
-            return <Badge className="text-[10px] px-1 py-0 bg-sky-500">Změna učebny</Badge>;
-        case 'SUBJECT_CHANGE':
-            return <Badge className="text-[10px] px-1 py-0 bg-orange-500">Změna předmětu</Badge>;
-        default:
-            return null;
-    }
-}
-
 // ─── Component ──────────────────────────────────────────────
 
 const DEFAULT_SLOTS: TimeSlot[] = [
@@ -141,12 +113,42 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
     editable = false,
     highlightDate,
 }) => {
+    const { t } = useTranslation();
     const slots =
         timeSlots && timeSlots.length > 0 ? timeSlots.sort((a, b) => a.lessonNumber - b.lessonNumber) : DEFAULT_SLOTS;
 
     // Determine how many lessons to show
     const maxUsed = events.length > 0 ? Math.max(...events.map((e) => e.lessonNumber)) : 0;
     const lessonCount = maxLessons ?? Math.max(maxUsed, Math.min(slots.length, 8));
+
+    const DAYS = [
+        { num: 1, label: t('days.mon'), full: t('days.monday') },
+        { num: 2, label: t('days.tue'), full: t('days.tuesday') },
+        { num: 3, label: t('days.wed'), full: t('days.wednesday') },
+        { num: 4, label: t('days.thu'), full: t('days.thursday') },
+        { num: 5, label: t('days.fri'), full: t('days.friday') },
+    ];
+
+    const getSubstitutionBadge = (type: SubstitutionData['type']) => {
+        switch (type) {
+            case 'CANCELLED':
+                return (
+                    <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                        {t('schedule.cancelled')}
+                    </Badge>
+                );
+            case 'SUBSTITUTION':
+                return <Badge className="text-[10px] px-1 py-0 bg-amber-500">{t('sidebar.substitutions')}</Badge>;
+            case 'MERGED':
+                return <Badge className="text-[10px] px-1 py-0 bg-violet-500">Spojeno</Badge>;
+            case 'ROOM_CHANGE':
+                return <Badge className="text-[10px] px-1 py-0 bg-sky-500">{t('schedule.room_change')}</Badge>;
+            case 'SUBJECT_CHANGE':
+                return <Badge className="text-[10px] px-1 py-0 bg-orange-500">{t('schedule.subject_change')}</Badge>;
+            default:
+                return null;
+        }
+    };
 
     // Build event lookup: { dayOfWeek-lessonNumber -> event }
     const eventMap = new Map<string, ScheduleEventData>();
@@ -243,15 +245,16 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                                     {event.subject.template.name}
                                                                 </div>
                                                                 <div className="text-xs">
-                                                                    Učitel: {event.teacherProfile.user.firstName}{' '}
+                                                                    {t('common.teacher')}:{' '}
+                                                                    {event.teacherProfile.user.firstName}{' '}
                                                                     {event.teacherProfile.user.lastName}
                                                                 </div>
                                                                 <div className="text-xs">
-                                                                    Třída: {event.classroom.name}
+                                                                    {t('common.class')}: {event.classroom.name}
                                                                 </div>
                                                                 {event.room && (
                                                                     <div className="text-xs">
-                                                                        Učebna: {event.room.name}
+                                                                        {t('common.classroom')}: {event.room.name}
                                                                     </div>
                                                                 )}
                                                                 <div className="text-xs text-muted-foreground">
@@ -260,7 +263,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                                 {todaySub && (
                                                                     <div className="mt-1 pt-1 border-t">
                                                                         <div className="text-xs font-medium text-amber-600">
-                                                                            Suplování:
+                                                                            {t('sidebar.substitutions')}:
                                                                         </div>
                                                                         {todaySub.substituteTeacher && (
                                                                             <div className="text-xs">

@@ -393,7 +393,7 @@ export const Grading: React.FC = () => {
                                 <SelectValue placeholder="Pololetí..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Vše</SelectItem>
+                                <SelectItem value="all">{t('common.all')}</SelectItem>
                                 {semesters.map((s) => (
                                     <SelectItem key={s.id} value={s.id}>
                                         {s.name}
@@ -703,7 +703,7 @@ export const Grading: React.FC = () => {
                     <div className="space-y-3">
                         {/* Grade type */}
                         <div>
-                            <Label>Typ hodnocení</Label>
+                            <Label>{t('grading.type')}</Label>
                             <Select value={formType} onValueChange={setFormType}>
                                 <SelectTrigger>
                                     <SelectValue />
@@ -743,7 +743,7 @@ export const Grading: React.FC = () => {
                                     </Select>
                                 </div>
                                 <div className="w-20">
-                                    <Label>Váha</Label>
+                                    <Label>{t('grading.weight')}</Label>
                                     <Input
                                         type="number"
                                         min="0.1"

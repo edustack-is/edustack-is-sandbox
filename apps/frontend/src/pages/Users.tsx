@@ -714,7 +714,7 @@ export default function Users() {
                 <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Hledat jméno / email…"
+                        placeholder={t('common.search_placeholder', 'Hledat jméno / email…')}
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         className="w-52 h-8"
@@ -725,7 +725,7 @@ export default function Users() {
                         <SelectValue placeholder="Role…" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="ALL">Všechny role</SelectItem>
+                        <SelectItem value="ALL">{t('common.all_roles')}</SelectItem>
                         {uniqueRoles.map((r) => (
                             <SelectItem key={r} value={r}>
                                 {t(`roles.${r}`, r)}
@@ -736,10 +736,10 @@ export default function Users() {
                 {(filterRole === 'STUDENT' || filterRole === 'ALL') && classrooms.length > 0 && (
                     <Select value={filterClassroom} onValueChange={setFilterClassroom}>
                         <SelectTrigger className="w-40 h-8">
-                            <SelectValue placeholder="Třída…" />
+                            <SelectValue placeholder={t('common.class')} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ALL">Všechny třídy</SelectItem>
+                            <SelectItem value="ALL">{t('common.all_classes', 'Všechny třídy')}</SelectItem>
                             {classrooms.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>
                                     {c.name}
@@ -759,11 +759,11 @@ export default function Users() {
                             setSearchText('');
                         }}
                     >
-                        Vyčistit filtry
+                        {t('common.clear_filters', 'Vyčistit filtry')}
                     </Button>
                 )}
                 <span className="text-xs text-muted-foreground ml-auto">
-                    {filteredUsers.length} / {users.length} uživatelů
+                    {filteredUsers.length} / {users.length} {t('common.users')}
                 </span>
             </div>
 
@@ -814,7 +814,7 @@ export default function Users() {
                                             </Label>
                                             <Input
                                                 id="student-lastName"
-                                                placeholder="Novák"
+                                                placeholder={t('common.last_name_placeholder', 'Novák')}
                                                 {...studentForm.register('student.lastName')}
                                             />
                                         </div>

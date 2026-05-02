@@ -52,21 +52,34 @@ interface TeacherOption {
     user: { firstName: string; lastName: string };
 }
 
-const TYPE_CONFIG = {
-    SUBSTITUTION: { label: 'Suplování', icon: UserCheck, color: 'bg-amber-100 text-amber-800 border-amber-300' },
-    CANCELLED: { label: 'Odpadá', icon: Ban, color: 'bg-red-100 text-red-800 border-red-300' },
-    MERGED: { label: 'Spojeno', icon: ArrowLeftRight, color: 'bg-violet-100 text-violet-800 border-violet-300' },
-    ROOM_CHANGE: { label: 'Změna učebny', icon: MapPin, color: 'bg-sky-100 text-sky-800 border-sky-300' },
-    SUBJECT_CHANGE: {
-        label: 'Změna předmětu',
-        icon: BookOpen,
-        color: 'bg-orange-100 text-orange-800 border-orange-300',
-    },
-};
-
 export const ScheduleSubstitutions: React.FC = () => {
     const { t } = useTranslation();
-    const { schoolId, role } = useSchool();
+
+    const TYPE_CONFIG = {
+        SUBSTITUTION: {
+            label: t('sidebar.substitutions'),
+            icon: UserCheck,
+            color: 'bg-amber-100 text-amber-800 border-amber-300',
+        },
+        CANCELLED: { label: t('schedule.cancelled'), icon: Ban, color: 'bg-red-100 text-red-800 border-red-300' },
+        MERGED: {
+            label: t('schedule.merged', 'Spojeno'),
+            icon: ArrowLeftRight,
+            color: 'bg-violet-100 text-violet-800 border-violet-300',
+        },
+        ROOM_CHANGE: {
+            label: t('schedule.room_change'),
+            icon: MapPin,
+            color: 'bg-sky-100 text-sky-800 border-sky-300',
+        },
+        SUBJECT_CHANGE: {
+            label: t('schedule.subject_change'),
+            icon: BookOpen,
+            color: 'bg-orange-100 text-orange-800 border-orange-300',
+        },
+    };
+
+    const { role, schoolId } = useSchool();
 
     const [substitutions, setSubstitutions] = useState<SubstitutionItem[]>([]);
     const [events, setEvents] = useState<ScheduleEventBrief[]>([]);
@@ -234,7 +247,7 @@ export const ScheduleSubstitutions: React.FC = () => {
                         }}
                     >
                         <Plus className="h-4 w-4 mr-1" />
-                        Nové suplování
+                        {t('schedule.new_substitution', 'Nové suplování')}
                     </Button>
                 </div>
             </div>
@@ -248,7 +261,9 @@ export const ScheduleSubstitutions: React.FC = () => {
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                        <p className="text-lg font-medium">Žádné suplování v tomto týdnu</p>
+                        <p className="text-lg font-medium">
+                            {t('schedule.no_substitutions_week', 'Žádné suplování v tomto týdnu')}
+                        </p>
                     </CardContent>
                 </Card>
             ) : (
@@ -303,7 +318,8 @@ export const ScheduleSubstitutions: React.FC = () => {
                                                             </Badge>
                                                         </div>
                                                         <div className="text-xs text-muted-foreground mt-0.5">
-                                                            Původně: {sub.originalEvent.teacherProfile.user.lastName}{' '}
+                                                            {t('schedule.originally', 'Původně')}:{' '}
+                                                            {sub.originalEvent.teacherProfile.user.lastName}{' '}
                                                             {sub.originalEvent.teacherProfile.user.firstName}
                                                             {sub.substituteTeacher && (
                                                                 <span className="text-foreground font-medium">
@@ -340,7 +356,7 @@ export const ScheduleSubstitutions: React.FC = () => {
             <Dialog open={createDialog} onOpenChange={setCreateDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Nové suplování</DialogTitle>
+                        <DialogTitle>{t('schedule.new_substitution', 'Nové suplování')}</DialogTitle>
                     </DialogHeader>
 
                     <div className="space-y-4">
@@ -386,7 +402,7 @@ export const ScheduleSubstitutions: React.FC = () => {
 
                         {formType === 'SUBSTITUTION' && (
                             <div>
-                                <Label>Suplující učitel</Label>
+                                <Label>{t('schedule.substituting_teacher', 'Suplující učitel')}</Label>
                                 <Select value={formTeacherId} onValueChange={setFormTeacherId}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Vyberte učitele..." />
@@ -403,7 +419,7 @@ export const ScheduleSubstitutions: React.FC = () => {
                         )}
 
                         <div>
-                            <Label>Poznámka</Label>
+                            <Label>{t('common.note')}</Label>
                             <Textarea
                                 value={formNote}
                                 onChange={(e) => setFormNote(e.target.value)}
@@ -415,10 +431,10 @@ export const ScheduleSubstitutions: React.FC = () => {
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialog(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         <Button onClick={handleCreate} disabled={saving}>
-                            {saving ? 'Ukládám...' : 'Vytvořit suplování'}
+                            {saving ? t('common.saving') : t('schedule.create_substitution', 'Vytvořit suplování')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

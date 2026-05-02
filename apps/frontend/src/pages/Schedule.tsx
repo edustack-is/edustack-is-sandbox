@@ -2,15 +2,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
 import { TimetableGrid, ScheduleEventData, TimeSlot } from '@/components/schedule/TimetableGrid';
-import { getTimeSlots, getClassroomSchedule, getTeacherSchedule, getStudentSchedule, api, getMe } from '@/api';
+import {
+    getTimeSlots,
+    getClassroomSchedule,
+    getTeacherSchedule,
+    getStudentSchedule,
+    getRoomSchedule,
+    api,
+    getMe,
+} from '@/api';
 import { CalendarDays, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar, GraduationCap, UserCheck, Users } from 'lucide-react';
+import { Calendar, GraduationCap, UserCheck, Users, DoorOpen } from 'lucide-react';
 
 interface ClassroomOption {
+    id: string;
+    name: string;
+}
+
+interface RoomOption {
     id: string;
     name: string;
 }
@@ -33,7 +46,7 @@ interface SemesterOption {
     endDate: string;
 }
 
-type ViewMode = 'my' | 'classroom' | 'teacher';
+type ViewMode = 'my' | 'classroom' | 'teacher' | 'room';
 
 export const Schedule: React.FC = () => {
     const { t } = useTranslation();
@@ -48,8 +61,11 @@ export const Schedule: React.FC = () => {
     // Filter options
     const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
     const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+    const [rooms, setRooms] = useState<RoomOption[]>([]);
+
     const [selectedClassroomId, setSelectedClassroomId] = useState<string>('');
     const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+    const [selectedRoomId, setSelectedRoomId] = useState<string>('');
 
     // Student/teacher homeroom info
     const [myClassroomId, setMyClassroomId] = useState<string>('');
@@ -77,6 +93,11 @@ export const Schedule: React.FC = () => {
             const clsRes = await api.get('/api/deputy/classrooms').catch(() => ({ data: [] }));
             const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
             if (!cancelled) setClassrooms(clsList);
+
+            // Load rooms
+            const rRes = await api.get('/api/deputy/rooms').catch(() => ({ data: [] }));
+            const rList: RoomOption[] = Array.isArray(rRes.data) ? rRes.data : [];
+            if (!cancelled) setRooms(rList);
 
             // Load teachers (fallback to users list)
             let teacherList: TeacherOption[] = [];
@@ -220,13 +241,19 @@ export const Schedule: React.FC = () => {
                         }
                         break;
                     }
+                    case 'room': {
+                        if (selectedRoomId) {
+                            data = await getRoomSchedule(selectedRoomId, yearId);
+                        }
+                        break;
+                    }
                 }
 
                 if (!cancelled) setEvents(Array.isArray(data) ? data : []);
             } catch (err: any) {
                 if (!cancelled) {
                     console.error('Failed to load schedule:', err);
-                    setError(err?.response?.data?.message || 'Nepodařilo se načíst rozvrh');
+                    setError(err?.response?.data?.message || t('schedule.load_error', 'Nepodařilo se načíst rozvrh'));
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -237,20 +264,35 @@ export const Schedule: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [viewMode, schoolId, role, userId, selectedClassroomId, selectedTeacherId, selectedAcademicYearId]);
+    }, [
+        viewMode,
+        schoolId,
+        role,
+        userId,
+        selectedClassroomId,
+        selectedTeacherId,
+        selectedRoomId,
+        selectedAcademicYearId,
+    ]);
 
     // Get current view title
     const getViewTitle = () => {
         switch (viewMode) {
             case 'my':
-                return role === 'TEACHER' ? 'Můj rozvrh' : role === 'STUDENT' ? 'Můj rozvrh' : 'Rozvrh';
+                return role === 'TEACHER' || role === 'STUDENT' ? t('schedule.my_schedule') : t('schedule.title');
             case 'classroom': {
                 const cls = classrooms.find((c) => c.id === selectedClassroomId);
-                return cls ? `Rozvrh třídy ${cls.name}` : 'Rozvrh třídy';
+                return cls ? `${t('schedule.class_schedule')} ${cls.name}` : t('schedule.class_schedule');
             }
             case 'teacher': {
                 const teacher = teachers.find((t) => t.id === selectedTeacherId);
-                return teacher ? `Rozvrh — ${teacher.user.firstName} ${teacher.user.lastName}` : 'Rozvrh učitele';
+                return teacher
+                    ? `${t('schedule.teacher_schedule')} — ${teacher.user.firstName} ${teacher.user.lastName}`
+                    : t('schedule.teacher_schedule');
+            }
+            case 'room': {
+                const room = rooms.find((r) => r.id === selectedRoomId);
+                return room ? `${t('schedule.room_schedule')} ${room.name}` : t('schedule.room_schedule');
             }
         }
     };
@@ -302,11 +344,11 @@ export const Schedule: React.FC = () => {
 
     const buildPrintTable = () => {
         const days = [
-            { num: 1, label: 'Pondělí' },
-            { num: 2, label: 'Úterý' },
-            { num: 3, label: 'Středa' },
-            { num: 4, label: 'Čtvrtek' },
-            { num: 5, label: 'Pátek' },
+            { num: 1, label: t('days.monday') },
+            { num: 2, label: t('days.tuesday') },
+            { num: 3, label: t('days.wednesday') },
+            { num: 4, label: t('days.thursday') },
+            { num: 5, label: t('days.friday') },
         ];
 
         const maxLesson = events.length > 0 ? Math.max(...events.map((e) => e.lessonNumber)) : 8;
@@ -376,7 +418,7 @@ export const Schedule: React.FC = () => {
                                     .filter((y) => y.id)
                                     .map((y) => (
                                         <SelectItem key={y.id} value={y.id}>
-                                            {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                            {y.name} {y.isCurrent ? `(${t('common.active')})` : ''}
                                         </SelectItem>
                                     ))}
                             </SelectContent>
@@ -385,10 +427,10 @@ export const Schedule: React.FC = () => {
                     {semesters.length > 0 && (
                         <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
                             <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Pololetí..." />
+                                <SelectValue placeholder={t('common.semester')} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Vše</SelectItem>
+                                <SelectItem value="all">{t('common.all')}</SelectItem>
                                 {semesters
                                     .filter((s) => s.id)
                                     .map((s) => (
@@ -424,18 +466,23 @@ export const Schedule: React.FC = () => {
                 <TabsList className="grid w-full grid-cols-3 max-w-md">
                     <TabsTrigger value="my" className="flex items-center gap-1.5">
                         <UserCheck className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Můj rozvrh</span>
-                        <span className="sm:hidden">Můj</span>
+                        <span className="hidden sm:inline">{t('schedule.my_schedule')}</span>
+                        <span className="sm:hidden">{t('common.my')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="classroom" className="flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Třída</span>
-                        <span className="sm:hidden">Třída</span>
+                        <span className="hidden sm:inline">{t('common.class')}</span>
+                        <span className="sm:hidden">{t('common.class')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="teacher" className="flex items-center gap-1.5">
                         <GraduationCap className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Učitel</span>
-                        <span className="sm:hidden">Učitel</span>
+                        <span className="hidden sm:inline">{t('common.teacher')}</span>
+                        <span className="sm:hidden">{t('common.teacher')}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="room" className="flex items-center gap-1.5">
+                        <DoorOpen className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">{t('common.classroom')}</span>
+                        <span className="sm:hidden">{t('common.classroom')}</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -450,7 +497,8 @@ export const Schedule: React.FC = () => {
                                 .filter((c) => c.id)
                                 .map((c) => (
                                     <SelectItem key={c.id} value={c.id}>
-                                        {c.name} {c.id === myClassroomId ? '(moje třída)' : ''}
+                                        {c.name}{' '}
+                                        {c.id === myClassroomId ? ` (${t('common.my')} ${t('common.class')})` : ''}
                                     </SelectItem>
                                 ))}
                         </SelectContent>
@@ -465,13 +513,28 @@ export const Schedule: React.FC = () => {
                         </SelectTrigger>
                         <SelectContent>
                             {teachers
-                                .filter((t) => t.id)
-                                .map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                        {t.user.lastName} {t.user.firstName}
-                                        {t.id === myHomeroomTeacherId ? ' (třídní učitel)' : ''}
+                                .filter((tr) => tr.id)
+                                .map((tr) => (
+                                    <SelectItem key={tr.id} value={tr.id}>
+                                        {tr.user.lastName} {tr.user.firstName}{' '}
+                                        {tr.id === myHomeroomTeacherId ? ` (${t('common.teacher')})` : ''}
                                     </SelectItem>
                                 ))}
+                        </SelectContent>
+                    </Select>
+                </TabsContent>
+
+                <TabsContent value="room" className="mt-3">
+                    <Select value={selectedRoomId} onValueChange={(v) => setSelectedRoomId(v)}>
+                        <SelectTrigger className="w-full sm:w-64">
+                            <SelectValue placeholder={t('common.classroom')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {rooms.map((r) => (
+                                <SelectItem key={r.id} value={r.id}>
+                                    {r.name}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </TabsContent>

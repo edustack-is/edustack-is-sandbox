@@ -10,7 +10,7 @@
 
 ## AI Instructions
 
-- **Strict Typing (No `any`):** Always use precise TypeScript types/interfaces. The `any` type is strictly forbidden. If a library returns `any`, you must define a proper interface or use the specific type provided by the library (e.g., from `@prisma/client`).
+- **Strict Typing (No `any`):** Always use precise TypeScript types/interfaces. The `any` type is strictly forbidden. If a library returns `any`, you must define a proper interface or use the specific type provided by the library.
 - **Missing Library Types:** If official types are missing (e.g., Cloudflare D1 types in Node.js context), always define a complete local interface that satisfies the consumer's requirements (e.g., define `D1Database` with all required methods like `prepare`, `batch`, `withSession`, etc.) instead of falling back to `any`.
 - **No `@ts-ignore`:** Never use `@ts-ignore` or `@ts-nocheck` to hide errors. Fix the underlying type issue or use a proper type assertion (`as unknown as ...`) if absolutely necessary and add a comment explaining why.
 - **No `require()`:** Use standard ES `import` statements at the top of the file. CommonJS `require()` is forbidden unless it's the only possible way for a specific platform constraint (in which case, add a comment explaining why).

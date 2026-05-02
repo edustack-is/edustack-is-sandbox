@@ -1,6 +1,7 @@
 import { server } from '../server.js';
-import { prisma } from '../db.js';
+import { db, transaction } from '../db.js';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 server.tool(
     'create_school',
@@ -11,10 +12,7 @@ server.tool(
     },
     async ({ name, address }: { name: string; address?: string }) => {
         try {
-            // Check uniqueness among non-deleted schools
-            const existing = await prisma.school.findFirst({
-                where: { name, deletedAt: null },
-            });
+            const existing = db.prepare('SELECT id FROM "School" WHERE name = ? AND deletedAt IS NULL').get(name);
             if (existing) {
                 return {
                     isError: true,
@@ -22,14 +20,18 @@ server.tool(
                 };
             }
 
-            const school = await prisma.school.create({
-                data: {
-                    name,
-                    address,
-                },
-            });
+            const id = randomUUID();
+            const now = new Date().toISOString();
+            db.prepare('INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)').run(
+                id,
+                name,
+                address || null,
+                now,
+                now,
+            );
+
             return {
-                content: [{ type: 'text', text: `Škola '${name}' byla úspěšně vytvořena s ID: ${school.id}` }],
+                content: [{ type: 'text', text: `Škola '${name}' byla úspěšně vytvořena s ID: ${id}` }],
             };
         } catch (error: any) {
             return {
@@ -73,62 +75,48 @@ server.tool(
         parents?: { firstName: string; lastName: string; email: string }[];
     }) => {
         try {
-            const result = await prisma.$transaction(async (tx) => {
+            const result = transaction(() => {
+                const now = new Date().toISOString();
+                const studentId = randomUUID();
+
                 // Create student user
-                const studentUser = await tx.user.create({
-                    data: {
-                        email: student.email,
-                        firstName: student.firstName,
-                        lastName: student.lastName,
-                        passwordHash: 'awaiting_activation',
-                        schoolMemberships: {
-                            create: {
-                                schoolId,
-                                role: 'STUDENT',
-                                status: 'ACTIVE',
-                            },
-                        },
-                        studentProfile: {
-                            create: {
-                                firstName: student.firstName,
-                                lastName: student.lastName,
-                                classroomId,
-                            },
-                        },
-                    },
-                });
+                db.prepare(
+                    'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                ).run(studentId, student.email, student.firstName, student.lastName, 'awaiting_activation', now, now);
+
+                // Create membership
+                db.prepare(
+                    'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                ).run(randomUUID(), studentId, schoolId, 'STUDENT', 'ACTIVE', now, now);
+
+                // Create student profile
+                db.prepare(
+                    'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                ).run(randomUUID(), studentId, student.firstName, student.lastName, classroomId, now, now);
 
                 const createdParents = [];
                 if (parents && parents.length > 0) {
                     for (const p of parents) {
-                        const parentUser = await tx.user.create({
-                            data: {
-                                email: p.email,
-                                firstName: p.firstName,
-                                lastName: p.lastName,
-                                passwordHash: 'awaiting_activation',
-                                schoolMemberships: {
-                                    create: {
-                                        schoolId,
-                                        role: 'PARENT',
-                                        status: 'ACTIVE',
-                                    },
-                                },
-                            },
-                        });
+                        const parentId = randomUUID();
+                        db.prepare(
+                            'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        ).run(parentId, p.email, p.firstName, p.lastName, 'awaiting_activation', now, now);
+
+                        db.prepare(
+                            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        ).run(randomUUID(), parentId, schoolId, 'PARENT', 'ACTIVE', now, now);
 
                         // Link parent to student
-                        await tx.parentStudent.create({
-                            data: {
-                                parentId: parentUser.id,
-                                studentId: studentUser.id,
-                            },
-                        });
-                        createdParents.push(parentUser.id);
+                        db.prepare('INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)').run(
+                            randomUUID(),
+                            parentId,
+                            studentId,
+                        );
+                        createdParents.push(parentId);
                     }
                 }
 
-                return { studentId: studentUser.id, parentIds: createdParents };
+                return { studentId, parentIds: createdParents };
             });
 
             return {
@@ -164,33 +152,39 @@ server.tool(
     },
     async ({ schoolId, name, capacity, isComputerLab, specialEquipment }) => {
         try {
-            const existing = await prisma.room.findUnique({
-                where: { name_schoolId: { name, schoolId } },
-            });
+            const existing = db.prepare('SELECT id FROM "Room" WHERE name = ? AND schoolId = ?').get(name, schoolId);
             if (existing) {
                 return {
                     isError: true,
                     content: [
-                        { type: 'text', text: `Místnost '${name}' v této škole již existuje (ID: ${existing.id}).` },
+                        {
+                            type: 'text',
+                            text: `Místnost '${name}' v této škole již existuje (ID: ${(existing as any).id}).`,
+                        },
                     ],
                 };
             }
 
-            const room = await prisma.room.create({
-                data: {
-                    name,
-                    capacity: capacity || 30,
-                    isComputerLab: isComputerLab || false,
-                    specialEquipment: specialEquipment || [],
-                    schoolId,
-                },
-            });
+            const id = randomUUID();
+            const now = new Date().toISOString();
+            db.prepare(
+                'INSERT INTO "Room" (id, name, capacity, isComputerLab, specialEquipment, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            ).run(
+                id,
+                name,
+                capacity || 30,
+                isComputerLab ? 1 : 0,
+                JSON.stringify(specialEquipment || []),
+                schoolId,
+                now,
+                now,
+            );
 
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Učebna '${name}' vytvořena (kapacita: ${room.capacity}${room.isComputerLab ? ', PC učebna' : ''}). ID: ${room.id}`,
+                        text: `Učebna '${name}' vytvořena (kapacita: ${capacity || 30}${isComputerLab ? ', PC učebna' : ''}). ID: ${id}`,
                     },
                 ],
             };
@@ -208,10 +202,9 @@ server.tool(
     },
     async ({ schoolId }) => {
         try {
-            const rooms = await prisma.room.findMany({
-                where: { schoolId },
-                orderBy: { name: 'asc' },
-            });
+            const rooms = db
+                .prepare('SELECT * FROM "Room" WHERE schoolId = ? ORDER BY name ASC')
+                .all(schoolId) as any[];
 
             if (rooms.length === 0) {
                 return { content: [{ type: 'text', text: 'Škola nemá žádné učebny.' }] };
@@ -220,12 +213,9 @@ server.tool(
             const lines = rooms.map((r) => {
                 const extras = [];
                 if (r.isComputerLab) extras.push('PC');
-                if (
-                    r.specialEquipment &&
-                    Array.isArray(r.specialEquipment) &&
-                    (r.specialEquipment as string[]).length > 0
-                ) {
-                    extras.push((r.specialEquipment as string[]).join(', '));
+                const specialEquipment = typeof r.specialEquipment === 'string' ? JSON.parse(r.specialEquipment) : [];
+                if (specialEquipment && Array.isArray(specialEquipment) && specialEquipment.length > 0) {
+                    extras.push(specialEquipment.join(', '));
                 }
                 return `- ${r.name} (kapacita: ${r.capacity})${extras.length > 0 ? ` [${extras.join(', ')}]` : ''} | ID: ${r.id}`;
             });

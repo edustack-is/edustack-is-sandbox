@@ -49,6 +49,28 @@ export const Setup = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [isDraggingOverRestore, setIsDraggingOverRestore] = useState(false);
 
+    const processSqliteFile = useCallback((file: File) => {
+        setBackupFile(file);
+        setBackupFileName(file.name);
+        setError('');
+    }, []);
+
+    const handleDroppedFile = useCallback(
+        (file: File) => {
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.sqlite') || name.endsWith('.db')) {
+                setMode('restore');
+                processSqliteFile(file);
+                toast.success(t('setup.sqlite_detected', 'Detekována SQLite záloha'));
+            } else {
+                toast.error(
+                    t('setup.invalid_file_type_sqlite', 'Nepodporovaný typ souboru. Použijte .sqlite nebo .db.'),
+                );
+            }
+        },
+        [processSqliteFile, t],
+    );
+
     // ─── Setup/Restore completed ─────────────────────────────
 
     useEffect(() => {
@@ -103,28 +125,6 @@ export const Setup = () => {
             window.removeEventListener('drop', onDrop);
         };
     }, [handleDroppedFile]);
-
-    const processSqliteFile = useCallback((file: File) => {
-        setBackupFile(file);
-        setBackupFileName(file.name);
-        setError('');
-    }, []);
-
-    const handleDroppedFile = useCallback(
-        (file: File) => {
-            const name = file.name.toLowerCase();
-            if (name.endsWith('.sqlite') || name.endsWith('.db')) {
-                setMode('restore');
-                processSqliteFile(file);
-                toast.success(t('setup.sqlite_detected', 'Detekována SQLite záloha'));
-            } else {
-                toast.error(
-                    t('setup.invalid_file_type_sqlite', 'Nepodporovaný typ souboru. Použijte .sqlite nebo .db.'),
-                );
-            }
-        },
-        [processSqliteFile, t],
-    );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

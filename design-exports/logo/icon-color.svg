@@ -1,0 +1,15 @@
+<svg viewBox="0 0 48 58" xmlns="http://www.w3.org/2000/svg">
+  <!-- EduStack IS — S-mark icon, 6 role colors -->
+  <!-- Top bar: System Admin (Indigo) -->
+  <rect x="10" y="0" width="38" height="10" rx="5" fill="#6366F1"/>
+  <!-- Right connector: Headmaster (Dark Blue) -->
+  <rect x="38" y="5" width="10" height="22" rx="5" fill="#1E40AF"/>
+  <!-- Middle bar: Deputy Principal (Sky Blue) -->
+  <rect x="0" y="23" width="38" height="10" rx="5" fill="#0EA5E9"/>
+  <!-- Left connector: Teacher (Red) -->
+  <rect x="0" y="28" width="10" height="22" rx="5" fill="#DC2626"/>
+  <!-- Bottom bar: Parent (Green) -->
+  <rect x="10" y="48" width="38" height="10" rx="5" fill="#16A34A"/>
+  <!-- Accent dot: Student (Amber) -->
+  <circle cx="5" cy="5" r="4" fill="#D97706"/>
+</svg>

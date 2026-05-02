@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from './ui/button';
+import { useTranslation } from 'react-i18next';
 
 type Theme = 'light' | 'dark' | 'system';
 
 export function ThemeToggle() {
+    const { t } = useTranslation();
     const [theme, setTheme] = useState<Theme>(() => {
         return (localStorage.getItem('theme') as Theme) || 'system';
     });
@@ -35,7 +37,7 @@ export function ThemeToggle() {
     };
 
     return (
-        <Button variant="ghost" size="icon" onClick={cycle} title={`Téma: ${theme}`}>
+        <Button variant="ghost" size="icon" onClick={cycle} title={`${t('common.theme', 'Téma')}: ${theme}`}>
             {theme === 'dark' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
         </Button>
     );

@@ -158,12 +158,12 @@ export default function AttendancePage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Docházka</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('common.attendance')}</h1>
                     <p className="text-muted-foreground">Záznam a správa docházky</p>
                 </div>
                 <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
                     <SelectTrigger className="w-44">
-                        <SelectValue placeholder="Vyberte třídu" />
+                        <SelectValue placeholder={t('common.select_class')} />
                     </SelectTrigger>
                     <SelectContent>
                         {classrooms.map((c: any) => (
@@ -184,7 +184,7 @@ export default function AttendancePage() {
                 }}
             >
                 <TabsList>
-                    <TabsTrigger value="record">Záznam</TabsTrigger>
+                    <TabsTrigger value="record">{t('common.record')}</TabsTrigger>
                     <TabsTrigger value="stats">Statistiky</TabsTrigger>
                     <TabsTrigger value="excuses">Omluvenky</TabsTrigger>
                     <TabsTrigger value="alerts">Eskalace</TabsTrigger>
@@ -223,7 +223,7 @@ export default function AttendancePage() {
                                     </Select>
                                 </div>
                                 <div className="flex gap-2 ml-auto items-end">
-                                    <Button onClick={handleSave}>Uložit</Button>
+                                    <Button onClick={handleSave}>{t('common.save')}</Button>
                                     <Button variant="outline" onClick={handleExport}>
                                         <Download className="h-4 w-4 mr-1" />
                                         CSV
@@ -235,7 +235,7 @@ export default function AttendancePage() {
                             {loading ? (
                                 <p className="text-muted-foreground text-center py-8">{t('common.loading')}</p>
                             ) : !attendance ? (
-                                <p className="text-center text-muted-foreground py-8">Vyberte třídu</p>
+                                <p className="text-center text-muted-foreground py-8">{t('common.select_class')}</p>
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -287,16 +287,22 @@ export default function AttendancePage() {
                         </CardHeader>
                         <CardContent>
                             {!stats ? (
-                                <p className="text-muted-foreground text-center py-8">Vyberte třídu</p>
+                                <p className="text-muted-foreground text-center py-8">{t('common.select_class')}</p>
                             ) : (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Student</TableHead>
                                             <TableHead className="text-center">Celkem</TableHead>
-                                            <TableHead className="text-center text-green-600">Přítomen</TableHead>
-                                            <TableHead className="text-center text-red-600">Nepřítomen</TableHead>
-                                            <TableHead className="text-center text-yellow-600">Pozdě</TableHead>
+                                            <TableHead className="text-center text-green-600">
+                                                {t('common.present')}
+                                            </TableHead>
+                                            <TableHead className="text-center text-red-600">
+                                                {t('common.absent')}
+                                            </TableHead>
+                                            <TableHead className="text-center text-yellow-600">
+                                                {t('common.late')}
+                                            </TableHead>
                                             <TableHead className="text-center text-blue-600">Omluven</TableHead>
                                             <TableHead className="text-center">%</TableHead>
                                         </TableRow>
@@ -330,7 +336,7 @@ export default function AttendancePage() {
                 <TabsContent value="excuses">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Omluvenky od rodičů</CardTitle>
+                            <CardTitle>{t('common.parent_excuses')}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {excuses.length === 0 ? (
@@ -340,10 +346,10 @@ export default function AttendancePage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Student</TableHead>
-                                            <TableHead>Rodič</TableHead>
+                                            <TableHead>{t('common.parent')}</TableHead>
                                             <TableHead>Od</TableHead>
                                             <TableHead>Do</TableHead>
-                                            <TableHead>Důvod</TableHead>
+                                            <TableHead>{t('common.reason')}</TableHead>
                                             <TableHead>Stav</TableHead>
                                             <TableHead></TableHead>
                                         </TableRow>
@@ -429,7 +435,7 @@ export default function AttendancePage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Student</TableHead>
-                                            <TableHead>Třída</TableHead>
+                                            <TableHead>{t('common.class')}</TableHead>
                                             <TableHead className="text-center">Neomluv. hodin</TableHead>
                                         </TableRow>
                                     </TableHeader>

@@ -225,7 +225,7 @@ Hlavní softwarové komponenty systému.
 | ID    | Element      | Typ (ArchiMate)       | Popis                                                                                                                 |
 | ----- | ------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | AC-01 | Frontend SPA | Application Component | React single-page aplikace (TypeScript). Uživatelské rozhraní pro všechny role. Komunikuje s backendem přes REST API. |
-| AC-02 | Backend API  | Application Component | NestJS aplikace. Obsahuje autentizaci, autorizaci, business logiku a datový přístup přes Prisma ORM.                  |
+| AC-02 | Backend API  | Application Component | NestJS aplikace. Obsahuje autentizaci, autorizaci, business logiku a datový přístup přes better-sqlite3/D1.           |
 | AC-03 | MCP Server   | Application Component | Node.js server implementující Model Context Protocol. Poskytuje 36 nástrojů pro programatický přístup k datům.        |
 
 **Vztahy:**

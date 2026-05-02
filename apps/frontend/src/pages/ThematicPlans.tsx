@@ -148,7 +148,7 @@ export default function ThematicPlans() {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
-                            <Label>Název</Label>
+                            <Label>{t('common.title')}</Label>
                             <Input
                                 value={form.title}
                                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -156,7 +156,7 @@ export default function ThematicPlans() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Předmět</Label>
+                            <Label>{t('grading.subject')}</Label>
                             <Select
                                 value={form.subjectTemplateId}
                                 onValueChange={(v) => setForm((f) => ({ ...f, subjectTemplateId: v }))}
@@ -175,7 +175,7 @@ export default function ThematicPlans() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <Label>Školní rok</Label>
+                                <Label>{t('sidebar.year_setup')}</Label>
                                 <Select
                                     value={form.academicYearId}
                                     onValueChange={(v) => setForm((f) => ({ ...f, academicYearId: v }))}
@@ -199,7 +199,7 @@ export default function ThematicPlans() {
                                     onValueChange={(v) => setForm((f) => ({ ...f, gradeLevelId: v }))}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Ročník" />
+                                        <SelectValue placeholder={t('common.classroom')} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {grades.map((g: any) => (
@@ -214,9 +214,9 @@ export default function ThematicPlans() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleCreate}>Vytvořit</Button>
+                        <Button onClick={handleCreate}>{t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -224,18 +224,16 @@ export default function ThematicPlans() {
             <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Smazat tematický plán?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tato akce je nevratná. Budou smazány i všechny týdny.
-                        </AlertDialogDescription>
+                        <AlertDialogTitle>{t('common.delete_plan_title')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('common.delete_plan_confirm')}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground"
                         >
-                            Smazat
+                            {t('common.delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

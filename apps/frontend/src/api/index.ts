@@ -149,6 +149,11 @@ export const getStudentSchedule = async (studentUserId: string, academicYearId?:
     return response.data;
 };
 
+export const getRoomSchedule = async (roomId: string, academicYearId?: string) => {
+    const response = await api.get(`/api/schedule/view/room/${roomId}`, { params: { academicYearId } });
+    return response.data;
+};
+
 export const getSubstitutions = async (filters?: { date?: string; weekStart?: string; weekEnd?: string }) => {
     const response = await api.get('/api/schedule/substitutions', { params: filters });
     return response.data;

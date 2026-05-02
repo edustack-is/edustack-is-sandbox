@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, CheckCheck, MessageSquare, GraduationCap, AlertCircle } from 'lucide-react';
 import { getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead } from '@/api';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 interface Notification {
     id: string;
@@ -20,6 +21,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 export const NotificationBell: React.FC = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [unreadCount, setUnreadCount] = useState(0);
     const [open, setOpen] = useState(false);
@@ -91,7 +93,7 @@ export const NotificationBell: React.FC = () => {
     const timeAgo = (dateStr: string) => {
         const diff = Date.now() - new Date(dateStr).getTime();
         const mins = Math.floor(diff / 60000);
-        if (mins < 1) return 'právě teď';
+        if (mins < 1) return t('common.now', 'právě teď');
         if (mins < 60) return `${mins} min`;
         const hours = Math.floor(mins / 60);
         if (hours < 24) return `${hours}h`;
@@ -124,7 +126,7 @@ export const NotificationBell: React.FC = () => {
                                 onClick={handleMarkAllRead}
                                 className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
                             >
-                                <CheckCheck className="h-3 w-3" /> Označit vše
+                                <CheckCheck className="h-3 w-3" /> {t('common.mark_all_read', 'Označit vše')}
                             </button>
                         )}
                     </div>
@@ -134,7 +136,9 @@ export const NotificationBell: React.FC = () => {
                         {loading ? (
                             <div className="px-4 py-8 text-center text-sm text-muted-foreground">Načítání...</div>
                         ) : notifications.length === 0 ? (
-                            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Žádné notifikace</div>
+                            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                                {t('common.no_notifications', 'Žádné notifikace')}
+                            </div>
                         ) : (
                             notifications.map((n) => {
                                 const Icon = ICON_MAP[n.type] || Bell;
@@ -181,7 +185,7 @@ export const NotificationBell: React.FC = () => {
                                 }}
                                 className="text-xs text-primary hover:text-primary/80 w-full text-center"
                             >
-                                Zobrazit zprávy →
+                                {t('common.view_messages', 'Zobrazit zprávy')} →
                             </button>
                         </div>
                     )}

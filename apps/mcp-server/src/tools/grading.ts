@@ -1,6 +1,7 @@
 import { server } from '../server.js';
-import { prisma } from '../db.js';
+import { db, transaction } from '../db.js';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 // ═══════════════════════════════════════════════════════════════
 // GRADES (ZNÁMKY)
@@ -21,25 +22,24 @@ server.tool(
     },
     async ({ schoolId, studentId, subjectInstanceId, teacherId, value, weight, description, academicYearId }) => {
         try {
-            // Validate references
-            const [student, subject, teacher] = await Promise.all([
-                prisma.studentProfile.findUnique({ where: { id: studentId }, include: { user: true } }),
-                prisma.subjectInstance.findFirst({
-                    where: { id: subjectInstanceId, schoolId },
-                    include: { template: true },
-                }),
-                prisma.teacherProfile.findUnique({ where: { id: teacherId }, include: { user: true } }),
-            ]);
+            const student = db
+                .prepare('SELECT firstName, lastName FROM "StudentProfile" WHERE id = ?')
+                .get(studentId) as any;
+            const subject = db
+                .prepare(
+                    'SELECT t.name FROM "SubjectInstance" i JOIN "SubjectTemplate" t ON i.templateId = t.id WHERE i.id = ? AND i.schoolId = ?',
+                )
+                .get(subjectInstanceId, schoolId) as any;
+            const teacher = db
+                .prepare(
+                    'SELECT u.firstName, u.lastName FROM "TeacherProfile" tp JOIN "User" u ON tp.userId = u.id WHERE tp.id = ?',
+                )
+                .get(teacherId) as any;
 
             if (!student)
                 return {
                     isError: true,
-                    content: [
-                        {
-                            type: 'text',
-                            text: `StudentProfile '${studentId}' nebyl nalezen. Použij list_users pro zjištění správného ID.`,
-                        },
-                    ],
+                    content: [{ type: 'text', text: `StudentProfile '${studentId}' nebyl nalezen.` }],
                 };
             if (!subject)
                 return {
@@ -52,29 +52,39 @@ server.tool(
                     content: [{ type: 'text', text: `TeacherProfile '${teacherId}' nebyl nalezen.` }],
                 };
 
-            const grade = await prisma.grade.create({
-                data: {
-                    value,
-                    weight,
-                    description,
-                    schoolId,
-                    studentId,
-                    subjectInstanceId,
-                    teacherId,
-                    academicYearId,
-                },
-            });
+            const id = randomUUID();
+            const now = new Date().toISOString();
+            const date = now.split('T')[0];
+
+            db.prepare(
+                `
+                INSERT INTO "Grade" (id, value, weight, description, date, schoolId, studentId, subjectInstanceId, teacherId, academicYearId, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            ).run(
+                id,
+                value,
+                weight,
+                description || null,
+                date,
+                schoolId,
+                studentId,
+                subjectInstanceId,
+                teacherId,
+                academicYearId || null,
+                now,
+            );
 
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Známka '${value}' (váha ${weight}) zadána pro ${student.firstName} ${student.lastName} z ${subject.template.name}. ID: ${grade.id}`,
+                        text: `Známka '${value}' (váha ${weight}) zadána pro ${student.firstName} ${student.lastName} z ${subject.name}. ID: ${id}`,
                     },
                 ],
             };
         } catch (error: any) {
-            return { isError: true, content: [{ type: 'text', text: `Chyba při zadávání známky: ${error.message}` }] };
+            return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }
     },
 );
@@ -89,32 +99,41 @@ server.tool(
     },
     async ({ studentId, subjectInstanceId, academicYearId }) => {
         try {
-            const where: any = { studentId };
-            if (subjectInstanceId) where.subjectInstanceId = subjectInstanceId;
-            if (academicYearId) where.academicYearId = academicYearId;
+            let sql = `
+                SELECT g.*, t.name as subjectName, u.firstName as tFirst, u.lastName as tLast
+                FROM "Grade" g
+                JOIN "SubjectInstance" i ON g.subjectInstanceId = i.id
+                JOIN "SubjectTemplate" t ON i.templateId = t.id
+                JOIN "TeacherProfile" tp ON g.teacherId = tp.id
+                JOIN "User" u ON tp.userId = u.id
+                WHERE g.studentId = ?
+            `;
+            const params: any[] = [studentId];
 
-            const grades = await prisma.grade.findMany({
-                where,
-                include: {
-                    subjectInstance: { include: { template: true, academicYear: true } },
-                    teacherProfile: { include: { user: true } },
-                },
-                orderBy: { date: 'desc' },
-                take: 50,
-            });
+            if (subjectInstanceId) {
+                sql += ' AND g.subjectInstanceId = ?';
+                params.push(subjectInstanceId);
+            }
+            if (academicYearId) {
+                sql += ' AND g.academicYearId = ?';
+                params.push(academicYearId);
+            }
+
+            sql += ' ORDER BY g.date DESC LIMIT 50';
+
+            const grades = db.prepare(sql).all(...params) as any[];
 
             if (grades.length === 0) {
                 return { content: [{ type: 'text', text: 'Žádné známky nenalezeny.' }] };
             }
 
-            const student = await prisma.studentProfile.findUnique({
-                where: { id: studentId },
-                include: { user: true },
-            });
+            const student = db
+                .prepare('SELECT firstName, lastName FROM "StudentProfile" WHERE id = ?')
+                .get(studentId) as any;
 
             const lines = grades.map(
                 (g) =>
-                    `- ${g.subjectInstance.template.name}: ${g.value} (váha ${g.weight})${g.description ? ` – ${g.description}` : ''} | ${g.date.toISOString().slice(0, 10)} | učitel: ${g.teacherProfile.user.firstName} ${g.teacherProfile.user.lastName}`,
+                    `- ${g.subjectName}: ${g.value} (váha ${g.weight})${g.description ? ` – ${g.description}` : ''} | ${g.date} | učitel: ${g.tFirst} ${g.tLast}`,
             );
 
             return {
@@ -149,45 +168,30 @@ server.tool(
     },
     async ({ schoolId, studentId, teacherId, status, date, lessonNumber, note }) => {
         try {
-            const attendanceDate = date ? new Date(date) : new Date();
+            const now = new Date().toISOString();
+            const attendanceDate = (date ? new Date(date) : new Date()).toISOString().split('T')[0];
+            const lNum = lessonNumber || 0;
 
-            // Upsert – update if exists for same student+date+lesson+school
-            const attendance = await prisma.attendance.upsert({
-                where: {
-                    studentId_date_lessonNumber_schoolId: {
-                        studentId,
-                        date: attendanceDate,
-                        lessonNumber: lessonNumber || 0, // Fallback to 0 if not provided
-                        schoolId,
-                    },
-                },
-                update: { status, note, teacherId },
-                create: {
-                    date: attendanceDate,
+            const existing = db
+                .prepare(
+                    'SELECT id FROM "Attendance" WHERE studentId = ? AND date = ? AND lessonNumber = ? AND schoolId = ?',
+                )
+                .get(studentId, attendanceDate, lNum, schoolId) as any;
+
+            if (existing) {
+                db.prepare('UPDATE "Attendance" SET status = ?, note = ?, teacherId = ? WHERE id = ?').run(
                     status,
-                    lessonNumber: lessonNumber || 0,
-                    note,
-                    schoolId,
-                    studentId,
+                    note || null,
                     teacherId,
-                },
-            });
+                    existing.id,
+                );
+            } else {
+                db.prepare(
+                    'INSERT INTO "Attendance" (id, date, status, lessonNumber, note, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                ).run(randomUUID(), attendanceDate, status, lNum, note || null, schoolId, studentId, teacherId, now);
+            }
 
-            const statusLabels: Record<string, string> = {
-                PRESENT: 'přítomen',
-                ABSENT: 'nepřítomen',
-                LATE: 'pozdní příchod',
-                EXCUSED: 'omluven',
-            };
-
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Docházka zaznamenána: ${statusLabels[status]} (${attendanceDate.toISOString().slice(0, 10)})${note ? `, poznámka: ${note}` : ''}. ID: ${attendance.id}`,
-                    },
-                ],
-            };
+            return { content: [{ type: 'text', text: `Docházka zaznamenána: ${status} (${attendanceDate}).` }] };
         } catch (error: any) {
             return { isError: true, content: [{ type: 'text', text: `Chyba: ${error.message}` }] };
         }

@@ -53,17 +53,20 @@ export class TestDataController {
     const config: GenerateConfig = {
       schoolName: body.schoolName,
       schoolType: body.schoolType,
-      teacherCount: body.teacherCount ?? 10,
-      teacherActiveCount: body.teacherActiveCount ?? 8,
-      teacherInvitedCount: body.teacherInvitedCount ?? 2,
-      studentCount: body.studentCount ?? 50,
-      studentActiveCount: body.studentActiveCount ?? 40,
-      studentInvitedCount: body.studentInvitedCount ?? 10,
+      teacherCount: body.teacherCount ?? 15,
+      teacherActiveCount: body.teacherActiveCount ?? 12,
+      teacherInvitedCount: body.teacherInvitedCount ?? 3,
+      studentCount: body.studentCount ?? 100,
+      studentActiveCount: body.studentActiveCount ?? 80,
+      studentInvitedCount: body.studentInvitedCount ?? 20,
       parentCount: body.parentCount ?? 0,
       generateSubjects: body.generateSubjects !== false,
       generateSchedule: body.generateSchedule !== false,
       generateGrades: body.generateGrades !== false,
       generateCommunication: body.generateCommunication !== false,
+      generateAttendance: body.generateAttendance !== false,
+      generateReportCards: body.generateReportCards !== false,
+      generateCommunity: body.generateCommunity !== false,
     };
     return this.testDataService.generateAll(config);
   }

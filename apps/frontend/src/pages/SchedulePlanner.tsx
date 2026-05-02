@@ -253,7 +253,7 @@ export const SchedulePlanner: React.FC = () => {
     const handleSaveSlots = async () => {
         try {
             await upsertTimeSlots(editSlots);
-            toast.success('Zvonění uloženo.');
+            toast.success(t('schedule.save_bell_success', 'Zvonění uloženo.'));
             setSlotsDialog(false);
             setSlots(editSlots);
         } catch {
@@ -277,7 +277,13 @@ export const SchedulePlanner: React.FC = () => {
         );
     }
 
-    const DAYS_MAP: Record<number, string> = { 1: 'Pondělí', 2: 'Úterý', 3: 'Středa', 4: 'Čtvrtek', 5: 'Pátek' };
+    const DAYS_MAP: Record<number, string> = {
+        1: t('days.monday'),
+        2: t('days.tuesday'),
+        3: t('days.wednesday'),
+        4: t('days.thursday'),
+        5: t('days.friday'),
+    };
 
     return (
         <div className="p-4 md:p-6 space-y-4 max-w-[1400px] mx-auto">
@@ -305,7 +311,7 @@ export const SchedulePlanner: React.FC = () => {
                         }}
                     >
                         <Clock className="h-4 w-4 mr-1" />
-                        Zvonění
+                        {t('sidebar.bell_schedule')}
                     </Button>
                 </div>
             </div>
@@ -313,10 +319,10 @@ export const SchedulePlanner: React.FC = () => {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2">
-                    <Label className="text-sm font-medium whitespace-nowrap">Třída:</Label>
+                    <Label className="text-sm font-medium whitespace-nowrap">{t('common.class')}:</Label>
                     <Select value={selectedClassroomId} onValueChange={setSelectedClassroomId}>
                         <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Třída..." />
+                            <SelectValue placeholder={t('common.class')} />
                         </SelectTrigger>
                         <SelectContent>
                             {classrooms
@@ -347,7 +353,7 @@ export const SchedulePlanner: React.FC = () => {
                                 .filter((y) => y.id)
                                 .map((y) => (
                                     <SelectItem key={y.id} value={y.id}>
-                                        {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                        {y.name} {y.isCurrent ? `(${t('common.active')})` : ''}
                                     </SelectItem>
                                 ))}
                         </SelectContent>
@@ -356,13 +362,13 @@ export const SchedulePlanner: React.FC = () => {
 
                 {semesters.length > 0 && (
                     <div className="flex items-center gap-2">
-                        <Label className="text-sm font-medium whitespace-nowrap">Pololetí:</Label>
+                        <Label className="text-sm font-medium whitespace-nowrap">{t('common.semester')}:</Label>
                         <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
                             <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Pololetí..." />
+                                <SelectValue placeholder={t('common.semester')} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Vše</SelectItem>
+                                <SelectItem value="all">{t('common.all')}</SelectItem>
                                 {semesters
                                     .filter((s) => s.id)
                                     .map((s) => (
@@ -381,9 +387,11 @@ export const SchedulePlanner: React.FC = () => {
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
-                            {classrooms.find((c) => c.id === selectedClassroomId)?.name || 'Vyberte třídu'}
+                            {classrooms.find((c) => c.id === selectedClassroomId)?.name || t('common.select_class')}
                         </CardTitle>
-                        <div className="text-sm text-muted-foreground">Kliknutím na prázdné pole přidáte hodinu</div>
+                        <div className="text-sm text-muted-foreground">
+                            {t('schedule.click_to_add', 'Kliknutím na prázdné pole přidáte hodinu')}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-2 sm:p-4">
@@ -408,7 +416,9 @@ export const SchedulePlanner: React.FC = () => {
             {subjects.length > 0 && (
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Zbývající hodiny dle ŠVP</CardTitle>
+                        <CardTitle className="text-sm font-medium">
+                            {t('schedule.remaining_hours', 'Zbývající hodiny dle ŠVP')}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
@@ -423,10 +433,10 @@ export const SchedulePlanner: React.FC = () => {
                                     >
                                         {sub.template.code}:{' '}
                                         {remaining > 0
-                                            ? `${remaining}h zbývá`
+                                            ? `${remaining}h ${t('schedule.remaining', 'zbývá')}`
                                             : remaining === 0
-                                              ? '✓ hotovo'
-                                              : `${Math.abs(remaining)}h navíc`}
+                                              ? `✓ ${t('common.done', 'hotovo')}`
+                                              : `${Math.abs(remaining)}h ${t('schedule.extra', 'navíc')}`}
                                     </Badge>
                                 );
                             })}
@@ -440,17 +450,17 @@ export const SchedulePlanner: React.FC = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            Přidat hodinu — {addDialog && DAYS_MAP[addDialog.dayOfWeek]}, {addDialog?.lessonNumber}.
-                            hodina
+                            {t('schedule.add_lesson', 'Přidat hodinu')} — {addDialog && DAYS_MAP[addDialog.dayOfWeek]},{' '}
+                            {addDialog?.lessonNumber}. hodina
                         </DialogTitle>
                     </DialogHeader>
 
                     <div className="space-y-4">
                         <div>
-                            <Label>Předmět *</Label>
+                            <Label>{t('grading.subject')} *</Label>
                             <Select value={addSubjectId} onValueChange={setAddSubjectId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte předmět..." />
+                                    <SelectValue placeholder={t('common.select_subject', 'Vyberte předmět')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {subjects
@@ -458,7 +468,8 @@ export const SchedulePlanner: React.FC = () => {
                                         .map((s) => (
                                             <SelectItem key={s.id} value={s.id}>
                                                 {s.template.code} — {s.template.name} (
-                                                {s.hoursPerWeek - getUsedHours(s.id)}h zbývá)
+                                                {s.hoursPerWeek - getUsedHours(s.id)}h{' '}
+                                                {t('schedule.remaining', 'zbývá')})
                                             </SelectItem>
                                         ))}
                                 </SelectContent>
@@ -466,10 +477,10 @@ export const SchedulePlanner: React.FC = () => {
                         </div>
 
                         <div>
-                            <Label>Učitel *</Label>
+                            <Label>{t('common.teacher')} *</Label>
                             <Select value={addTeacherId} onValueChange={setAddTeacherId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte učitele..." />
+                                    <SelectValue placeholder={t('common.select_teacher')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {teachers
@@ -484,18 +495,21 @@ export const SchedulePlanner: React.FC = () => {
                         </div>
 
                         <div>
-                            <Label>Učebna (volitelné)</Label>
+                            <Label>
+                                {t('common.classroom')} ({t('common.optional', 'volitelné')})
+                            </Label>
                             <Select value={addRoomId} onValueChange={setAddRoomId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte učebnu..." />
+                                    <SelectValue placeholder={t('common.select_room')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">— Žádná —</SelectItem>
+                                    <SelectItem value="none">— {t('common.none', 'Žádná')} —</SelectItem>
                                     {rooms
                                         .filter((r) => r.id)
                                         .map((r) => (
                                             <SelectItem key={r.id} value={r.id}>
-                                                {r.name} ({r.capacity} míst) {r.isComputerLab ? '💻' : ''}
+                                                {r.name} ({r.capacity} {t('common.seats', 'míst')}){' '}
+                                                {r.isComputerLab ? '💻' : ''}
                                             </SelectItem>
                                         ))}
                                 </SelectContent>
@@ -505,7 +519,7 @@ export const SchedulePlanner: React.FC = () => {
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setAddDialog(null)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         <Button onClick={handleAddEvent} disabled={saving}>
                             <Plus className="h-4 w-4 mr-1" />
@@ -534,16 +548,18 @@ export const SchedulePlanner: React.FC = () => {
                                     ({detailDialog.startTime}–{detailDialog.endTime})
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Učitel:</span>{' '}
+                                    <span className="text-muted-foreground">{t('common.teacher')}:</span>{' '}
                                     {detailDialog.teacherProfile.user.firstName}{' '}
                                     {detailDialog.teacherProfile.user.lastName}
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Třída:</span> {detailDialog.classroom.name}
+                                    <span className="text-muted-foreground">{t('common.class')}:</span>{' '}
+                                    {detailDialog.classroom.name}
                                 </div>
                                 {detailDialog.room && (
                                     <div>
-                                        <span className="text-muted-foreground">Učebna:</span> {detailDialog.room.name}
+                                        <span className="text-muted-foreground">{t('common.classroom')}:</span>{' '}
+                                        {detailDialog.room.name}
                                     </div>
                                 )}
                             </div>
@@ -569,7 +585,7 @@ export const SchedulePlanner: React.FC = () => {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Settings2 className="h-5 w-5" />
-                            Nastavení zvonění
+                            {t('sidebar.bell_schedule', 'Nastavení zvonění')}
                         </DialogTitle>
                     </DialogHeader>
 
@@ -604,11 +620,11 @@ export const SchedulePlanner: React.FC = () => {
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setSlotsDialog(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         <Button onClick={handleSaveSlots}>
                             <Save className="h-4 w-4 mr-1" />
-                            Uložit zvonění
+                            {t('schedule.save_bell', 'Uložit zvonění')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

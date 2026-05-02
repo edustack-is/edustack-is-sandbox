@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
     getConversations,
@@ -74,6 +75,7 @@ const ROLE_COLORS: Record<string, string> = {
 // ─── Component ──────────────────────────────────────────
 
 export default function Messages() {
+    const { t } = useTranslation();
     const { role } = useSchool();
     const [searchParams, setSearchParams] = useSearchParams();
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -190,7 +192,7 @@ export default function Messages() {
     return (
         <div className="h-[calc(100vh-6rem)] flex flex-col">
             <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold">Zprávy</h1>
+                <h1 className="text-2xl font-bold">{t('messages.title')}</h1>
                 <div className="flex gap-2">
                     {canBroadcast && (
                         <Button variant="outline" size="sm" onClick={() => setBroadcastDialogOpen(true)}>
@@ -415,10 +417,12 @@ function NewMessageDialog({
     onCreated,
 }: {
     open: boolean;
-    onOpenChange: (v: boolean) => void;
-    onCreated: (convId: string) => void;
+    onOpenChange: (open: boolean) => void;
+    onCreated: (id: string) => void;
 }) {
+    const { t } = useTranslation();
     const [recipients, setRecipients] = useState<User[]>([]);
+
     const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
@@ -488,7 +492,7 @@ function NewMessageDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Příjemci</Label>
+                        <Label>{t('messages.recipients')}</Label>
                         {selectedRecipients.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mb-2">
                                 {selectedRecipients.map((id) => {
@@ -544,7 +548,7 @@ function NewMessageDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Zpráva</Label>
+                        <Label>{t('common.message')}</Label>
                         <Textarea
                             rows={4}
                             placeholder="Napište svou zprávu..."
@@ -590,6 +594,7 @@ function BroadcastDialog({
     canSchoolBroadcast: boolean;
     onCreated: (convId: string) => void;
 }) {
+    const { t } = useTranslation();
     const [type, setType] = useState<'class' | 'school'>('class');
     const [classrooms, setClassrooms] = useState<{ id: string; name: string; grade: number }[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
@@ -676,7 +681,7 @@ function BroadcastDialog({
 
                     {type === 'class' && (
                         <div className="space-y-2">
-                            <Label>Třída</Label>
+                            <Label>{t('common.class')}</Label>
                             {loading ? (
                                 <p className="text-sm text-muted-foreground">Načítání...</p>
                             ) : (
@@ -705,7 +710,7 @@ function BroadcastDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Text zprávy</Label>
+                        <Label>{t('messages.text')}</Label>
                         <Textarea
                             rows={4}
                             placeholder="Napište text hromadné zprávy..."

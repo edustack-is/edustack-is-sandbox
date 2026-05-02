@@ -17,3 +17,5 @@ playwright/.cache/
 be-tests.txt
 apps/frontend/playwright-report/
 apps/frontend/test-results/
+.DS_Store
+

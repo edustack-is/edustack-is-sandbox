@@ -92,6 +92,10 @@ export class ScheduleService {
       sql += ' AND se.teacherId = ?';
       params.push(filters.teacherId);
     }
+    if (filters?.roomId) {
+      sql += ' AND se.roomId = ?';
+      params.push(filters.roomId);
+    }
 
     return this.db.query(
       sql + ' ORDER BY se.dayOfWeek ASC, se.lessonNumber ASC',
@@ -167,7 +171,39 @@ export class ScheduleService {
     studentId: string,
     academicYearId?: string,
   ) {
-    return [];
+    // Find the classroom the student belongs to
+    const enrollment = await this.db.queryOne<{ classroomId: string }>(
+      'SELECT classroomId FROM "StudentEnrollment" WHERE studentId = ? AND academicYearId = ?',
+      [studentId, academicYearId],
+    );
+
+    if (!enrollment) {
+      // Fallback to StudentProfile if enrollment not found (POC simplicity)
+      const profile = await this.db.queryOne<{ classroomId: string }>(
+        'SELECT classroomId FROM "StudentProfile" WHERE userId = ?',
+        [studentId],
+      );
+      if (!profile) return [];
+      return this.getClassroomSchedule(
+        schoolId,
+        profile.classroomId,
+        academicYearId,
+      );
+    }
+
+    return this.getClassroomSchedule(
+      schoolId,
+      enrollment.classroomId,
+      academicYearId,
+    );
+  }
+
+  async getRoomSchedule(
+    schoolId: string,
+    roomId: string,
+    academicYearId?: string,
+  ) {
+    return this.getEvents(schoolId, { roomId, academicYearId });
   }
 
   // ─── SUBSTITUTIONS ──────────────────────────────────────

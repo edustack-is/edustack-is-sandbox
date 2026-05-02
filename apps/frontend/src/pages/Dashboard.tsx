@@ -46,7 +46,7 @@ function SystemAdminDashboard() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.system_admin_title')}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-primary">{t('dashboard.system_admin_title')}</h1>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
@@ -138,15 +138,15 @@ function SchoolDashboard() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight text-primary">
                 {t('dashboard.school_dashboard_title')}
                 {currentSchool ? ` – ${currentSchool.name}` : ''}
             </h1>
 
             {/* Current Academic Year Banner */}
             {stats?.currentAcademicYear && (
-                <div className="rounded-lg border bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 p-4 flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                <div className="rounded-lg border bg-primary/5 dark:bg-primary/10 p-4 flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-primary" />
                     <div>
                         <span className="font-semibold">{t('dashboard.current_academic_year')}:</span>{' '}
                         <span>{stats.currentAcademicYear.name}</span>
@@ -293,7 +293,7 @@ function SchoolDashboard() {
 // Main Dashboard - context-aware
 export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const { tokenType, isSystemAdmin, schoolCount } = useSchool();
+    const { tokenType, isSystemAdmin } = useSchool();
 
     useEffect(() => {
         // Regular user in GLOBAL mode → redirect to school selection

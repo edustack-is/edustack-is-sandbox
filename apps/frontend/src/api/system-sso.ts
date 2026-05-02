@@ -21,12 +21,12 @@ export const getSsoSettings = async (): Promise<SsoSettings> => {
 };
 
 export const updateSsoProvider = async (provider: string, data: any) => {
-    const response = await api.put(`/api/system/sso/\${provider}`, data);
+    const response = await api.put(`/api/system/sso/${provider}`, data);
     return response.data;
 };
 
 export const deleteSsoProvider = async (provider: string) => {
-    const response = await api.delete(`/api/system/sso/\${provider}`);
+    const response = await api.delete(`/api/system/sso/${provider}`);
     return response.data;
 };
 

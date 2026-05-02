@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, Printer, Save, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { getClassBookEntries, upsertClassBookEntry, signClassBookEntry, getClassBookPrintUrl, api } from '../api';
@@ -12,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 
 export default function ClassBook() {
+    const { t } = useTranslation();
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -108,7 +110,7 @@ export default function ClassBook() {
                 </div>
                 <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
                     <SelectTrigger className="w-44">
-                        <SelectValue placeholder="Vyberte třídu" />
+                        <SelectValue placeholder={t('common.select_class')} />
                     </SelectTrigger>
                     <SelectContent>
                         {classrooms.map((c: any) => (
@@ -162,7 +164,7 @@ export default function ClassBook() {
                     {loading ? (
                         <p className="text-muted-foreground text-center py-8">Načítání…</p>
                     ) : !selectedClassroom ? (
-                        <p className="text-muted-foreground text-center py-8">Vyberte třídu</p>
+                        <p className="text-muted-foreground text-center py-8">{t('common.select_class')}</p>
                     ) : entries.length === 0 ? (
                         <p className="text-muted-foreground text-center py-8">Žádné hodiny v rozvrhu pro tento den</p>
                     ) : (
@@ -171,9 +173,9 @@ export default function ClassBook() {
                                 <TableRow>
                                     <TableHead className="w-12">Hod.</TableHead>
                                     <TableHead>Předmět</TableHead>
-                                    <TableHead>Učitel</TableHead>
+                                    <TableHead>{t('common.teacher')}</TableHead>
                                     <TableHead>Probírané učivo</TableHead>
-                                    <TableHead>Poznámky</TableHead>
+                                    <TableHead>{t('common.notes')}</TableHead>
                                     <TableHead className="w-16">Nepřít.</TableHead>
                                     <TableHead className="w-24">Podpis</TableHead>
                                     <TableHead className="w-20"></TableHead>

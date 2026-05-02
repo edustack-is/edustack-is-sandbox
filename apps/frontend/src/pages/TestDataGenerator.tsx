@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,7 @@ const SCHOOL_TYPES = [
 // ═════════════════════════════════════════════════════════════════
 
 export function TestDataGenerator() {
+    const { t } = useTranslation();
     // ─── Generate state ──────────────────────────────────
     const [schoolName, setSchoolName] = useState('Testovací škola');
     const [schoolType, setSchoolType] = useState('elementary_full');
@@ -187,11 +189,9 @@ export function TestDataGenerator() {
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Plus className="h-5 w-5 text-primary" />
-                        Generovat testovací data
+                        {t('test_data.generate_title')}
                     </CardTitle>
-                    <CardDescription>
-                        Vytvoří kompletní školu s realistickými testovacími daty. Můžete přidávat více škol.
-                    </CardDescription>
+                    <CardDescription>{t('test_data.generate_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {/* School info */}
@@ -199,13 +199,13 @@ export function TestDataGenerator() {
                         <div className="space-y-2">
                             <Label className="flex items-center gap-2">
                                 <School className="h-4 w-4 text-muted-foreground" />
-                                Název školy
+                                {t('test_data.school_name')}
                             </Label>
                             <div className="relative">
                                 <Input
                                     value={schoolName}
                                     onChange={(e) => setSchoolName(e.target.value)}
-                                    placeholder="Testovací škola"
+                                    placeholder={t('test_data.school_name')}
                                     className="pr-10"
                                 />
                                 <Button
@@ -225,7 +225,7 @@ export function TestDataGenerator() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label>Typ školy</Label>
+                            <Label>{t('setup.school_type', 'Typ školy')}</Label>
                             <Select value={schoolType} onValueChange={setSchoolType}>
                                 <SelectTrigger>
                                     <SelectValue />
@@ -334,7 +334,7 @@ export function TestDataGenerator() {
                         {/* Parents */}
                         <div className="grid gap-3 md:grid-cols-3 pl-4 border-l-2 border-purple-200">
                             <div className="space-y-1">
-                                <Label className="text-xs">Rodiče</Label>
+                                <Label className="text-xs">{t('common.parent')}</Label>
                                 <Input
                                     type="number"
                                     min={0}
@@ -342,7 +342,7 @@ export function TestDataGenerator() {
                                     value={parentCount}
                                     onChange={(e) => setParentCount(parseInt(e.target.value) || 0)}
                                 />
-                                <p className="text-[10px] text-muted-foreground">0 = automaticky (1 na studenta)</p>
+                                <p className="text-[10px] text-muted-foreground">{t('test_data.parents_auto')}</p>
                             </div>
                         </div>
                     </div>
@@ -350,63 +350,62 @@ export function TestDataGenerator() {
                     {/* Feature toggles */}
                     <div className="space-y-3">
                         <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
-                            <ClipboardList className="h-4 w-4" /> Moduly k vygenerování
+                            <ClipboardList className="h-4 w-4" /> {t('test_data.modules_title')}
                         </h4>
                         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                             <FeatureToggle
                                 icon={<BookOpen className="h-4 w-4" />}
-                                label="Předměty (RVP)"
+                                label={t('test_data.subjects_rvp')}
                                 checked={generateSubjects}
                                 onCheckedChange={setGenerateSubjects}
                             />
                             <FeatureToggle
                                 icon={<Calendar className="h-4 w-4" />}
-                                label="Rozvrh"
+                                label={t('test_data.schedule')}
                                 checked={generateSchedule}
                                 onCheckedChange={setGenerateSchedule}
                             />
                             <FeatureToggle
                                 icon={<GraduationCap className="h-4 w-4" />}
-                                label="Klasifikace"
+                                label={t('test_data.grading')}
                                 checked={generateGrades}
                                 onCheckedChange={setGenerateGrades}
                             />
                             <FeatureToggle
                                 icon={<MessageSquare className="h-4 w-4" />}
-                                label="Zprávy (komunikace)"
+                                label={t('test_data.messages_comm')}
                                 checked={generateCommunication}
                                 onCheckedChange={setGenerateCommunication}
                             />
                             <FeatureToggle
                                 icon={<ClipboardList className="h-4 w-4" />}
-                                label="Docházka a omluvenky"
+                                label={t('test_data.attendance_excuses')}
                                 checked={generateAttendance}
                                 onCheckedChange={setGenerateAttendance}
                             />
                             <FeatureToggle
                                 icon={<GraduationCap className="h-4 w-4" />}
-                                label="Vysvědčení a chování"
+                                label={t('test_data.reports_behavior')}
                                 checked={generateReportCards}
                                 onCheckedChange={setGenerateReportCards}
                             />
                             <FeatureToggle
                                 icon={<MessageSquare className="h-4 w-4" />}
-                                label="Komunita (ankety, nástěnka)"
+                                label={t('test_data.community_polls')}
                                 checked={generateCommunity}
                                 onCheckedChange={setGenerateCommunity}
                             />
                         </div>
                     </div>
 
-                    {/* Generate button */}
                     <Button onClick={handleGenerate} disabled={generating} className="w-full" size="lg">
                         {generating ? (
                             <>
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Generuji testovací data...
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('test_data.generating')}
                             </>
                         ) : (
                             <>
-                                <Plus className="h-4 w-4 mr-2" /> Generovat školu s daty
+                                <Plus className="h-4 w-4 mr-2" /> {t('test_data.generate_button')}
                             </>
                         )}
                     </Button>
@@ -419,37 +418,19 @@ export function TestDataGenerator() {
                                     <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
                                     <div className="space-y-2">
                                         <p className="font-medium text-emerald-800 dark:text-emerald-200">
-                                            Škola „{lastResult.schoolName}" vytvořena
+                                            {t('test_data.success_title', { name: lastResult.schoolName })}
                                         </p>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-emerald-700 dark:text-emerald-300">
-                                            <StatBadge label="Školní rok" value={lastResult.stats.academicYear} />
-                                            <StatBadge label="Ročníky" value={lastResult.stats.gradeLevels} />
-                                            <StatBadge label="Třídy" value={lastResult.stats.classrooms} />
-                                            <StatBadge label="Předměty" value={lastResult.stats.subjects} />
-                                            <StatBadge label="Učitelé" value={lastResult.stats.teachers} />
-                                            <StatBadge label="Studenti" value={lastResult.stats.students} />
-                                            <StatBadge label="Rodiče" value={lastResult.stats.parents} />
-                                            <StatBadge
-                                                label="Instance předmětů"
-                                                value={lastResult.stats.subjectInstances}
-                                            />
-                                            <StatBadge
-                                                label="Události rozvrhu"
-                                                value={lastResult.stats.scheduleEvents}
-                                            />
-                                            <StatBadge label="Známky" value={lastResult.stats.grades} />
-                                            <StatBadge label="Konverzace" value={lastResult.stats.conversations} />
-                                            <StatBadge label="Zprávy" value={lastResult.stats.messages} />
-                                            <StatBadge label="Docházka" value={lastResult.stats.attendanceRecords} />
-                                            <StatBadge label="Omluvenky" value={lastResult.stats.excuses} />
-                                            <StatBadge label="Vysvědčení" value={lastResult.stats.reportCards} />
-                                            <StatBadge label="Chování" value={lastResult.stats.behaviorGrades} />
-                                            <StatBadge label="Nástěnka" value={lastResult.stats.bulletinPosts} />
-                                            <StatBadge label="Ankety" value={lastResult.stats.polls} />
-                                            <StatBadge label="Události" value={lastResult.stats.calendarEvents} />
+                                            {Object.entries(lastResult.stats).map(([key, val]: [string, any]) => (
+                                                <StatBadge
+                                                    key={key}
+                                                    label={t(`test_data.stats.${key}`, key)}
+                                                    value={val}
+                                                />
+                                            ))}
                                         </div>
                                         <p className="text-[10px] text-muted-foreground mt-2">
-                                            🔑 Heslo pro všechny demo účty:{' '}
+                                            🔑 {t('test_data.demo_password_title')}{' '}
                                             <code className="font-mono bg-muted px-1 rounded">Demo1234!</code>
                                         </p>
                                     </div>
@@ -465,23 +446,21 @@ export function TestDataGenerator() {
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2 text-destructive">
                         <AlertTriangle className="h-5 w-5" />
-                        Nebezpečná zóna
+                        {t('test_data.danger_zone')}
                     </CardTitle>
-                    <CardDescription>Tyto akce jsou nevratné. Data budou trvale smazána.</CardDescription>
+                    <CardDescription>{t('test_data.danger_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {/* Wipe school */}
                     <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/20 bg-destructive/5">
                         <div>
-                            <p className="font-medium text-sm">Smazat data školy</p>
-                            <p className="text-xs text-muted-foreground">
-                                Smaže školu a všechna její data (uživatele, předměty, rozvrh, klasifikaci, komunikaci).
-                            </p>
+                            <p className="font-medium text-sm">{t('test_data.wipe_school_title')}</p>
+                            <p className="text-xs text-muted-foreground">{t('test_data.wipe_school_desc')}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
                                 <SelectTrigger className="w-[260px]">
-                                    <SelectValue placeholder="Vyberte školu..." />
+                                    <SelectValue placeholder={t('common.select_school')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {schools.map((s) => (
@@ -497,22 +476,18 @@ export function TestDataGenerator() {
                                 disabled={!selectedSchoolId}
                                 onClick={() => setWipeDialogOpen(true)}
                             >
-                                <Trash2 className="h-4 w-4 mr-1" /> Smazat
+                                <Trash2 className="h-4 w-4 mr-1" /> {t('common.delete')}
                             </Button>
                         </div>
                     </div>
 
-                    {/* Wipe all */}
                     <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/40 bg-destructive/10">
                         <div>
-                            <p className="font-medium text-sm text-destructive">Smazat VŠECHNA data</p>
-                            <p className="text-xs text-muted-foreground">
-                                Smaže všechny školy, uživatele a data v celém systému. Zůstanou pouze systémoví
-                                administrátoři.
-                            </p>
+                            <p className="font-medium text-sm text-destructive">{t('test_data.wipe_all_title')}</p>
+                            <p className="text-xs text-muted-foreground">{t('test_data.wipe_all_desc')}</p>
                         </div>
                         <Button variant="destructive" onClick={() => setWipeAllDialogOpen(true)}>
-                            <Trash2 className="h-4 w-4 mr-1" /> Smazat vše
+                            <Trash2 className="h-4 w-4 mr-1" /> {t('common.delete_all', 'Smazat vše')}
                         </Button>
                     </div>
                 </CardContent>
@@ -526,20 +501,21 @@ export function TestDataGenerator() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-destructive" />
-                            Smazat školu a všechna data
+                            {t('test_data.confirm_wipe_title')}
                         </DialogTitle>
                         <DialogDescription>
-                            Opravdu chcete smazat školu „{schools.find((s) => s.id === selectedSchoolId)?.name}" a
-                            všechna přidružená data? Tato akce je nevratná.
+                            {t('test_data.confirm_wipe_desc', {
+                                name: schools.find((s) => s.id === selectedSchoolId)?.name,
+                            })}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setWipeDialogOpen(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         <Button variant="destructive" onClick={handleWipeSchool} disabled={wiping}>
                             {wiping && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                            Smazat nenávratně
+                            {t('common.delete_permanently', 'Smazat nenávratně')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -551,17 +527,15 @@ export function TestDataGenerator() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-destructive">
                             <AlertTriangle className="h-5 w-5" />
-                            Smazat VŠECHNA data v systému
+                            {t('test_data.confirm_wipe_all_title')}
                         </DialogTitle>
-                        <DialogDescription>
-                            Tato akce smaže VŠECHNY školy, uživatele a data. Zůstanou pouze systémoví administrátoři.
-                            Pro potvrzení napište „SMAZAT VŠE":
-                        </DialogDescription>
+                        <DialogDescription>{t('test_data.confirm_wipe_all_desc')}</DialogDescription>
+                        <DialogDescription>{t('test_data.wipe_all_confirm_prompt')}</DialogDescription>
                     </DialogHeader>
                     <Input
                         value={wipeConfirmText}
                         onChange={(e) => setWipeConfirmText(e.target.value)}
-                        placeholder='Napište "SMAZAT VŠE"'
+                        placeholder={t('test_data.wipe_all_placeholder')}
                         className="font-mono"
                     />
                     <DialogFooter>
@@ -572,7 +546,7 @@ export function TestDataGenerator() {
                                 setWipeConfirmText('');
                             }}
                         >
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -580,7 +554,7 @@ export function TestDataGenerator() {
                             disabled={wiping || wipeConfirmText !== 'SMAZAT VŠE'}
                         >
                             {wiping && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                            Smazat vše nenávratně
+                            {t('common.delete_all_permanently', 'Smazat vše nenávratně')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

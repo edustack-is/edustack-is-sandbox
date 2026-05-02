@@ -158,7 +158,7 @@ export default function EducationalMeasures() {
                                     <TableHead>Datum</TableHead>
                                     <TableHead>Student</TableHead>
                                     <TableHead>Typ</TableHead>
-                                    <TableHead>Důvod</TableHead>
+                                    <TableHead>{t('common.reason')}</TableHead>
                                     <TableHead>Vydal</TableHead>
                                     <TableHead className="w-12"></TableHead>
                                 </TableRow>
@@ -214,7 +214,7 @@ export default function EducationalMeasures() {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
-                            <Label>Třída</Label>
+                            <Label>{t('common.class')}</Label>
                             <Select
                                 onValueChange={(v) => {
                                     loadStudents(v);
@@ -222,7 +222,7 @@ export default function EducationalMeasures() {
                                 }}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte třídu" />
+                                    <SelectValue placeholder={t('common.select_class')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {classrooms
@@ -271,7 +271,7 @@ export default function EducationalMeasures() {
                             </Select>
                         </div>
                         <div className="space-y-1">
-                            <Label>Důvod</Label>
+                            <Label>{t('common.reason')}</Label>
                             <Textarea
                                 value={form.reason}
                                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
@@ -282,9 +282,9 @@ export default function EducationalMeasures() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleSubmit}>Vytvořit</Button>
+                        <Button onClick={handleSubmit}>{t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -296,7 +296,7 @@ export default function EducationalMeasures() {
                         <AlertDialogDescription>Tato akce je nevratná.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground"

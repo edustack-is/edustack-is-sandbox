@@ -26,16 +26,6 @@ const MALE_FIRST = [
   'Vojtěch',
   'Radek',
   'Josef',
-  'Roman',
-  'Milan',
-  'Vladimír',
-  'Aleš',
-  'Richard',
-  'Patrik',
-  'Stanislav',
-  'Dominik',
-  'Štěpán',
-  'Václav',
 ];
 const FEMALE_FIRST = [
   'Jana',
@@ -58,16 +48,6 @@ const FEMALE_FIRST = [
   'Daniela',
   'Klára',
   'Eliška',
-  'Michaela',
-  'Simona',
-  'Andrea',
-  'Kristýna',
-  'Denisa',
-  'Nikola',
-  'Adéla',
-  'Karolína',
-  'Gabriela',
-  'Natálie',
 ];
 const LAST_NAMES = [
   'Novák',
@@ -90,27 +70,8 @@ const LAST_NAMES = [
   'Dostál',
   'Fiala',
   'Kopecký',
-  'Urban',
-  'Vlček',
-  'Hrubý',
-  'Němec',
-  'Pokorný',
-  'Beneš',
-  'Mach',
-  'Holub',
-  'Kadlec',
-  'Strnad',
 ];
-const TEACHER_DEGREES = [
-  'Mgr.',
-  'Mgr.',
-  'Mgr.',
-  'RNDr.',
-  'PhDr.',
-  'Ing.',
-  'PaedDr.',
-  'MgA.',
-];
+const TEACHER_DEGREES = ['Mgr.', 'Mgr.', 'RNDr.', 'PhDr.', 'Ing.', 'PaedDr.'];
 const TEACHER_APPROBATIONS = [
   'Český jazyk a literatura',
   'Matematika',
@@ -122,12 +83,6 @@ const TEACHER_APPROBATIONS = [
   'Zeměpis',
   'Tělesná výchova',
   'Informatika',
-  'Hudební výchova',
-  'Výtvarná výchova',
-  'Občanská výchova',
-  'Německý jazyk',
-  '1. stupeň ZŠ',
-  'Speciální pedagogika',
 ];
 const GRADE_DESCRIPTIONS = [
   'Písemná práce',
@@ -139,11 +94,6 @@ const GRADE_DESCRIPTIONS = [
   'Čtvrtletní práce',
   'Aktivita v hodině',
   'Referát',
-  'Laboratorní práce',
-  'Čtenářský deník',
-  'Seminární práce',
-  'Diktát',
-  'Slohová práce',
 ];
 const MESSAGE_CONTENTS = [
   'Dobrý den, chtěl bych se zeptat na domácí úkol z minulé hodiny.',
@@ -151,11 +101,30 @@ const MESSAGE_CONTENTS = [
   'Prosím o schůzku ohledně prospěchu mého dítěte.',
   'Připomínám, že zítra bude písemná práce z 3. a 4. kapitoly.',
   'Omlouvám absenci svého syna/dcery z důvodu nemoci.',
-  'Chtěla bych poděkovat za individuální přístup k mému dítěti.',
-  'Můžete mi prosím poslat podklady k doplnění učiva?',
-  'Informuji vás o plánované třídní schůzce příští týden.',
-  'Potřebuji se domluvit na termínu náhradní písemky.',
-  'Váš syn/dcera dnes zapomněl sešit, prosím o kontrolu pomůcek.',
+];
+
+const SUBJECTS = [
+  { name: 'Matematika', code: 'MAT' },
+  { name: 'Český jazyk', code: 'CJL' },
+  { name: 'Anglický jazyk', code: 'ANJ' },
+  { name: 'Fyzika', code: 'FYZ' },
+  { name: 'Chemie', code: 'CHE' },
+  { name: 'Přírodopis', code: 'PRI' },
+  { name: 'Zeměpis', code: 'ZEM' },
+  { name: 'Dějepis', code: 'DEJ' },
+  { name: 'Informatika', code: 'INF' },
+  { name: 'Tělesná výchova', code: 'TEV' },
+  { name: 'Hudební výchova', code: 'HUV' },
+  { name: 'Výtvarná výchova', code: 'VYV' },
+];
+
+const COMPETENCIES = [
+  { code: 'KC1', name: 'Kompetence k učení', area: 'Obecné' },
+  { code: 'KC2', name: 'Kompetence k řešení problémů', area: 'Obecné' },
+  { code: 'KC3', name: 'Kompetence komunikativní', area: 'Obecné' },
+  { code: 'KC4', name: 'Kompetence sociální a personální', area: 'Obecné' },
+  { code: 'KC5', name: 'Kompetence občanské', area: 'Obecné' },
+  { code: 'KC6', name: 'Kompetence pracovní', area: 'Obecné' },
 ];
 
 function pick<T>(arr: T[]): T {
@@ -185,7 +154,9 @@ export interface GenerateConfig {
   generateSchedule?: boolean;
   generateGrades?: boolean;
   generateCommunication?: boolean;
-  studentCountPerClass?: number;
+  generateAttendance?: boolean;
+  generateReportCards?: boolean;
+  generateCommunity?: boolean;
 }
 
 @Injectable()
@@ -195,10 +166,13 @@ export class TestDataService {
   constructor(private db: DatabaseService) {}
 
   async generateAll(config: GenerateConfig): Promise<any> {
-    this.logger.log(`Generating test data for ${config.schoolName}`);
+    this.logger.log(
+      `Generating comprehensive test data for ${config.schoolName}`,
+    );
 
     const demoPassword = process.env.DEMO_PASSWORD || 'Demo1234!';
     const passwordHash = await bcrypt.hash(demoPassword, 10);
+    const now = new Date().toISOString();
 
     let school = await this.db.queryOne(
       'SELECT * FROM "School" WHERE name = ?',
@@ -210,126 +184,756 @@ export class TestDataService {
       const id = crypto.randomUUID();
       await this.db.execute(
         'INSERT INTO "School" (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-        [
-          id,
-          config.schoolName,
-          new Date().toISOString(),
-          new Date().toISOString(),
-        ],
+        [id, config.schoolName, now, now],
       );
       school = await this.db.queryOne('SELECT * FROM "School" WHERE id = ?', [
         id,
       ]);
     }
     const schoolId = (school as any).id;
+    const schoolDomain = `${removeDiacritics(config.schoolName).replace(/\s+/g, '')}.demo.test`;
 
-    // Academic Year
+    const stats = {
+      academicYear: 1,
+      gradeLevels: 0,
+      classrooms: 0,
+      subjects: 0,
+      teachers: 0,
+      students: 0,
+      parents: 0,
+      subjectInstances: 0,
+      scheduleEvents: 0,
+      grades: 0,
+      conversations: 0,
+      messages: 0,
+      attendanceRecords: 0,
+      excuses: 0,
+      reportCards: 0,
+      behaviorGrades: 0,
+      bulletinPosts: 0,
+      polls: 0,
+      calendarEvents: 0,
+      thematicPlans: 0,
+      lessonPreparations: 0,
+      materials: 0,
+    };
+
+    // 1. INFRASTRUCTURE
+    const buildingId = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "Building" (id, name, address, floors, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        buildingId,
+        pick(['Hlavní budova', 'Stará budova', 'Pavilon A']),
+        pick(['Školní 1', 'U Stadionu 12', 'Lipová 45']),
+        4,
+        schoolId,
+        now,
+        now,
+      ],
+    );
+
+    const roomIds: string[] = [];
+    const roomsToGen = config.schoolType.includes('elementary_1') ? 6 : 12;
+    for (let i = 1; i <= roomsToGen; i++) {
+      const roomId = crypto.randomUUID();
+      const isLab = i === roomsToGen || i === roomsToGen - 1;
+      await this.db.execute(
+        'INSERT INTO "Room" (id, name, capacity, floor, isComputerLab, schoolId, buildingId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          roomId,
+          `Učebna ${100 + i}`,
+          30,
+          randInt(1, 3),
+          isLab ? 1 : 0,
+          schoolId,
+          buildingId,
+          now,
+          now,
+        ],
+      );
+      roomIds.push(roomId);
+    }
+
+    // 2. ACADEMIC SETUP
     const ayId = crypto.randomUUID();
     await this.db.execute(
       'INSERT INTO "AcademicYear" (id, name, startDate, endDate, isCurrent, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
-      [
-        ayId,
-        '2025/2026',
-        '2025-09-01',
-        '2026-06-30',
-        schoolId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ],
+      [ayId, '2025/2026', '2025-09-01', '2026-06-30', schoolId, now, now],
     );
 
-    // Semesters
+    const s1Id = crypto.randomUUID();
+    const s2Id = crypto.randomUUID();
     await this.db.execute(
       'INSERT INTO "Semester" (id, number, name, startDate, endDate, academicYearId, createdAt, updatedAt) VALUES (?, 1, "1. pololetí", "2025-09-01", "2026-01-31", ?, ?, ?)',
-      [
-        crypto.randomUUID(),
-        ayId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ],
+      [s1Id, ayId, now, now],
     );
     await this.db.execute(
       'INSERT INTO "Semester" (id, number, name, startDate, endDate, academicYearId, createdAt, updatedAt) VALUES (?, 2, "2. pololetí", "2026-02-01", "2026-06-30", ?, ?, ?)',
-      [
-        crypto.randomUUID(),
-        ayId,
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ],
+      [s2Id, ayId, now, now],
     );
 
-    // Grade Levels & Classrooms
-    const classroomIds = [];
-    const gradeLevelMap = new Map<number, string>();
-    for (let i = 1; i <= 9; i++) {
-      const glId = crypto.randomUUID();
+    const START_TIMES = [
+      '08:00',
+      '08:55',
+      '10:00',
+      '10:55',
+      '11:50',
+      '12:45',
+      '13:40',
+      '14:35',
+    ];
+    const END_TIMES = [
+      '08:45',
+      '09:40',
+      '10:45',
+      '11:40',
+      '12:35',
+      '13:30',
+      '14:25',
+      '15:20',
+    ];
+    for (let i = 0; i < START_TIMES.length; i++) {
       await this.db.execute(
-        'INSERT INTO "GradeLevel" (id, name, levelNumber, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-          glId,
-          `${i}. ročník`,
-          i,
-          schoolId,
-          new Date().toISOString(),
-          new Date().toISOString(),
-        ],
+        'INSERT INTO "LessonTimeSlot" (id, lessonNumber, startTime, endTime, schoolId) VALUES (?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), i + 1, START_TIMES[i], END_TIMES[i], schoolId],
       );
-      gradeLevelMap.set(i, glId);
+    }
 
-      for (const letter of ['A', 'B']) {
-        const cId = crypto.randomUUID();
+    // 3. CURRICULUM & SUBJECTS
+    const curriculumVersionId = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "CurriculumVersion" (id, name, validFrom, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        curriculumVersionId,
+        `ŠVP ${config.schoolName} v1`,
+        '2025-09-01',
+        schoolId,
+        now,
+        now,
+      ],
+    );
+    await this.db.execute(
+      'UPDATE "AcademicYear" SET curriculumVersionId = ? WHERE id = ?',
+      [curriculumVersionId, ayId],
+    );
+
+    const templateIds: string[] = [];
+    if (config.generateSubjects !== false) {
+      for (const sub of SUBJECTS) {
+        const subId = crypto.randomUUID();
         await this.db.execute(
-          'INSERT INTO "Classroom" (id, name, grade, schoolId) VALUES (?, ?, ?, ?)',
-          [cId, `${i}.${letter}`, i, schoolId],
+          'INSERT INTO "SubjectTemplate" (id, name, code, schoolId, curriculumVersionId) VALUES (?, ?, ?, ?, ?)',
+          [subId, sub.name, sub.code, schoolId, curriculumVersionId],
         );
-        classroomIds.push(cId);
+        templateIds.push(subId);
+        stats.subjects++;
       }
     }
 
-    // Teachers
-    const teacherUserIds = [];
-    const schoolDomain = `${removeDiacritics(config.schoolName).replace(/\s+/g, '')}.demo.test`;
-    for (let i = 0; i < config.teacherCount; i++) {
+    const competencyIds: string[] = [];
+    for (const comp of COMPETENCIES) {
+      const compId = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "RvpCompetency" (id, code, name, area, schoolId) VALUES (?, ?, ?, ?, ?)',
+        [compId, comp.code, comp.name, comp.area, schoolId],
+      );
+      competencyIds.push(compId);
+    }
+
+    const gradeLevelMap = new Map<number, string>();
+    const maxGrade =
+      config.schoolType.includes('Full') || config.schoolType.includes('full')
+        ? 9
+        : 5;
+    for (let i = 1; i <= maxGrade; i++) {
+      const glId = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "GradeLevel" (id, name, levelNumber, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [glId, `${i}. ročník`, i, schoolId, now, now],
+      );
+      gradeLevelMap.set(i, glId);
+      stats.gradeLevels++;
+
+      if (config.generateSubjects !== false) {
+        for (const subId of templateIds) {
+          await this.db.execute(
+            'INSERT INTO "CurriculumEntry" (id, hoursPerWeek, curriculumVersionId, subjectTemplateId, gradeLevelId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              randInt(1, 4),
+              curriculumVersionId,
+              subId,
+              glId,
+              now,
+              now,
+            ],
+          );
+          if (Math.random() < 0.2) {
+            await this.db.execute(
+              'INSERT INTO "CompetencyMapping" (id, competencyId, subjectTemplateId, gradeLevelId, fulfilled) VALUES (?, ?, ?, ?, 1)',
+              [crypto.randomUUID(), pick(competencyIds), subId, glId],
+            );
+          }
+        }
+      }
+    }
+
+    // 4. USERS - STAFF (Leadership & Teachers)
+    const leadershipUserIds: string[] = [];
+    const staffToCreate = [
+      {
+        role: UserRole.PRINCIPAL,
+        email: `headmaster@${schoolDomain}`,
+        first: pick(MALE_FIRST),
+        last: pick(LAST_NAMES),
+      },
+      {
+        role: UserRole.DEPUTY,
+        email: `deputy@${schoolDomain}`,
+        first: pick(FEMALE_FIRST),
+        last: pick(LAST_NAMES),
+      },
+    ];
+    for (const r of staffToCreate) {
+      const uid = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [uid, r.email, r.first, r.last, passwordHash, now],
+      );
+      await this.db.execute(
+        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, "ACTIVE", ?)',
+        [crypto.randomUUID(), uid, schoolId, r.role, now],
+      );
+      leadershipUserIds.push(uid);
+    }
+
+    const teacherProfileIds: string[] = [];
+    const teacherUserIds: string[] = [];
+    const teacherCount = config.teacherCount || 15;
+    for (let i = 0; i < teacherCount; i++) {
       const isFemale = Math.random() > 0.5;
-      const firstName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
-      const lastName = pick(LAST_NAMES);
-      const email = `${removeDiacritics(lastName)}${i}@${schoolDomain}`;
-      const userId = crypto.randomUUID();
+      const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
+      const lName = pick(LAST_NAMES);
+      const uid = crypto.randomUUID();
+      const pid = crypto.randomUUID();
+      const status =
+        i < (config.teacherActiveCount ?? 12) ? 'ACTIVE' : 'PENDING';
+
       await this.db.execute(
         'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
         [
-          userId,
-          email,
-          firstName,
-          lastName,
-          passwordHash,
-          new Date().toISOString(),
+          uid,
+          `${removeDiacritics(fName)}.${removeDiacritics(lName)}${i}@${schoolDomain}`,
+          fName,
+          lName,
+          status === 'ACTIVE' ? passwordHash : null,
+          now,
         ],
       );
       await this.db.execute(
         'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-          crypto.randomUUID(),
-          userId,
-          schoolId,
-          UserRole.TEACHER,
-          UserStatus.ACTIVE,
-          new Date().toISOString(),
-        ],
+        [crypto.randomUUID(), uid, schoolId, UserRole.TEACHER, status, now],
       );
       await this.db.execute(
         'INSERT INTO "TeacherProfile" (id, userId, degree, approbation) VALUES (?, ?, ?, ?)',
-        [
-          crypto.randomUUID(),
-          userId,
-          pick(TEACHER_DEGREES),
-          pick(TEACHER_APPROBATIONS),
-        ],
+        [pid, uid, pick(TEACHER_DEGREES), pick(TEACHER_APPROBATIONS)],
       );
-      teacherUserIds.push(userId);
+      await this.db.execute(
+        'INSERT INTO "StaffWorkload" (id, userId, academicYearId, versionLabel, teachingLoad, adminLoad, validFrom, createdAt, updatedAt) VALUES (?, ?, ?, ?, 0.8, 0.2, ?, ?, ?)',
+        [crypto.randomUUID(), uid, ayId, 'Základní', '2025-09-01', now, now],
+      );
+      teacherProfileIds.push(pid);
+      teacherUserIds.push(uid);
+      stats.teachers++;
     }
 
-    return { schoolId, schoolName: config.schoolName };
+    // 5. CLASSES & STUDENTS & PARENTS
+    const classrooms: Array<{ id: string; grade: number; name: string }> = [];
+    for (let i = 1; i <= maxGrade; i++) {
+      for (const letter of ['A', 'B']) {
+        const cId = crypto.randomUUID();
+        const cName = `${i}.${letter}`;
+        await this.db.execute(
+          'INSERT INTO "Classroom" (id, name, grade, schoolId) VALUES (?, ?, ?, ?)',
+          [cId, cName, i, schoolId],
+        );
+        classrooms.push({ id: cId, grade: i, name: cName });
+        stats.classrooms++;
+
+        // Assign Homeroom teacher
+        const tPid = pick(teacherProfileIds);
+        await this.db.execute(
+          'UPDATE "TeacherProfile" SET homeroomClassId = ? WHERE id = ?',
+          [cId, tPid],
+        );
+      }
+    }
+
+    const studentCount = config.studentCount || 100;
+    const parentUserIds: string[] = [];
+    const studentUserIds: string[] = [];
+    const studentProfileIds: string[] = [];
+
+    for (let i = 0; i < studentCount; i++) {
+      const isFemale = Math.random() > 0.5;
+      const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
+      const lName = pick(LAST_NAMES);
+      const uid = crypto.randomUUID();
+      const pid = crypto.randomUUID();
+      const classroom = pick(classrooms);
+      const status =
+        i < (config.studentActiveCount ?? 80) ? 'ACTIVE' : 'PENDING';
+
+      await this.db.execute(
+        'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          uid,
+          `student${i}@zak.${schoolDomain}`,
+          fName,
+          lName,
+          status === 'ACTIVE' ? passwordHash : null,
+          now,
+        ],
+      );
+      await this.db.execute(
+        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), uid, schoolId, UserRole.STUDENT, status, now],
+      );
+      await this.db.execute(
+        'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId) VALUES (?, ?, ?, ?, ?)',
+        [pid, uid, fName, lName, classroom.id],
+      );
+      await this.db.execute(
+        'INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          uid,
+          ayId,
+          gradeLevelMap.get(classroom.grade)!,
+          classroom.id,
+          now,
+          now,
+        ],
+      );
+      studentUserIds.push(uid);
+      studentProfileIds.push(pid);
+      stats.students++;
+
+      // Parents
+      const parentName = pick(LAST_NAMES);
+      const pUid = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          pUid,
+          `parent${i}@external.test`,
+          pick(MALE_FIRST),
+          parentName,
+          passwordHash,
+          now,
+        ],
+      );
+      await this.db.execute(
+        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, "ACTIVE", ?)',
+        [crypto.randomUUID(), pUid, schoolId, UserRole.PARENT, now],
+      );
+      await this.db.execute(
+        'INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)',
+        [crypto.randomUUID(), pUid, uid],
+      );
+      parentUserIds.push(pUid);
+      stats.parents++;
+    }
+
+    // 6. SCHEDULE & LESSON DATA
+    if (config.generateSchedule !== false) {
+      const subjectInstancesByGrade = new Map<number, string[]>();
+      for (let g = 1; g <= maxGrade; g++) {
+        const glId = gradeLevelMap.get(g)!;
+        const instances: string[] = [];
+        for (const subId of templateIds) {
+          const siId = crypto.randomUUID();
+          await this.db.execute(
+            'INSERT INTO "SubjectInstance" (id, hoursPerWeek, templateId, academicYearId, gradeLevelId, curriculumVersionId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              siId,
+              3,
+              subId,
+              ayId,
+              glId,
+              curriculumVersionId,
+              schoolId,
+              now,
+              now,
+            ],
+          );
+          instances.push(siId);
+          stats.subjectInstances++;
+        }
+        subjectInstancesByGrade.set(g, instances);
+      }
+
+      // Generate schedule for ALL classrooms
+      for (const cls of classrooms) {
+        const insts = subjectInstancesByGrade.get(cls.grade)!;
+        for (let d = 1; d <= 5; d++) {
+          const lessonsPerDay = d === 5 ? 4 : 6;
+          for (let l = 1; l <= lessonsPerDay; l++) {
+            const siId = pick(insts);
+            const tPid = pick(teacherProfileIds);
+            const eventId = crypto.randomUUID();
+            await this.db.execute(
+              'INSERT INTO "ScheduleEvent" (id, dayOfWeek, lessonNumber, startTime, endTime, schoolId, subjectInstanceId, classroomId, teacherId, roomId, academicYearId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [
+                eventId,
+                d,
+                l,
+                START_TIMES[l - 1],
+                END_TIMES[l - 1],
+                schoolId,
+                siId,
+                cls.id,
+                tPid,
+                pick(roomIds),
+                ayId,
+                now,
+                now,
+              ],
+            );
+            stats.scheduleEvents++;
+
+            // 7. CLASSBOOK & ATTENDANCE & GRADES
+            const date = new Date();
+            for (let offset = 0; offset <= 2; offset++) {
+              date.setDate(new Date().getDate() - offset);
+              if ((date.getDay() || 7) === d) {
+                const entryId = crypto.randomUUID();
+                await this.db.execute(
+                  'INSERT INTO "ClassBookEntry" (id, date, lessonNumber, topic, schoolId, classroomId, teacherId, scheduleEventId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [
+                    entryId,
+                    date.toISOString().split('T')[0],
+                    l,
+                    pick(['Opakování', 'Nová látka', 'Procvičování']),
+                    schoolId,
+                    cls.id,
+                    tPid,
+                    eventId,
+                    now,
+                    now,
+                  ],
+                );
+
+                if (config.generateAttendance !== false) {
+                  const studentsInCls = await this.db.query(
+                    'SELECT id FROM "StudentProfile" WHERE classroomId = ?',
+                    [cls.id],
+                  );
+                  for (const st of studentsInCls as any[]) {
+                    const isAbsent = Math.random() < 0.05;
+                    await this.db.execute(
+                      'INSERT INTO "Attendance" (id, date, status, lessonNumber, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                      [
+                        crypto.randomUUID(),
+                        date.toISOString().split('T')[0],
+                        isAbsent ? 'ABSENT' : 'PRESENT',
+                        l,
+                        schoolId,
+                        st.id,
+                        tPid,
+                        now,
+                      ],
+                    );
+                    stats.attendanceRecords++;
+
+                    if (
+                      !isAbsent &&
+                      config.generateGrades !== false &&
+                      Math.random() < 0.15
+                    ) {
+                      await this.db.execute(
+                        'INSERT INTO "Grade" (id, value, weight, description, date, schoolId, studentId, subjectInstanceId, teacherId, academicYearId, semesterId, createdAt) VALUES (?, ?, 1.0, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [
+                          crypto.randomUUID(),
+                          String(randInt(1, 3)),
+                          pick(GRADE_DESCRIPTIONS),
+                          date.toISOString().split('T')[0],
+                          schoolId,
+                          st.id,
+                          siId,
+                          tPid,
+                          ayId,
+                          s1Id,
+                          now,
+                        ],
+                      );
+                      stats.grades++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Add a snapshot and a substitution
+      const someEvent = (
+        (await this.db.query(
+          'SELECT * FROM "ScheduleEvent" WHERE schoolId = ? LIMIT 1',
+          [schoolId],
+        )) as any[]
+      )[0];
+      if (someEvent) {
+        await this.db.execute(
+          'INSERT INTO "ScheduleSnapshot" (id, name, data, schoolId, academicYearId, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            'Verze 1.0',
+            JSON.stringify({}),
+            schoolId,
+            ayId,
+            now,
+          ],
+        );
+        await this.db.execute(
+          'INSERT INTO "ScheduleSubstitution" (id, date, type, originalEventId, createdById, schoolId, createdAt, updatedAt) VALUES (?, ?, "TEACHER_CHANGE", ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            now,
+            someEvent.id,
+            leadershipUserIds[0],
+            schoolId,
+            now,
+            now,
+          ],
+        );
+      }
+
+      // Add a recurring event (kroužek)
+      await this.db.execute(
+        'INSERT INTO "RecurringEvent" (id, title, dayOfWeek, startTime, endTime, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          'Kroužek robotiky',
+          3,
+          '15:30',
+          '17:00',
+          schoolId,
+          now,
+          now,
+        ],
+      );
+    }
+
+    // 8. COMMUNITY & COMMUNICATION
+    if (config.generateCommunity !== false) {
+      const headmasterUid = leadershipUserIds[0];
+      for (let i = 1; i <= 4; i++) {
+        await this.db.execute(
+          'INSERT INTO "BulletinPost" (id, title, content, pinned, authorId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            `Důležité oznámení #${i}`,
+            'Informace pro všechny uživatele školy.',
+            i === 1 ? 1 : 0,
+            headmasterUid,
+            schoolId,
+            now,
+            now,
+          ],
+        );
+        stats.bulletinPosts++;
+
+        const evDate = new Date();
+        evDate.setDate(evDate.getDate() + i * 7);
+        await this.db.execute(
+          'INSERT INTO "SchoolEvent" (id, title, description, date, type, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            `Školní akce #${i}`,
+            'Popis události a program.',
+            evDate.toISOString(),
+            pick(['SCHOOL_TRIP', 'PARENT_MEETING', 'OTHER']),
+            schoolId,
+            now,
+            now,
+          ],
+        );
+        stats.calendarEvents++;
+      }
+
+      const pollId = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "Poll" (id, question, authorId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?)',
+        [
+          pollId,
+          'Jaký termín školního výletu preferujete?',
+          headmasterUid,
+          schoolId,
+          now,
+        ],
+      );
+      for (const opt of ['Červen', 'Září']) {
+        await this.db.execute(
+          'INSERT INTO "PollOption" (id, text, pollId) VALUES (?, ?, ?)',
+          [crypto.randomUUID(), opt, pollId],
+        );
+      }
+      stats.polls = 1;
+    }
+
+    if (config.generateCommunication !== false) {
+      const cId = crypto.randomUUID();
+      await this.db.execute(
+        'INSERT INTO "Conversation" (id, subject, schoolId, createdAt, updatedAt) VALUES (?, "Dotaz na učivo", ?, ?, ?)',
+        [cId, schoolId, now, now],
+      );
+      await this.db.execute(
+        'INSERT INTO "ConversationParticipant" (id, conversationId, userId, createdAt) VALUES (?, ?, ?, ?)',
+        [crypto.randomUUID(), cId, teacherUserIds[0], now],
+      );
+      await this.db.execute(
+        'INSERT INTO "ConversationParticipant" (id, conversationId, userId, createdAt) VALUES (?, ?, ?, ?)',
+        [crypto.randomUUID(), cId, parentUserIds[0], now],
+      );
+      for (let j = 0; j < 3; j++) {
+        await this.db.execute(
+          'INSERT INTO "Message" (id, conversationId, senderId, content, createdAt) VALUES (?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            cId,
+            j % 2 === 0 ? parentUserIds[0] : teacherUserIds[0],
+            pick(MESSAGE_CONTENTS),
+            now,
+          ],
+        );
+        stats.messages++;
+      }
+      stats.conversations = 1;
+    }
+
+    // 9. TEACHER DATA (Thematic plans, Preparations, Materials)
+    const someTeacherId = teacherUserIds[0];
+    const someSubId = templateIds[0];
+    const glId = gradeLevelMap.get(1)!;
+
+    const planId = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "ThematicPlan" (id, title, subjectTemplateId, academicYearId, gradeLevelId, teacherId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        planId,
+        'Celoroční plán - Matematika',
+        someSubId,
+        ayId,
+        glId,
+        someTeacherId,
+        schoolId,
+        now,
+        now,
+      ],
+    );
+    for (let w = 1; w <= 5; w++) {
+      await this.db.execute(
+        'INSERT INTO "ThematicPlanWeek" (id, weekNumber, topic, planId) VALUES (?, ?, ?, ?)',
+        [crypto.randomUUID(), w, `Téma týdne ${w}`, planId],
+      );
+    }
+    stats.thematicPlans = 1;
+
+    await this.db.execute(
+      'INSERT INTO "LessonPreparation" (id, title, date, topic, subjectTemplateId, teacherId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
+        'Příprava na pondělí',
+        now,
+        'Úvod do problematiky',
+        someSubId,
+        someTeacherId,
+        schoolId,
+        now,
+        now,
+      ],
+    );
+    stats.lessonPreparations = 1;
+
+    await this.db.execute(
+      'INSERT INTO "TeachingMaterial" (id, title, url, uploadedById, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
+        'Prezentace ke studiu',
+        'https://example.com/slide.pdf',
+        someTeacherId,
+        schoolId,
+        now,
+      ],
+    );
+    stats.materials = 1;
+
+    // 10. REPORT CARDS & MEASURES & AUDIT
+    if (config.generateReportCards !== false) {
+      const someStudentPid = studentProfileIds[0];
+      const someSiId = (
+        (await this.db.query(
+          'SELECT id FROM "SubjectInstance" WHERE schoolId = ? LIMIT 1',
+          [schoolId],
+        )) as any[]
+      )[0]?.id;
+      if (someSiId) {
+        await this.db.execute(
+          'INSERT INTO "ReportCard" (id, finalGrade, studentId, subjectInstanceId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, "1", ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            someStudentPid,
+            someSiId,
+            s1Id,
+            schoolId,
+            now,
+            now,
+          ],
+        );
+        stats.reportCards = 1;
+      }
+      await this.db.execute(
+        'INSERT INTO "BehaviorGrade" (id, grade, studentId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, 1, ?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), someStudentPid, s1Id, schoolId, now, now],
+      );
+      stats.behaviorGrades = 1;
+
+      await this.db.execute(
+        'INSERT INTO "EducationalMeasure" (id, type, reason, studentId, issuedById, schoolId, createdAt) VALUES (?, "PRAISE", "Za vzornou reprezentaci školy", ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          someStudentPid,
+          leadershipUserIds[0] || teacherUserIds[0],
+          schoolId,
+          now,
+        ],
+      );
+    }
+
+    await this.db.execute(
+      'INSERT INTO "AuditLog" (id, actorId, action, entity, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
+        leadershipUserIds[0],
+        'GENERATE_TEST_DATA',
+        'School',
+        schoolId,
+        now,
+      ],
+    );
+
+    return {
+      schoolId,
+      schoolName: config.schoolName,
+      stats,
+      adminCredentials: {
+        email: `headmaster@${schoolDomain}`,
+        password: demoPassword,
+      },
+    };
   }
 
   async wipeSchoolData(schoolId: string) {
@@ -385,7 +989,6 @@ export class TestDataService {
       'Classroom',
       'GradeLevel',
     ];
-
     await this.db.execute('PRAGMA foreign_keys = OFF');
     for (const t of tables) {
       try {
@@ -452,7 +1055,6 @@ export class TestDataService {
       'GradeLevel',
       'School',
     ];
-
     await this.db.execute('PRAGMA foreign_keys = OFF');
     for (const t of tables) {
       try {
