@@ -1076,7 +1076,6 @@ const SETTING_FIELDS = [
         type: 'number',
         section: 'Bezpečnost',
     },
-    { key: 'general.systemName', label: 'Název systému', type: 'text', section: 'Obecné' },
 ] as const;
 
 function SystemConfigTab() {
