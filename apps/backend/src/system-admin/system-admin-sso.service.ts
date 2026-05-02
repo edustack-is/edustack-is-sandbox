@@ -90,12 +90,12 @@ export class SystemAdminSsoService {
 
     for (const item of secretsToUpsert) {
       await this.db.execute(
-        `INSERT INTO "SystemSecret" (id, type, service, "key", value, isActive, updatedAt)
+        `INSERT INTO "SystemSecret" ("id", "type", "service", "key", "value", "isActive", "updatedAt")
          VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(type, service, "key") DO UPDATE SET
-           value = excluded.value,
-           isActive = excluded.isActive,
-           updatedAt = excluded.updatedAt`,
+         ON CONFLICT("type", "service", "key") DO UPDATE SET
+           "value" = EXCLUDED."value",
+           "isActive" = EXCLUDED."isActive",
+           "updatedAt" = EXCLUDED."updatedAt"`,
         [
           crypto.randomUUID(),
           SecretType.SSO,
