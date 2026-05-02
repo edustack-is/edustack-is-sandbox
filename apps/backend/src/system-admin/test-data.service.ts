@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { CryptoService } from '../utils/crypto.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UserRole, UserStatus } from '../database/types';
@@ -94,7 +95,10 @@ export interface GenerateConfig {
 export class TestDataService {
   private readonly logger = new Logger(TestDataService.name);
 
-  constructor(private db: DatabaseService) {}
+  constructor(
+    private db: DatabaseService,
+    private cryptoService: CryptoService,
+  ) {}
 
   async generateAll(config: GenerateConfig): Promise<any> {
     this.logger.log(`Generating complete coverage test data for ${config.schoolName}`);
@@ -107,11 +111,11 @@ export class TestDataService {
     await this.db.execute('INSERT OR IGNORE INTO "SystemSettings" (id, updatedAt) VALUES (?, ?)', ['global', now]);
     await this.db.execute('INSERT OR IGNORE INTO "GlobalConfig" (key, value, updatedAt) VALUES (?, ?, ?)', ['system_initialized', 'true', now]);
     
-    // Add some system secrets
+    // Add some system secrets (MUST BE ENCRYPTED)
     await this.db.execute('INSERT OR IGNORE INTO "SystemSecret" (id, type, service, key, value, isActive, updatedAt) VALUES (?, ?, ?, ?, ?, 1, ?)', 
-      [crypto.randomUUID(), 'SSO', 'google', 'client_id', 'demo-google-id', now]);
+      [crypto.randomUUID(), 'SSO', 'google', 'client_id', this.cryptoService.encrypt('demo-google-id'), now]);
     await this.db.execute('INSERT OR IGNORE INTO "SystemSecret" (id, type, service, key, value, isActive, updatedAt) VALUES (?, ?, ?, ?, ?, 1, ?)', 
-      [crypto.randomUUID(), 'AI', 'gemini', 'api_key', 'demo-gemini-key', now]);
+      [crypto.randomUUID(), 'AI', 'google', 'API_KEY', this.cryptoService.encrypt('demo-gemini-key'), now]);
 
     let school = await this.db.queryOne('SELECT * FROM "School" WHERE name = ?', [config.schoolName]);
     if (school) {
