@@ -30,7 +30,14 @@ export class SystemAdminAiService {
     ];
 
     for (const s of services) {
-      if (s.value) {
+      if (s.value === '') {
+        // Explicit removal
+        await this.db.execute(
+          'DELETE FROM "SystemSecret" WHERE "type" = ? AND "service" = ? AND "key" = ?',
+          [SecretType.AI, s.id, s.key],
+        );
+      } else if (s.value) {
+        // Update or insert
         await this.db.execute(
           `INSERT INTO "SystemSecret" ("id", "type", "service", "key", "value", "isActive", "updatedAt")
            VALUES (?, ?, ?, ?, ?, ?, ?)

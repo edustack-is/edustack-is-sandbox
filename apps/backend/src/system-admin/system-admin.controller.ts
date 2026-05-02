@@ -89,15 +89,22 @@ export class SystemAdminController {
       anthropicApiKey?: string;
     },
   ) {
-    if (
-      (!body.geminiApiKey && !body.openAiApiKey && !body.anthropicApiKey) ||
-      (body.geminiApiKey && body.geminiApiKey.length < 10) ||
-      (body.openAiApiKey && body.openAiApiKey.length < 10) ||
-      (body.anthropicApiKey && body.anthropicApiKey.length < 10)
-    ) {
-      throw new BadRequestException(
-        'At least one valid API key (min 10 chars) is required.',
-      );
+    const providedKeys = [
+      body.geminiApiKey,
+      body.openAiApiKey,
+      body.anthropicApiKey,
+    ];
+
+    if (providedKeys.every((k) => k === undefined)) {
+      throw new BadRequestException('At least one API key must be provided.');
+    }
+
+    for (const key of providedKeys) {
+      if (key !== undefined && key !== '' && key.length < 10) {
+        throw new BadRequestException(
+          'API keys must be at least 10 characters long.',
+        );
+      }
     }
 
     return this.aiService.upsertAiSettings({
