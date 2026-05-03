@@ -102,7 +102,7 @@ export class SystemAdminSsoService {
           provider,
           item.key,
           item.value,
-          isActive ?? true,
+          (isActive ?? true) ? 1 : 0,
           new Date().toISOString(),
         ],
       );
@@ -112,7 +112,7 @@ export class SystemAdminSsoService {
     if (isActive !== undefined) {
       await this.db.execute(
         'UPDATE "SystemSecret" SET isActive = ?, updatedAt = ? WHERE type = ? AND service = ?',
-        [isActive, new Date().toISOString(), SecretType.SSO, provider],
+        [isActive ? 1 : 0, new Date().toISOString(), SecretType.SSO, provider],
       );
     }
 

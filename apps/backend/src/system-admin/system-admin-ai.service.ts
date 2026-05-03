@@ -52,7 +52,7 @@ export class SystemAdminAiService {
             s.id,
             s.key,
             this.cryptoService.encrypt(s.value),
-            true,
+            1, // isActive: true as integer
             new Date().toISOString(),
           ],
         );
