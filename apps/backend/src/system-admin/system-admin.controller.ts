@@ -87,12 +87,14 @@ export class SystemAdminController {
       geminiApiKey?: string;
       openAiApiKey?: string;
       anthropicApiKey?: string;
+      opencodeApiKey?: string;
     },
   ) {
     const providedKeys = [
       body.geminiApiKey,
       body.openAiApiKey,
       body.anthropicApiKey,
+      body.opencodeApiKey,
     ];
 
     if (providedKeys.every((k) => k === undefined)) {
@@ -111,6 +113,7 @@ export class SystemAdminController {
       geminiApiKey: body.geminiApiKey?.trim(),
       openAiApiKey: body.openAiApiKey?.trim(),
       anthropicApiKey: body.anthropicApiKey?.trim(),
+      opencodeApiKey: body.opencodeApiKey?.trim(),
     });
   }
 

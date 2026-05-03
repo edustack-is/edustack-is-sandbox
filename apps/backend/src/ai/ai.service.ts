@@ -48,6 +48,18 @@ export class AiService {
       return this.cachedModel;
     }
 
+    const opencodeKey =
+      await this.systemAdminAiService.getDecryptedApiKey('opencode');
+    if (opencodeKey) {
+      const opencode = createOpenAI({
+        apiKey: opencodeKey,
+        baseURL: 'https://opencode.ai/zen/v1',
+      });
+      // Sensible default coding model from opencode
+      this.cachedModel = opencode('opencode-go/kimi-k2.6');
+      return this.cachedModel;
+    }
+
     throw new BadRequestException('Žádný AI provider není dostupný.');
   }
 

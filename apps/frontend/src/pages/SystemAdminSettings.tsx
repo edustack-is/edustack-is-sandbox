@@ -76,6 +76,7 @@ interface AiSettings {
     gemini: ProviderConfig;
     openai: ProviderConfig;
     anthropic: ProviderConfig;
+    opencode: ProviderConfig;
     updatedAt: string | null;
 }
 
@@ -795,13 +796,13 @@ function KpiCard({
 
 function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; onSaved: () => void }) {
     const { t } = useTranslation();
-    const [keys, setKeys] = useState({ gemini: '', openai: '', anthropic: '' });
+    const [keys, setKeys] = useState({ gemini: '', openai: '', anthropic: '', opencode: '' });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
 
     const handleSave = async () => {
-        if (!keys.gemini && !keys.openai && !keys.anthropic) {
+        if (!keys.gemini && !keys.openai && !keys.anthropic && !keys.opencode) {
             setError(t('system_settings.fill_at_least_one'));
             return;
         }
@@ -812,8 +813,9 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                 geminiApiKey: keys.gemini || undefined,
                 openAiApiKey: keys.openai || undefined,
                 anthropicApiKey: keys.anthropic || undefined,
+                opencodeApiKey: keys.opencode || undefined,
             });
-            setKeys({ gemini: '', openai: '', anthropic: '' });
+            setKeys({ gemini: '', openai: '', anthropic: '', opencode: '' });
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
             onSaved();
@@ -870,6 +872,14 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         value={keys.anthropic}
                         onChange={(v: string) => setKeys((p) => ({ ...p, anthropic: v }))}
                         link="https://console.anthropic.com/settings/keys"
+                    />
+                    <ProviderInput
+                        label="OpenCode.ai"
+                        placeholder="sk-..."
+                        config={settings?.opencode}
+                        value={keys.opencode}
+                        onChange={(v: string) => setKeys((p) => ({ ...p, opencode: v }))}
+                        link="https://opencode.ai/auth"
                     />
                 </div>
 

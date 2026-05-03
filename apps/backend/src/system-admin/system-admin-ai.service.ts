@@ -22,11 +22,13 @@ export class SystemAdminAiService {
     geminiApiKey?: string;
     openAiApiKey?: string;
     anthropicApiKey?: string;
+    opencodeApiKey?: string;
   }) {
     const services = [
       { id: 'google', key: 'API_KEY', value: keys.geminiApiKey },
       { id: 'openai', key: 'API_KEY', value: keys.openAiApiKey },
       { id: 'anthropic', key: 'API_KEY', value: keys.anthropicApiKey },
+      { id: 'opencode', key: 'API_KEY', value: keys.opencodeApiKey },
     ];
 
     for (const s of services) {
@@ -84,6 +86,7 @@ export class SystemAdminAiService {
     const gemini = findSecret('google', 'API_KEY');
     const openai = findSecret('openai', 'API_KEY');
     const anthropic = findSecret('anthropic', 'API_KEY');
+    const opencode = findSecret('opencode', 'API_KEY');
 
     return {
       gemini: {
@@ -97,6 +100,10 @@ export class SystemAdminAiService {
       anthropic: {
         isConfigured: !!anthropic,
         keyHint: maskKey(anthropic?.value),
+      },
+      opencode: {
+        isConfigured: !!opencode,
+        keyHint: maskKey(opencode?.value),
       },
       updatedAt: secrets.length > 0 ? secrets[0].updatedAt : null,
     };
