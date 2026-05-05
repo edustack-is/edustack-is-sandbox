@@ -4,6 +4,7 @@ import { CryptoService } from '../utils/crypto.service';
 import { SecretType, SystemSecret } from '../database/types';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 import * as crypto from 'crypto';
+import { IsString, IsOptional, IsBoolean, MinLength } from 'class-validator';
 
 export interface SsoProviderSettings {
   clientId: string;
@@ -16,10 +17,24 @@ export interface SsoProviderSettings {
 export type SsoSettings = Record<string, SsoProviderSettings>;
 
 export class UpsertSsoDto {
+  @IsString()
+  @MinLength(1)
   clientId: string;
+
+  @IsString()
+  @IsOptional()
   clientSecret?: string;
+
+  @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
   teamId?: string;
+
+  @IsString()
+  @IsOptional()
   keyId?: string;
 }
 

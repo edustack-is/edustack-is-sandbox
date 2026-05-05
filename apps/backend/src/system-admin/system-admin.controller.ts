@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
+import { UpsertAiSettingsDto } from './dto/upsert-ai-settings.dto';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 import {
   SystemAdminSsoService,
@@ -81,15 +82,7 @@ export class SystemAdminController {
    * Upserts the Gemini API key (encrypted at rest).
    */
   @Put('settings/ai')
-  async updateAiSettings(
-    @Body()
-    body: {
-      geminiApiKey?: string;
-      openAiApiKey?: string;
-      anthropicApiKey?: string;
-      opencodeApiKey?: string;
-    },
-  ) {
+  async updateAiSettings(@Body() body: UpsertAiSettingsDto) {
     const providedKeys = [
       body.geminiApiKey,
       body.openAiApiKey,
@@ -99,14 +92,6 @@ export class SystemAdminController {
 
     if (providedKeys.every((k) => k === undefined)) {
       throw new BadRequestException('At least one API key must be provided.');
-    }
-
-    for (const key of providedKeys) {
-      if (key !== undefined && key !== '' && key.length < 10) {
-        throw new BadRequestException(
-          'API keys must be at least 10 characters long.',
-        );
-      }
     }
 
     return this.aiService.upsertAiSettings({
