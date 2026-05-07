@@ -292,8 +292,8 @@ server.tool(
                         'INSERT INTO "TeacherProfile" (id, userId, degree, approbation) VALUES (?, ?, ?, ?)',
                     ).run(randomUUID(), uid, t.degree, t.approbation);
                     db.prepare(
-                        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, workloadPercentage, createdAt, updatedAt) VALUES (?, ?, ?, "TEACHER", "ACTIVE", ?, ?, ?)',
-                    ).run(randomUUID(), uid, schoolId, t.workload, now, now);
+                        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, workloadPercentage, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    ).run(randomUUID(), uid, schoolId, 'TEACHER', 'ACTIVE', t.workload, now, now);
                     if (ay) {
                         db.prepare(
                             'INSERT INTO "TeacherWorkload" (id, teacherId, academicYearId, workloadPercentage) VALUES (?, ?, ?, ?)',
