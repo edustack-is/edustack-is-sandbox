@@ -42,10 +42,10 @@ interface SchoolInfo {
 }
 
 const SCHOOL_TYPES = [
-    { value: 'elementary_1', label: 'ZŠ – 1. stupeň (1.–5. třída)', icon: '🏫' },
-    { value: 'elementary_full', label: 'ZŠ – 1. i 2. stupeň (1.–9. třída)', icon: '🏫' },
-    { value: 'gymnasium_8', label: 'Osmileté gymnázium (Prima–Oktáva)', icon: '🎓' },
-    { value: 'gymnasium_4', label: 'Čtyřleté gymnázium (1.–4. ročník)', icon: '🎓' },
+    { value: 'elementary_1', labelKey: 'test_data.school_type_elementary_1', icon: '🏫' },
+    { value: 'elementary_full', labelKey: 'test_data.school_type_elementary_full', icon: '🏫' },
+    { value: 'gymnasium_8', labelKey: 'test_data.school_type_gymnasium_8', icon: '🎓' },
+    { value: 'gymnasium_4', labelKey: 'test_data.school_type_gymnasium_4', icon: '🎓' },
 ];
 
 // ═════════════════════════════════════════════════════════════════
@@ -53,7 +53,7 @@ const SCHOOL_TYPES = [
 export function TestDataGenerator() {
     const { t } = useTranslation();
     // ─── Generate state ──────────────────────────────────
-    const [schoolName, setSchoolName] = useState('Testovací škola');
+    const [schoolName, setSchoolName] = useState('');
     const [schoolType, setSchoolType] = useState('elementary_full');
     const [teacherCount, setTeacherCount] = useState(15);
     const [teacherActive, setTeacherActive] = useState(12);
@@ -102,10 +102,10 @@ export function TestDataGenerator() {
             const res = await aiGenerateSchoolName(schoolType);
             if (res.name) {
                 setSchoolName(res.name);
-                toast.success('Název úspěšně vygenerován');
+                toast.success(t('test_data.gen_name_success'));
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Chyba při generování názvu');
+            toast.error(err.response?.data?.message || t('test_data.gen_name_error'));
         } finally {
             setGeneratingName(false);
         }
@@ -113,7 +113,7 @@ export function TestDataGenerator() {
 
     const handleGenerate = async () => {
         if (!schoolName.trim()) {
-            toast.error('Zadejte název školy');
+            toast.error(t('test_data.school_name_required'));
             return;
         }
         try {
@@ -138,10 +138,10 @@ export function TestDataGenerator() {
                 generateCommunity,
             });
             setLastResult(result);
-            toast.success(`Škola '${result.schoolName}' byla úspěšně vytvořena s testovacími daty!`);
+            toast.success(t('test_data.gen_success', { name: result.schoolName }));
             loadSchools();
         } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Chyba při generování dat');
+            toast.error(err.response?.data?.message || t('test_data.gen_error'));
         } finally {
             setGenerating(false);
         }
@@ -154,12 +154,12 @@ export function TestDataGenerator() {
         try {
             setWiping(true);
             const result = await wipeSchoolData(selectedSchoolId);
-            toast.success(`Škola '${result.deletedSchool}' byla smazána včetně všech dat.`);
+            toast.success(t('test_data.wipe_success', { name: result.deletedSchool }));
             setWipeDialogOpen(false);
             setSelectedSchoolId('');
             loadSchools();
         } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Chyba při mazání dat');
+            toast.error(err.response?.data?.message || t('test_data.wipe_error'));
         } finally {
             setWiping(false);
         }
@@ -169,12 +169,17 @@ export function TestDataGenerator() {
         try {
             setWiping(true);
             const result = await wipeAllData();
-            toast.success(`Smazáno ${result.deletedSchools} škol a ${result.deletedUsers} uživatelů.`);
+            toast.success(
+                t('test_data.wipe_all_success', {
+                    schools: result.deletedSchools,
+                    users: result.deletedUsers,
+                }),
+            );
             setWipeAllDialogOpen(false);
             setWipeConfirmText('');
             loadSchools();
         } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Chyba při mazání dat');
+            toast.error(err.response?.data?.message || t('test_data.wipe_error'));
         } finally {
             setWiping(false);
         }
@@ -216,7 +221,7 @@ export function TestDataGenerator() {
                                     className="absolute right-1 top-1 bottom-1 h-auto w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
                                     onClick={handleGenerateName}
                                     disabled={generatingName}
-                                    title="AI generovat název"
+                                    title={t('test_data.ai_gen_title')}
                                 >
                                     {generatingName ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -233,9 +238,9 @@ export function TestDataGenerator() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {SCHOOL_TYPES.map((t) => (
-                                        <SelectItem key={t.value} value={t.value}>
-                                            {t.icon} {t.label}
+                                    {SCHOOL_TYPES.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                            {type.icon} {t(type.labelKey)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -246,13 +251,13 @@ export function TestDataGenerator() {
                     {/* Users */}
                     <div className="space-y-4">
                         <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
-                            <Users className="h-4 w-4" /> Uživatelé
+                            <Users className="h-4 w-4" /> {t('test_data.users_section')}
                         </h4>
 
                         {/* Teachers */}
                         <div className="grid gap-3 md:grid-cols-3 pl-4 border-l-2 border-blue-200">
                             <div className="space-y-1">
-                                <Label className="text-xs">Učitelé (celkem)</Label>
+                                <Label className="text-xs">{t('test_data.teachers_total')}</Label>
                                 <Input
                                     type="number"
                                     min={0}
@@ -294,7 +299,7 @@ export function TestDataGenerator() {
                         {/* Students */}
                         <div className="grid gap-3 md:grid-cols-3 pl-4 border-l-2 border-green-200">
                             <div className="space-y-1">
-                                <Label className="text-xs">Studenti (celkem)</Label>
+                                <Label className="text-xs">{t('test_data.students_total')}</Label>
                                 <Input
                                     type="number"
                                     min={0}

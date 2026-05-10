@@ -374,8 +374,28 @@
       "behaviorGrades": "Behavior Grades",
       "bulletinPosts": "Bulletin Posts",
       "polls": "Polls",
-      "calendarEvents": "Calendar Events"
-    }
+      "calendarEvents": "Calendar Events",
+      "notifications": "Notifications",
+      "signatures": "Signatures"
+    },
+    "school_type_elementary_1": "Elementary – 1st stage (1–5)",
+    "school_type_elementary_full": "Elementary – Full (1–9)",
+    "school_type_gymnasium_8": "Gymnasium – 8 years (Prima–Octava)",
+    "school_type_gymnasium_4": "Gymnasium – 4 years (1–4)",
+    "teachers_title": "Teachers",
+    "teachers_total": "Teachers (Total)",
+    "students_title": "Students",
+    "students_total": "Students (Total)",
+    "gen_name_success": "Name generated successfully",
+    "gen_name_error": "Error generating name",
+    "school_name_required": "Enter school name",
+    "gen_success": "School '{{name}}' was successfully created with test data!",
+    "gen_error": "Error generating data",
+    "wipe_success": "School '{{name}}' was deleted including all data.",
+    "wipe_error": "Error deleting data",
+    "wipe_all_success": "Deleted {{schools}} schools and {{users}} users.",
+    "ai_gen_title": "AI Generate Name",
+    "users_section": "Users"
   },
   "grading": {
     "title": "Grading",

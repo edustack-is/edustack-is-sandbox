@@ -374,8 +374,28 @@
       "behaviorGrades": "Známky z chování",
       "bulletinPosts": "Příspěvky na nástěnce",
       "polls": "Ankety",
-      "calendarEvents": "Události v kalendáři"
-    }
+      "calendarEvents": "Události v kalendáři",
+      "notifications": "Notifikace",
+      "signatures": "Podpisy"
+    },
+    "school_type_elementary_1": "ZŠ – 1. stupeň (1.–5. třída)",
+    "school_type_elementary_full": "ZŠ – 1. i 2. stupeň (1.–9. třída)",
+    "school_type_gymnasium_8": "Osmileté gymnázium (Prima–Oktáva)",
+    "school_type_gymnasium_4": "Čtyřleté gymnázium (1.–4. ročník)",
+    "teachers_title": "Učitelé",
+    "teachers_total": "Učitelé (celkem)",
+    "students_title": "Studenti",
+    "students_total": "Studenti (celkem)",
+    "gen_name_success": "Název úspěšně vygenerován",
+    "gen_name_error": "Chyba při generování názvu",
+    "school_name_required": "Zadejte název školy",
+    "gen_success": "Škola '{{name}}' byla úspěšně vytvořena s testovacími daty!",
+    "gen_error": "Chyba při generování dat",
+    "wipe_success": "Škola '{{name}}' byla smazána včetně všech dat.",
+    "wipe_error": "Chyba při mazání dat",
+    "wipe_all_success": "Smazáno {{schools}} škol a {{users}} uživatelů.",
+    "ai_gen_title": "AI generovat název",
+    "users_section": "Uživatelé"
   },
   "grading": {
     "title": "Klasifikace",
