@@ -253,7 +253,7 @@ export const Schedule: React.FC = () => {
             } catch (err: any) {
                 if (!cancelled) {
                     console.error('Failed to load schedule:', err);
-                    setError(err?.response?.data?.message || t('schedule.load_error', 'Nepodařilo se načíst rozvrh'));
+                    setError(err?.response?.data?.message || t('schedule.load_error'));
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -354,7 +354,7 @@ export const Schedule: React.FC = () => {
         const maxLesson = events.length > 0 ? Math.max(...events.map((e) => e.lessonNumber)) : 8;
         const usedSlots = slots.length > 0 ? slots : [];
 
-        let html = '<table><thead><tr><th>Hodina</th>';
+        let html = `<table><thead><tr><th>${t('common.hour')}</th>`;
         days.forEach((d) => {
             html += `<th>${d.label}</th>`;
         });
@@ -385,7 +385,7 @@ export const Schedule: React.FC = () => {
     if (!schoolId) {
         return (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p>{t('schedule.no_school', 'Nejdříve vyberte školu.')}</p>
+                <p>{t('schedule.no_school')}</p>
             </div>
         );
     }
@@ -396,7 +396,7 @@ export const Schedule: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">{t('schedule.title', 'Rozvrh')}</h1>
+                    <h1 className="text-2xl font-bold">{t('schedule.title')}</h1>
                 </div>
 
                 {/* Year & Semester selectors + Print */}
@@ -411,7 +411,7 @@ export const Schedule: React.FC = () => {
                         >
                             <SelectTrigger className="w-40">
                                 <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                                <SelectValue placeholder="Rok..." />
+                                <SelectValue placeholder={`${t('sidebar.year_setup')}...`} />
                             </SelectTrigger>
                             <SelectContent>
                                 {academicYears
@@ -441,7 +441,7 @@ export const Schedule: React.FC = () => {
                             </SelectContent>
                         </Select>
                     )}
-                    <Button variant="outline" size="icon" onClick={handlePrint} title="Vytisknout rozvrh">
+                    <Button variant="outline" size="icon" onClick={handlePrint} title={t('schedule.print')}>
                         <Printer className="h-4 w-4" />
                     </Button>
                 </div>
@@ -490,7 +490,7 @@ export const Schedule: React.FC = () => {
                 <TabsContent value="classroom" className="mt-3">
                     <Select value={selectedClassroomId} onValueChange={(v) => setSelectedClassroomId(v)}>
                         <SelectTrigger className="w-full max-w-xs">
-                            <SelectValue placeholder="Vyberte třídu..." />
+                            <SelectValue placeholder={t('schedule.select_classroom')} />
                         </SelectTrigger>
                         <SelectContent>
                             {classrooms
@@ -509,7 +509,7 @@ export const Schedule: React.FC = () => {
                 <TabsContent value="teacher" className="mt-3">
                     <Select value={selectedTeacherId} onValueChange={(v) => setSelectedTeacherId(v)}>
                         <SelectTrigger className="w-full max-w-xs">
-                            <SelectValue placeholder="Vyberte učitele..." />
+                            <SelectValue placeholder={t('schedule.select_teacher')} />
                         </SelectTrigger>
                         <SelectContent>
                             {teachers
@@ -557,11 +557,11 @@ export const Schedule: React.FC = () => {
                     ) : events.length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground">
                             <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                            <p className="text-lg font-medium">{t('schedule.empty', 'Žádné hodiny v rozvrhu')}</p>
+                            <p className="text-lg font-medium">{t('schedule.empty')}</p>
                             <p className="text-sm mt-1">
                                 {role === 'PRINCIPAL' || role === 'DEPUTY' || role === 'ADMIN'
-                                    ? t('schedule.empty_admin', 'Rozvrh můžete naplánovat v sekci Plánování rozvrhu.')
-                                    : t('schedule.empty_user', 'Rozvrh zatím nebyl vytvořen.')}
+                                    ? t('schedule.empty_admin')
+                                    : t('schedule.empty_user')}
                             </p>
                         </div>
                     ) : (

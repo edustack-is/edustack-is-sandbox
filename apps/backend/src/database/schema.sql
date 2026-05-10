@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "School" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
+    "name" TEXT NOT NULL UNIQUE,
     "address" TEXT,
     "contactEmail" TEXT,
     "allowStudentSelfRegistration" BOOLEAN NOT NULL DEFAULT false,

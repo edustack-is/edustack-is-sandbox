@@ -492,7 +492,15 @@
     "cancelled": "Odpadá",
     "room_change": "Změna učebny",
     "subject_change": "Změna předmětu",
-    "subtitle": "Správa událostí v rozvrhu a kontrola kolizí."
+    "subtitle": "Správa událostí v rozvrhu a kontrola kolizí.",
+    "print": "Vytisknout rozvrh",
+    "select_classroom": "Vyberte třídu...",
+    "select_teacher": "Vyberte učitele...",
+    "empty": "Žádné hodiny v rozvrhu",
+    "empty_admin": "Rozvrh můžete naplánovat v sekci Plánování rozvrhu.",
+    "empty_user": "Rozvrh zatím nebyl vytvořen.",
+    "no_school": "Nejdříve vyberte školu.",
+    "load_error": "Nepodařilo se načíst rozvrh"
   },
   "days": {
     "monday": "Pondělí",
@@ -1097,5 +1105,120 @@
     "excuse_approved": "Omluvenka schválena",
     "excuse_rejected": "Omluvenka zamítnuta",
     "no_lessons": "Žádné hodiny v rozvrhu pro tento den"
+  },
+  "measures": {
+    "title": "Výchovná opatření",
+    "subtitle": "Pochvaly, důtky a další výchovná opatření",
+    "new": "Nové opatření",
+    "no_measures": "Žádná výchovná opatření",
+    "select_student": "Vyberte studenta",
+    "describe_reason": "Popište důvod...",
+    "fill_required": "Vyplňte studenta a důvod",
+    "create_success": "Opatření vytvořeno",
+    "all_classes": "Všechny třídy",
+    "types": {
+      "praise": "Pochvala",
+      "reprimand": "Důtka",
+      "class_reprimand": "Důtka třídního učitele",
+      "principal_reprimand": "Důtka ředitele"
+    }
+  },
+  "materials": {
+    "title": "Elektronické materiály",
+    "subtitle": "Učebnice, pracovní listy, prezentace a videa",
+    "add": "Přidat materiál",
+    "no_materials": "Žádné materiály",
+    "open": "Otevřít materiál",
+    "edit": "Upravit materiál",
+    "new": "Nový materiál",
+    "url": "URL odkaz",
+    "load_error": "Nepodařilo se načíst materiály",
+    "fill_required": "Vyplňte název a URL",
+    "update_success": "Materiál aktualizován",
+    "create_success": "Materiál přidán",
+    "types": {
+      "textbook": "Učebnice",
+      "worksheet": "Pracovní list",
+      "presentation": "Prezentace",
+      "video": "Video",
+      "other": "Jiné"
+    }
+  },
+  "thematic_plans": {
+    "title": "Tematické plány",
+    "subtitle": "Rozpis učiva po týdnech pro jednotlivé předměty a ročníky",
+    "new": "Nový plán",
+    "no_plans": "Zatím nejsou žádné tematické plány",
+    "weeks": "{{count}} týdnů",
+    "load_error": "Nepodařilo se načíst tematické plány",
+    "fill_required": "Vyplňte všechna pole",
+    "create_success": "Tematický plán vytvořen"
+  },
+  "lesson_preparations": {
+    "subtitle": "Plánování a reflexe vyučovacích hodin",
+    "new": "Nová příprava",
+    "no_preparations": "Zatím nejsou žádné přípravy",
+    "edit": "Upravit přípravu",
+    "new_title": "Nová příprava na hodinu",
+    "objectives": "Cíle / výstupy",
+    "activities": "Průběh hodiny",
+    "homework": "Domácí úkol",
+    "evaluation": "Reflexe / hodnocení",
+    "load_error": "Nepodařilo se načíst přípravy",
+    "fill_required": "Vyplňte povinná pole",
+    "update_success": "Příprava aktualizována",
+    "create_success": "Příprava vytvořena"
+  },
+  "recurring_events": {
+    "title": "Kroužky a opakující se akce",
+    "subtitle": "Pravidelné mimoškolní aktivity a kroužky",
+    "new": "Nový kroužek",
+    "no_events": "Zatím nejsou žádné kroužky",
+    "edit": "Upravit kroužek",
+    "room_optional": "Místnost (volitelné)",
+    "leader_optional": "Vedoucí (volitelné)",
+    "load_error": "Nepodařilo se načíst kroužky",
+    "fill_required": "Vyplňte název a časy",
+    "update_success": "Kroužek aktualizován",
+    "create_success": "Kroužek vytvořen"
+  },
+  "competencies": {
+    "subtitle": "Mapování kompetencí na předměty a ročníky",
+    "add": "Přidat kompetenci",
+    "list": "Kompetence",
+    "matrix": "Matice mapování",
+    "no_competencies": "Žádné kompetence. Přidejte první.",
+    "mappings_count": "{{count}} mapování",
+    "matrix_empty": "Přidejte kompetence, předměty a ročníky pro zobrazení matice",
+    "edit": "Upravit kompetenci",
+    "new": "Nová kompetence",
+    "code": "Kód",
+    "area": "Oblast",
+    "load_error": "Nepodařilo se načíst data",
+    "fill_required": "Vyplňte kód, název a oblast",
+    "update_success": "Kompetence aktualizována",
+    "create_success": "Kompetence přidána"
+  },
+  "report_cards": {
+    "title": "Vysvědčení",
+    "select_prompt": "Vyberte třídu a pololetí pro přípravu vysvědčení.",
+    "weighted_average": "Vážený průměr známek:",
+    "use_suggestion": "Použít jako návrh",
+    "final_grade": "Závěrečná známka",
+    "verbal_evaluation": "Slovní hodnocení na vysvědčení",
+    "verbal_placeholder": "Napište slovní hodnocení pro vysvědčení...",
+    "polish_error": "Napište hodnocení pro AI úpravu.",
+    "polish_success": "Hodnocení upraveno pomocí AI.",
+    "ai_unavailable": "AI služba není dostupná.",
+    "update_success": "Vysvědčení aktualizováno.",
+    "save_error": "Chyba při ukládání.",
+    "grades": {
+      "excellent": "výborný",
+      "commendable": "chvalitebný",
+      "good": "dobrý",
+      "sufficient": "dostatečný",
+      "insufficient": "nedostatečný",
+      "not_graded": "nehodnocen"
+    }
   }
 }

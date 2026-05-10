@@ -49,7 +49,7 @@ export default function CompetencyMapping() {
             setCompetencies(c);
             setMappings(m);
         } catch {
-            toast.error('Nepodařilo se načíst data');
+            toast.error(t('competencies.load_error'));
         } finally {
             setLoading(false);
         }
@@ -73,33 +73,33 @@ export default function CompetencyMapping() {
 
     const handleSave = async () => {
         if (!form.code || !form.name || !form.area) {
-            toast.error('Vyplňte kód, název a oblast');
+            toast.error(t('competencies.fill_required'));
             return;
         }
         try {
             if (editing) {
                 await updateRvpCompetency(editing.id, form);
-                toast.success('Kompetence aktualizována');
+                toast.success(t('competencies.update_success'));
             } else {
                 await createRvpCompetency(form);
-                toast.success('Kompetence přidána');
+                toast.success(t('competencies.create_success'));
             }
             setDialogOpen(false);
             setEditing(null);
             setForm(emptyForm);
             loadAll();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
     const handleDelete = async (id: string) => {
         try {
             await deleteRvpCompetency(id);
-            toast.success('Smazáno');
+            toast.success(t('common.success'));
             loadAll();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -123,7 +123,7 @@ export default function CompetencyMapping() {
             }
             loadAll();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -146,7 +146,7 @@ export default function CompetencyMapping() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.rvp_outputs')}</h1>
-                    <p className="text-muted-foreground">Mapování kompetencí na předměty a ročníky</p>
+                    <p className="text-muted-foreground">{t('competencies.subtitle')}</p>
                 </div>
                 <Button
                     onClick={() => {
@@ -156,14 +156,16 @@ export default function CompetencyMapping() {
                     }}
                 >
                     <Plus className="h-4 w-4 mr-2" />
-                    Přidat kompetenci
+                    {t('competencies.add')}
                 </Button>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
-                    <TabsTrigger value="competencies">Kompetence ({competencies.length})</TabsTrigger>
-                    <TabsTrigger value="matrix">Matice mapování</TabsTrigger>
+                    <TabsTrigger value="competencies">
+                        {t('common.competence')} ({competencies.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="matrix">{t('competencies.matrix')}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="competencies" className="space-y-4 mt-4">
@@ -175,7 +177,7 @@ export default function CompetencyMapping() {
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
                                 <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                Žádné kompetence. Přidejte první.
+                                {t('competencies.no_competencies')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -203,7 +205,9 @@ export default function CompetencyMapping() {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Badge variant="secondary">
-                                                            {comp._count?.mappings ?? 0} mapování
+                                                            {t('competencies.mappings_count', {
+                                                                count: comp._count?.mappings ?? 0,
+                                                            })}
                                                         </Badge>
                                                         <Button
                                                             variant="ghost"
@@ -233,10 +237,10 @@ export default function CompetencyMapping() {
                     <div className="flex gap-3 mb-4">
                         <Select value={filterSubject} onValueChange={setFilterSubject}>
                             <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Předmět" />
+                                <SelectValue placeholder={t('grading.subject')} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">Všechny předměty</SelectItem>
+                                <SelectItem value="ALL">{t('white_book.total')}</SelectItem>
                                 {subjects.map((s) => (
                                     <SelectItem key={s.id} value={s.id}>
                                         {s.name}
@@ -246,10 +250,10 @@ export default function CompetencyMapping() {
                         </Select>
                         <Select value={filterGrade} onValueChange={setFilterGrade}>
                             <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Ročník" />
+                                <SelectValue placeholder={t('common.grade_level')} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">Všechny ročníky</SelectItem>
+                                <SelectItem value="ALL">{t('common.all')}</SelectItem>
                                 {grades.map((g) => (
                                     <SelectItem key={g.id} value={g.id}>
                                         {g.name}
@@ -262,7 +266,7 @@ export default function CompetencyMapping() {
                     {competencies.length === 0 || filteredSubjects.length === 0 || filteredGrades.length === 0 ? (
                         <Card>
                             <CardContent className="py-8 text-center text-muted-foreground">
-                                Přidejte kompetence, předměty a ročníky pro zobrazení matice
+                                {t('competencies.matrix_empty')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -270,7 +274,7 @@ export default function CompetencyMapping() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="min-w-48">Kompetence</TableHead>
+                                        <TableHead className="min-w-48">{t('common.competence')}</TableHead>
                                         {filteredSubjects.flatMap((s) =>
                                             filteredGrades.map((g) => (
                                                 <TableHead
@@ -326,12 +330,12 @@ export default function CompetencyMapping() {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{editing ? 'Upravit kompetenci' : 'Nová kompetence'}</DialogTitle>
+                        <DialogTitle>{editing ? t('competencies.edit') : t('competencies.new')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <Label>Kód *</Label>
+                                <Label>{t('competencies.code')} *</Label>
                                 <Input
                                     value={form.code}
                                     onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
@@ -339,7 +343,7 @@ export default function CompetencyMapping() {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <Label>Oblast *</Label>
+                                <Label>{t('competencies.area')} *</Label>
                                 <Input
                                     value={form.area}
                                     onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
@@ -348,7 +352,7 @@ export default function CompetencyMapping() {
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <Label>Název *</Label>
+                            <Label>{t('common.name')} *</Label>
                             <Input
                                 value={form.name}
                                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -356,7 +360,7 @@ export default function CompetencyMapping() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Popis</Label>
+                            <Label>{t('common.description')}</Label>
                             <Textarea
                                 value={form.description}
                                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -366,9 +370,9 @@ export default function CompetencyMapping() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleSave}>{editing ? 'Uložit' : 'Přidat'}</Button>
+                        <Button onClick={handleSave}>{editing ? t('common.save') : t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

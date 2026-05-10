@@ -492,7 +492,15 @@
     "cancelled": "Cancelled",
     "room_change": "Room Change",
     "subject_change": "Subject Change",
-    "subtitle": "Manage schedule events and check for collisions."
+    "subtitle": "Manage schedule events and check for collisions.",
+    "print": "Print Schedule",
+    "select_classroom": "Select class...",
+    "select_teacher": "Select teacher...",
+    "empty": "No lessons in schedule",
+    "empty_admin": "You can plan the schedule in the Schedule Planner section.",
+    "empty_user": "The schedule has not been created yet.",
+    "no_school": "Select a school first.",
+    "load_error": "Failed to load schedule"
   },
   "days": {
     "monday": "Monday",
@@ -1097,5 +1105,120 @@
     "excuse_approved": "Excuse approved",
     "excuse_rejected": "Excuse rejected",
     "no_lessons": "No lessons scheduled for this day"
+  },
+  "measures": {
+    "title": "Educational Measures",
+    "subtitle": "Praises, reprimands and other educational measures",
+    "new": "New Measure",
+    "no_measures": "No educational measures",
+    "select_student": "Select student",
+    "describe_reason": "Describe the reason...",
+    "fill_required": "Fill in student and reason",
+    "create_success": "Measure created",
+    "all_classes": "All Classes",
+    "types": {
+      "praise": "Praise",
+      "reprimand": "Reprimand",
+      "class_reprimand": "Class Teacher Reprimand",
+      "principal_reprimand": "Principal Reprimand"
+    }
+  },
+  "materials": {
+    "title": "Teaching Materials",
+    "subtitle": "Textbooks, worksheets, presentations and videos",
+    "add": "Add material",
+    "no_materials": "No materials",
+    "open": "Open material",
+    "edit": "Edit material",
+    "new": "New material",
+    "url": "URL link",
+    "load_error": "Failed to load materials",
+    "fill_required": "Fill in name and URL",
+    "update_success": "Material updated",
+    "create_success": "Material added",
+    "types": {
+      "textbook": "Textbook",
+      "worksheet": "Worksheet",
+      "presentation": "Presentation",
+      "video": "Video",
+      "other": "Other"
+    }
+  },
+  "thematic_plans": {
+    "title": "Thematic Plans",
+    "subtitle": "Curriculum schedule by week for individual subjects and grades",
+    "new": "New plan",
+    "no_plans": "No thematic plans yet",
+    "weeks": "{{count}} weeks",
+    "load_error": "Failed to load thematic plans",
+    "fill_required": "Fill in all fields",
+    "create_success": "Thematic plan created"
+  },
+  "lesson_preparations": {
+    "subtitle": "Planning and reflection of lessons",
+    "new": "New preparation",
+    "no_preparations": "No preparations yet",
+    "edit": "Edit preparation",
+    "new_title": "New lesson preparation",
+    "objectives": "Objectives / outcomes",
+    "activities": "Lesson flow",
+    "homework": "Homework",
+    "evaluation": "Reflection / evaluation",
+    "load_error": "Failed to load preparations",
+    "fill_required": "Fill in required fields",
+    "update_success": "Preparation updated",
+    "create_success": "Preparation created"
+  },
+  "recurring_events": {
+    "title": "Clubs and Recurring Events",
+    "subtitle": "Regular extracurricular activities and clubs",
+    "new": "New club",
+    "no_events": "No clubs yet",
+    "edit": "Edit club",
+    "room_optional": "Room (optional)",
+    "leader_optional": "Leader (optional)",
+    "load_error": "Failed to load clubs",
+    "fill_required": "Fill in name and times",
+    "update_success": "Club updated",
+    "create_success": "Club created"
+  },
+  "competencies": {
+    "subtitle": "Mapping competencies to subjects and grades",
+    "add": "Add competency",
+    "list": "Competencies",
+    "matrix": "Mapping matrix",
+    "no_competencies": "No competencies. Add your first one.",
+    "mappings_count": "{{count}} mappings",
+    "matrix_empty": "Add competencies, subjects and grades to display the matrix",
+    "edit": "Edit competency",
+    "new": "New competency",
+    "code": "Code",
+    "area": "Area",
+    "load_error": "Failed to load data",
+    "fill_required": "Fill in code, name and area",
+    "update_success": "Competency updated",
+    "create_success": "Competency added"
+  },
+  "report_cards": {
+    "title": "Report Cards",
+    "select_prompt": "Select a class and semester to prepare report cards.",
+    "weighted_average": "Weighted average grade:",
+    "use_suggestion": "Use as suggestion",
+    "final_grade": "Final Grade",
+    "verbal_evaluation": "Verbal evaluation on report card",
+    "verbal_placeholder": "Write verbal evaluation for report card...",
+    "polish_error": "Write evaluation for AI refinement.",
+    "polish_success": "Evaluation refined by AI.",
+    "ai_unavailable": "AI service is not available.",
+    "update_success": "Report card updated.",
+    "save_error": "Error while saving.",
+    "grades": {
+      "excellent": "excellent",
+      "commendable": "commendable",
+      "good": "good",
+      "sufficient": "sufficient",
+      "insufficient": "insufficient",
+      "not_graded": "not graded"
+    }
   }
 }
