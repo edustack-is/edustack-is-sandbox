@@ -46,14 +46,14 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 const UnreadMessagesCard = ({ count }: { count: number }) => {
     const { t } = useTranslation();
     return (
-        <Card className="hover:bg-accent/10 transition-colors cursor-pointer" asChild>
-            <Link to="/messages">
+        <Link to="/messages" className="block">
+            <Card className="hover:bg-accent/10 transition-colors cursor-pointer">
                 <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">{t('messages.title')}</p>
                             <div className="text-2xl font-bold">
-                                {count} {t('dashboard.unread_count', 'nepřečtených')}
+                                {count} {t('dashboard.unread_count')}
                             </div>
                         </div>
                         <div className="bg-blue-100 p-2 rounded-full">
@@ -61,8 +61,8 @@ const UnreadMessagesCard = ({ count }: { count: number }) => {
                         </div>
                     </div>
                 </CardContent>
-            </Link>
-        </Card>
+            </Card>
+        </Link>
     );
 };
 

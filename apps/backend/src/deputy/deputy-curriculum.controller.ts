@@ -325,7 +325,7 @@ export class DeputyCurriculumController {
 
   // ─── SUBJECT INSTANCES ──────────────────────────────────────────
 
-  @Get('subjects/instances')
+  @Get('subject-instances')
   @ApiOperation({ summary: 'Instance předmětů' })
   @ApiResponse({
     status: 200,

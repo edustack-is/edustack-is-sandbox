@@ -84,6 +84,7 @@ const FALLBACK_COLORS = [
 ];
 
 function getSubjectColor(code: string): string {
+    if (!code) return FALLBACK_COLORS[0];
     if (SUBJECT_COLORS[code]) return SUBJECT_COLORS[code];
     const hash = code.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
     return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
