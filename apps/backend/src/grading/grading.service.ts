@@ -232,6 +232,7 @@ export class GradingService {
       instruction:
         'Vylepši toto slovní hodnocení žáka, aby bylo profesionální, povzbuzující a spisovné.',
     });
+    // aiService.refineText returns { text: string }
     return { polishedText: result.text };
   }
 
