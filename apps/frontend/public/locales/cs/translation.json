@@ -96,7 +96,27 @@
     "no_entries": "Žádné záznamy",
     "no_data": "Žádná data k zobrazení",
     "select_both_versions": "Vyberte obě verze",
-    "same_version_error": "Vyberte dvě různé verze"
+    "same_version_error": "Vyberte dvě různé verze",
+    "from": "Od",
+    "to": "Do",
+    "maybe": "Možná",
+    "votes": "hlasů",
+    "optional": "volitelné",
+    "hour": "Hodina",
+    "print": "Tisk",
+    "type": "Typ",
+    "issued_by": "Vydal",
+    "grade_level": "Ročník",
+    "description": "Popis",
+    "duration_min": "Min",
+    "day": "Den",
+    "competence": "Kompetence",
+    "subject_optional": "Předmět (volitelný)",
+    "enter_subject": "Zadejte předmět...",
+    "search_recipient": "Hledat příjemce...",
+    "write_message": "Napište svou zprávu...",
+    "statistics": "Statistiky",
+    "escalations": "Eskalace"
   },
   "roles": {
     "SYSTEM_ADMIN": "Systémový správce",
@@ -106,6 +126,26 @@
     "TEACHER": "Učitel",
     "STUDENT": "Žák",
     "PARENT": "Rodič"
+  },
+  "community": {
+    "subtitle": "Nástěnka, ankety a kalendář událostí",
+    "bulletin": "Nástěnka",
+    "polls": "Ankety",
+    "new_post": "Nový příspěvek",
+    "no_posts": "Žádné příspěvky",
+    "multi_select": "Více odpovědí",
+    "no_polls": "Žádné ankety",
+    "new_event": "Nová událost",
+    "no_events": "Žádné události",
+    "content": "Obsah",
+    "option": "Možnost",
+    "add_option": "+ Přidat možnost"
+  },
+  "classbook": {
+    "title": "Třídní kniha",
+    "subtitle": "Elektronická třídní kniha s propojením na rozvrh",
+    "records_for": "Záznamy – {{date}}",
+    "no_records": "Pro tento den nebyly nalezeny žádné záznamy."
   },
   "sidebar": {
     "administration": "Administrace",
@@ -404,6 +444,7 @@
   "grading": {
     "title": "Klasifikace",
     "subtitle": "Správa známek a hodnocení",
+    "student_overview": "Přehled studenta",
     "type": "Typ hodnocení",
     "weight": "Váha",
     "new_grade": "Nová známka",
@@ -414,7 +455,30 @@
     "student": "Žák",
     "subject": "Předmět",
     "save_success": "Známka uložena",
-    "delete_confirm": "Opravdu chcete smazat tuto známku?"
+    "delete_confirm": "Opravdu chcete smazat tuto známku?",
+    "numeric_grade": "Známka (1-5)",
+    "verbal_grade": "Slovní hodnocení",
+    "value_placeholder": "1-5",
+    "excellent": "výborný",
+    "commendable": "chvalitebný",
+    "good": "dobrý",
+    "sufficient": "dostatečný",
+    "insufficient": "nedostatečný",
+    "category": "Kategorie",
+    "select_category": "Vyberte kategorii...",
+    "no_category": "— Bez kategorie —",
+    "description_placeholder": "Např. 'Pololetní písemka z matematiky'",
+    "verbal_placeholder": "Napište slovní hodnocení žáka...",
+    "ai_polish": "Učesat pomocí AI",
+    "ai_processing": "AI zpracovává...",
+    "no_students": "V této třídě nejsou žádní studenti.",
+    "no_subjects": "Nemáte přiřazené předměty v této třídě.",
+    "no_grades_student": "Žádné známky pro tohoto studenta.",
+    "exam": "Písemná práce",
+    "homework": "Domácí úkol",
+    "classwork": "Práce v hodině",
+    "project": "Projekt",
+    "other": "Ostatní"
   },
   "schedule": {
     "title": "Rozvrh",
@@ -444,10 +508,15 @@
   },
   "messages": {
     "title": "Zprávy",
+    "subtitle": "Komunikace se studenty, rodiči a kolegy",
     "recipients": "Příjemci",
     "text": "Text zprávy",
     "send": "Odeslat",
-    "new_conversation": "Nová konverzace"
+    "new_conversation": "Nová konverzace",
+    "search_placeholder": "Hledat konverzace...",
+    "broadcast": "Hromadná zpráva",
+    "new_message": "Nová zpráva",
+    "empty_state": "Vyberte konverzaci nebo napište novou zprávu"
   },
   "forgot_password": {
     "title": "Zapomenuté heslo",
@@ -1012,5 +1081,21 @@
     "back": "Zpět",
     "confirm_btn": "Importovat do ŠVP",
     "close_btn": "Zavřít a pokračovat"
+  },
+  "attendance": {
+    "title": "Docházka",
+    "subtitle": "Záznam a správa docházky",
+    "stats_title": "Statistiky docházky",
+    "approved": "Schváleno",
+    "rejected": "Zamítnuto",
+    "pending": "Čeká",
+    "alerts_title": "Neomluvené absence – eskalace",
+    "no_alerts": "Žádní studenti nad práhem",
+    "unexcused_hours": "Neomluv. hodin",
+    "no_excuses": "Žádné omluvenky",
+    "save_success": "Docházka uložena",
+    "excuse_approved": "Omluvenka schválena",
+    "excuse_rejected": "Omluvenka zamítnuta",
+    "no_lessons": "Žádné hodiny v rozvrhu pro tento den"
   }
 }

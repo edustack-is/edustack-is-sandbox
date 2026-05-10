@@ -96,7 +96,27 @@
     "no_entries": "No entries found",
     "no_data": "No data to display",
     "select_both_versions": "Select both versions",
-    "same_version_error": "Select two different versions"
+    "same_version_error": "Select two different versions",
+    "from": "From",
+    "to": "To",
+    "maybe": "Maybe",
+    "votes": "votes",
+    "optional": "optional",
+    "hour": "Hour",
+    "print": "Print",
+    "type": "Type",
+    "issued_by": "Issued by",
+    "grade_level": "Grade level",
+    "description": "Description",
+    "duration_min": "Min",
+    "day": "Day",
+    "competence": "Competence",
+    "subject_optional": "Subject (optional)",
+    "enter_subject": "Enter subject...",
+    "search_recipient": "Search recipient...",
+    "write_message": "Write your message...",
+    "statistics": "Statistics",
+    "escalations": "Escalations"
   },
   "roles": {
     "SYSTEM_ADMIN": "System Administrator",
@@ -106,6 +126,26 @@
     "TEACHER": "Teacher",
     "STUDENT": "Student",
     "PARENT": "Parent"
+  },
+  "community": {
+    "subtitle": "Bulletin board, polls and calendar events",
+    "bulletin": "Bulletin",
+    "polls": "Polls",
+    "new_post": "New Post",
+    "no_posts": "No posts",
+    "multi_select": "Multi-select",
+    "no_polls": "No polls",
+    "new_event": "New Event",
+    "no_events": "No events",
+    "content": "Content",
+    "option": "Option",
+    "add_option": "+ Add Option"
+  },
+  "classbook": {
+    "title": "Class Book",
+    "subtitle": "Electronic class book with timetable integration",
+    "records_for": "Records – {{date}}",
+    "no_records": "No records found for this day."
   },
   "sidebar": {
     "administration": "Administration",
@@ -404,6 +444,7 @@
   "grading": {
     "title": "Grading",
     "subtitle": "Manage grades and assessments",
+    "student_overview": "Student Overview",
     "type": "Assessment Type",
     "weight": "Weight",
     "new_grade": "New Grade",
@@ -414,7 +455,30 @@
     "student": "Student",
     "subject": "Subject",
     "save_success": "Grade saved",
-    "delete_confirm": "Are you sure you want to delete this grade?"
+    "delete_confirm": "Are you sure you want to delete this grade?",
+    "numeric_grade": "Grade (1-5)",
+    "verbal_grade": "Verbal Assessment",
+    "value_placeholder": "1-5",
+    "excellent": "excellent",
+    "commendable": "commendable",
+    "good": "good",
+    "sufficient": "sufficient",
+    "insufficient": "insufficient",
+    "category": "Category",
+    "select_category": "Select category...",
+    "no_category": "— No category —",
+    "description_placeholder": "E.g. 'Midterm math test'",
+    "verbal_placeholder": "Write student assessment...",
+    "ai_polish": "Polish with AI",
+    "ai_processing": "AI processing...",
+    "no_students": "There are no students in this class.",
+    "no_subjects": "You have no assigned subjects in this class.",
+    "no_grades_student": "No grades for this student.",
+    "exam": "Written test",
+    "homework": "Homework",
+    "classwork": "Classwork",
+    "project": "Project",
+    "other": "Other"
   },
   "schedule": {
     "title": "Schedule",
@@ -444,10 +508,15 @@
   },
   "messages": {
     "title": "Messages",
+    "subtitle": "Communication with students, parents and colleagues",
     "recipients": "Recipients",
     "text": "Message text",
     "send": "Send",
-    "new_conversation": "New Conversation"
+    "new_conversation": "New conversation",
+    "search_placeholder": "Search conversations...",
+    "broadcast": "Broadcast message",
+    "new_message": "New message",
+    "empty_state": "Select a conversation or write a new message"
   },
   "forgot_password": {
     "title": "Forgot Password",
@@ -1012,5 +1081,21 @@
     "back": "Back",
     "confirm_btn": "Import into Curriculum",
     "close_btn": "Close & Continue"
+  },
+  "attendance": {
+    "title": "Attendance",
+    "subtitle": "Record and manage attendance",
+    "stats_title": "Attendance Statistics",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "pending": "Pending",
+    "alerts_title": "Unexcused Absence – Escalation",
+    "no_alerts": "No students above threshold",
+    "unexcused_hours": "Unexcused hours",
+    "no_excuses": "No excuses",
+    "save_success": "Attendance saved",
+    "excuse_approved": "Excuse approved",
+    "excuse_rejected": "Excuse rejected",
+    "no_lessons": "No lessons scheduled for this day"
   }
 }

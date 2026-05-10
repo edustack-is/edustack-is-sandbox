@@ -69,14 +69,6 @@ interface AcademicYearOption {
     isCurrent: boolean;
 }
 
-const CATEGORIES = [
-    { value: 'EXAM', label: 'Písemná práce' },
-    { value: 'HOMEWORK', label: 'Domácí úkol' },
-    { value: 'CLASSWORK', label: 'Práce v hodině' },
-    { value: 'PROJECT', label: 'Projekt' },
-    { value: 'OTHER', label: 'Ostatní' },
-];
-
 const GRADE_COLORS: Record<string, string> = {
     '1': 'bg-green-100 text-green-800 border-green-300',
     '2': 'bg-lime-100 text-lime-800 border-lime-300',
@@ -86,7 +78,7 @@ const GRADE_COLORS: Record<string, string> = {
 };
 
 export const Grading: React.FC = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { schoolId } = useSchool();
 
     // Data
@@ -118,6 +110,14 @@ export const Grading: React.FC = () => {
     const [formCategory, setFormCategory] = useState('');
     const [saving, setSaving] = useState(false);
     const [polishing, setPolishing] = useState(false);
+
+    const CATEGORIES = [
+        { value: 'EXAM', label: t('grading.exam') },
+        { value: 'HOMEWORK', label: t('grading.homework') },
+        { value: 'CLASSWORK', label: t('grading.classwork') },
+        { value: 'PROJECT', label: t('grading.project') },
+        { value: 'OTHER', label: t('grading.other') },
+    ];
 
     // ─── Load reference data ────────────────────────────────
 
@@ -247,7 +247,7 @@ export const Grading: React.FC = () => {
     const handleCreateGrade = async () => {
         if (!addDialog) return;
         if (formType === 'NUMERIC' && !formValue) {
-            toast.error('Zadejte známku.');
+            toast.error(t('grading.enter_grade', 'Enter grade.'));
             return;
         }
 
@@ -264,11 +264,11 @@ export const Grading: React.FC = () => {
                 category: formCategory || undefined,
                 semesterId: selectedSemesterId && selectedSemesterId !== 'all' ? selectedSemesterId : undefined,
             });
-            toast.success('Známka uložena.');
+            toast.success(t('grading.save_success'));
             setAddDialog(null);
             loadGrades();
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Chyba při ukládání známky.');
+            toast.error(err?.response?.data?.message || t('common.error'));
         } finally {
             setSaving(false);
         }
@@ -285,12 +285,12 @@ export const Grading: React.FC = () => {
                 verbalText: formVerbalText || undefined,
                 category: formCategory || undefined,
             });
-            toast.success('Známka aktualizována.');
+            toast.success(t('grading.save_success'));
             setEditDialog(null);
             loadGrades();
             if (selectedStudent) loadStudentDetail(selectedStudent);
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Chyba při aktualizaci.');
+            toast.error(err?.response?.data?.message || t('common.error'));
         } finally {
             setSaving(false);
         }
@@ -299,17 +299,17 @@ export const Grading: React.FC = () => {
     const handleDeleteGrade = async (gradeId: string) => {
         try {
             await deleteGrade(gradeId);
-            toast.success('Známka odstraněna.');
+            toast.success(t('common.success'));
             loadGrades();
             if (selectedStudent) loadStudentDetail(selectedStudent);
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Chyba při odstraňování.');
+            toast.error(err?.response?.data?.message || t('common.error'));
         }
     };
 
     const handleAiPolish = async () => {
         if (!formVerbalText.trim()) {
-            toast.error('Napište hodnocení pro AI úpravu.');
+            toast.error(t('grading.enter_assessment', 'Enter assessment for AI polish.'));
             return;
         }
 
@@ -320,13 +320,13 @@ export const Grading: React.FC = () => {
         try {
             const result = await polishVerbalEvaluation({
                 text: formVerbalText,
-                studentName: student ? `${student.firstName} ${student.lastName}` : 'Žák',
-                subjectName: subject?.name || 'Předmět',
+                studentName: student ? `${student.firstName} ${student.lastName}` : t('common.student'),
+                subjectName: subject?.name || t('common.subject'),
             });
             setFormVerbalText(result.polishedText);
-            toast.success('Hodnocení upraveno pomocí AI.');
+            toast.success(t('grading.ai_polish_success', 'Assessment polished by AI.'));
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'AI služba není dostupná.');
+            toast.error(err?.response?.data?.message || t('common.error'));
         } finally {
             setPolishing(false);
         }
@@ -340,7 +340,7 @@ export const Grading: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <GraduationCap className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">{t('grading.title', 'Klasifikace')}</h1>
+                    <h1 className="text-2xl font-bold">{t('grading.title')}</h1>
                 </div>
 
                 {/* Filters */}
@@ -356,12 +356,12 @@ export const Grading: React.FC = () => {
                         >
                             <SelectTrigger className="w-40">
                                 <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                                <SelectValue placeholder="Rok..." />
+                                <SelectValue placeholder={`${t('common.year')}...`} />
                             </SelectTrigger>
                             <SelectContent>
                                 {academicYears.map((y) => (
                                     <SelectItem key={y.id} value={y.id}>
-                                        {y.name} {y.isCurrent ? '(aktuální)' : ''}
+                                        {y.name} {y.isCurrent ? `(${t('year_setup.current_year').toLowerCase()})` : ''}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -376,7 +376,7 @@ export const Grading: React.FC = () => {
                         }}
                     >
                         <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Třída..." />
+                            <SelectValue placeholder={`${t('common.class')}...`} />
                         </SelectTrigger>
                         <SelectContent>
                             {classrooms.map((c) => (
@@ -390,7 +390,7 @@ export const Grading: React.FC = () => {
                     {semesters.length > 0 && (
                         <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
                             <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Pololetí..." />
+                                <SelectValue placeholder={`${t('curriculum.semester')}...`} />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t('common.all')}</SelectItem>
@@ -407,11 +407,11 @@ export const Grading: React.FC = () => {
 
             <Tabs defaultValue="grid" className="space-y-4">
                 <TabsList>
-                    <TabsTrigger value="grid">Klasifikace</TabsTrigger>
+                    <TabsTrigger value="grid">{t('grading.title')}</TabsTrigger>
                     <TabsTrigger value="student" disabled={!selectedStudent}>
                         {selectedStudent
                             ? `${selectedStudent.lastName} ${selectedStudent.firstName}`
-                            : 'Přehled studenta'}
+                            : t('grading.student_overview')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -426,9 +426,7 @@ export const Grading: React.FC = () => {
                             <CardContent className="py-12 text-center text-muted-foreground">
                                 <GraduationCap className="h-12 w-12 mx-auto mb-3 opacity-40" />
                                 <p className="text-lg font-medium">
-                                    {students.length === 0
-                                        ? 'V této třídě nejsou žádní studenti.'
-                                        : 'Nemáte přiřazené předměty v této třídě.'}
+                                    {students.length === 0 ? t('grading.no_students') : t('grading.no_subjects')}
                                 </p>
                             </CardContent>
                         </Card>
@@ -439,7 +437,7 @@ export const Grading: React.FC = () => {
                                     <thead>
                                         <tr className="bg-muted/50">
                                             <th className="text-left p-2 font-medium sticky left-0 bg-muted/50 z-10 min-w-[160px]">
-                                                Student
+                                                {t('common.student')}
                                             </th>
                                             {subjects.map((sub) => (
                                                 <th key={sub.id} className="text-center p-2 font-medium min-w-[100px]">
@@ -476,9 +474,6 @@ export const Grading: React.FC = () => {
                                                         const cellGrades = grades.filter(
                                                             (g) => g.subjectInstance.id === sub.id,
                                                         );
-                                                        // Note: grades are filtered server-side per classroom.
-                                                        // For a proper per-student filter we'd need studentId on each grade.
-                                                        // This simplified view shows all grades for the subject.
                                                         return (
                                                             <td key={sub.id} className="p-1 text-center">
                                                                 <div className="flex flex-wrap gap-0.5 justify-center items-center min-h-[28px]">
@@ -503,7 +498,7 @@ export const Grading: React.FC = () => {
                                                                                         <div className="font-medium">
                                                                                             {g.description ||
                                                                                                 g.category ||
-                                                                                                'Hodnocení'}
+                                                                                                t('common.record')}
                                                                                         </div>
                                                                                         {g.verbalText && (
                                                                                             <div className="text-xs italic">
@@ -511,11 +506,12 @@ export const Grading: React.FC = () => {
                                                                                             </div>
                                                                                         )}
                                                                                         <div className="text-xs text-muted-foreground">
-                                                                                            Váha: {g.weight} |{' '}
+                                                                                            {t('grading.weight')}:{' '}
+                                                                                            {g.weight} |{' '}
                                                                                             {new Date(
                                                                                                 g.date,
                                                                                             ).toLocaleDateString(
-                                                                                                'cs-CZ',
+                                                                                                i18n.language,
                                                                                             )}{' '}
                                                                                             |{' '}
                                                                                             {
@@ -560,7 +556,7 @@ export const Grading: React.FC = () => {
                         <div className="space-y-4">
                             <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>
-                                    <ArrowLeft className="h-4 w-4 mr-1" /> Zpět
+                                    <ArrowLeft className="h-4 w-4 mr-1" /> {t('common.back')}
                                 </Button>
                                 <h2 className="text-lg font-semibold">
                                     {selectedStudent.lastName} {selectedStudent.firstName}
@@ -643,8 +639,9 @@ export const Grading: React.FC = () => {
                                                                     )}
                                                                 </div>
                                                                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                                                    w:{g.weight} |{' '}
-                                                                    {new Date(g.date).toLocaleDateString('cs-CZ')}
+                                                                    {t('grading.weight').slice(0, 1).toLowerCase()}:
+                                                                    {g.weight} |{' '}
+                                                                    {new Date(g.date).toLocaleDateString(i18n.language)}
                                                                 </span>
                                                                 <div className="flex gap-1">
                                                                     <Button
@@ -676,7 +673,7 @@ export const Grading: React.FC = () => {
                             {studentGrades.length === 0 && (
                                 <Card>
                                     <CardContent className="py-8 text-center text-muted-foreground">
-                                        Žádné známky pro tohoto studenta.
+                                        {t('grading.no_grades_student')}
                                     </CardContent>
                                 </Card>
                             )}
@@ -697,7 +694,7 @@ export const Grading: React.FC = () => {
             >
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{editDialog ? 'Upravit hodnocení' : 'Nové hodnocení'}</DialogTitle>
+                        <DialogTitle>{editDialog ? t('grading.edit_grade') : t('grading.new_grade')}</DialogTitle>
                     </DialogHeader>
 
                     <div className="space-y-3">
@@ -709,8 +706,8 @@ export const Grading: React.FC = () => {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="NUMERIC">Známka (1-5)</SelectItem>
-                                    <SelectItem value="VERBAL">Slovní hodnocení</SelectItem>
+                                    <SelectItem value="NUMERIC">{t('grading.numeric_grade')}</SelectItem>
+                                    <SelectItem value="VERBAL">{t('grading.verbal_grade')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -719,24 +716,24 @@ export const Grading: React.FC = () => {
                         {formType === 'NUMERIC' && (
                             <div className="flex gap-2">
                                 <div className="flex-1">
-                                    <Label>Známka *</Label>
+                                    <Label>{t('grading.value')} *</Label>
                                     <Select value={formValue} onValueChange={setFormValue}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="1-5" />
+                                            <SelectValue placeholder={t('grading.value_placeholder')} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {['1', '2', '3', '4', '5'].map((v) => (
                                                 <SelectItem key={v} value={v}>
                                                     {v} —{' '}
                                                     {v === '1'
-                                                        ? 'výborný'
+                                                        ? t('grading.excellent')
                                                         : v === '2'
-                                                          ? 'chvalitebný'
+                                                          ? t('grading.commendable')
                                                           : v === '3'
-                                                            ? 'dobrý'
+                                                            ? t('grading.good')
                                                             : v === '4'
-                                                              ? 'dostatečný'
-                                                              : 'nedostatečný'}
+                                                              ? t('grading.sufficient')
+                                                              : t('grading.insufficient')}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -758,13 +755,13 @@ export const Grading: React.FC = () => {
 
                         {/* Category */}
                         <div>
-                            <Label>Kategorie</Label>
+                            <Label>{t('grading.category')}</Label>
                             <Select value={formCategory} onValueChange={setFormCategory}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte kategorii..." />
+                                    <SelectValue placeholder={t('grading.select_category')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">— Bez kategorie —</SelectItem>
+                                    <SelectItem value="none">{t('grading.no_category')}</SelectItem>
                                     {CATEGORIES.map((c) => (
                                         <SelectItem key={c.value} value={c.value}>
                                             {c.label}
@@ -776,24 +773,24 @@ export const Grading: React.FC = () => {
 
                         {/* Description */}
                         <div>
-                            <Label>Popis</Label>
+                            <Label>{t('common.description')}</Label>
                             <Input
                                 value={formDescription}
                                 onChange={(e) => setFormDescription(e.target.value)}
-                                placeholder="Např. 'Pololetní písemka z matematiky'"
+                                placeholder={t('grading.description_placeholder')}
                             />
                         </div>
 
                         {/* Verbal text */}
                         <div>
                             <Label className="flex items-center gap-1">
-                                Slovní hodnocení
+                                {t('grading.verbal_grade')}
                                 {formType === 'VERBAL' && <span className="text-destructive">*</span>}
                             </Label>
                             <Textarea
                                 value={formVerbalText}
                                 onChange={(e) => setFormVerbalText(e.target.value)}
-                                placeholder="Napište slovní hodnocení žáka..."
+                                placeholder={t('grading.verbal_placeholder')}
                                 rows={3}
                             />
                             <Button
@@ -804,7 +801,7 @@ export const Grading: React.FC = () => {
                                 disabled={polishing || !formVerbalText.trim()}
                             >
                                 <Sparkles className="h-3 w-3 mr-1" />
-                                {polishing ? 'AI zpracovává...' : 'Učesat pomocí AI'}
+                                {polishing ? t('grading.ai_processing') : t('grading.ai_polish')}
                             </Button>
                         </div>
                     </div>
@@ -817,7 +814,7 @@ export const Grading: React.FC = () => {
                                 setEditDialog(null);
                             }}
                         >
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         {editDialog && (
                             <Button
@@ -828,11 +825,11 @@ export const Grading: React.FC = () => {
                                     setEditDialog(null);
                                 }}
                             >
-                                <Trash2 className="h-4 w-4 mr-1" /> Smazat
+                                <Trash2 className="h-4 w-4 mr-1" /> {t('common.delete')}
                             </Button>
                         )}
                         <Button onClick={editDialog ? handleUpdateGrade : handleCreateGrade} disabled={saving}>
-                            {saving ? 'Ukládám...' : editDialog ? 'Aktualizovat' : 'Uložit známku'}
+                            {saving ? t('common.saving') : editDialog ? t('common.edit') : t('common.save')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 
 export default function ClassBook() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -38,7 +38,7 @@ export default function ClassBook() {
         try {
             setEntries(await getClassBookEntries(selectedClassroom, date));
         } catch {
-            toast.error('Chyba načítání');
+            toast.error(t('common.error'));
         } finally {
             setLoading(false);
         }
@@ -70,25 +70,25 @@ export default function ClassBook() {
                 scheduleEventId: entry.scheduleEventId,
                 subjectName: entry.subjectName,
             });
-            toast.success('Uloženo');
+            toast.success(t('common.success'));
             setEditingId(null);
             loadEntries();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
     const handleSign = async (entry: any) => {
         if (!entry.id) {
-            toast.error('Nejdřív uložte záznam');
+            toast.error(t('common.save_first', 'First save the entry'));
             return;
         }
         try {
             await signClassBookEntry(entry.id);
-            toast.success('Podepsáno');
+            toast.success(t('common.success'));
             loadEntries();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -104,9 +104,9 @@ export default function ClassBook() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                         <BookOpen className="h-6 w-6" />
-                        Třídní kniha
+                        {t('classbook.title')}
                     </h1>
-                    <p className="text-muted-foreground">Elektronická třídní kniha s propojením na rozvrh</p>
+                    <p className="text-muted-foreground">{t('classbook.subtitle')}</p>
                 </div>
                 <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
                     <SelectTrigger className="w-44">
@@ -124,12 +124,14 @@ export default function ClassBook() {
 
             <div className="flex items-center gap-4">
                 <div className="space-y-1">
-                    <Label>Datum</Label>
+                    <Label>{t('common.date')}</Label>
                     <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
                 </div>
                 <div className="flex items-end gap-2 ml-auto">
                     <div className="space-y-1">
-                        <Label>Tisk od</Label>
+                        <Label>
+                            {t('common.print')} {t('common.from').toLowerCase()}
+                        </Label>
                         <Input
                             type="date"
                             value={printFrom}
@@ -138,7 +140,7 @@ export default function ClassBook() {
                         />
                     </div>
                     <div className="space-y-1">
-                        <Label>do</Label>
+                        <Label>{t('common.to').toLowerCase()}</Label>
                         <Input
                             type="date"
                             value={printTo}
@@ -148,7 +150,7 @@ export default function ClassBook() {
                     </div>
                     <Button variant="outline" onClick={handlePrint}>
                         <Printer className="h-4 w-4 mr-1" />
-                        Tisk
+                        {t('common.print')}
                     </Button>
                 </div>
             </div>
@@ -156,28 +158,33 @@ export default function ClassBook() {
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        Záznamy –{' '}
-                        {new Date(date).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {t('classbook.records_for', {
+                            date: new Date(date).toLocaleDateString(i18n.language, {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                            }),
+                        })}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <p className="text-muted-foreground text-center py-8">Načítání…</p>
+                        <p className="text-muted-foreground text-center py-8">{t('common.loading')}</p>
                     ) : !selectedClassroom ? (
                         <p className="text-muted-foreground text-center py-8">{t('common.select_class')}</p>
                     ) : entries.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">Žádné hodiny v rozvrhu pro tento den</p>
+                        <p className="text-muted-foreground text-center py-8">{t('classbook.no_records')}</p>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-12">Hod.</TableHead>
-                                    <TableHead>Předmět</TableHead>
+                                    <TableHead className="w-12">{t('common.hour').slice(0, 4)}.</TableHead>
+                                    <TableHead>{t('common.subject')}</TableHead>
                                     <TableHead>{t('common.teacher')}</TableHead>
-                                    <TableHead>Probírané učivo</TableHead>
+                                    <TableHead>{t('common.topic')}</TableHead>
                                     <TableHead>{t('common.notes')}</TableHead>
-                                    <TableHead className="w-16">Nepřít.</TableHead>
-                                    <TableHead className="w-24">Podpis</TableHead>
+                                    <TableHead className="w-16">{t('common.absent').slice(0, 5)}.</TableHead>
+                                    <TableHead className="w-24">{t('common.signature', 'Podpis')}</TableHead>
                                     <TableHead className="w-20"></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -241,7 +248,7 @@ export default function ClassBook() {
                                             {e.signature ? (
                                                 <Badge className="text-xs gap-1">
                                                     <Check className="h-3 w-3" />
-                                                    Podepsáno
+                                                    {t('common.signed', 'Podepsáno')}
                                                 </Badge>
                                             ) : (
                                                 <Button
@@ -250,7 +257,7 @@ export default function ClassBook() {
                                                     className="h-6 text-xs"
                                                     onClick={() => handleSign(e)}
                                                 >
-                                                    Podepsat
+                                                    {t('common.sign', 'Podepsat')}
                                                 </Button>
                                             )}
                                         </TableCell>
@@ -266,7 +273,7 @@ export default function ClassBook() {
                                                     className="h-6 text-xs"
                                                     onClick={() => handleEdit(i)}
                                                 >
-                                                    Upravit
+                                                    {t('common.edit')}
                                                 </Button>
                                             )}
                                         </TableCell>

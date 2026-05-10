@@ -50,17 +50,7 @@ interface Conversation {
     updatedAt: string;
 }
 
-// ─── Role labels ────────────────────────────────────────
-
-const ROLE_LABELS: Record<string, string> = {
-    TEACHER: 'Učitel',
-    STUDENT: 'Žák',
-    PARENT: 'Rodič',
-    PRINCIPAL: 'Ředitel',
-    DEPUTY: 'Zástupce',
-    ADMIN: 'Správce',
-    DIRECTOR: 'Ředitel',
-};
+// ─── Constants ──────────────────────────────────────────
 
 const ROLE_COLORS: Record<string, string> = {
     TEACHER: 'bg-blue-100 text-blue-700',
@@ -75,7 +65,7 @@ const ROLE_COLORS: Record<string, string> = {
 // ─── Component ──────────────────────────────────────────
 
 export default function Messages() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { role } = useSchool();
     const [searchParams, setSearchParams] = useSearchParams();
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -100,11 +90,11 @@ export default function Messages() {
             const data = await getConversations();
             setConversations(data || []);
         } catch {
-            toast.error('Nepodařilo se načíst konverzace');
+            toast.error(t('common.error'));
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         fetchConversations();
@@ -126,7 +116,7 @@ export default function Messages() {
             setMessages(data.messages || []);
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
         } catch {
-            toast.error('Nepodařilo se načíst zprávy');
+            toast.error(t('common.error'));
         }
         setLoadingMessages(false);
     };
@@ -140,7 +130,7 @@ export default function Messages() {
             await loadMessages(selectedId);
             await fetchConversations();
         } catch {
-            toast.error('Nepodařilo se odeslat zprávu');
+            toast.error(t('common.error'));
         }
         setSending(false);
     };
@@ -154,10 +144,10 @@ export default function Messages() {
 
     const getConversationTitle = (conv: Conversation) => {
         if (conv.subject) return conv.subject;
-        if (conv.type === 'CLASS_BROADCAST') return '📢 Třídní zpráva';
-        if (conv.type === 'SCHOOL_BROADCAST') return '🏫 Školní zpráva';
+        if (conv.type === 'CLASS_BROADCAST') return `📢 ${t('messages.broadcast')}`;
+        if (conv.type === 'SCHOOL_BROADCAST') return `🏫 ${t('messages.broadcast')}`;
         const others = conv.participants.filter((p) => p.id !== currentUserId);
-        if (others.length === 0) return 'Konverzace';
+        if (others.length === 0) return t('common.message');
         return others.map((p) => `${p.firstName} ${p.lastName}`).join(', ');
     };
 
@@ -170,13 +160,13 @@ export default function Messages() {
     const timeAgo = (dateStr: string) => {
         const diff = Date.now() - new Date(dateStr).getTime();
         const mins = Math.floor(diff / 60000);
-        if (mins < 1) return 'nyní';
+        if (mins < 1) return t('common.loading'); // Use a placeholder for "now"
         if (mins < 60) return `${mins}m`;
         const hours = Math.floor(mins / 60);
         if (hours < 24) return `${hours}h`;
         const days = Math.floor(hours / 24);
         if (days < 7) return `${days}d`;
-        return new Date(dateStr).toLocaleDateString('cs-CZ');
+        return new Date(dateStr).toLocaleDateString(i18n.language);
     };
 
     const filteredConversations = conversations.filter((c) => {
@@ -196,11 +186,11 @@ export default function Messages() {
                 <div className="flex gap-2">
                     {canBroadcast && (
                         <Button variant="outline" size="sm" onClick={() => setBroadcastDialogOpen(true)}>
-                            <Megaphone className="h-4 w-4 mr-1" /> Hromadná zpráva
+                            <Megaphone className="h-4 w-4 mr-1" /> {t('messages.broadcast')}
                         </Button>
                     )}
                     <Button size="sm" onClick={() => setNewDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-1" /> Nová zpráva
+                        <Plus className="h-4 w-4 mr-1" /> {t('messages.new_message')}
                     </Button>
                 </div>
             </div>
@@ -212,7 +202,7 @@ export default function Messages() {
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Hledat konverzace..."
+                                placeholder={t('messages.search_placeholder')}
                                 className="pl-9 h-9"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -226,7 +216,7 @@ export default function Messages() {
                             </div>
                         ) : filteredConversations.length === 0 ? (
                             <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-                                {searchQuery ? 'Žádné výsledky' : 'Zatím nemáte žádné zprávy'}
+                                {searchQuery ? t('common.no_results') : t('messages.empty_state')}
                             </div>
                         ) : (
                             filteredConversations.map((conv) => (
@@ -291,8 +281,8 @@ export default function Messages() {
                                         {getConversationTitle(selectedConv)}
                                     </h3>
                                     <p className="text-xs text-muted-foreground">
-                                        {selectedConv.participants.length} účastníků · {selectedConv.totalMessages}{' '}
-                                        zpráv
+                                        {selectedConv.participants.length} {t('common.users')} ·{' '}
+                                        {selectedConv.totalMessages} {t('common.message')}
                                     </p>
                                 </div>
                             </div>
@@ -305,7 +295,7 @@ export default function Messages() {
                                     </div>
                                 ) : messages.length === 0 ? (
                                     <div className="text-center py-12 text-sm text-muted-foreground">
-                                        Zatím žádné zprávy
+                                        {t('common.no_entries')}
                                     </div>
                                 ) : (
                                     messages.map((msg) => {
@@ -333,7 +323,7 @@ export default function Messages() {
                                                     <p
                                                         className={`text-[10px] text-muted-foreground mt-0.5 ${isMine ? 'text-right mr-1' : 'ml-1'}`}
                                                     >
-                                                        {new Date(msg.createdAt).toLocaleTimeString('cs-CZ', {
+                                                        {new Date(msg.createdAt).toLocaleTimeString(i18n.language, {
                                                             hour: '2-digit',
                                                             minute: '2-digit',
                                                         })}
@@ -351,7 +341,7 @@ export default function Messages() {
                                 <div className="flex gap-2">
                                     <Textarea
                                         ref={inputRef}
-                                        placeholder="Napište zprávu..."
+                                        placeholder={t('common.write_message')}
                                         rows={1}
                                         className="resize-none min-h-[40px] max-h-32"
                                         value={newMessage}
@@ -372,7 +362,7 @@ export default function Messages() {
                         <CardContent className="flex-1 flex items-center justify-center">
                             <div className="text-center text-muted-foreground">
                                 <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                                <p className="text-sm">Vyberte konverzaci nebo napište novou zprávu</p>
+                                <p className="text-sm">{t('messages.empty_state')}</p>
                             </div>
                         </CardContent>
                     )}
@@ -435,14 +425,14 @@ function NewMessageDialog({
             setLoading(true);
             getAvailableRecipients()
                 .then((data) => setRecipients(data || []))
-                .catch(() => toast.error('Nepodařilo se načíst příjemce'))
+                .catch(() => toast.error(t('common.error')))
                 .finally(() => setLoading(false));
             setSelectedRecipients([]);
             setSubject('');
             setMessage('');
             setSearch('');
         }
-    }, [open]);
+    }, [open, t]);
 
     const filteredRecipients = recipients.filter((r) => {
         if (!search) return true;
@@ -461,9 +451,9 @@ function NewMessageDialog({
                 initialMessage: message.trim(),
             });
             onCreated(conv.id);
-            toast.success('Zpráva odeslána');
+            toast.success(t('common.success'));
         } catch {
-            toast.error('Nepodařilo se odeslat zprávu');
+            toast.error(t('common.error'));
         }
         setSending(false);
     };
@@ -477,15 +467,15 @@ function NewMessageDialog({
             <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Plus className="h-5 w-5" /> Nová zpráva
+                        <Plus className="h-5 w-5" /> {t('messages.new_message')}
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4 flex-1 overflow-auto">
                     <div className="space-y-2">
-                        <Label>Předmět (volitelné)</Label>
+                        <Label>{t('common.subject_optional')}</Label>
                         <Input
-                            placeholder="Zadejte předmět..."
+                            placeholder={t('common.enter_subject')}
                             value={subject}
                             onChange={(e) => setSubject(e.target.value)}
                         />
@@ -512,16 +502,18 @@ function NewMessageDialog({
                             </div>
                         )}
                         <Input
-                            placeholder="Hledat příjemce..."
+                            placeholder={t('common.search_recipient')}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                         <div className="max-h-40 overflow-auto border rounded-md">
                             {loading ? (
-                                <div className="p-4 text-center text-sm text-muted-foreground">Načítání...</div>
+                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                    {t('common.loading')}
+                                </div>
                             ) : filteredRecipients.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-muted-foreground">
-                                    Žádní dostupní příjemci
+                                    {t('common.no_results')}
                                 </div>
                             ) : (
                                 filteredRecipients.map((r) => (
@@ -539,7 +531,7 @@ function NewMessageDialog({
                                             variant="outline"
                                             className={`text-[10px] ${ROLE_COLORS[r.role || ''] || ''}`}
                                         >
-                                            {ROLE_LABELS[r.role || ''] || r.role}
+                                            {t(`roles.${r.role}`)}
                                         </Badge>
                                     </button>
                                 ))
@@ -548,10 +540,10 @@ function NewMessageDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>{t('common.message')}</Label>
+                        <Label>{t('messages.text')}</Label>
                         <Textarea
                             rows={4}
-                            placeholder="Napište svou zprávu..."
+                            placeholder={t('common.write_message')}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                         />
@@ -560,7 +552,7 @@ function NewMessageDialog({
 
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        Zrušit
+                        {t('common.cancel')}
                     </Button>
                     <Button
                         onClick={handleSend}
@@ -571,7 +563,7 @@ function NewMessageDialog({
                         ) : (
                             <Send className="h-4 w-4 mr-1" />
                         )}
-                        Odeslat
+                        {t('messages.send')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -635,9 +627,9 @@ function BroadcastDialog({
                 });
             }
             onCreated(conv.id);
-            toast.success('Hromadná zpráva odeslána');
+            toast.success(t('common.success'));
         } catch {
-            toast.error('Nepodařilo se odeslat');
+            toast.error(t('common.error'));
         }
         setSending(false);
     };
@@ -647,7 +639,7 @@ function BroadcastDialog({
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Megaphone className="h-5 w-5" /> Hromadná zpráva
+                        <Megaphone className="h-5 w-5" /> {t('messages.broadcast')}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -662,7 +654,7 @@ function BroadcastDialog({
                             onClick={() => setType('class')}
                         >
                             <Users className="h-4 w-4 mx-auto mb-1" />
-                            Na třídu
+                            {t('common.class')}
                         </button>
                         {canSchoolBroadcast && (
                             <button
@@ -674,7 +666,7 @@ function BroadcastDialog({
                                 onClick={() => setType('school')}
                             >
                                 <School className="h-4 w-4 mx-auto mb-1" />
-                                Na celou školu
+                                {t('sidebar.schools')}
                             </button>
                         )}
                     </div>
@@ -683,7 +675,7 @@ function BroadcastDialog({
                         <div className="space-y-2">
                             <Label>{t('common.class')}</Label>
                             {loading ? (
-                                <p className="text-sm text-muted-foreground">Načítání...</p>
+                                <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
                             ) : (
                                 <select
                                     className="w-full rounded-md border bg-background px-3 py-2 text-sm"
@@ -701,9 +693,9 @@ function BroadcastDialog({
                     )}
 
                     <div className="space-y-2">
-                        <Label>Předmět zprávy</Label>
+                        <Label>{t('common.subject_optional')}</Label>
                         <Input
-                            placeholder="Např. Důležité oznámení..."
+                            placeholder={t('common.enter_subject')}
                             value={subject}
                             onChange={(e) => setSubject(e.target.value)}
                         />
@@ -713,7 +705,7 @@ function BroadcastDialog({
                         <Label>{t('messages.text')}</Label>
                         <Textarea
                             rows={4}
-                            placeholder="Napište text hromadné zprávy..."
+                            placeholder={t('common.write_message')}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                         />
@@ -722,7 +714,7 @@ function BroadcastDialog({
 
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        Zrušit
+                        {t('common.cancel')}
                     </Button>
                     <Button onClick={handleSend} disabled={sending || !subject.trim() || !message.trim()}>
                         {sending ? (
@@ -730,7 +722,7 @@ function BroadcastDialog({
                         ) : (
                             <Send className="h-4 w-4 mr-1" />
                         )}
-                        Odeslat {type === 'school' ? 'všem' : 'třídě'}
+                        {t('messages.send')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

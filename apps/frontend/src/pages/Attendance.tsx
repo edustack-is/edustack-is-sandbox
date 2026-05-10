@@ -22,27 +22,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type StatusKey = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+
 const STATUS_ICONS: Record<StatusKey, typeof CheckCircle> = {
     PRESENT: CheckCircle,
     ABSENT: XCircle,
     LATE: Clock,
     EXCUSED: AlertTriangle,
 };
+
 const STATUS_COLORS: Record<StatusKey, string> = {
     PRESENT: 'text-green-600',
     ABSENT: 'text-red-600',
     LATE: 'text-yellow-600',
     EXCUSED: 'text-blue-600',
 };
-const STATUS_LABELS: Record<StatusKey, string> = {
-    PRESENT: 'Přítomen',
-    ABSENT: 'Nepřítomen',
-    LATE: 'Pozdě',
-    EXCUSED: 'Omluven',
-};
 
 export default function AttendancePage() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -53,6 +49,13 @@ export default function AttendancePage() {
     const [excuses, setExcuses] = useState<any[]>([]);
     const [alerts, setAlerts] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+
+    const STATUS_LABELS: Record<StatusKey, string> = {
+        PRESENT: t('common.present'),
+        ABSENT: t('common.absent'),
+        LATE: t('common.late'),
+        EXCUSED: t('common.excused'),
+    };
 
     useEffect(() => {
         api.get('/api/deputy/classrooms')
@@ -76,7 +79,7 @@ export default function AttendancePage() {
             }
             setLocalRecords(recs);
         } catch {
-            toast.error('Nepodařilo se načíst docházku');
+            toast.error(t('common.error'));
         } finally {
             setLoading(false);
         }
@@ -91,9 +94,9 @@ export default function AttendancePage() {
         const records = Object.entries(localRecords).map(([studentId, status]) => ({ studentId, status }));
         try {
             await recordAttendance({ date, lessonNumber, classroomId: selectedClassroom, records });
-            toast.success('Docházka uložena');
+            toast.success(t('attendance.save_success'));
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -109,7 +112,7 @@ export default function AttendancePage() {
         try {
             setStats(await getAttendanceStats(selectedClassroom));
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
@@ -117,7 +120,7 @@ export default function AttendancePage() {
         try {
             setExcuses(await getAbsenceExcuses(selectedClassroom ? { classroomId: selectedClassroom } : undefined));
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
@@ -125,17 +128,17 @@ export default function AttendancePage() {
         try {
             setAlerts(await getUnexcusedAlerts());
         } catch {
-            toast.error('Chyba');
+            toast.error(t('common.error'));
         }
     };
 
     const handleReview = async (id: string, status: 'APPROVED' | 'REJECTED') => {
         try {
             await reviewAbsenceExcuse(id, status);
-            toast.success(status === 'APPROVED' ? 'Omluvenka schválena' : 'Omluvenka zamítnuta');
+            toast.success(status === 'APPROVED' ? t('attendance.excuse_approved') : t('attendance.excuse_rejected'));
             loadExcuses();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -146,11 +149,11 @@ export default function AttendancePage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'dochazka.csv';
+            a.download = `attendance_${date}.csv`;
             a.click();
             URL.revokeObjectURL(url);
         } catch {
-            toast.error('Chyba exportu');
+            toast.error(t('common.error'));
         }
     };
 
@@ -159,7 +162,7 @@ export default function AttendancePage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{t('common.attendance')}</h1>
-                    <p className="text-muted-foreground">Záznam a správa docházky</p>
+                    <p className="text-muted-foreground">{t('attendance.subtitle')}</p>
                 </div>
                 <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
                     <SelectTrigger className="w-44">
@@ -185,9 +188,9 @@ export default function AttendancePage() {
             >
                 <TabsList>
                     <TabsTrigger value="record">{t('common.record')}</TabsTrigger>
-                    <TabsTrigger value="stats">Statistiky</TabsTrigger>
-                    <TabsTrigger value="excuses">Omluvenky</TabsTrigger>
-                    <TabsTrigger value="alerts">Eskalace</TabsTrigger>
+                    <TabsTrigger value="stats">{t('common.statistics')}</TabsTrigger>
+                    <TabsTrigger value="excuses">{t('common.excuses')}</TabsTrigger>
+                    <TabsTrigger value="alerts">{t('common.escalations')}</TabsTrigger>
                 </TabsList>
 
                 {/* ─── RECORD TAB ─── */}
@@ -196,7 +199,7 @@ export default function AttendancePage() {
                         <CardHeader>
                             <div className="flex items-center gap-4">
                                 <div className="space-y-1">
-                                    <Label>Datum</Label>
+                                    <Label>{t('common.date')}</Label>
                                     <Input
                                         type="date"
                                         value={date}
@@ -205,7 +208,7 @@ export default function AttendancePage() {
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label>Hodina</Label>
+                                    <Label>{t('common.hour')}</Label>
                                     <Select
                                         value={String(lessonNumber)}
                                         onValueChange={(v) => setLessonNumber(parseInt(v))}
@@ -216,7 +219,7 @@ export default function AttendancePage() {
                                         <SelectContent>
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                                                 <SelectItem key={n} value={String(n)}>
-                                                    {n}. hod
+                                                    {n}. {t('common.hour').toLowerCase().slice(0, 3)}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -240,8 +243,8 @@ export default function AttendancePage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Student</TableHead>
-                                            <TableHead className="text-center">Stav</TableHead>
+                                            <TableHead>{t('common.student')}</TableHead>
+                                            <TableHead className="text-center">{t('common.status')}</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -282,7 +285,7 @@ export default function AttendancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <BarChart3 className="h-5 w-5" />
-                                Statistiky docházky
+                                {t('attendance.stats_title')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -292,8 +295,8 @@ export default function AttendancePage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Student</TableHead>
-                                            <TableHead className="text-center">Celkem</TableHead>
+                                            <TableHead>{t('common.student')}</TableHead>
+                                            <TableHead className="text-center">{t('common.total')}</TableHead>
                                             <TableHead className="text-center text-green-600">
                                                 {t('common.present')}
                                             </TableHead>
@@ -303,7 +306,9 @@ export default function AttendancePage() {
                                             <TableHead className="text-center text-yellow-600">
                                                 {t('common.late')}
                                             </TableHead>
-                                            <TableHead className="text-center text-blue-600">Omluven</TableHead>
+                                            <TableHead className="text-center text-blue-600">
+                                                {t('common.excused')}
+                                            </TableHead>
                                             <TableHead className="text-center">%</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -340,17 +345,17 @@ export default function AttendancePage() {
                         </CardHeader>
                         <CardContent>
                             {excuses.length === 0 ? (
-                                <p className="text-muted-foreground text-center py-8">Žádné omluvenky</p>
+                                <p className="text-muted-foreground text-center py-8">{t('attendance.no_excuses')}</p>
                             ) : (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Student</TableHead>
+                                            <TableHead>{t('common.student')}</TableHead>
                                             <TableHead>{t('common.parent')}</TableHead>
-                                            <TableHead>Od</TableHead>
-                                            <TableHead>Do</TableHead>
+                                            <TableHead>{t('common.from')}</TableHead>
+                                            <TableHead>{t('common.to')}</TableHead>
                                             <TableHead>{t('common.reason')}</TableHead>
-                                            <TableHead>Stav</TableHead>
+                                            <TableHead>{t('common.status')}</TableHead>
                                             <TableHead></TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -364,10 +369,10 @@ export default function AttendancePage() {
                                                     {e.parent?.lastName} {e.parent?.firstName}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    {new Date(e.dateFrom).toLocaleDateString('cs-CZ')}
+                                                    {new Date(e.dateFrom).toLocaleDateString(i18n.language)}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    {new Date(e.dateTo).toLocaleDateString('cs-CZ')}
+                                                    {new Date(e.dateTo).toLocaleDateString(i18n.language)}
                                                 </TableCell>
                                                 <TableCell className="max-w-xs truncate">{e.reason}</TableCell>
                                                 <TableCell>
@@ -381,10 +386,10 @@ export default function AttendancePage() {
                                                         }
                                                     >
                                                         {e.status === 'APPROVED'
-                                                            ? 'Schváleno'
+                                                            ? t('attendance.approved')
                                                             : e.status === 'REJECTED'
-                                                              ? 'Zamítnuto'
-                                                              : 'Čeká'}
+                                                              ? t('attendance.rejected')
+                                                              : t('attendance.pending')}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -424,19 +429,21 @@ export default function AttendancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <AlertTriangle className="h-5 w-5 text-red-500" />
-                                Neomluvené absence – eskalace
+                                {t('attendance.alerts_title')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             {alerts.length === 0 ? (
-                                <p className="text-muted-foreground text-center py-8">Žádní studenti nad práhem</p>
+                                <p className="text-muted-foreground text-center py-8">{t('attendance.no_alerts')}</p>
                             ) : (
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Student</TableHead>
+                                            <TableHead>{t('common.student')}</TableHead>
                                             <TableHead>{t('common.class')}</TableHead>
-                                            <TableHead className="text-center">Neomluv. hodin</TableHead>
+                                            <TableHead className="text-center">
+                                                {t('attendance.unexcused_hours')}
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
