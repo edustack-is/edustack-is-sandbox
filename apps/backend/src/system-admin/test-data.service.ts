@@ -493,7 +493,7 @@ export class TestDataService {
 
     const teacherProfileIds: string[] = [];
     const teacherUserIds: string[] = [];
-    const teacherCount = config.teacherCount || 15;
+    const teacherCount = config.teacherCount ?? 15;
     for (let i = 0; i < teacherCount; i++) {
       const isFemale = Math.random() > 0.5;
       const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
@@ -580,7 +580,7 @@ export class TestDataService {
       }
     }
 
-    const studentCount = config.studentCount || 100;
+    const studentCount = config.studentCount ?? 100;
     const parentUserIds: string[] = [];
     const studentUserIds: string[] = [];
     const studentProfileIds: string[] = [];
@@ -647,7 +647,7 @@ export class TestDataService {
         'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
         [
           pUid,
-          `parent${i}@external.test`,
+          `parent${i}@par.${schoolDomain}`,
           pick(MALE_FIRST),
           parentName,
           passwordHash,

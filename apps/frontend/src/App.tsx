@@ -41,7 +41,7 @@ import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { RoleThemeProvider } from './components/RoleThemeProvider';
 import Messages from './pages/Messages';
 import { TaskQueueProvider } from './context/TaskQueueContext';
-import { getInitStatus } from './api';
+import { BootScreen } from './components/BootScreen';
 import { Toaster } from 'sonner';
 
 const ProtectedRoute = () => {
@@ -90,17 +90,8 @@ const SystemAdminGuard = () => {
 function App() {
     const [initialized, setInitialized] = useState<boolean | null>(null);
 
-    useEffect(() => {
-        getInitStatus()
-            .then((res) => setInitialized(res.initialized))
-            .catch((err) => {
-                console.error('Failed to get init status', err);
-                setInitialized(false);
-            });
-    }, []);
-
     if (initialized === null) {
-        return <div className="flex items-center justify-center h-screen">Loading...</div>;
+        return <BootScreen onReady={setInitialized} />;
     }
 
     return (

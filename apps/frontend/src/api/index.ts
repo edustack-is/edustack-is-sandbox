@@ -246,6 +246,11 @@ export const exchangeSsoToken = async () => {
     return response.data; // { access_token: string }
 };
 
+export const getHealth = async () => {
+    const response = await api.get('/health');
+    return response.data;
+};
+
 export const getInitStatus = async () => {
     const response = await api.get('/api/init/status');
     return response.data; // { initialized: boolean }

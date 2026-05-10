@@ -9,6 +9,26 @@ export class AppController {
   constructor(private readonly db: DatabaseService) {}
 
   @Public()
+  @Get('health')
+  async health() {
+    try {
+      await this.db.query('SELECT 1');
+      return {
+        status: 'ok',
+        database: 'connected',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (e: any) {
+      return {
+        status: 'degraded',
+        database: 'disconnected',
+        error: e.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  @Public()
   @Get()
   async getStatus() {
     let dbStatus = 'Disconnected';
