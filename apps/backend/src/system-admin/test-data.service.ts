@@ -229,7 +229,10 @@ export class TestDataService {
       ]);
     }
     const schoolId = (school as any).id;
-    const schoolDomain = `${removeDiacritics(config.schoolName).replace(/\s+/g, '')}.demo.test`;
+    const domainBase = removeDiacritics(config.schoolName)
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    const schoolDomain = `${domainBase}.${schoolId.slice(0, 8)}.demo.test`;
 
     const stats = {
       academicYear: 1,
@@ -1203,8 +1206,11 @@ export class TestDataService {
       [schoolId],
     );
     const schoolName = (school as any)?.name || '';
+    const domainBase = removeDiacritics(schoolName)
+      .replace(/\s+/g, '')
+      .toLowerCase();
     const schoolDomain = schoolName
-      ? `${removeDiacritics(schoolName).replace(/\s+/g, '')}.demo.test`
+      ? `${domainBase}.${schoolId.slice(0, 8)}.demo.test`
       : 'none';
 
     await this.db.execute('PRAGMA foreign_keys = OFF');
