@@ -68,15 +68,56 @@ export class DeputyService {
 
   private async getLeadershipDashboard(schoolId: string, userId: string) {
     const stats = await this.getBasicDashboard(schoolId);
-    const [unreadMessages, tasks] = await Promise.all([
+    const now = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    const [
+      unreadMessages,
+      tasks,
+      todayAttendance,
+      recentGradeAvg,
+      pendingExcuses,
+    ] = await Promise.all([
       this.getUnreadCount(userId),
       this.getTasks(userId, schoolId),
+      this.db.queryOne<any>(
+        `SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as present
+         FROM "Attendance" 
+         WHERE schoolId = ? AND date = ?`,
+        [schoolId, now],
+      ),
+      this.db.queryOne<any>(
+        `SELECT AVG(CAST(value as FLOAT)) as avg
+         FROM "Grade"
+         WHERE schoolId = ? AND date >= ? AND type = 'NUMERIC' AND value BETWEEN '1' AND '5'`,
+        [schoolId, sevenDaysAgo],
+      ),
+      this.db.queryOne<any>(
+        'SELECT COUNT(*) as count FROM "AbsenceExcuse" WHERE schoolId = ? AND status = \'PENDING\'',
+        [schoolId],
+      ),
     ]);
+
+    const attendanceRate =
+      todayAttendance?.total > 0
+        ? Math.round((todayAttendance.present / todayAttendance.total) * 100)
+        : null;
 
     return {
       ...stats,
       unreadMessages,
       tasks,
+      pulse: {
+        attendanceRate,
+        recentGradeAvg: recentGradeAvg?.avg
+          ? Math.round(recentGradeAvg.avg * 100) / 100
+          : null,
+        pendingExcuses: pendingExcuses?.count || 0,
+      },
     };
   }
 
@@ -138,29 +179,37 @@ export class DeputyService {
     const dayOfWeek = now.getDay() || 7;
     const currentTime = now.toTimeString().slice(0, 5);
 
-    const [unreadMessages, tasks, nextLesson, lastGrade] = await Promise.all([
-      this.getUnreadCount(userId),
-      this.getTasks(userId, schoolId),
-      this.db.queryOne<any>(
-        `SELECT se.*, st.name as subjectName, r.name as roomName
+    const [unreadMessages, tasks, nextLesson, lastGrade, upcomingEvents] =
+      await Promise.all([
+        this.getUnreadCount(userId),
+        this.getTasks(userId, schoolId),
+        this.db.queryOne<any>(
+          `SELECT se.*, st.name as subjectName, r.name as roomName
          FROM "ScheduleEvent" se
          JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
          JOIN "SubjectTemplate" st ON si.templateId = st.id
          WHERE se.classroomId = (SELECT classroomId FROM "StudentProfile" WHERE userId = ?)
          AND se.dayOfWeek = ? AND se.startTime > ?
          ORDER BY se.startTime ASC LIMIT 1`,
-        [userId, dayOfWeek, currentTime],
-      ),
-      this.db.queryOne<any>(
-        `SELECT g.*, st.name as subjectName
+          [userId, dayOfWeek, currentTime],
+        ),
+        this.db.queryOne<any>(
+          `SELECT g.*, st.name as subjectName
          FROM "Grade" g
          JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id
          JOIN "SubjectTemplate" st ON si.templateId = st.id
          WHERE g.studentId = (SELECT id FROM "StudentProfile" WHERE userId = ?)
          ORDER BY g.date DESC, g.createdAt DESC LIMIT 1`,
-        [userId],
-      ),
-    ]);
+          [userId],
+        ),
+        this.db.query<any>(
+          `SELECT * FROM "SchoolEvent" 
+         WHERE (schoolId = ? OR id IN (SELECT id FROM "SchoolEvent" WHERE schoolId = ?)) -- simplified for now
+         AND date >= ? 
+         ORDER BY date ASC LIMIT 3`,
+          [schoolId, schoolId, now.toISOString()],
+        ),
+      ]);
 
     return {
       role: 'STUDENT',
@@ -168,6 +217,7 @@ export class DeputyService {
       tasks,
       nextLesson,
       lastGrade,
+      upcomingEvents,
     };
   }
 
