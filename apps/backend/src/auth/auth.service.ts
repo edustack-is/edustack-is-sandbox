@@ -804,7 +804,7 @@ export class AuthService {
     }
 
     // 2. Get representatives from all schools
-    // We want at least one person per school. Principals first, then Deputies, then Admins.
+    // We want a good mix of roles per school to demonstrate functionality.
     const representatives = await this.db.query<any>(
       `SELECT u.email, u.firstName, u.lastName, m.role, s.name as schoolName
        FROM "SchoolMembership" m
@@ -813,41 +813,57 @@ export class AuthService {
        WHERE m.status = 'ACTIVE' 
        AND u.deletedAt IS NULL 
        AND s.deletedAt IS NULL
-       AND m.role IN ('PRINCIPAL', 'DEPUTY', 'ADMIN')
+       AND m.role IN ('PRINCIPAL', 'DEPUTY', 'ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
        ORDER BY s.name ASC, 
                 CASE m.role 
                   WHEN 'PRINCIPAL' THEN 1 
                   WHEN 'DEPUTY' THEN 2 
                   WHEN 'ADMIN' THEN 3 
-                  ELSE 4 
+                  WHEN 'TEACHER' THEN 4
+                  WHEN 'STUDENT' THEN 5
+                  WHEN 'PARENT' THEN 6
+                  ELSE 7
                 END ASC`,
     );
 
-    // Group by school to ensure each school has at least its best representative
-    const schoolReps = new Map<string, any[]>();
+    // Group by school AND role to ensure each school has a variety of roles
+    const schoolRoleGroups = new Map<string, Map<string, any[]>>();
     for (const rep of representatives) {
-      if (!schoolReps.has(rep.schoolName)) {
-        schoolReps.set(rep.schoolName, []);
+      if (!schoolRoleGroups.has(rep.schoolName)) {
+        schoolRoleGroups.set(rep.schoolName, new Map());
       }
-      // Add up to 2 people per school to keep the list manageable but representative
-      if (schoolReps.get(rep.schoolName)!.length < 2) {
-        schoolReps.get(rep.schoolName)!.push(rep);
+      const roleMap = schoolRoleGroups.get(rep.schoolName)!;
+      if (!roleMap.has(rep.role)) {
+        roleMap.set(rep.role, []);
       }
-    }
-
-    for (const reps of schoolReps.values()) {
-      for (const rep of reps) {
-        if (seenEmails.has(rep.email)) continue;
-        helperUsers.push({
-          email: rep.email,
-          firstName: rep.firstName,
-          lastName: rep.lastName,
-          memberships: [{ schoolName: rep.schoolName, role: rep.role }],
-        });
-        seenEmails.add(rep.email);
+      // Add up to 2 people per role per school
+      if (roleMap.get(rep.role)!.length < 2) {
+        roleMap.get(rep.role)!.push(rep);
       }
     }
 
-    return helperUsers;
+    for (const roleMap of schoolRoleGroups.values()) {
+      for (const reps of roleMap.values()) {
+        for (const rep of reps) {
+          if (seenEmails.has(rep.email)) continue;
+          helperUsers.push({
+            email: rep.email,
+            firstName: rep.firstName,
+            lastName: rep.lastName,
+            memberships: [{ schoolName: rep.schoolName, role: rep.role }],
+          });
+          seenEmails.add(rep.email);
+        }
+      }
+    }
+
+    // Sort result: system admin first, then by school name
+    return helperUsers.sort((a, b) => {
+      if (a.memberships[0].role === 'SYSTEM_ADMIN') return -1;
+      if (b.memberships[0].role === 'SYSTEM_ADMIN') return 1;
+      return a.memberships[0].schoolName.localeCompare(
+        b.memberships[0].schoolName,
+      );
+    });
   }
 }
