@@ -821,11 +821,16 @@
     "schools": "Školy",
     "users": "Uživatelé",
     "system_settings": "Nastavení systému",
+    "prompts": "Systémové prompty",
     "monitoring": "Monitoring",
     "select_school_prompt": "Vyberte školu pro zobrazení menu.",
     "select_school_button": "Vybrat školu",
     "collapse": "Sbalit menu",
     "expand": "Rozbalit menu"
+  },
+  "system_prompts": {
+    "title": "Systémové prompty",
+    "subtitle": "Přehled všech AI instrukcí používaných v aplikaci."
   },
   "statuses": {
     "PENDING": "Čekající",

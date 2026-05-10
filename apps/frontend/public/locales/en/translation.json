@@ -821,11 +821,16 @@
     "schools": "Schools",
     "users": "Users",
     "system_settings": "System Settings",
+    "prompts": "System Prompts",
     "monitoring": "Monitoring",
     "select_school_prompt": "Select a school to display menu.",
     "select_school_button": "Select School",
     "collapse": "Collapse menu",
     "expand": "Expand menu"
+  },
+  "system_prompts": {
+    "title": "System Prompts",
+    "subtitle": "Overview of all AI instructions used in the application."
   },
   "statuses": {
     "PENDING": "Pending",

@@ -8,6 +8,7 @@ import { BackupService } from './backup.service';
 import { BackupController } from './backup.controller';
 import { BackupSchedulerService } from './backup-scheduler.service';
 import { TestDataService } from './test-data.service';
+import { SystemPromptsService } from './system-prompts.service';
 import { TestDataController } from './test-data.controller';
 import { MonitoringController } from './monitoring.controller';
 import { MailModule } from '../mail/mail.module';
@@ -29,8 +30,8 @@ import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service'
     SystemAdminSsoService,
     SsoStrategyFactoryService,
     BackupService,
-    BackupSchedulerService,
     TestDataService,
+    SystemPromptsService,
   ],
   exports: [
     SystemAdminService,
@@ -40,6 +41,7 @@ import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service'
     SsoStrategyFactoryService,
     BackupService,
     TestDataService,
+    SystemPromptsService,
   ],
 })
 export class SystemAdminModule {}

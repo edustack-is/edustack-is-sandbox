@@ -957,3 +957,8 @@ export const deleteTask = async (id: string) => {
     const response = await api.delete(`/api/deputy/tasks/${id}`);
     return response.data;
 };
+
+export const getSystemPrompts = async () => {
+    const response = await api.get('/api/system/prompts');
+    return response.data;
+};

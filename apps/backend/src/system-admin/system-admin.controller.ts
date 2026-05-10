@@ -30,6 +30,7 @@ import {
 } from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
 import { SystemAdminAiService } from './system-admin-ai.service';
+import { SystemPromptsService } from './system-prompts.service';
 import { AiUsageResponseDto } from '../common/dto/response.dto';
 
 interface UserRequest extends Request {
@@ -47,7 +48,14 @@ export class SystemAdminController {
     private readonly ssoService: SystemAdminSsoService,
     private readonly settingsService: SystemSettingsService,
     private readonly aiService: SystemAdminAiService,
+    private readonly promptsService: SystemPromptsService,
   ) {}
+
+  @Get('prompts')
+  @ApiOperation({ summary: 'Seznam systémových AI promptů' })
+  getSystemPrompts() {
+    return this.promptsService.getPrompts();
+  }
 
   // ─── SSO SETTINGS ───────────────────────────────────────────────
 

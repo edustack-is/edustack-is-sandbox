@@ -318,6 +318,13 @@ export const Sidebar: React.FC = () => {
                                 collapsed={collapsed}
                                 data-testid="sidebar-system-settings"
                             />
+                            <SidebarNavItem
+                                to="/system/prompts"
+                                icon={Terminal}
+                                label={t('sidebar.prompts', 'Systémové prompty')}
+                                collapsed={collapsed}
+                                data-testid="sidebar-system-prompts"
+                            />
                         </>
                     )}
 

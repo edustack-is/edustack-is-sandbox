@@ -30,6 +30,7 @@ import { AuditLog } from './pages/AuditLog';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { SystemAdminSettings } from './pages/SystemAdminSettings';
+import SystemAdminPrompts from './pages/SystemAdminPrompts';
 import { ActivateAccount } from './pages/ActivateAccount';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
@@ -141,6 +142,7 @@ function App() {
                                         <Route path="system/schools" element={<SystemAdminSchools />} />
                                         <Route path="system/users" element={<SystemAdminUsers />} />
                                         <Route path="system/settings" element={<SystemAdminSettings />} />
+                                        <Route path="system/prompts" element={<SystemAdminPrompts />} />
                                     </Route>
                                     <Route path="profile" element={<UserProfile />} />
                                 </Route>
