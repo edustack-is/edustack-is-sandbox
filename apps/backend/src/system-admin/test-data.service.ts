@@ -1196,34 +1196,16 @@ export class TestDataService {
 
   async wipeSchoolData(schoolId: string) {
     this.logger.warn(`Wiping data for school ${schoolId}`);
-    const tablesWithSchoolId = [
-      'AuditLog',
-      'AiTokenUsage',
-      'Conversation',
-      'Grade',
-      'ReportCard',
-      'BehaviorGrade',
-      'CompetencyGrade',
-      'EducationalMeasure',
-      'CommissionExam',
-      'ClassificationDeadline',
-      'ClassBookEntry',
-      'Attendance',
-      'AbsenceExcuse',
-      'CalendarEvent',
-      'Poll',
-      'BulletinPost',
-      'RecurringEvent',
-      'ScheduleSnapshot',
-      'ScheduleSubstitution',
-      'ScheduleEvent',
-      'LessonTimeSlot',
-      'CurriculumVersion',
-      'SubjectInstance',
-      'SubjectTemplate',
-      'TeachingMaterial',
-      'SchoolEvent',
-    ];
+
+    // Get school domain for fallback user cleanup
+    const school = await this.db.queryOne(
+      'SELECT name FROM "School" WHERE id = ?',
+      [schoolId],
+    );
+    const schoolName = (school as any)?.name || '';
+    const schoolDomain = schoolName
+      ? `${removeDiacritics(schoolName).replace(/\s+/g, '')}.demo.test`
+      : 'none';
 
     await this.db.execute('PRAGMA foreign_keys = OFF');
 
@@ -1329,8 +1311,14 @@ export class TestDataService {
 
     // 2. Delete non-admin users that belong to this school
     await this.db.execute(
-      'DELETE FROM "User" WHERE id IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?) AND isSystemAdmin = 0',
-      [schoolId],
+      'DELETE FROM "User" WHERE (id IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?) OR email LIKE ?) AND isSystemAdmin = 0',
+      [schoolId, `%@${schoolDomain}`],
+    );
+
+    // Also clean up by potential subdomains
+    await this.db.execute(
+      'DELETE FROM "User" WHERE (email LIKE ? OR email LIKE ?) AND isSystemAdmin = 0',
+      [`%@st.${schoolDomain}`, `%@par.${schoolDomain}`],
     );
 
     // 3. Delete from tables that have a direct schoolId column
