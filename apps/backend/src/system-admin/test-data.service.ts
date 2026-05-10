@@ -1196,13 +1196,9 @@ export class TestDataService {
 
   async wipeSchoolData(schoolId: string) {
     this.logger.warn(`Wiping data for school ${schoolId}`);
-    const tables = [
+    const tablesWithSchoolId = [
       'AuditLog',
       'AiTokenUsage',
-      'Notification',
-      'MessageAttachment',
-      'Message',
-      'ConversationParticipant',
       'Conversation',
       'Grade',
       'ReportCard',
@@ -1211,14 +1207,10 @@ export class TestDataService {
       'EducationalMeasure',
       'CommissionExam',
       'ClassificationDeadline',
-      'TeacherSignature',
       'ClassBookEntry',
       'Attendance',
       'AbsenceExcuse',
-      'EventRsvp',
       'CalendarEvent',
-      'PollVote',
-      'PollOption',
       'Poll',
       'BulletinPost',
       'RecurringEvent',
@@ -1226,93 +1218,170 @@ export class TestDataService {
       'ScheduleSubstitution',
       'ScheduleEvent',
       'LessonTimeSlot',
-      'CurriculumEntry',
       'CurriculumVersion',
       'SubjectInstance',
       'SubjectTemplate',
-      'StaffSubjectAssignment',
-      'StaffWorkload',
-      'TeacherWorkload',
-      'StudentEnrollment',
-      'Semester',
+      'TeachingMaterial',
+      'SchoolEvent',
+    ];
+
+    await this.db.execute('PRAGMA foreign_keys = OFF');
+
+    // 1. Delete from tables that are linked indirectly (MUST DO THIS FIRST while SchoolMembership still exists)
+    const indirectDeletions = [
+      {
+        table: 'Notification',
+        sql: 'DELETE FROM "Notification" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'MessageAttachment',
+        sql: 'DELETE FROM "MessageAttachment" WHERE messageId IN (SELECT m.id FROM "Message" m JOIN "Conversation" c ON m.conversationId = c.id WHERE c.schoolId = ?)',
+      },
+      {
+        table: 'Message',
+        sql: 'DELETE FROM "Message" WHERE conversationId IN (SELECT id FROM "Conversation" WHERE schoolId = ?)',
+      },
+      {
+        table: 'ConversationParticipant',
+        sql: 'DELETE FROM "ConversationParticipant" WHERE conversationId IN (SELECT id FROM "Conversation" WHERE schoolId = ?)',
+      },
+      {
+        table: 'TeacherSignature',
+        sql: 'DELETE FROM "TeacherSignature" WHERE teacherId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'PollVote',
+        sql: 'DELETE FROM "PollVote" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'PollOption',
+        sql: 'DELETE FROM "PollOption" WHERE pollId IN (SELECT id FROM "Poll" WHERE schoolId = ?)',
+      },
+      {
+        table: 'EventRsvp',
+        sql: 'DELETE FROM "EventRsvp" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'CurriculumEntry',
+        sql: 'DELETE FROM "CurriculumEntry" WHERE curriculumVersionId IN (SELECT id FROM "CurriculumVersion" WHERE schoolId = ?)',
+      },
+      {
+        table: 'StaffSubjectAssignment',
+        sql: 'DELETE FROM "StaffSubjectAssignment" WHERE staffWorkloadId IN (SELECT sw.id FROM "StaffWorkload" sw JOIN "AcademicYear" ay ON sw.academicYearId = ay.id WHERE ay.schoolId = ?)',
+      },
+      {
+        table: 'StaffWorkload',
+        sql: 'DELETE FROM "StaffWorkload" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'TeacherWorkload',
+        sql: 'DELETE FROM "TeacherWorkload" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'StudentEnrollment',
+        sql: 'DELETE FROM "StudentEnrollment" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'Semester',
+        sql: 'DELETE FROM "Semester" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'ParentStudent',
+        sql: 'DELETE FROM "ParentStudent" WHERE studentId IN (SELECT sp.id FROM "StudentProfile" sp JOIN "User" u ON sp.userId = u.id JOIN "SchoolMembership" sm ON u.id = sm.userId WHERE sm.schoolId = ?)',
+      },
+      {
+        table: 'TeacherProfile',
+        sql: 'DELETE FROM "TeacherProfile" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'StudentProfile',
+        sql: 'DELETE FROM "StudentProfile" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'Identity',
+        sql: 'DELETE FROM "Identity" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'RoomSharing',
+        sql: 'DELETE FROM "RoomSharing" WHERE roomId IN (SELECT id FROM "Room" WHERE schoolId = ?) OR sharedWithSchoolId = ?',
+      },
+      {
+        table: 'ThematicPlanWeek',
+        sql: 'DELETE FROM "ThematicPlanWeek" WHERE planId IN (SELECT id FROM "ThematicPlan" WHERE schoolId = ?)',
+      },
+      {
+        table: 'CompetencyMapping',
+        sql: 'DELETE FROM "CompetencyMapping" WHERE competencyId IN (SELECT id FROM "RvpCompetency" WHERE schoolId = ?)',
+      },
+    ];
+
+    for (const d of indirectDeletions) {
+      try {
+        const params =
+          d.table === 'RoomSharing' ? [schoolId, schoolId] : [schoolId];
+        await this.db.execute(d.sql, params);
+      } catch (e) {
+        this.logger.warn(
+          `Failed to wipe indirect table ${d.table}: ${e.message}`,
+        );
+      }
+    }
+
+    // 2. Delete non-admin users that belong to this school
+    await this.db.execute(
+      'DELETE FROM "User" WHERE id IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?) AND isSystemAdmin = 0',
+      [schoolId],
+    );
+
+    // 3. Delete from tables that have a direct schoolId column
+    const directTables = [
+      'AuditLog',
+      'AiTokenUsage',
+      'Conversation',
+      'Grade',
+      'ReportCard',
+      'BehaviorGrade',
+      'CompetencyGrade',
+      'EducationalMeasure',
+      'CommissionExam',
+      'ClassificationDeadline',
+      'ClassBookEntry',
+      'Attendance',
+      'AbsenceExcuse',
+      'CalendarEvent',
+      'Poll',
+      'BulletinPost',
+      'RecurringEvent',
+      'ScheduleSnapshot',
+      'ScheduleSubstitution',
+      'ScheduleEvent',
+      'LessonTimeSlot',
+      'CurriculumVersion',
+      'SubjectInstance',
+      'SubjectTemplate',
       'AcademicYear',
-      'ParentStudent',
-      'TeacherProfile',
-      'StudentProfile',
-      'Identity',
-      'SchoolMembership',
-      'RoomSharing',
       'Room',
       'Building',
       'Classroom',
       'GradeLevel',
       'RvpCompetency',
-      'ThematicPlanWeek',
       'ThematicPlan',
       'LessonPreparation',
       'TeachingMaterial',
       'SchoolEvent',
-      'CompetencyMapping',
+      'SchoolMembership', // Must be last among these
     ];
-    await this.db.execute('PRAGMA foreign_keys = OFF');
-    for (const t of tables) {
+
+    for (const t of directTables) {
       try {
         await this.db.execute(`DELETE FROM "${t}" WHERE "schoolId" = ?`, [
           schoolId,
         ]);
       } catch (e) {
-        // Some tables might not have schoolId column, handle gracefully
-        try {
-          if (t === 'ThematicPlanWeek') {
-            await this.db.execute(
-              'DELETE FROM "ThematicPlanWeek" WHERE planId IN (SELECT id FROM "ThematicPlan" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'TeacherSignature') {
-            await this.db.execute(
-              'DELETE FROM "TeacherSignature" WHERE teacherId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'PollOption') {
-            await this.db.execute(
-              'DELETE FROM "PollOption" WHERE pollId IN (SELECT id FROM "Poll" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'PollVote') {
-            await this.db.execute(
-              'DELETE FROM "PollVote" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'EventRsvp') {
-            await this.db.execute(
-              'DELETE FROM "EventRsvp" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'MessageAttachment') {
-            await this.db.execute(
-              'DELETE FROM "MessageAttachment" WHERE messageId IN (SELECT m.id FROM "Message" m JOIN "Conversation" c ON m.conversationId = c.id WHERE c.schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'CompetencyMapping') {
-            await this.db.execute(
-              'DELETE FROM "CompetencyMapping" WHERE competencyId IN (SELECT id FROM "RvpCompetency" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'RoomSharing') {
-            await this.db.execute(
-              'DELETE FROM "RoomSharing" WHERE roomId IN (SELECT id FROM "Room" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          } else if (t === 'Identity') {
-            await this.db.execute(
-              'DELETE FROM "Identity" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
-              [schoolId],
-            );
-          }
-        } catch (innerE) {}
+        this.logger.warn(`Failed to wipe direct table ${t}: ${e.message}`);
       }
     }
-    await this.db.execute('DELETE FROM "School" WHERE id = ?', [schoolId]);
+
     await this.db.execute('PRAGMA foreign_keys = ON');
   }
 
