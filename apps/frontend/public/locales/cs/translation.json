@@ -349,6 +349,7 @@
     "wipe_all_title": "Smazat VŠECHNA data",
     "wipe_all_desc": "Smaže všechny školy, uživatele a data v celém systému. Zůstanou pouze systémoví administrátoři.",
     "wipe_all_confirm_prompt": "Pro potvrzení napište \"SMAZAT VŠE\":",
+    "wipe_all_confirm_value": "SMAZAT VŠE",
     "wipe_all_placeholder": "Napište \"SMAZAT VŠE\"",
     "confirm_wipe_title": "Smazat školu a všechna data",
     "confirm_wipe_desc": "Opravdu chcete smazat školu \"{{name}}\" a všechna související data? Tato akce je nevratná.",

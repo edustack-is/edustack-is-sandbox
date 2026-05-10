@@ -349,6 +349,7 @@
     "wipe_all_title": "Wipe ALL Data",
     "wipe_all_desc": "Deletes all schools, users, and data in the entire system. Only system administrators remain.",
     "wipe_all_confirm_prompt": "To confirm, type \"WIPE ALL\":",
+    "wipe_all_confirm_value": "WIPE ALL",
     "wipe_all_placeholder": "Type \"WIPE ALL\"",
     "confirm_wipe_title": "Delete School and All Data",
     "confirm_wipe_desc": "Are you sure you want to delete school \"{{name}}\" and all associated data? This action is irreversible.",

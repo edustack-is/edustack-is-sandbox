@@ -1476,6 +1476,7 @@ export class TestDataService {
     }
 
     await this.db.execute('PRAGMA foreign_keys = ON');
+    return { deletedSchool: schoolName };
   }
 
   async wipeAllData() {
@@ -1531,7 +1532,6 @@ export class TestDataService {
       'Classroom',
       'GradeLevel',
       'School',
-      'SystemSecret',
       'ThematicPlanWeek',
       'ThematicPlan',
       'LessonPreparation',
@@ -1541,12 +1541,32 @@ export class TestDataService {
       'CompetencyMapping',
     ];
     await this.db.execute('PRAGMA foreign_keys = OFF');
+    let deletedSchools = 0;
+    let deletedUsers = 0;
+
+    const schoolCount = await this.db.queryOne<{ count: number }>(
+      'SELECT count(*) as count FROM "School"',
+    );
+    deletedSchools = schoolCount?.count || 0;
+
+    const userCount = await this.db.queryOne<{ count: number }>(
+      'SELECT count(*) as count FROM "User" WHERE isSystemAdmin = 0',
+    );
+    deletedUsers = userCount?.count || 0;
+
     for (const t of tables) {
       try {
         await this.db.execute(`DELETE FROM "${t}"`);
-      } catch (e) {}
+      } catch (e) {
+        this.logger.error(`Wipe all failed for table ${t}: ${e.message}`);
+      }
     }
     await this.db.execute('DELETE FROM "User" WHERE isSystemAdmin = 0');
     await this.db.execute('PRAGMA foreign_keys = ON');
+
+    return {
+      deletedSchools,
+      deletedUsers,
+    };
   }
 }

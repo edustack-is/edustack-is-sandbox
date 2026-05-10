@@ -180,6 +180,8 @@ export function TestDataGenerator() {
         }
     };
 
+    const wipeAllConfirmValue = t('test_data.wipe_all_confirm_value', 'WIPE ALL');
+
     // ─── Render ──────────────────────────────────────────
 
     return (
@@ -551,10 +553,10 @@ export function TestDataGenerator() {
                         <Button
                             variant="destructive"
                             onClick={handleWipeAll}
-                            disabled={wiping || wipeConfirmText !== 'SMAZAT VŠE'}
+                            disabled={wiping || wipeConfirmText !== wipeAllConfirmValue}
                         >
                             {wiping && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                            {t('common.delete_all_permanently', 'Smazat vše nenávratně')}
+                            {t('common.delete_all_permanently', 'Delete everything permanently')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
