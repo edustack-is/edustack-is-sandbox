@@ -128,12 +128,35 @@ const COMPETENCIES = [
   { code: 'KC6', name: 'Kompetence pracovní', area: 'Obecné' },
 ];
 
+const ADDRESS_STREETS = [
+  'Školní',
+  'U Stadionu',
+  'Lipová',
+  'Nádražní',
+  'Hlavní',
+  'Zahradní',
+  'Krátká',
+  'Polní',
+];
+const ADDRESS_CITIES = [
+  'Praha',
+  'Brno',
+  'Ostrava',
+  'Plzeň',
+  'Liberec',
+  'Olomouc',
+  'České Budějovice',
+  'Hradec Králové',
+];
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
+
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
 function removeDiacritics(s: string): string {
   return s
     .normalize('NFD')
@@ -170,8 +193,42 @@ export class TestDataService {
   ) {}
 
   async generateAll(config: GenerateConfig): Promise<any> {
+    let attempt = 0;
+    const maxAttempts = 5;
+    let lastError: any = null;
+
+    while (attempt < maxAttempts) {
+      try {
+        return await this.generateAllInternal(config);
+      } catch (err: any) {
+        attempt++;
+        lastError = err;
+        if (
+          err.message?.includes('UNIQUE constraint failed') &&
+          attempt < maxAttempts
+        ) {
+          this.logger.warn(
+            `Unique constraint hit (attempt ${attempt}/${maxAttempts}): ${err.message}. Retrying with different random values...`,
+          );
+          // Small delay before retry
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          continue;
+        }
+        break;
+      }
+    }
+
+    this.logger.error(
+      `Data generation failed after ${maxAttempts} attempts: ${lastError?.message}`,
+    );
+    throw new BadRequestException(
+      `Generátor selhal kvůli kolizi unikátních dat (již existující záznam). Zkuste to prosím znovu. Poslední chyba: ${lastError?.message}`,
+    );
+  }
+
+  private async generateAllInternal(config: GenerateConfig): Promise<any> {
     this.logger.log(
-      `Generating complete coverage test data for ${config.schoolName}`,
+      `Generating complete coverage test data for ${config.schoolName} (internal run)`,
     );
 
     const demoPassword = process.env.DEMO_PASSWORD || 'Demo1234!';
@@ -216,14 +273,35 @@ export class TestDataService {
       'SELECT * FROM "School" WHERE name = ?',
       [config.schoolName],
     );
+
+    const schoolAddress = `${pick(ADDRESS_STREETS)} ${randInt(1, 250)}, ${randInt(100, 799)} 00 ${pick(ADDRESS_CITIES)}`;
+
     if (school) {
       await this.wipeSchoolData((school as any).id);
+      // Ensure address is updated
+      await this.db.execute(
+        'UPDATE "School" SET address = ?, updatedAt = ? WHERE id = ?',
+        [schoolAddress, now, (school as any).id],
+      );
     } else {
       const id = crypto.randomUUID();
-      await this.db.execute(
-        'INSERT INTO "School" (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-        [id, config.schoolName, now, now],
-      );
+      try {
+        await this.db.execute(
+          'INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+          [id, config.schoolName, schoolAddress, now, now],
+        );
+      } catch (e: any) {
+        if (e.message?.includes('UNIQUE constraint failed: School.name')) {
+          // If name collision, add a small random suffix
+          const uniqueName = `${config.schoolName} (${randInt(10, 99)})`;
+          await this.db.execute(
+            'INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+            [id, uniqueName, schoolAddress, now, now],
+          );
+        } else {
+          throw e;
+        }
+      }
       school = await this.db.queryOne('SELECT * FROM "School" WHERE id = ?', [
         id,
       ]);
