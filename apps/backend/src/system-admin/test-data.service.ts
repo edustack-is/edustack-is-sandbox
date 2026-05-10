@@ -493,6 +493,7 @@ export class TestDataService {
 
     const teacherProfileIds: string[] = [];
     const teacherUserIds: string[] = [];
+    const teacherProfileToUserMap = new Map<string, string>();
     const teacherCount = config.teacherCount ?? 15;
     for (let i = 0; i < teacherCount; i++) {
       const isFemale = Math.random() > 0.5;
@@ -555,6 +556,7 @@ export class TestDataService {
 
       teacherProfileIds.push(pid);
       teacherUserIds.push(uid);
+      teacherProfileToUserMap.set(pid, uid);
       stats.teachers++;
     }
 
@@ -748,6 +750,7 @@ export class TestDataService {
               date.setDate(new Date().getDate() - offset);
               if ((date.getDay() || 7) === d) {
                 const entryId = crypto.randomUUID();
+                const tUid = teacherProfileToUserMap.get(tPid)!;
                 await this.db.execute(
                   'INSERT INTO "ClassBookEntry" (id, date, lessonNumber, topic, schoolId, classroomId, teacherId, scheduleEventId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                   [
@@ -757,7 +760,7 @@ export class TestDataService {
                     pick(['Opakování', 'Nová látka', 'Procvičování']),
                     schoolId,
                     cls.id,
-                    tPid,
+                    tUid,
                     eventId,
                     now,
                     now,
@@ -765,12 +768,6 @@ export class TestDataService {
                 );
 
                 // Teacher Signature
-                const tUid = (
-                  (await this.db.queryOne(
-                    'SELECT userId FROM "TeacherProfile" WHERE id = ?',
-                    [tPid],
-                  )) as any
-                ).userId;
                 await this.db.execute(
                   'INSERT INTO "TeacherSignature" (id, classBookEntryId, teacherId, signedAt) VALUES (?, ?, ?, ?)',
                   [crypto.randomUUID(), entryId, tUid, now],
