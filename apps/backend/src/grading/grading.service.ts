@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AiService } from '../ai/ai.service';
 import {
   Grade,
   StudentProfile,
@@ -23,13 +23,10 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class GradingService {
-  private genAI: GoogleGenerativeAI;
-  private model: any;
-
-  constructor(private db: DatabaseService) {
-    this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
-  }
+  constructor(
+    private db: DatabaseService,
+    private aiService: AiService,
+  ) {}
 
   // ─── GRADE CRUD ─────────────────────────────────────────────
 
@@ -229,9 +226,13 @@ export class GradingService {
   }
 
   async polishVerbalEvaluation(text: string) {
-    const prompt = `Vylepši slovní hodnocení žáka, aby bylo profesionální a povzbuzující: ${text}`;
-    const result = await this.model.generateContent(prompt);
-    return { polishedText: result.response.text().trim() };
+    const result = await this.aiService.refineText({
+      existingText: text,
+      context: 'Jsi učitel na základní škole.',
+      instruction:
+        'Vylepši toto slovní hodnocení žáka, aby bylo profesionální, povzbuzující a spisovné.',
+    });
+    return { polishedText: result.text };
   }
 
   async getGradingTypesForClassroom(classroomId: string) {
