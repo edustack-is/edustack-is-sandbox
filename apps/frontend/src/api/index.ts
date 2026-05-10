@@ -935,3 +935,25 @@ export const aiGenerateSchoolName = async (schoolType?: string) => {
     const response = await api.post('/api/ai/generate-school-name', { schoolType });
     return response.data;
 };
+
+// ─── TASKS ──────────────────────────────────────────────
+
+export const getTasks = async () => {
+    const response = await api.get('/api/deputy/tasks');
+    return response.data;
+};
+
+export const createTask = async (title: string) => {
+    const response = await api.post('/api/deputy/tasks', { title });
+    return response.data;
+};
+
+export const toggleTask = async (id: string) => {
+    const response = await api.patch(`/api/deputy/tasks/${id}/toggle`);
+    return response.data;
+};
+
+export const deleteTask = async (id: string) => {
+    const response = await api.delete(`/api/deputy/tasks/${id}`);
+    return response.data;
+};

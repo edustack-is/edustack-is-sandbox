@@ -40,18 +40,176 @@ export class DeputyService {
 
   // ─── SCHOOL DASHBOARD ────────────────────────────────────────────
 
-  async getSchoolDashboard(schoolId: string) {
+  async getSchoolDashboard(schoolId: string, userId: string, role: string) {
+    // Principal/Deputy/Admin see full school overview + their own agenda
+    const isLeadership = ['PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(
+      role,
+    );
+
+    if (isLeadership) {
+      return this.getLeadershipDashboard(schoolId, userId);
+    }
+
+    if (role === 'TEACHER') {
+      return this.getTeacherDashboard(schoolId, userId);
+    }
+
+    if (role === 'STUDENT') {
+      return this.getStudentDashboard(schoolId, userId);
+    }
+
+    if (role === 'PARENT') {
+      return this.getParentDashboard(schoolId, userId);
+    }
+
+    // Default to basic if role unknown
+    return this.getBasicDashboard(schoolId);
+  }
+
+  private async getLeadershipDashboard(schoolId: string, userId: string) {
+    const stats = await this.getBasicDashboard(schoolId);
+    const [unreadMessages, tasks] = await Promise.all([
+      this.getUnreadCount(userId),
+      this.getTasks(userId, schoolId),
+    ]);
+
+    return {
+      ...stats,
+      unreadMessages,
+      tasks,
+    };
+  }
+
+  private async getTeacherDashboard(schoolId: string, userId: string) {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7; // ISO week day
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    const [teacherProfile, unreadMessages, tasks, nextLesson, missingData] =
+      await Promise.all([
+        this.db.queryOne<TeacherProfile>(
+          'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+          [userId],
+        ),
+        this.getUnreadCount(userId),
+        this.getTasks(userId, schoolId),
+        this.db.queryOne<any>(
+          `SELECT se.*, st.name as subjectName, c.name as classroomName, r.name as roomName
+         FROM "ScheduleEvent" se
+         JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+         JOIN "SubjectTemplate" st ON si.templateId = st.id
+         JOIN "Classroom" c ON se.classroomId = c.id
+         LEFT JOIN "Room" r ON se.roomId = r.id
+         WHERE se.teacherId = (SELECT id FROM "TeacherProfile" WHERE userId = ?)
+         AND se.dayOfWeek = ? AND se.startTime > ?
+         ORDER BY se.startTime ASC LIMIT 1`,
+          [userId, dayOfWeek, currentTime],
+        ),
+        this.db.query<any>(
+          `SELECT ce.*, c.name as classroomName
+         FROM "ClassBookEntry" ce
+         JOIN "Classroom" c ON ce.classroomId = c.id
+         LEFT JOIN "TeacherSignature" ts ON ce.id = ts.classBookEntryId
+         WHERE ce.teacherId = ? AND (ce.topic IS NULL OR ts.id IS NULL)
+         AND ce.date < ?
+         ORDER BY ce.date DESC LIMIT 5`,
+          [userId, now.toISOString()],
+        ),
+      ]);
+
+    return {
+      role: 'TEACHER',
+      unreadMessages,
+      tasks,
+      nextLesson,
+      missingData: missingData.map((m) => ({
+        id: m.id,
+        date: m.date,
+        lessonNumber: m.lessonNumber,
+        classroomName: m.classroomName,
+        missingTopic: !m.topic,
+        missingSignature: true, // simplified since we JOINed LEFT
+      })),
+    };
+  }
+
+  private async getStudentDashboard(schoolId: string, userId: string) {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7;
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    const [unreadMessages, tasks, nextLesson, lastGrade] = await Promise.all([
+      this.getUnreadCount(userId),
+      this.getTasks(userId, schoolId),
+      this.db.queryOne<any>(
+        `SELECT se.*, st.name as subjectName, r.name as roomName
+         FROM "ScheduleEvent" se
+         JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+         JOIN "SubjectTemplate" st ON si.templateId = st.id
+         WHERE se.classroomId = (SELECT classroomId FROM "StudentProfile" WHERE userId = ?)
+         AND se.dayOfWeek = ? AND se.startTime > ?
+         ORDER BY se.startTime ASC LIMIT 1`,
+        [userId, dayOfWeek, currentTime],
+      ),
+      this.db.queryOne<any>(
+        `SELECT g.*, st.name as subjectName
+         FROM "Grade" g
+         JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id
+         JOIN "SubjectTemplate" st ON si.templateId = st.id
+         WHERE g.studentId = (SELECT id FROM "StudentProfile" WHERE userId = ?)
+         ORDER BY g.date DESC, g.createdAt DESC LIMIT 1`,
+        [userId],
+      ),
+    ]);
+
+    return {
+      role: 'STUDENT',
+      unreadMessages,
+      tasks,
+      nextLesson,
+      lastGrade,
+    };
+  }
+
+  private async getParentDashboard(schoolId: string, userId: string) {
+    // Get children
+    const children = await this.db.query<any>(
+      `SELECT sp.*, u.firstName, u.lastName 
+       FROM "StudentProfile" sp 
+       JOIN "User" u ON sp.userId = u.id
+       JOIN "ParentStudent" ps ON sp.id = ps.studentId
+       WHERE ps.parentId = ?`,
+      [userId],
+    );
+
+    const results = [];
+    for (const child of children) {
+      const dashboard = await this.getStudentDashboard(schoolId, child.userId);
+      results.push({
+        childName: `${child.firstName} ${child.lastName}`,
+        childId: child.id,
+        ...dashboard,
+      });
+    }
+
+    return {
+      role: 'PARENT',
+      children: results,
+      unreadMessages: await this.getUnreadCount(userId),
+      tasks: await this.getTasks(userId, schoolId),
+    };
+  }
+
+  private async getBasicDashboard(schoolId: string) {
     const [
       studentCountResult,
       teacherCountResult,
       classroomCountResult,
       subjectCountResult,
       roomCountResult,
-      buildingCountResult,
       currentAcademicYear,
       recentMembers,
       upcomingEvents,
-      totalMembersResult,
       pendingMembersResult,
     ] = await Promise.all([
       this.db.queryOne<{ count: number }>(
@@ -74,10 +232,6 @@ export class DeputyService {
         'SELECT COUNT(*) as count FROM "Room" WHERE schoolId = ?',
         [schoolId],
       ),
-      this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "Building" WHERE schoolId = ?',
-        [schoolId],
-      ),
       this.db.queryOne<AcademicYear>(
         'SELECT id, name, startDate, endDate FROM "AcademicYear" WHERE schoolId = ? AND isCurrent = 1 LIMIT 1',
         [schoolId],
@@ -95,10 +249,6 @@ export class DeputyService {
         [schoolId, new Date().toISOString()],
       ),
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ?',
-        [schoolId],
-      ),
-      this.db.queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND status = \'PENDING\'',
         [schoolId],
       ),
@@ -110,8 +260,6 @@ export class DeputyService {
       classroomCount: classroomCountResult?.count || 0,
       subjectCount: subjectCountResult?.count || 0,
       roomCount: roomCountResult?.count || 0,
-      buildingCount: buildingCountResult?.count || 0,
-      totalMembers: totalMembersResult?.count || 0,
       pendingMembers: pendingMembersResult?.count || 0,
       currentAcademicYear,
       upcomingEvents,
@@ -124,6 +272,59 @@ export class DeputyService {
         createdAt: m.createdAt,
       })),
     };
+  }
+
+  private async getUnreadCount(userId: string) {
+    const res = await this.db.queryOne<{ count: number }>(
+      `SELECT COUNT(*) as count FROM "Message" m
+       JOIN "ConversationParticipant" cp ON m.conversationId = cp.conversationId
+       WHERE cp.userId = ? AND (cp.lastReadAt IS NULL OR m.createdAt > cp.lastReadAt)
+       AND m.senderId != ?`,
+      [userId, userId],
+    );
+    return res?.count || 0;
+  }
+
+  // ─── TASKS ───────────────────────────────────────────────────────
+
+  async getTasks(userId: string, schoolId: string) {
+    return this.db.query<any>(
+      'SELECT * FROM "Task" WHERE userId = ? AND schoolId = ? ORDER BY createdAt DESC',
+      [userId, schoolId],
+    );
+  }
+
+  async createTask(userId: string, schoolId: string, title: string) {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await this.db.execute(
+      'INSERT INTO "Task" (id, title, completed, userId, schoolId, createdAt, updatedAt) VALUES (?, ?, 0, ?, ?, ?, ?)',
+      [id, title, userId, schoolId, now, now],
+    );
+    return { id, title, completed: false };
+  }
+
+  async toggleTask(id: string, userId: string) {
+    const task = await this.db.queryOne<any>(
+      'SELECT * FROM "Task" WHERE id = ? AND userId = ?',
+      [id, userId],
+    );
+    if (!task) throw new NotFoundException('Task not found');
+
+    const newStatus = task.completed ? 0 : 1;
+    await this.db.execute(
+      'UPDATE "Task" SET completed = ?, updatedAt = ? WHERE id = ?',
+      [newStatus, new Date().toISOString(), id],
+    );
+    return { ...task, completed: !!newStatus };
+  }
+
+  async deleteTask(id: string, userId: string) {
+    await this.db.execute('DELETE FROM "Task" WHERE id = ? AND userId = ?', [
+      id,
+      userId,
+    ]);
+    return { success: true };
   }
 
   // ─── CLASSROOM CRUD ──────────────────────────────────────────────

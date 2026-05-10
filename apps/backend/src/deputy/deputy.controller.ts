@@ -91,7 +91,73 @@ export class DeputyController {
   })
   async getSchoolDashboard(@Req() req: any) {
     this.ensureTenant(req);
-    return this.deputyService.getSchoolDashboard(req.user.schoolId);
+    return this.deputyService.getSchoolDashboard(
+      req.user.schoolId,
+      req.user.sub,
+      req.user.role,
+    );
+  }
+
+  @Get('tasks')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
+  @ApiOperation({ summary: 'Seznam úkolů na dashboardu' })
+  async getTasks(@Req() req: any) {
+    this.ensureTenant(req);
+    return this.deputyService.getTasks(req.user.sub, req.user.schoolId);
+  }
+
+  @Post('tasks')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
+  @ApiOperation({ summary: 'Vytvořit úkol' })
+  async createTask(@Req() req: any, @Body('title') title: string) {
+    this.ensureTenant(req);
+    return this.deputyService.createTask(
+      req.user.sub,
+      req.user.schoolId,
+      title,
+    );
+  }
+
+  @Patch('tasks/:id/toggle')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
+  @ApiOperation({ summary: 'Přepnout stav úkolu' })
+  async toggleTask(@Req() req: any, @Param('id') id: string) {
+    return this.deputyService.toggleTask(id, req.user.sub);
+  }
+
+  @Delete('tasks/:id')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
+  @ApiOperation({ summary: 'Smazat úkol' })
+  async deleteTask(@Req() req: any, @Param('id') id: string) {
+    return this.deputyService.deleteTask(id, req.user.sub);
   }
 
   // ─── CLASSROOM ───────────────────────────────────────────────────
