@@ -728,7 +728,7 @@ export class TestDataService {
             const tPid = pick(teacherProfileIds);
             const eventId = crypto.randomUUID();
             await this.db.execute(
-              'INSERT INTO "ScheduleEvent" (id, dayOfWeek, lessonNumber, startTime, endTime, schoolId, subjectInstanceId, classroomId, teacherId, roomId, academicYearId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT OR IGNORE INTO "ScheduleEvent" (id, dayOfWeek, lessonNumber, startTime, endTime, schoolId, subjectInstanceId, classroomId, teacherId, roomId, academicYearId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
               [
                 eventId,
                 d,
@@ -755,7 +755,7 @@ export class TestDataService {
                 const entryId = crypto.randomUUID();
                 const tUid = teacherProfileToUserMap.get(tPid)!;
                 await this.db.execute(
-                  'INSERT INTO "ClassBookEntry" (id, date, lessonNumber, topic, schoolId, classroomId, teacherId, scheduleEventId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  'INSERT OR IGNORE INTO "ClassBookEntry" (id, date, lessonNumber, topic, schoolId, classroomId, teacherId, scheduleEventId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                   [
                     entryId,
                     date.toISOString().split('T')[0],
@@ -785,7 +785,7 @@ export class TestDataService {
                   for (const st of studentsInCls as any[]) {
                     const isAbsent = Math.random() < 0.05;
                     await this.db.execute(
-                      'INSERT INTO "Attendance" (id, date, status, lessonNumber, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                      'INSERT OR IGNORE INTO "Attendance" (id, date, status, lessonNumber, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                       [
                         crypto.randomUUID(),
                         date.toISOString().split('T')[0],
@@ -825,7 +825,7 @@ export class TestDataService {
 
                       // Add Competency Grade
                       await this.db.execute(
-                        'INSERT INTO "CompetencyGrade" (id, level, note, studentId, competencyId, subjectInstanceId, semesterId, schoolId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT OR IGNORE INTO "CompetencyGrade" (id, level, note, studentId, competencyId, subjectInstanceId, semesterId, schoolId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [
                           crypto.randomUUID(),
                           randInt(1, 4),
@@ -1125,7 +1125,7 @@ export class TestDataService {
       )[0]?.id;
       if (someSiId) {
         await this.db.execute(
-          'INSERT INTO "ReportCard" (id, finalGrade, studentId, subjectInstanceId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR IGNORE INTO "ReportCard" (id, finalGrade, studentId, subjectInstanceId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [
             crypto.randomUUID(),
             '1',
@@ -1140,7 +1140,7 @@ export class TestDataService {
         stats.reportCards = 1;
       }
       await this.db.execute(
-        'INSERT INTO "BehaviorGrade" (id, grade, studentId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, 1, ?, ?, ?, ?, ?)',
+        'INSERT OR IGNORE INTO "BehaviorGrade" (id, grade, studentId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, 1, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), someStudentPid, s1Id, schoolId, now, now],
       );
       stats.behaviorGrades = 1;
