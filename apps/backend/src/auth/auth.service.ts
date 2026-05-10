@@ -785,42 +785,66 @@ export class AuthService {
       .split(',')
       .map((r) => r.trim().toUpperCase());
 
-    const users = await this.db.query<User>(
-      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL LIMIT 100',
+    // 1. Get system admins
+    const sysAdmins = await this.db.query<User>(
+      'SELECT email, firstName, lastName FROM "User" WHERE isSystemAdmin = 1 AND deletedAt IS NULL LIMIT 5',
     );
 
     const helperUsers: LoginHelperUser[] = [];
+    const seenEmails = new Set<string>();
 
-    for (const user of users) {
-      const dbMemberships = await this.db.query<{
-        schoolName: string;
-        role: string;
-      }>(
-        `SELECT s.name as schoolName, m.role 
-         FROM "SchoolMembership" m 
-         JOIN "School" s ON m.schoolId = s.id 
-         WHERE m.userId = ?`,
-        [user.id],
-      );
+    for (const user of sysAdmins) {
+      helperUsers.push({
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        memberships: [{ schoolName: 'System', role: 'SYSTEM_ADMIN' }],
+      });
+      seenEmails.add(user.email);
+    }
 
-      const filteredMemberships = dbMemberships.filter((m) =>
-        allowedRoles.includes(m.role.toUpperCase()),
-      );
+    // 2. Get representatives from all schools
+    // We want at least one person per school. Principals first, then Deputies, then Admins.
+    const representatives = await this.db.query<any>(
+      `SELECT u.email, u.firstName, u.lastName, m.role, s.name as schoolName
+       FROM "SchoolMembership" m
+       JOIN "User" u ON m.userId = u.id
+       JOIN "School" s ON m.schoolId = s.id
+       WHERE m.status = 'ACTIVE' 
+       AND u.deletedAt IS NULL 
+       AND s.deletedAt IS NULL
+       AND m.role IN ('PRINCIPAL', 'DEPUTY', 'ADMIN')
+       ORDER BY s.name ASC, 
+                CASE m.role 
+                  WHEN 'PRINCIPAL' THEN 1 
+                  WHEN 'DEPUTY' THEN 2 
+                  WHEN 'ADMIN' THEN 3 
+                  ELSE 4 
+                END ASC`,
+    );
 
-      if (user.isSystemAdmin && allowedRoles.includes('SYSTEM_ADMIN')) {
-        filteredMemberships.unshift({
-          schoolName: 'System',
-          role: 'SYSTEM_ADMIN',
-        });
+    // Group by school to ensure each school has at least its best representative
+    const schoolReps = new Map<string, any[]>();
+    for (const rep of representatives) {
+      if (!schoolReps.has(rep.schoolName)) {
+        schoolReps.set(rep.schoolName, []);
       }
+      // Add up to 2 people per school to keep the list manageable but representative
+      if (schoolReps.get(rep.schoolName)!.length < 2) {
+        schoolReps.get(rep.schoolName)!.push(rep);
+      }
+    }
 
-      if (filteredMemberships.length > 0) {
+    for (const reps of schoolReps.values()) {
+      for (const rep of reps) {
+        if (seenEmails.has(rep.email)) continue;
         helperUsers.push({
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          memberships: filteredMemberships,
+          email: rep.email,
+          firstName: rep.firstName,
+          lastName: rep.lastName,
+          memberships: [{ schoolName: rep.schoolName, role: rep.role }],
         });
+        seenEmails.add(rep.email);
       }
     }
 

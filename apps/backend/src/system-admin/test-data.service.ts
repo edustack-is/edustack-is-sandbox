@@ -269,45 +269,66 @@ export class TestDataService {
       ],
     );
 
-    let school = await this.db.queryOne(
-      'SELECT * FROM "School" WHERE name = ?',
+    // 1. SCHOOL
+    // Search for all schools with this name to handle potential legacy duplicates
+    const existingSchools = await this.db.query(
+      'SELECT * FROM "School" WHERE name = ? AND deletedAt IS NULL',
       [config.schoolName],
     );
 
-    const schoolAddress = `${pick(ADDRESS_STREETS)} ${randInt(1, 250)}, ${randInt(100, 799)} 00 ${pick(ADDRESS_CITIES)}`;
+    const schoolAddress = `${pick(ADDRESS_STREETS)} ${randInt(
+      1,
+      250,
+    )}, ${randInt(100, 799)} 00 ${pick(ADDRESS_CITIES)}`;
 
-    if (school) {
-      await this.wipeSchoolData((school as any).id);
-      // Ensure address is updated
+    let schoolId: string;
+
+    if (existingSchools.length > 0) {
+      // Use the first one found as the primary
+      const primarySchool = existingSchools[0] as any;
+      schoolId = primarySchool.id;
+
+      // Wipe and update address for the primary
+      await this.wipeSchoolData(schoolId);
       await this.db.execute(
         'UPDATE "School" SET address = ?, updatedAt = ? WHERE id = ?',
-        [schoolAddress, now, (school as any).id],
+        [schoolAddress, now, schoolId],
       );
+
+      // If there were other duplicates, delete them to enforce uniqueness moving forward
+      if (existingSchools.length > 1) {
+        for (let i = 1; i < existingSchools.length; i++) {
+          const dup = existingSchools[i] as any;
+          await this.wipeSchoolData(dup.id);
+          await this.db.execute('DELETE FROM "School" WHERE id = ?', [dup.id]);
+        }
+      }
     } else {
-      const id = crypto.randomUUID();
+      // Fresh start
+      schoolId = crypto.randomUUID();
       try {
         await this.db.execute(
           'INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
-          [id, config.schoolName, schoolAddress, now, now],
+          [schoolId, config.schoolName, schoolAddress, now, now],
         );
       } catch (e: any) {
         if (e.message?.includes('UNIQUE constraint failed: School.name')) {
-          // If name collision, add a small random suffix
           const uniqueName = `${config.schoolName} (${randInt(10, 99)})`;
           await this.db.execute(
             'INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
-            [id, uniqueName, schoolAddress, now, now],
+            [schoolId, uniqueName, schoolAddress, now, now],
           );
         } else {
           throw e;
         }
       }
-      school = await this.db.queryOne('SELECT * FROM "School" WHERE id = ?', [
-        id,
-      ]);
     }
-    const schoolId = (school as any).id;
-    const domainBase = removeDiacritics(config.schoolName)
+
+    const school = await this.db.queryOne(
+      'SELECT * FROM "School" WHERE id = ?',
+      [schoolId],
+    );
+    const domainBase = removeDiacritics((school as any).name)
       .replace(/\s+/g, '')
       .toLowerCase();
     const schoolDomain = `${domainBase}.${schoolId.slice(0, 8)}.demo.test`;
