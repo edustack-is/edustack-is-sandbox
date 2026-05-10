@@ -210,12 +210,12 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                             <div
                                                                 className={`rounded-md border p-1.5 min-h-[52px] transition-all ${
                                                                     todaySub ? 'border-dashed opacity-80' : ''
-                                                                } ${getSubjectColor(event.subject.template.code)} ${
+                                                                } ${getSubjectColor(event.subject?.template?.code)} ${
                                                                     editable ? 'cursor-pointer hover:shadow-md' : ''
                                                                 }`}
                                                             >
                                                                 <div className="font-bold text-xs leading-tight">
-                                                                    {event.subject.template.code}
+                                                                    {event.subject?.template?.code || '-'}
                                                                 </div>
                                                                 {showTeacher && (
                                                                     <div className="text-[10px] leading-tight mt-0.5 opacity-80">

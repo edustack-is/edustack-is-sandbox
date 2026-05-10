@@ -134,18 +134,20 @@ export class DeputyService {
         ),
         this.getUnreadCount(userId),
         this.getTasks(userId, schoolId),
-        this.db.queryOne<any>(
-          `SELECT se.*, st.name as subjectName, c.name as classroomName, r.name as roomName
-         FROM "ScheduleEvent" se
-         JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
-         JOIN "SubjectTemplate" st ON si.templateId = st.id
-         JOIN "Classroom" c ON se.classroomId = c.id
-         LEFT JOIN "Room" r ON se.roomId = r.id
-         WHERE se.teacherId = (SELECT id FROM "TeacherProfile" WHERE userId = ?)
-         AND se.dayOfWeek = ? AND se.startTime > ?
-         ORDER BY se.startTime ASC LIMIT 1`,
-          [userId, dayOfWeek, currentTime],
-        ),
+        this.db
+          .queryOne<any>(
+            `SELECT se.*, st.name as subjectName, c.name as classroomName, r.name as roomName
+           FROM "ScheduleEvent" se
+           JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+           JOIN "SubjectTemplate" st ON si.templateId = st.id
+           JOIN "Classroom" c ON se.classroomId = c.id
+           LEFT JOIN "Room" r ON se.roomId = r.id
+           WHERE se.teacherId = (SELECT id FROM "TeacherProfile" WHERE userId = ?)
+           AND se.dayOfWeek = ? AND se.startTime > ?
+           ORDER BY se.startTime ASC LIMIT 1`,
+            [userId, dayOfWeek, currentTime],
+          )
+          .catch(() => null),
         this.db.query<any>(
           `SELECT ce.*, c.name as classroomName
          FROM "ClassBookEntry" ce
@@ -183,16 +185,19 @@ export class DeputyService {
       await Promise.all([
         this.getUnreadCount(userId),
         this.getTasks(userId, schoolId),
-        this.db.queryOne<any>(
-          `SELECT se.*, st.name as subjectName, r.name as roomName
-         FROM "ScheduleEvent" se
-         JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
-         JOIN "SubjectTemplate" st ON si.templateId = st.id
-         WHERE se.classroomId = (SELECT classroomId FROM "StudentProfile" WHERE userId = ?)
-         AND se.dayOfWeek = ? AND se.startTime > ?
-         ORDER BY se.startTime ASC LIMIT 1`,
-          [userId, dayOfWeek, currentTime],
-        ),
+        this.db
+          .queryOne<any>(
+            `SELECT se.*, st.name as subjectName, r.name as roomName
+           FROM "ScheduleEvent" se
+           LEFT JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+           LEFT JOIN "SubjectTemplate" st ON si.templateId = st.id
+           LEFT JOIN "Room" r ON se.roomId = r.id
+           WHERE se.classroomId = (SELECT classroomId FROM "StudentProfile" WHERE userId = ?)
+           AND se.dayOfWeek = ? AND se.startTime > ?
+           ORDER BY se.startTime ASC LIMIT 1`,
+            [userId, dayOfWeek, currentTime],
+          )
+          .catch(() => null),
         this.db.queryOne<any>(
           `SELECT g.*, st.name as subjectName
          FROM "Grade" g
