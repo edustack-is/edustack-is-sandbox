@@ -109,9 +109,7 @@ function TeacherDashboard({ data }: { data: any }) {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight text-primary">
-                    {t('dashboard.teacher_welcome', 'Vítejte zpět, pane učiteli / paní učitelko')}
-                </h1>
+                <h1 className="text-3xl font-bold tracking-tight text-primary">{t('dashboard.teacher_welcome')}</h1>
                 <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
                     {t('roles.TEACHER')}
                 </Badge>
@@ -125,7 +123,7 @@ function TeacherDashboard({ data }: { data: any }) {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium text-muted-foreground">
-                                        {t('dashboard.missing_data', 'Chybějící zápisy')}
+                                        {t('dashboard.missing_data')}
                                     </p>
                                     <div className="text-2xl font-bold text-amber-600">
                                         {data.missingData?.length || 0}
@@ -148,7 +146,7 @@ function TeacherDashboard({ data }: { data: any }) {
                         <CardHeader>
                             <CardTitle className="text-base font-semibold flex items-center gap-2">
                                 <AlertCircle className="h-5 w-5 text-amber-500" />
-                                {t('dashboard.missing_data_detail', 'Nutno doplnit v třídní knize')}
+                                {t('dashboard.missing_data_detail')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -189,9 +187,7 @@ function TeacherDashboard({ data }: { data: any }) {
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground opacity-60">
                                     <CheckCircle2 className="h-10 w-10 mb-2 text-green-500" />
-                                    <p className="text-sm">
-                                        {t('dashboard.all_completed', 'Všechny zápisy jsou v pořádku')}
-                                    </p>
+                                    <p className="text-sm">{t('dashboard.all_completed')}</p>
                                 </div>
                             )}
                         </CardContent>
@@ -212,9 +208,7 @@ function StudentDashboard({ data }: { data: any; childName?: string }) {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight text-primary">
-                    {childName
-                        ? `${t('dashboard.parent_view', 'Agenda')} - ${childName}`
-                        : t('dashboard.student_welcome', 'Ahoj, jak se dnes máš?')}
+                    {childName ? `${t('dashboard.parent_view')} - ${childName}` : t('dashboard.student_welcome')}
                 </h1>
                 <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
                     {childName ? t('roles.PARENT') : t('roles.STUDENT')}
@@ -253,6 +247,35 @@ function StudentDashboard({ data }: { data: any; childName?: string }) {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">
                     <NextLessonCard lesson={data.nextLesson} />
+
+                    {data.upcomingEvents?.length > 0 && (
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4 text-indigo-500" />
+                                    {t('dashboard.upcoming_events')}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {data.upcomingEvents.map((ev: any) => (
+                                    <div
+                                        key={ev.id}
+                                        className="flex items-center justify-between text-sm border-b pb-2 last:border-0 last:pb-0"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{ev.title}</span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {new Date(ev.date).toLocaleDateString(i18n.language)}
+                                            </span>
+                                        </div>
+                                        <Badge className={EVENT_TYPE_COLORS[ev.type] || EVENT_TYPE_COLORS.OTHER}>
+                                            {ev.type}
+                                        </Badge>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
                 {!childName && <TasksCard />}
             </div>
@@ -289,6 +312,63 @@ function LeadershipDashboard({ data }: { data: any }) {
                 <div className="flex gap-2">
                     <UnreadMessagesCard count={data.unreadMessages} />
                 </div>
+            </div>
+
+            {/* School Pulse Section */}
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-indigo-50/50 border-indigo-100">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-100 rounded-lg">
+                                <UserCheck className="h-5 w-5 text-indigo-600" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    {t('dashboard.attendance_today')}
+                                </p>
+                                <div className="text-2xl font-bold">
+                                    {data.pulse?.attendanceRate !== null ? `${data.pulse.attendanceRate}%` : '—'}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-emerald-50/50 border-emerald-100">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-emerald-100 rounded-lg">
+                                <TrendingUp className="h-5 w-5 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    {t('dashboard.weekly_avg')}
+                                </p>
+                                <div className="text-2xl font-bold text-emerald-700">
+                                    {data.pulse?.recentGradeAvg ? data.pulse.recentGradeAvg : '—'}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-amber-50/50 border-amber-100">
+                    <Link to="/attendance">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-100 rounded-lg">
+                                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                        {t('dashboard.pending_excuses')}
+                                    </p>
+                                    <div className="text-2xl font-bold text-amber-700">
+                                        {data.pulse?.pendingExcuses || 0}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Link>
+                </Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

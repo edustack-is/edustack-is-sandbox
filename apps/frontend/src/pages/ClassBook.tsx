@@ -178,13 +178,13 @@ export default function ClassBook() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-12">{t('common.hour').slice(0, 4)}.</TableHead>
+                                    <TableHead className="w-12">{t('common.hour_short')}</TableHead>
                                     <TableHead>{t('common.subject')}</TableHead>
                                     <TableHead>{t('common.teacher')}</TableHead>
                                     <TableHead>{t('common.topic')}</TableHead>
                                     <TableHead>{t('common.notes')}</TableHead>
-                                    <TableHead className="w-16">{t('common.absent').slice(0, 5)}.</TableHead>
-                                    <TableHead className="w-24">{t('common.signature', 'Podpis')}</TableHead>
+                                    <TableHead className="w-16">{t('common.absent_short')}</TableHead>
+                                    <TableHead className="w-24">{t('common.signature')}</TableHead>
                                     <TableHead className="w-20"></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -248,7 +248,7 @@ export default function ClassBook() {
                                             {e.signature ? (
                                                 <Badge className="text-xs gap-1">
                                                     <Check className="h-3 w-3" />
-                                                    {t('common.signed', 'Podepsáno')}
+                                                    {t('common.signed')}
                                                 </Badge>
                                             ) : (
                                                 <Button
@@ -257,7 +257,7 @@ export default function ClassBook() {
                                                     className="h-6 text-xs"
                                                     onClick={() => handleSign(e)}
                                                 >
-                                                    {t('common.sign', 'Podepsat')}
+                                                    {t('common.sign')}
                                                 </Button>
                                             )}
                                         </TableCell>
