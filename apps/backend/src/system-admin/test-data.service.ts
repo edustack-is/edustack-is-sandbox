@@ -288,19 +288,18 @@ export class TestDataService {
       const primarySchool = existingSchools[0] as any;
       schoolId = primarySchool.id;
 
-      // Wipe and update address for the primary
-      await this.wipeSchoolData(schoolId);
+      // Wipe and update address for the primary (preserve school entry)
+      await this.wipeSchoolData(schoolId, false);
       await this.db.execute(
         'UPDATE "School" SET address = ?, updatedAt = ? WHERE id = ?',
         [schoolAddress, now, schoolId],
       );
 
-      // If there were other duplicates, delete them to enforce uniqueness moving forward
+      // If there were other duplicates, delete them completely
       if (existingSchools.length > 1) {
         for (let i = 1; i < existingSchools.length; i++) {
           const dup = existingSchools[i] as any;
-          await this.wipeSchoolData(dup.id);
-          await this.db.execute('DELETE FROM "School" WHERE id = ?', [dup.id]);
+          await this.wipeSchoolData(dup.id, true);
         }
       }
     } else {
@@ -1296,7 +1295,7 @@ export class TestDataService {
     };
   }
 
-  async wipeSchoolData(schoolId: string) {
+  async wipeSchoolData(schoolId: string, deleteSchoolRecord = true) {
     this.logger.warn(`Wiping data for school ${schoolId}`);
 
     // Get school domain for fallback user cleanup
@@ -1473,6 +1472,10 @@ export class TestDataService {
       } catch (e) {
         this.logger.warn(`Failed to wipe direct table ${t}: ${e.message}`);
       }
+    }
+
+    if (deleteSchoolRecord) {
+      await this.db.execute('DELETE FROM "School" WHERE id = ?', [schoolId]);
     }
 
     await this.db.execute('PRAGMA foreign_keys = ON');
