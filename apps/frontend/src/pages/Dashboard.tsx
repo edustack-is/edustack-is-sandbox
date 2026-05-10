@@ -15,6 +15,15 @@ import {
     CheckCircle2,
     ArrowRight,
     TrendingUp,
+    Activity,
+    Cpu,
+    Database,
+    HardDrive,
+    Shield,
+    Zap,
+    CpuIcon,
+    MemoryStick,
+    Wifi,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -491,6 +500,12 @@ function SystemAdminDashboard() {
         return <div className="text-muted-foreground p-10 text-center">{t('dashboard.loading_stats')}</div>;
     }
 
+    const formatUptime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return `${h}h ${m}m`;
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold tracking-tight text-primary">{t('dashboard.system_admin_title')}</h1>
@@ -525,40 +540,192 @@ function SystemAdminDashboard() {
                 </Card>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock className="h-5 w-5" />
-                        {t('dashboard.recent_logins')}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {stats?.recentLogins?.length > 0 ? (
-                        <div className="space-y-3">
-                            {stats.recentLogins.map((login: any) => (
-                                <div
-                                    key={login.id}
-                                    className="flex items-center justify-between border-b border-border pb-2 last:border-0"
-                                >
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-medium">
-                                            {login.actor
-                                                ? `${login.actor.firstName} ${login.actor.lastName}`
-                                                : t('common.unknown_user')}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">{login.actor?.email}</span>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">
-                                        {new Date(login.createdAt).toLocaleString(i18n.language)}
+            <div className="grid gap-6 md:grid-cols-2">
+                {/* ─── Monitoring ─── */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-indigo-500" />
+                            {t('monitoring.title', 'Monitoring systému')}
+                        </CardTitle>
+                        <CardDescription>{t('monitoring.subtitle', 'Aktuální stav backendu')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                                    {t('monitoring.uptime')}
+                                </p>
+                                <p className="text-sm font-semibold">{formatUptime(stats?.system?.uptime)}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                                    {t('monitoring.os_platform')}
+                                </p>
+                                <p className="text-sm font-semibold capitalize">{stats?.system?.os?.platform}</p>
+                            </div>
+                        </div>
+
+                        <div className="pt-2 space-y-3">
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground flex items-center gap-1">
+                                        <Cpu className="h-3 w-3" /> {t('monitoring.memory_usage')}
+                                    </span>
+                                    <span>
+                                        {stats?.system?.memory?.heapUsed} MB / {stats?.system?.memory?.heapTotal} MB
+                                    </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-indigo-500"
+                                        style={{
+                                            width: `${(stats?.system?.memory?.heapUsed / stats?.system?.memory?.heapTotal) * 100}%`,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground flex items-center gap-1">
+                                        <HardDrive className="h-3 w-3" /> {t('monitoring.os_memory')}
+                                    </span>
+                                    <span>
+                                        {stats?.system?.os?.totalMemory - stats?.system?.os?.freeMemory} MB /{' '}
+                                        {stats?.system?.os?.totalMemory} MB
+                                    </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-emerald-500"
+                                        style={{
+                                            width: `${((stats?.system?.os?.totalMemory - stats?.system?.os?.freeMemory) / stats?.system?.os?.totalMemory) * 100}%`,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* ─── AI Management ─── */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Zap className="h-5 w-5 text-amber-500" />
+                            {t('system_settings.ai_management')}
+                        </CardTitle>
+                        <CardDescription>
+                            {t('dashboard.ai_usage_desc', 'Statistiky využití AI za aktuální měsíc')}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30">
+                            <div>
+                                <p className="text-xs font-medium text-amber-800 dark:text-amber-400 uppercase">
+                                    {t('ai.total_tokens', 'Tokenů celkem')}
+                                </p>
+                                <p className="text-2xl font-bold text-amber-900 dark:text-amber-200">
+                                    {stats?.aiUsage?.totals?.totalTokens?.toLocaleString() ?? 0}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs font-medium text-amber-800 dark:text-amber-400 uppercase">
+                                    {t('ai.requests', 'Požadavků')}
+                                </p>
+                                <p className="text-xl font-bold text-amber-900 dark:text-amber-200">
+                                    {stats?.aiUsage?.totals?.requestCount ?? 0}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                {t('ai.by_provider', 'Dle poskytovatele')}
+                            </p>
+                            {stats?.aiUsage?.perProvider?.map((p: any) => (
+                                <div key={p.provider} className="flex items-center justify-between text-sm">
+                                    <span className="capitalize">{p.provider}</span>
+                                    <span className="font-mono">
+                                        {p.totalTokens.toLocaleString()} {t('ai.tokens', 'tok.')}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">{t('dashboard.no_logins_yet')}</p>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+                {/* ─── Backups ─── */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Database className="h-5 w-5 text-blue-500" />
+                            {t('sidebar.backups')}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between border-b pb-3">
+                            <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-tight">
+                                    {t('backups.last_backup')}
+                                </p>
+                                <p className="text-sm font-semibold">
+                                    {stats?.backups?.lastBackup
+                                        ? new Date(stats.backups.lastBackup).toLocaleString(i18n.language)
+                                        : t('common.none')}
+                                </p>
+                            </div>
+                            <Badge variant="outline" className="h-fit">
+                                {stats?.backups?.total ?? 0} {t('backups.backups_count', 'záloh')}
+                            </Badge>
+                        </div>
+                        <Button variant="ghost" size="sm" className="w-full text-blue-600" asChild>
+                            <Link to="/system/backups">
+                                {t('backups.manage_backups', 'Spravovat zálohy')}{' '}
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                {/* ─── Recent Logins ─── */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-slate-500" />
+                            {t('dashboard.recent_logins')}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {stats?.recentLogins?.length > 0 ? (
+                            <div className="space-y-3">
+                                {stats.recentLogins.map((login: any) => (
+                                    <div
+                                        key={login.id}
+                                        className="flex items-center justify-between border-b border-border pb-2 last:border-0"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium">
+                                                {login.actor
+                                                    ? `${login.actor.firstName} ${login.actor.lastName}`
+                                                    : t('common.unknown_user')}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">{login.actor?.email}</span>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">
+                                            {new Date(login.createdAt).toLocaleString(i18n.language)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">{t('dashboard.no_logins_yet')}</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

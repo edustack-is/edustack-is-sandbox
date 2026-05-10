@@ -13,13 +13,36 @@ import {
 } from '../database/types';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import * as crypto from 'crypto';
+import * as os from 'os';
 import { MailService } from '../mail/mail.service';
+import { SystemAdminAiService } from './system-admin-ai.service';
+import { BackupService } from './backup.service';
 
 export interface DashboardStats {
   schoolCount: number;
   userCount: number;
   activeUserCount: number;
   recentLogins: Array<AuditLog & { actor: Partial<User> }>;
+  aiUsage: any;
+  backups: {
+    total: number;
+    lastBackup: string | null;
+  };
+  system: {
+    uptime: number;
+    memory: {
+      rss: number;
+      heapUsed: number;
+      heapTotal: number;
+    };
+    os: {
+      platform: string;
+      release: string;
+      cpuCount: number;
+      totalMemory: number;
+      freeMemory: number;
+    };
+  };
 }
 
 @Injectable()
@@ -27,6 +50,8 @@ export class SystemAdminService {
   constructor(
     private db: DatabaseService,
     private mailService: MailService,
+    private aiService: SystemAdminAiService,
+    private backupService: BackupService,
   ) {}
 
   async createSchool(dto: CreateSchoolDto) {
@@ -182,6 +207,8 @@ export class SystemAdminService {
       userCountResult,
       activeMemberCountResult,
       recentLogins,
+      aiUsage,
+      backups,
     ] = await Promise.all([
       this.db.queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM "School" WHERE deletedAt IS NULL',
@@ -202,7 +229,11 @@ export class SystemAdminService {
          WHERE a.action = 'LOGIN_SUCCESS' 
          ORDER BY a.createdAt DESC LIMIT 10`,
       ),
+      this.aiService.getAiUsage(),
+      this.backupService.listBackups(),
     ]);
+
+    const mem = process.memoryUsage();
 
     return {
       schoolCount: schoolCountResult?.count || 0,
@@ -217,6 +248,26 @@ export class SystemAdminService {
           lastName: l.lastName,
         },
       })),
+      aiUsage,
+      backups: {
+        total: backups.length,
+        lastBackup: backups.length > 0 ? backups[0].createdAt : null,
+      },
+      system: {
+        uptime: Math.floor(process.uptime()),
+        memory: {
+          rss: Math.round(mem.rss / 1024 / 1024),
+          heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+        },
+        os: {
+          platform: os.platform(),
+          release: os.release(),
+          cpuCount: os.cpus().length,
+          totalMemory: Math.round(os.totalmem() / 1024 / 1024),
+          freeMemory: Math.round(os.freemem() / 1024 / 1024),
+        },
+      },
     };
   }
 

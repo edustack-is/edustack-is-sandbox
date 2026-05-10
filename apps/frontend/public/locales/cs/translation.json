@@ -336,7 +336,33 @@
     "no_tasks": "Žádné úkoly",
     "attendance_today": "Dnešní docházka",
     "weekly_avg": "Týdenní průměr",
-    "pending_excuses": "Nevyřízené omluvenky"
+    "pending_excuses": "Nevyřízené omluvenky",
+    "ai_usage_desc": "Statistiky využití AI za aktuální měsíc"
+  },
+  "monitoring": {
+    "title": "Monitoring systému",
+    "subtitle": "Aktuální stav backendu",
+    "uptime": "Doba běhu",
+    "os_platform": "Platforma",
+    "memory_usage": "Využití paměti (Process)",
+    "os_memory": "Využití paměti (OS)"
+  },
+  "backups": {
+    "title": "Zálohy",
+    "last_backup": "Poslední záloha",
+    "backups_count": "záloh",
+    "manage_backups": "Spravovat zálohy",
+    "create_backup": "Vytvořit zálohu",
+    "restore_backup": "Obnovit ze zálohy",
+    "download_backup": "Stáhnout zálohu",
+    "delete_backup": "Smazat zálohu",
+    "no_backups": "Zatím žádné zálohy"
+  },
+  "ai": {
+    "total_tokens": "Tokenů celkem",
+    "requests": "Požadavků",
+    "by_provider": "Dle poskytovatele",
+    "tokens": "tok."
   },
   "days": {
     "monday": "Pondělí",

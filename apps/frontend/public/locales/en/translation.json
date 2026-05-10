@@ -336,7 +336,33 @@
     "no_tasks": "No tasks",
     "attendance_today": "Today's Attendance",
     "weekly_avg": "Weekly Average",
-    "pending_excuses": "Pending Excuses"
+    "pending_excuses": "Pending Excuses",
+    "ai_usage_desc": "AI usage statistics for current month"
+  },
+  "monitoring": {
+    "title": "System Monitoring",
+    "subtitle": "Current backend status",
+    "uptime": "Uptime",
+    "os_platform": "Platform",
+    "memory_usage": "Memory Usage (Process)",
+    "os_memory": "Memory Usage (OS)"
+  },
+  "backups": {
+    "title": "Backups",
+    "last_backup": "Last Backup",
+    "backups_count": "backups",
+    "manage_backups": "Manage Backups",
+    "create_backup": "Create Backup",
+    "restore_backup": "Restore Backup",
+    "download_backup": "Download Backup",
+    "delete_backup": "Delete Backup",
+    "no_backups": "No backups yet"
+  },
+  "ai": {
+    "total_tokens": "Total Tokens",
+    "requests": "Requests",
+    "by_provider": "By Provider",
+    "tokens": "tok."
   },
   "days": {
     "monday": "Monday",
