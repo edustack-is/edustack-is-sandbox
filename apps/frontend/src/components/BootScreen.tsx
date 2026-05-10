@@ -15,6 +15,7 @@ interface BootScreenProps {
 export const BootScreen = ({ onReady }: BootScreenProps) => {
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState('Starting application...');
+    const [lastError, setLastError] = useState<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -23,20 +24,24 @@ export const BootScreen = ({ onReady }: BootScreenProps) => {
         const checkReadiness = async () => {
             try {
                 // First check if backend is even alive
+                console.log('BootScreen: Checking backend health...');
                 const health = await getHealth();
+                console.log('BootScreen: Health response:', health);
 
                 // If health check reports degraded database, we still wait
-                if (health.status !== 'ok') {
-                    throw new Error('Backend is degraded');
+                if (health?.status !== 'healthy') {
+                    throw new Error(`Backend reporting ${health?.status || 'unknown'} status`);
                 }
 
-                if (retryCount < 5 && isMounted) {
+                if (isMounted) {
                     setStatus('Backend online, checking system status...');
                     setProgress(50);
+                    setLastError(null);
                 }
 
                 // If alive, check initialization status
                 const res = await getInitStatus();
+                console.log('BootScreen: Init status:', res);
 
                 if (isMounted) {
                     setProgress(100);
@@ -46,9 +51,13 @@ export const BootScreen = ({ onReady }: BootScreenProps) => {
                         if (isMounted) onReady(res.initialized);
                     }, 500);
                 }
-            } catch (err) {
+            } catch (err: any) {
+                console.error('BootScreen: Readiness check failed:', err);
                 if (isMounted) {
                     retryCount++;
+                    const msg = err.response?.data?.message || err.message || 'Unknown error';
+                    setLastError(msg);
+
                     // Cap progress at 45% during retries
                     const nextProgress = Math.min(retryCount * 5, 45);
                     setProgress(nextProgress);
@@ -86,6 +95,11 @@ export const BootScreen = ({ onReady }: BootScreenProps) => {
                         <p className="text-sm text-slate-500 font-medium" role="status" aria-live="polite">
                             {status}
                         </p>
+                        {lastError && (
+                            <p className="text-[10px] text-red-400 font-mono mt-1 max-w-[250px] truncate">
+                                Error: {lastError}
+                            </p>
+                        )}
                     </div>
 
                     <div className="w-full space-y-2">
