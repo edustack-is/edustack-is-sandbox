@@ -15,9 +15,12 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { Public } from './public.decorator';
+import { Roles } from './roles.decorator';
+import { UserRole } from '../database/types';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import passport from 'passport';
@@ -268,6 +271,7 @@ export class AuthController {
   }
 
   @Post('invite/:userId')
+  @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Odeslání pozvánky uživateli' })
   @ApiBody({ type: InviteUserBodyDto })
   @ApiResponse({
@@ -297,6 +301,8 @@ export class AuthController {
     return this.authService.createInvitation(userId, studentId);
   }
 
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('accept-invite')
   @ApiOperation({ summary: 'Přijetí pozvánky a nastavení hesla' })
   @ApiResponse({
@@ -415,6 +421,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   @ApiOperation({ summary: 'Přihlášení e-mailem a heslem' })
   @ApiResponse({

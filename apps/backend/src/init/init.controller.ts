@@ -31,10 +31,10 @@ export class InitController {
   /**
    * GET /api/init/status
    * Public — needed by frontend to decide whether to show setup or login.
-   * Rate-limited to 10 requests per 60 seconds.
+   * Frontend hits this on every page load, so 60 req/min is a generous-but-bounded value.
    */
   @Public()
-  @Throttle({ default: { limit: 1000, ttl: 60000 } })
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('status')
   @ApiOperation({
     summary: 'Stav inicializace',

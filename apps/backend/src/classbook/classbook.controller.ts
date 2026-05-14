@@ -78,7 +78,7 @@ export class ClassBookController {
     type: ClassbookEntryResponseDto,
   })
   @ApiBody({ type: UpsertClassbookEntryDto })
-  async upsertEntry(@Req() req: any, @Body() body: any) {
+  async upsertEntry(@Req() req: any, @Body() body: UpsertClassbookEntryDto) {
     this.ensureTenant(req);
     return this.classBookService.upsertEntry(
       req.user.userId,

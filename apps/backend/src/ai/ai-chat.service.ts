@@ -25,6 +25,8 @@ PRAVIDLA KONVERZACE:
 - Vždy si pamatuj celý průběh konverzace. Pokud uživatel odpoví krátce (např. "ano", "ne", "ok", "jasně", "dál"), vezmi v úvahu kontext z předchozích zpráv a pokračuj v logickém směru.
 - Pokud ses uživatele ptal, zda chce více informací, a on odpoví "ano" – PROVEĎ akci (zavolej příslušný nástroj/Tool pro získání dat) MÍSTO odpovědi "nemám odpověď".
 - NIKDY neodpovídej "nemám odpověď" ani "omlouvám se, nemám odpověď", pokud máš k dispozici nástroje, které ti mohou data poskytnout. Raději zavolej příslušný nástroj.
+- Při dotazování na data vždy ber v úvahu pouze aktivní a nesmazané záznamy (např. školy, uživatele), pokud uživatel explicitně neřekne jinak.
+- Pokud se uživatel zeptá 'ano' na doplňující otázku, vždy zavolej nástroj a poté srozumitelně prezentuj výsledky. Nenechávej text odpovědi prázdný.
 - Pokud si nejsi jistý, co uživatel myslí, zeptej se na upřesnění.`;
 
 const SYSTEM_INSTRUCTIONS: Record<string, string> = {
@@ -56,6 +58,10 @@ export class AiChatService {
 
   private async initializeMcp(retries = 10, delay = 3000) {
     const mcpUrl = process.env.MCP_SERVER_URL || 'http://127.0.0.1:3001/sse';
+    const mcpAuthToken = process.env.MCP_AUTH_TOKEN;
+    const authHeaders: Record<string, string> = mcpAuthToken
+      ? { Authorization: `Bearer ${mcpAuthToken}` }
+      : {};
     // @ts-ignore - EventSource polyfill for Node.js
     global.EventSource = EventSource;
 
@@ -64,7 +70,21 @@ export class AiChatService {
         this.logger.log(
           `Connecting to MCP Server at ${mcpUrl} (attempt ${i + 1}/${retries})...`,
         );
-        this.mcpTransport = new SSEClientTransport(new URL(mcpUrl));
+        this.mcpTransport = new SSEClientTransport(new URL(mcpUrl), {
+          // Header for the JSON-RPC POSTs to /message.
+          requestInit: { headers: authHeaders },
+          // Header for the initial GET /sse handshake. The eventsource polyfill
+          // accepts a custom fetch; we wrap it to inject the bearer token.
+          eventSourceInit: mcpAuthToken
+            ? {
+                fetch: (input: any, init: any) =>
+                  fetch(input, {
+                    ...init,
+                    headers: { ...(init?.headers || {}), ...authHeaders },
+                  }),
+              }
+            : undefined,
+        } as any);
         this.mcpClient = new Client(
           {
             name: 'EduStack-Backend-Client',
@@ -662,6 +682,26 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
       return anthropic(modelOverride || 'claude-3-5-sonnet-20240620');
     }
 
+    if (providerType === 'opencode') {
+      if (!keys.opencodeApiKey)
+        throw new ServiceUnavailableException('OpenCode API key is missing.');
+      const baseURL =
+        process.env.OPENCODE_BASE_URL || 'http://127.0.0.1:3001/v1';
+      if (
+        process.env.NODE_ENV === 'production' &&
+        !baseURL.startsWith('https://')
+      ) {
+        throw new ServiceUnavailableException(
+          'OPENCODE_BASE_URL must use https:// in production.',
+        );
+      }
+      const opencode = createOpenAI({
+        apiKey: keys.opencodeApiKey,
+        baseURL,
+      });
+      return opencode(modelOverride || 'opencode-model');
+    }
+
     throw new ServiceUnavailableException(`Unsupported provider: ${provider}`);
   }
 
@@ -703,6 +743,11 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
       });
     }
 
+    // 4. OpenCode.ai
+    if (keys.opencodeApiKey) {
+      providers.push({ id: 'opencode:default', name: 'OpenCode.ai' });
+    }
+
     return providers;
   }
 
@@ -735,6 +780,8 @@ Pokud získáš data z nástrojů (Tools) v češtině, tichým způsobem je př
         findAndDecrypt('openai', 'API_KEY') || process.env.OPENAI_API_KEY,
       anthropicApiKey:
         findAndDecrypt('anthropic', 'API_KEY') || process.env.ANTHROPIC_API_KEY,
+      opencodeApiKey:
+        findAndDecrypt('opencode', 'API_KEY') || process.env.OPENCODE_API_KEY,
     };
   }
 

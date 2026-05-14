@@ -206,13 +206,59 @@ export class DatabaseService implements OnModuleInit {
       .run();
   }
 
+  // In-process mutex so concurrent transaction() calls can't interleave their
+  // BEGIN/COMMIT pairs (SQLite allows only one writer at a time anyway, but
+  // serializing in JS gives a clean error path).
+  private txChain: Promise<unknown> = Promise.resolve();
+
   /**
    * Execute multiple queries in a transaction.
-   * Note: In raw SQL implementation, we simulate this or use batch for D1.
+   *
+   * On local (better-sqlite3): wraps the callback in BEGIN IMMEDIATE / COMMIT,
+   * rolling back on any thrown error.
+   *
+   * On Cloudflare D1: D1 does not support multi-statement transactions through
+   * the prepared-statement API used here. The callback runs without atomicity
+   * and a warning is logged once per process. To get true atomicity on D1,
+   * callers must be refactored to use `d1.batch(...)` with all statements
+   * known ahead of time.
    */
   async transaction<T>(fn: (db: DatabaseService) => Promise<T>): Promise<T> {
-    // For simplicity in this SQL POC, we execute as-is.
-    // Real SQLite/D1 transactions require more complex handling with async callbacks.
-    return await fn(this);
+    if (this.d1) {
+      if (!DatabaseService.warnedAboutD1Tx) {
+        DatabaseService.warnedAboutD1Tx = true;
+        this.logger.warn(
+          'transaction() invoked on Cloudflare D1 backend — operations will run ' +
+            'sequentially but NOT atomically. Refactor critical write paths to use d1.batch().',
+        );
+      }
+      return await fn(this);
+    }
+
+    const run = async (): Promise<T> => {
+      await this.execute('BEGIN IMMEDIATE', []);
+      try {
+        const result = await fn(this);
+        await this.execute('COMMIT', []);
+        return result;
+      } catch (err) {
+        try {
+          await this.execute('ROLLBACK', []);
+        } catch (rollbackErr) {
+          this.logger.error(
+            'ROLLBACK failed after transaction error',
+            rollbackErr,
+          );
+        }
+        throw err;
+      }
+    };
+
+    // Chain onto the previous tx so they don't interleave.
+    const next = this.txChain.then(run, run);
+    this.txChain = next.catch(() => {});
+    return next;
   }
+
+  private static warnedAboutD1Tx = false;
 }
