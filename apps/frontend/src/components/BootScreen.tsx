@@ -88,7 +88,7 @@ export const BootScreen = ({ onReady }: BootScreenProps) => {
                         src="/edustack-logo.png"
                         alt=""
                         aria-hidden="true"
-                        className="h-20 w-auto mb-1 drop-shadow-lg"
+                        className="h-32 w-auto mb-1 drop-shadow-lg"
                     />
                     <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" aria-hidden="true" />
 

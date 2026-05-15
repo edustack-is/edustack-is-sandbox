@@ -215,12 +215,12 @@ export const Sidebar: React.FC = () => {
                                 <img
                                     src="/edustack-logo-light.png"
                                     alt="EduStack IS"
-                                    className="block dark:hidden h-10 w-auto"
+                                    className="block dark:hidden h-14 w-auto"
                                 />
                                 <img
                                     src="/edustack-logo-dark.png"
                                     alt="EduStack IS"
-                                    className="hidden dark:block h-10 w-auto"
+                                    className="hidden dark:block h-14 w-auto"
                                 />
                                 {hasSchoolContext && currentSchool && (
                                     <div className="mt-3 space-y-2">
@@ -281,7 +281,7 @@ export const Sidebar: React.FC = () => {
                                         src="/edustack-logo.png"
                                         alt=""
                                         aria-hidden="true"
-                                        className="h-9 w-9 object-contain"
+                                        className="h-12 w-12 object-contain"
                                     />
                                 </button>
                             </TooltipTrigger>
