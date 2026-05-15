@@ -180,9 +180,11 @@ app.post('/message', requireAuth, async (req, res) => {
 app.post('/v1/chat/completions', requireAuth, express.json(), async (req: Request, res: Response) => {
     const { messages, model } = req.body;
 
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    // Accept either env name — the backend uses GOOGLE_AI_API_KEY, the MCP
+    // server has historically used GEMINI_API_KEY.
+    const geminiApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
-        console.error('GEMINI_API_KEY is not set.');
+        console.error('Neither GOOGLE_AI_API_KEY nor GEMINI_API_KEY is set.');
         return res.status(500).json({ error: 'Server is not configured with a Gemini API key.' });
     }
 

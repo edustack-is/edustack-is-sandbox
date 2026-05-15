@@ -214,7 +214,7 @@ export class SeedService {
     if (options.overrideSso) seed.sso = { ...seed.sso, ...options.overrideSso };
 
     const defaultPassword = process.env.DEMO_PASSWORD || 'Demo1234!';
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
     const counts = {
       gradeLevels: 0,
       subjects: 0,

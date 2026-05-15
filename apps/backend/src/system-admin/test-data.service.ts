@@ -232,7 +232,7 @@ export class TestDataService {
     );
 
     const demoPassword = process.env.DEMO_PASSWORD || 'Demo1234!';
-    const passwordHash = await bcrypt.hash(demoPassword, 10);
+    const passwordHash = await bcrypt.hash(demoPassword, 12);
     const now = new Date().toISOString();
 
     // 0. GLOBAL CONFIG & SYSTEM SETTINGS

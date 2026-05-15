@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -47,6 +48,8 @@ export interface DashboardStats {
 
 @Injectable()
 export class SystemAdminService {
+  private readonly logger = new Logger(SystemAdminService.name);
+
   constructor(
     private db: DatabaseService,
     private mailService: MailService,
@@ -154,7 +157,9 @@ export class SystemAdminService {
             `${admin.firstName} ${admin.lastName}`,
             invitationToken,
           )
-          .catch((e) => console.error('Failed to send invitation email', e));
+          .catch((e) =>
+            this.logger.error('Failed to send invitation email', e as Error),
+          );
 
         return {
           school: await db.queryOne<School>(
@@ -378,7 +383,10 @@ export class SystemAdminService {
                 invitationToken,
               )
               .catch((e) =>
-                console.error('Failed to send invitation email', e),
+                this.logger.error(
+                  'Failed to send invitation email',
+                  e as Error,
+                ),
               );
           }
         }

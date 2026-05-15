@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -33,6 +34,8 @@ import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class DeputyService {
+  private readonly logger = new Logger(DeputyService.name);
+
   constructor(
     private readonly db: DatabaseService,
     private readonly mailService: MailService,
@@ -1120,7 +1123,7 @@ export class DeputyService {
     );
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(invitationToken, 10);
+    const hashedToken = await bcrypt.hash(invitationToken, 12);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     return this.db.transaction(async (db) => {
@@ -1210,7 +1213,9 @@ export class DeputyService {
           `${user.firstName} ${user.lastName}`,
           fullToken,
         )
-        .catch((e) => console.error('Failed to send invitation email', e));
+        .catch((e) =>
+          this.logger.error('Failed to send invitation email', e as Error),
+        );
 
       await this.audit(actorId, 'INVITE_USER', 'User', user.id, {
         email: data.email,
@@ -1225,50 +1230,84 @@ export class DeputyService {
   // ─── SCHOOL-SCOPED USER LIST ────────────────────────────────────
 
   async getSchoolUsers(schoolId: string) {
-    const memberships = await this.db.query(
-      `SELECT m.*, u.firstName, u.lastName, u.email, u.lastLogin, u.createdAt as userCreatedAt 
+    const memberships = await this.db.query<any>(
+      `SELECT m.*, u.id as userId, u.firstName, u.lastName, u.email, u.lastLogin, u.createdAt as userCreatedAt 
        FROM "SchoolMembership" m 
        JOIN "User" u ON m.userId = u.id 
-       WHERE m.schoolId = ? 
-       ORDER BY m.createdAt DESC`,
+       WHERE m.schoolId = ? AND u.deletedAt IS NULL
+       ORDER BY u.lastName ASC, u.firstName ASC`,
       [schoolId],
     );
 
-    const result = [];
-    for (const m of memberships) {
-      const studentProfile = await this.db.queryOne(
-        `SELECT sp.id, c.id as classroomId, c.name as classroomName 
-         FROM "StudentProfile" sp 
-         LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
-         WHERE sp.userId = ?`,
-        [m.userId],
-      );
+    if (memberships.length === 0) {
+      return [];
+    }
 
-      const teacherProfile = await this.db.queryOne(
-        `SELECT tp.id, c.id as classroomId, c.name as classroomName 
-         FROM "TeacherProfile" tp 
-         LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id 
-         WHERE tp.userId = ?`,
-        [m.userId],
-      );
+    const userIds = memberships.map((m) => m.userId);
 
-      const parents = await this.db.query(
-        `SELECT u.id, u.firstName, u.lastName 
-         FROM "ParentStudent" ps 
-         JOIN "User" u ON ps.parentId = u.id 
-         WHERE ps.studentId = ?`,
-        [m.userId],
-      );
+    const studentProfiles = await this.db.query<any>(
+      `SELECT sp.id, sp.userId, c.id as classroomId, c.name as classroomName 
+       FROM "StudentProfile" sp 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       WHERE sp.userId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const studentProfileMap = new Map(
+      studentProfiles.map((p) => [p.userId, p]),
+    );
 
-      const children = await this.db.query(
-        `SELECT u.id, u.firstName, u.lastName 
-         FROM "ParentStudent" ps 
-         JOIN "User" u ON ps.studentId = u.id 
-         WHERE ps.parentId = ?`,
-        [m.userId],
-      );
+    const teacherProfiles = await this.db.query<any>(
+      `SELECT tp.id, tp.userId, c.id as classroomId, c.name as classroomName 
+       FROM "TeacherProfile" tp 
+       LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id 
+       WHERE tp.userId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const teacherProfileMap = new Map(
+      teacherProfiles.map((p) => [p.userId, p]),
+    );
 
-      result.push({
+    const parents = await this.db.query<any>(
+      `SELECT ps.studentId, u.id, u.firstName, u.lastName 
+       FROM "ParentStudent" ps 
+       JOIN "User" u ON ps.parentId = u.id 
+       WHERE ps.studentId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const parentMap = new Map<string, any[]>();
+    for (const p of parents) {
+      if (!parentMap.has(p.studentId)) {
+        parentMap.set(p.studentId, []);
+      }
+      parentMap
+        .get(p.studentId)!
+        .push({ id: p.id, name: `${p.firstName} ${p.lastName}` });
+    }
+
+    const children = await this.db.query<any>(
+      `SELECT ps.parentId, u.id, u.firstName, u.lastName 
+       FROM "ParentStudent" ps 
+       JOIN "User" u ON ps.studentId = u.id 
+       WHERE ps.parentId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const childrenMap = new Map<string, any[]>();
+    for (const c of children) {
+      if (!childrenMap.has(c.parentId)) {
+        childrenMap.set(c.parentId, []);
+      }
+      childrenMap
+        .get(c.parentId)!
+        .push({ id: c.id, name: `${c.firstName} ${c.lastName}` });
+    }
+
+    const result = memberships.map((m) => {
+      const studentProfile = studentProfileMap.get(m.userId);
+      const teacherProfile = teacherProfileMap.get(m.userId);
+      const userParents = parentMap.get(m.userId) || [];
+      const userChildren = childrenMap.get(m.userId) || [];
+
+      return {
         id: m.userId,
         membershipId: m.id,
         email: m.email,
@@ -1279,20 +1318,15 @@ export class DeputyService {
         workloadPercentage: m.workloadPercentage,
         lastLogin: m.lastLogin,
         createdAt: m.userCreatedAt,
-        classroomName: (studentProfile as any)?.classroomName || null,
-        classroomId: (studentProfile as any)?.classroomId || null,
-        homeroomClassName: (teacherProfile as any)?.classroomName || null,
-        teacherProfileId: (teacherProfile as any)?.id || null,
-        parents: parents.map((p: any) => ({
-          id: p.id,
-          name: `${p.firstName} ${p.lastName}`,
-        })),
-        children: children.map((c: any) => ({
-          id: c.id,
-          name: `${c.firstName} ${c.lastName}`,
-        })),
-      });
-    }
+        classroomName: studentProfile?.classroomName || null,
+        classroomId: studentProfile?.classroomId || null,
+        homeroomClassName: teacherProfile?.classroomName || null,
+        teacherProfileId: teacherProfile?.id || null,
+        parents: userParents,
+        children: userChildren,
+      };
+    });
+
     return result;
   }
 
@@ -1318,7 +1352,7 @@ export class DeputyService {
         ? crypto.randomBytes(32).toString('hex')
         : null;
       const studentHashedToken = studentInvitationToken
-        ? await bcrypt.hash(studentInvitationToken, 10)
+        ? await bcrypt.hash(studentInvitationToken, 12)
         : null;
       const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
@@ -1366,7 +1400,7 @@ export class DeputyService {
           [parentData.email],
         );
         const parentInvitationToken = crypto.randomBytes(32).toString('hex');
-        const parentHashedToken = await bcrypt.hash(parentInvitationToken, 10);
+        const parentHashedToken = await bcrypt.hash(parentInvitationToken, 12);
 
         if (!parentUser) {
           const pId = crypto.randomUUID();
@@ -1438,7 +1472,10 @@ export class DeputyService {
             fullParentToken,
           )
           .catch((e) =>
-            console.error('Failed to send parent invitation email', e),
+            this.logger.error(
+              'Failed to send parent invitation email',
+              e as Error,
+            ),
           );
       }
 
@@ -1466,7 +1503,10 @@ export class DeputyService {
             `${studentId}.${studentInvitationToken}`,
           )
           .catch((e) =>
-            console.error('Failed to send student invitation email', e),
+            this.logger.error(
+              'Failed to send student invitation email',
+              e as Error,
+            ),
           );
       }
 
@@ -1494,7 +1534,7 @@ export class DeputyService {
     },
   ) {
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(invitationToken, 10);
+    const hashedToken = await bcrypt.hash(invitationToken, 12);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     return this.db.transaction(async (db) => {
@@ -1578,7 +1618,9 @@ export class DeputyService {
           `${user.firstName} ${user.lastName}`,
           fullToken,
         )
-        .catch((e) => console.error('Failed to send invitation email', e));
+        .catch((e) =>
+          this.logger.error('Failed to send invitation email', e as Error),
+        );
 
       await this.audit(actorId, 'CREATE_STAFF', 'User', user.id, {
         email: data.email,
@@ -1601,7 +1643,7 @@ export class DeputyService {
       throw new BadRequestException('User is already active or not pending');
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(invitationToken, 10);
+    const hashedToken = await bcrypt.hash(invitationToken, 12);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     await this.db.execute(
@@ -1616,7 +1658,9 @@ export class DeputyService {
         `${(membership as any).firstName} ${(membership as any).lastName}`,
         fullToken,
       )
-      .catch((e) => console.error('Failed to resend invitation email', e));
+      .catch((e) =>
+        this.logger.error('Failed to resend invitation email', e as Error),
+      );
 
     await this.audit(actorId, 'RESEND_INVITATION', 'User', userId, {
       email: (membership as any).email,

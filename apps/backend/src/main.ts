@@ -34,11 +34,14 @@ async function bootstrap() {
     }
   }
 
-  // Warn about missing AI keys in production
+  // Warn about missing AI keys in production. GEMINI_API_KEY is accepted as
+  // an alias for GOOGLE_AI_API_KEY for compatibility with the MCP server.
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.GOOGLE_AI_API_KEY && !process.env.OPENAI_API_KEY) {
+    const hasGoogleKey =
+      process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!hasGoogleKey && !process.env.OPENAI_API_KEY) {
       warnings.push(
-        'No AI API key set (GOOGLE_AI_API_KEY or OPENAI_API_KEY) - AI features will be disabled',
+        'No AI API key set (GOOGLE_AI_API_KEY/GEMINI_API_KEY or OPENAI_API_KEY) - AI features will be disabled',
       );
     }
   }
@@ -198,7 +201,8 @@ async function bootstrap() {
             {
               filename: process.env.SEED_FILE || 'demo-seed.json',
               overrideAi: {
-                geminiApiKey: process.env.GOOGLE_AI_API_KEY,
+                geminiApiKey:
+                  process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
                 openAiApiKey: process.env.OPENAI_API_KEY,
               },
             },

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -35,6 +36,8 @@ export interface LoginHelperUser {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private db: DatabaseService,
     private jwtService: JwtService,
@@ -126,7 +129,7 @@ export class AuthService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(token, 10);
+    const hashedToken = await bcrypt.hash(token, 12);
     const expires = new Date();
     expires.setHours(expires.getHours() + 48);
 
@@ -186,7 +189,7 @@ export class AuthService {
     }
 
     validatePasswordStrength(password);
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const updatedUser = await this.db.transaction(async (db) => {
       await db.execute(
@@ -505,7 +508,7 @@ export class AuthService {
       }
 
       if (!actorId && !success) {
-        console.warn(
+        this.logger.warn(
           `Failed login attempt for unknown user: ${email} from ${ip}`,
         );
         return;
@@ -528,7 +531,7 @@ export class AuthService {
         );
       }
     } catch (e) {
-      console.error('Failed to log login attempt', e);
+      this.logger.error('Failed to log login attempt', e as Error);
     }
   }
 
@@ -644,7 +647,7 @@ export class AuthService {
     }
 
     validatePasswordStrength(newPass);
-    const newHash = await bcrypt.hash(newPass, 10);
+    const newHash = await bcrypt.hash(newPass, 12);
 
     await this.db.execute('UPDATE "User" SET passwordHash = ? WHERE id = ?', [
       newHash,
@@ -709,7 +712,7 @@ export class AuthService {
     if (!user) return { message: 'ok' };
 
     const token = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(token, 10);
+    const hashedToken = await bcrypt.hash(token, 12);
     const expires = new Date();
     expires.setHours(expires.getHours() + 1);
 
@@ -728,7 +731,7 @@ export class AuthService {
         fullToken,
       );
     } catch (e) {
-      console.error('Failed to send password reset email', e);
+      this.logger.error('Failed to send password reset email', e as Error);
     }
 
     return { message: 'ok' };
@@ -758,7 +761,7 @@ export class AuthService {
     if (!isMatch) throw new BadRequestException('Invalid reset link');
 
     validatePasswordStrength(newPassword);
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await this.db.execute(
       'UPDATE "User" SET passwordHash = ?, passwordResetToken = NULL, passwordResetExpires = NULL, failedLoginAttempts = 0, lockedUntil = NULL WHERE id = ?',
