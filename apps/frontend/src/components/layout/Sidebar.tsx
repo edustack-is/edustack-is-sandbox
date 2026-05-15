@@ -16,7 +16,6 @@ import {
     User,
     Globe,
     PanelLeftClose,
-    PanelLeftOpen,
     FileText,
     MessageSquare,
     Target,
@@ -209,9 +208,20 @@ export const Sidebar: React.FC = () => {
                     {!collapsed ? (
                         <>
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-xl font-black text-primary tracking-tighter uppercase italic">
-                                    EduStack
-                                </h1>
+                                {/* Two logo variants — Tailwind toggles them
+                                    via the .dark class on <html>, so the
+                                    correct one ends up visible without a JS
+                                    flash. */}
+                                <img
+                                    src="/edustack-logo-light.png"
+                                    alt="EduStack IS"
+                                    className="block dark:hidden h-10 w-auto"
+                                />
+                                <img
+                                    src="/edustack-logo-dark.png"
+                                    alt="EduStack IS"
+                                    className="hidden dark:block h-10 w-auto"
+                                />
                                 {hasSchoolContext && currentSchool && (
                                     <div className="mt-3 space-y-2">
                                         <div className="flex items-center gap-2">
@@ -263,10 +273,16 @@ export const Sidebar: React.FC = () => {
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={toggleCollapsed}
-                                    className="p-1.5 rounded-md text-primary hover:bg-primary/10 transition-colors"
+                                    className="rounded-md hover:bg-primary/10 transition-colors p-1"
                                     title={t('sidebar.expand', 'Rozbalit menu')}
+                                    aria-label={t('sidebar.expand', 'Rozbalit menu')}
                                 >
-                                    <PanelLeftOpen size={22} />
+                                    <img
+                                        src="/edustack-logo.png"
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="h-9 w-9 object-contain"
+                                    />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" sideOffset={8}>
