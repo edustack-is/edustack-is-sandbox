@@ -305,7 +305,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('accept-invite')
   @ApiOperation({ summary: 'Přijetí pozvánky a nastavení hesla' })
   @ApiResponse({
@@ -452,7 +452,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('login')
   @ApiOperation({ summary: 'Přihlášení e-mailem a heslem' })
   @ApiResponse({

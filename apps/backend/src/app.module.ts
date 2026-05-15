@@ -47,12 +47,12 @@ import { DatabaseModule } from './database/database.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        // Production caps the global limit at 200/IP/min — doubled from
-        // the original 100 to reduce false positives on bursty user
-        // sessions. Dev and test get 4000 so parallel E2E sweeps don't
+        // Production caps the global limit at 400/IP/min — bumped again
+        // because the previous 200 ceiling was still tripping real
+        // sessions. Dev/test get 8000 so parallel E2E sweeps don't
         // trip it. The per-route limits on /auth/login and /init/status
         // still apply on top of this.
-        limit: process.env.NODE_ENV === 'production' ? 200 : 4000,
+        limit: process.env.NODE_ENV === 'production' ? 400 : 8000,
       },
     ]),
     NestScheduleModule.forRoot(),

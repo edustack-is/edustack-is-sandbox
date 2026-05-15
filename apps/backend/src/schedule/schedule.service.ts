@@ -71,14 +71,14 @@ export class ScheduleService {
   // ─── SCHEDULE EVENTS ────────────────────────────────────────
 
   async getEvents(schoolId: string, filters?: any) {
-    let sql = `SELECT se.*, st.name as subName, st.code as subCode, c.name as cName, u.firstName as tFN, u.lastName as tLN, r.name as rName 
-               FROM "ScheduleEvent" se 
-               JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id 
-               JOIN "SubjectTemplate" st ON si.templateId = st.id 
-               JOIN "Classroom" c ON se.classroomId = c.id 
-               JOIN "TeacherProfile" tp ON se.teacherId = tp.id 
-               JOIN "User" u ON tp.userId = u.id 
-               LEFT JOIN "Room" r ON se.roomId = r.id 
+    let sql = `SELECT se.*, st.id as subTemplateId, st.name as subName, st.code as subCode, c.name as cName, u.firstName as tFN, u.lastName as tLN, r.name as rName
+               FROM "ScheduleEvent" se
+               JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+               JOIN "SubjectTemplate" st ON si.templateId = st.id
+               JOIN "Classroom" c ON se.classroomId = c.id
+               JOIN "TeacherProfile" tp ON se.teacherId = tp.id
+               JOIN "User" u ON tp.userId = u.id
+               LEFT JOIN "Room" r ON se.roomId = r.id
                WHERE se.schoolId = ?`;
     const params = [schoolId];
     if (filters?.academicYearId) {
@@ -98,10 +98,37 @@ export class ScheduleService {
       params.push(filters.roomId);
     }
 
-    return this.db.query(
+    const rows = await this.db.query<any>(
       sql + ' ORDER BY se.dayOfWeek ASC, se.lessonNumber ASC',
       params,
     );
+
+    // Map the flat join result to the nested shape the frontend's
+    // TimetableGrid (and every other ScheduleEventData consumer) is
+    // built around. Before this, the page crashed on the very first
+    // event because `event.teacherProfile` was undefined.
+    return rows.map((r) => ({
+      id: r.id,
+      dayOfWeek: r.dayOfWeek,
+      lessonNumber: r.lessonNumber,
+      startTime: r.startTime,
+      endTime: r.endTime,
+      academicYearId: r.academicYearId,
+      subject: {
+        id: r.subjectInstanceId,
+        template: {
+          id: r.subTemplateId,
+          name: r.subName,
+          code: r.subCode,
+        },
+      },
+      classroom: { id: r.classroomId, name: r.cName },
+      teacherProfile: {
+        id: r.teacherId,
+        user: { firstName: r.tFN, lastName: r.tLN },
+      },
+      room: r.roomId ? { id: r.roomId, name: r.rName } : null,
+    }));
   }
 
   async createEvent(schoolId: string, data: any) {
