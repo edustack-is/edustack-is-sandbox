@@ -24,6 +24,7 @@ import {
     GitCompare,
     History,
     Presentation,
+    Terminal,
 } from 'lucide-react';
 // Force refresh: 2026-05-02 18:45:00
 import { ThemeToggle } from '../ThemeToggle';

@@ -12,7 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ai-sdk/google": "^3.0.73",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "ai": "^6.0.182",
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",

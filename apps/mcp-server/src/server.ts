@@ -4,6 +4,9 @@ export interface RegisteredTool {
     name: string;
     description: string;
     inputSchema: unknown;
+    // Capture the handler so callers (e.g. /v1/chat/completions) can invoke
+    // a tool directly without going through private SDK internals.
+    handler: (args: unknown) => Promise<unknown>;
 }
 
 const _server = new McpServer({
@@ -18,8 +21,13 @@ const _tools: RegisteredTool[] = [];
 // reaching into `(server as any)._tools`, which is a private SDK field and
 // shifts across versions.
 const _originalTool = _server.tool.bind(_server);
-(_server as any).tool = function (name: string, description: string, inputSchema: unknown, handler: unknown) {
-    _tools.push({ name, description, inputSchema });
+(_server as any).tool = function (
+    name: string,
+    description: string,
+    inputSchema: unknown,
+    handler: (args: unknown) => Promise<unknown>,
+) {
+    _tools.push({ name, description, inputSchema, handler });
     return _originalTool(name as any, description as any, inputSchema as any, handler as any);
 };
 

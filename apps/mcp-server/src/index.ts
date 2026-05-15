@@ -195,17 +195,18 @@ app.post('/v1/chat/completions', requireAuth, express.json(), async (req: Reques
     for (const t of listRegisteredTools()) {
         mcpTools[t.name] = tool({
             description: t.description || '',
-            inputSchema: t.inputSchema,
+            inputSchema: t.inputSchema as any,
             execute: async (args: any) => {
                 console.log(`Executing MCP tool from proxied endpoint: ${t.name}`);
-                const result = await (server as any).callTool({
-                    name: t.name,
-                    arguments: args,
-                });
-                if ((result as any).isError) {
-                    return (result as any).content.map((c: any) => c.text).join('\n');
-                }
-                return (result as any).content.map((c: any) => c.text).join('\n');
+                // Call the captured handler directly. It returns an
+                // MCP-style { content, isError? } payload — flatten it to
+                // text for the LLM.
+                const result = (await t.handler(args)) as {
+                    isError?: boolean;
+                    content?: Array<{ text?: string }>;
+                };
+                const text = (result.content ?? []).map((c) => c.text ?? '').join('\n');
+                return text;
             },
         });
     }
@@ -233,9 +234,12 @@ app.post('/v1/chat/completions', requireAuth, express.json(), async (req: Reques
                 },
             ],
             usage: {
-                prompt_tokens: result.usage.promptTokens,
-                completion_tokens: result.usage.completionTokens,
-                total_tokens: result.usage.totalTokens,
+                // The `ai` SDK renamed promptTokens/completionTokens to
+                // inputTokens/outputTokens. Accept either to stay forward-
+                // compatible while the SDK is in flux.
+                prompt_tokens: (result.usage as any).inputTokens ?? (result.usage as any).promptTokens ?? 0,
+                completion_tokens: (result.usage as any).outputTokens ?? (result.usage as any).completionTokens ?? 0,
+                total_tokens: (result.usage as any).totalTokens ?? 0,
             },
         };
 
