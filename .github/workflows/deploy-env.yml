@@ -1,0 +1,166 @@
+name: Deploy Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      env_id:
+        description: 'Environment number (e.g., 1, 2, 3)'
+        required: true
+        default: '1'
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - delete
+
+jobs:
+  deploy:
+    if: github.event.inputs.action == 'deploy'
+    name: Deploy Environment ${{ github.event.inputs.env_id }}
+    runs-on: ubuntu-latest
+    env:
+      ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
+      DOMAIN: is-edustack.org
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Create D1 Database
+        id: d1
+        run: |
+          DB_NAME="edustack_db_${ENV_NAME}"
+          # Try to create, ignore error if exists
+          wrangler d1 create $DB_NAME || true
+          # Get ID
+          DB_ID=$(wrangler d1 info $DB_NAME --json | jq -r '.[0].uuid')
+          echo "db_id=$DB_ID" >> $GITHUB_OUTPUT
+          echo "db_name=$DB_NAME" >> $GITHUB_OUTPUT
+
+      - name: Initialize Database Schema
+        run: |
+          wrangler d1 execute ${{ steps.d1.outputs.db_name }} --file=apps/backend/src/database/schema.sql --local=false --yes
+
+      - name: Deploy MCP Server
+        env:
+          MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
+        run: |
+          cd apps/mcp-server
+          # Update wrangler.toml with dynamic info
+          sed -i "s/name = \".*\"/name = \"edustack-mcp-${ENV_NAME}\"/" wrangler.toml
+          sed -i "s/database_id = \".*\"/database_id = \"${{ steps.d1.outputs.db_id }}\"/" wrangler.toml
+          sed -i "s/database_name = \".*\"/database_name = \"${{ steps.d1.outputs.db_name }}\"/" wrangler.toml
+          
+          wrangler deploy --name edustack-mcp-${ENV_NAME}
+          
+          # Assign custom domain
+          wrangler routes set --name edustack-mcp-${ENV_NAME} --domain mcp-${ENV_NAME}.${DOMAIN}
+
+      - name: Deploy Backend
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef' }}
+        run: |
+          cd apps/backend
+          # Update wrangler.toml
+          sed -i "s/name = \".*\"/name = \"edustack-backend-${ENV_NAME}\"/" wrangler.toml
+          sed -i "s/database_id = \".*\"/database_id = \"${{ steps.d1.outputs.db_id }}\"/" wrangler.toml
+          sed -i "s/database_name = \".*\"/database_name = \"${{ steps.d1.outputs.db_name }}\"/" wrangler.toml
+          
+          # Set variables for the environment
+          wrangler deploy --name edustack-backend-${ENV_NAME} \
+            --var CORS_ORIGIN:https://fe-${ENV_NAME}.${DOMAIN} \
+            --var MCP_SERVER_URL:https://mcp-${ENV_NAME}.${DOMAIN}/sse
+            
+          # Assign custom domain
+          wrangler routes set --name edustack-backend-${ENV_NAME} --domain be-${ENV_NAME}.${DOMAIN}
+
+      - name: Build and Deploy Frontend
+        run: |
+          cd apps/frontend
+          # Set API URL for the build
+          echo "VITE_API_URL=https://be-${ENV_NAME}.${DOMAIN}" > .env
+          npm run build
+          
+          # Deploy to Pages
+          PROJECT_NAME="edustack-frontend-${ENV_NAME}"
+          wrangler pages project create $PROJECT_NAME --production-branch main || true
+          wrangler pages deploy dist --project-name $PROJECT_NAME
+          
+          # Assign custom domain
+          wrangler pages domain add --project-name $PROJECT_NAME fe-${ENV_NAME}.${DOMAIN}
+
+      - name: Deploy MailDev Placeholder
+        run: |
+          # MailDev cannot run on Cloudflare Workers (SMTP protocol).
+          # We deploy a simple worker to show status.
+          mkdir -p apps/mail-placeholder
+          cat > apps/mail-placeholder/index.ts <<EOF
+          export default {
+            async fetch(request) {
+              return new Response("MailDev is not available on Cloudflare Workers (SMTP limitation). Use local dev for email testing.", {
+                headers: { "content-type": "text/plain" }
+              });
+            }
+          }
+          EOF
+          cat > apps/mail-placeholder/wrangler.toml <<EOF
+          name = "edustack-mail-${ENV_NAME}"
+          main = "index.ts"
+          compatibility_date = "2024-04-03"
+          EOF
+          
+          cd apps/mail-placeholder
+          wrangler deploy --name edustack-mail-${ENV_NAME}
+          wrangler routes set --name edustack-mail-${ENV_NAME} --domain mail-${ENV_NAME}.${DOMAIN}
+
+  teardown:
+    if: github.event.inputs.action == 'delete'
+    name: Delete Environment ${{ github.event.inputs.env_id }}
+    runs-on: ubuntu-latest
+    env:
+      ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
+      DOMAIN: is-edustack.org
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Delete Workers
+        run: |
+          wrangler delete --name edustack-backend-${ENV_NAME} || true
+          wrangler delete --name edustack-mcp-${ENV_NAME} || true
+          wrangler delete --name edustack-mail-${ENV_NAME} || true
+
+      - name: Delete Pages Project
+        run: |
+          # Pages delete is not yet fully supported via wrangler CLI for production deletion easily
+          # but we can try to remove the domains at least
+          wrangler pages domain remove --project-name edustack-frontend-${ENV_NAME} fe-${ENV_NAME}.${DOMAIN} || true
+
+      - name: Delete D1 Database
+        run: |
+          DB_NAME="edustack_db_${ENV_NAME}"
+          wrangler d1 delete $DB_NAME --yes || true
