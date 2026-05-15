@@ -227,10 +227,7 @@ export class GradingController {
   @ApiOperation({ summary: 'AI vylepšení slovního hodnocení' })
   @ApiResponse({ status: 200, type: AiTextResponseDto })
   @ApiBody({ type: PolishTextDto })
-  async polishVerbalEvaluation(
-    @Req() req: any,
-    @Body() body: { text: string },
-  ) {
+  async polishVerbalEvaluation(@Req() req: any, @Body() body: PolishTextDto) {
     this.ensureTenant(req);
     return this.gradingService.polishVerbalEvaluation(body.text);
   }
