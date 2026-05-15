@@ -746,18 +746,20 @@ export default function Users() {
                     <h1 className="text-2xl font-bold tracking-tight">{t('users_page.title')}</h1>
                     <p className="text-muted-foreground">{t('users_page.subtitle')}</p>
                 </div>
-                <Button
-                    onClick={() => {
-                        setDialogOpen(true);
-                    }}
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('users_page.add_user')}
-                </Button>
-                <Button variant="outline" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" />
-                    {t('users_page.export', 'Export CSV')}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={() => {
+                            setDialogOpen(true);
+                        }}
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('users_page.add_user')}
+                    </Button>
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="h-4 w-4 mr-2" />
+                        {t('users_page.export', 'Export CSV')}
+                    </Button>
+                </div>
             </div>
 
             {/* ─── Filters ─────────────────────────────────────── */}

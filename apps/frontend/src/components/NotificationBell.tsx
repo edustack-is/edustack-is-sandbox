@@ -3,6 +3,7 @@ import { Bell, CheckCheck, MessageSquare, GraduationCap, AlertCircle } from 'luc
 import { getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead } from '@/api';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useSchool } from '@/context/SchoolContext';
 
 interface Notification {
     id: string;
@@ -23,6 +24,11 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export const NotificationBell: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    // Notifications are scoped to a school membership. Without a TENANT
+    // token the endpoint returns 403, so skip polling entirely until
+    // the user has selected a school.
+    const { tokenType } = useSchool();
+    const hasSchoolContext = tokenType === 'TENANT';
     const [unreadCount, setUnreadCount] = useState(0);
     const [open, setOpen] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -38,12 +44,16 @@ export const NotificationBell: React.FC = () => {
         }
     }, []);
 
-    // Poll for unread count every 30s
+    // Poll for unread count every 30s — only when school-scoped.
     useEffect(() => {
+        if (!hasSchoolContext) {
+            setUnreadCount(0);
+            return;
+        }
         fetchUnreadCount();
         const interval = setInterval(fetchUnreadCount, 30000);
         return () => clearInterval(interval);
-    }, [fetchUnreadCount]);
+    }, [fetchUnreadCount, hasSchoolContext]);
 
     // Close on outside click
     useEffect(() => {
@@ -68,7 +78,7 @@ export const NotificationBell: React.FC = () => {
     };
 
     const handleToggle = () => {
-        if (!open) fetchNotifications();
+        if (!open && hasSchoolContext) fetchNotifications();
         setOpen(!open);
     };
 
