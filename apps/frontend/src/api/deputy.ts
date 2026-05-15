@@ -464,9 +464,16 @@ export const updateSchoolUser = async (
         lastName?: string;
         email?: string;
         workloadPercentage?: number;
+        // null = unassign from classroom; undefined = leave as-is.
+        classroomId?: string | null;
     },
 ) => {
     const response = await api.put(`/api/deputy/users/${userId}`, data);
+    return response.data;
+};
+
+export const assignStudentToClassroom = async (userId: string, classroomId: string | null) => {
+    const response = await api.put(`/api/deputy/users/${userId}`, { classroomId });
     return response.data;
 };
 

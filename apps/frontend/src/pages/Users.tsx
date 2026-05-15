@@ -15,6 +15,7 @@ import {
     Ban,
     ShieldCheck,
     Download,
+    School as SchoolIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ import {
     setUserAlumni,
     impersonateSchoolUser,
     updateSchoolUser,
+    assignStudentToClassroom,
     suspendUser,
     reactivateUser,
     changeUserRole,
@@ -186,8 +188,15 @@ export default function Users() {
         email: '',
         workloadPercentage: '',
         role: '',
+        // Sentinel '' = "no classroom"; any id = assigned classroom.
+        classroomId: '',
     });
     const [editSaving, setEditSaving] = useState(false);
+
+    // Quick "assign to class" dialog (separate from full edit).
+    const [assignTarget, setAssignTarget] = useState<SchoolUser | null>(null);
+    const [assignClassroomId, setAssignClassroomId] = useState<string>('');
+    const [assigning, setAssigning] = useState(false);
 
     // Classrooms for filter
     const [classrooms, setClassrooms] = useState<{ id: string; name: string }[]>([]);
@@ -341,6 +350,31 @@ export default function Users() {
         }
     };
 
+    // ── Assign student to classroom (quick action) ──────
+    const openAssignDialog = (user: SchoolUser) => {
+        setAssignTarget(user);
+        setAssignClassroomId(user.classroomId ?? '');
+    };
+
+    const handleAssignClassroom = async () => {
+        if (!assignTarget) return;
+        setAssigning(true);
+        try {
+            const newClassroom = assignClassroomId === '' ? null : assignClassroomId;
+            const oldClassroom = assignTarget.classroomId ?? null;
+            if (newClassroom !== oldClassroom) {
+                await assignStudentToClassroom(assignTarget.id, newClassroom);
+                toast.success(t('users_page.classroom_updated', 'Třída aktualizována'));
+                loadUsers();
+            }
+            setAssignTarget(null);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message);
+        } finally {
+            setAssigning(false);
+        }
+    };
+
     // ── Edit user ───────────────────────────────────────
     const openEditDialog = (user: SchoolUser) => {
         setEditTarget(user);
@@ -350,6 +384,7 @@ export default function Users() {
             email: user.email.endsWith('@noemail.local') ? '' : user.email,
             workloadPercentage: user.workloadPercentage != null ? String(user.workloadPercentage) : '',
             role: user.role,
+            classroomId: user.classroomId ?? '',
         });
     };
 
@@ -365,6 +400,15 @@ export default function Users() {
             if (editForm.workloadPercentage) {
                 const wp = parseFloat(editForm.workloadPercentage);
                 if (!isNaN(wp) && wp !== editTarget.workloadPercentage) data.workloadPercentage = wp;
+            }
+            // Classroom assignment applies only to students. Map sentinel '' -> null
+            // so the backend can interpret it as "unassign".
+            if (editTarget.role === 'STUDENT') {
+                const newClassroom = editForm.classroomId === '' ? null : editForm.classroomId;
+                const oldClassroom = editTarget.classroomId ?? null;
+                if (newClassroom !== oldClassroom) {
+                    data.classroomId = newClassroom;
+                }
             }
 
             if (Object.keys(data).length > 0) {
@@ -610,6 +654,18 @@ export default function Users() {
                             onClick={() => openEditDialog(row.original)}
                         >
                             <Pencil className="h-4 w-4" />
+                        </Button>
+                    )}
+
+                    {/* Quick "assign to class" — students only */}
+                    {row.original.role === 'STUDENT' && row.original.status !== 'ARCHIVED' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('users_page.assign_classroom', 'Přiřadit do třídy')}
+                            onClick={() => openAssignDialog(row.original)}
+                        >
+                            <SchoolIcon className="h-4 w-4 text-blue-600" />
                         </Button>
                     )}
 
@@ -1115,6 +1171,35 @@ export default function Users() {
                                     />
                                 </div>
                             )}
+                            {editForm.role === 'STUDENT' && (
+                                <div className="space-y-1">
+                                    <Label htmlFor="edit-classroom">{t('users_page.classroom', 'Třída')}</Label>
+                                    {/* Radix forbids '' as a SelectItem value; use a NONE sentinel. */}
+                                    <Select
+                                        value={editForm.classroomId === '' ? '__NONE__' : editForm.classroomId}
+                                        onValueChange={(v) =>
+                                            setEditForm((f) => ({
+                                                ...f,
+                                                classroomId: v === '__NONE__' ? '' : v,
+                                            }))
+                                        }
+                                    >
+                                        <SelectTrigger id="edit-classroom">
+                                            <SelectValue placeholder={t('users_page.no_classroom', 'Bez třídy')} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__NONE__">
+                                                {t('users_page.no_classroom', 'Bez třídy')}
+                                            </SelectItem>
+                                            {classrooms.map((c) => (
+                                                <SelectItem key={c.id} value={c.id}>
+                                                    {c.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>
@@ -1126,6 +1211,45 @@ export default function Users() {
                             disabled={editSaving || !editForm.firstName || !editForm.lastName}
                         >
                             {editSaving ? t('common.saving') : t('common.save', 'Uložit')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── Assign-to-class quick dialog ─────────────────── */}
+            <Dialog open={!!assignTarget} onOpenChange={(open) => !open && setAssignTarget(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{t('users_page.assign_classroom', 'Přiřadit do třídy')}</DialogTitle>
+                        <DialogDescription>
+                            {assignTarget ? `${assignTarget.firstName} ${assignTarget.lastName}` : ''}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <Label htmlFor="assign-classroom">{t('users_page.classroom', 'Třída')}</Label>
+                        <Select
+                            value={assignClassroomId === '' ? '__NONE__' : assignClassroomId}
+                            onValueChange={(v) => setAssignClassroomId(v === '__NONE__' ? '' : v)}
+                        >
+                            <SelectTrigger id="assign-classroom">
+                                <SelectValue placeholder={t('users_page.no_classroom', 'Bez třídy')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__NONE__">{t('users_page.no_classroom', 'Bez třídy')}</SelectItem>
+                                {classrooms.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAssignTarget(null)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleAssignClassroom} disabled={assigning}>
+                            {assigning ? t('common.saving') : t('common.save', 'Uložit')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

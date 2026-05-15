@@ -1803,6 +1803,7 @@ export class DeputyService {
       lastName?: string;
       email?: string;
       workloadPercentage?: number;
+      classroomId?: string | null;
     },
   ) {
     const membership = await this.db.queryOne(
@@ -1812,11 +1813,42 @@ export class DeputyService {
     if (!membership)
       throw new NotFoundException('User is not a member of this school.');
 
+    const isStudent = (membership as any).role === 'STUDENT';
+    const oldStudentProfile = isStudent
+      ? await this.db.queryOne<{ classroomId: string | null }>(
+          'SELECT classroomId FROM "StudentProfile" WHERE userId = ?',
+          [userId],
+        )
+      : null;
+
+    // If a classroom assignment is requested, validate the classroom belongs
+    // to this school before we touch anything.
+    if (data.classroomId !== undefined && data.classroomId !== null) {
+      if (!isStudent) {
+        throw new BadRequestException(
+          'classroomId can only be set for users with role STUDENT.',
+        );
+      }
+      const classroom = await this.db.queryOne<{ schoolId: string }>(
+        'SELECT schoolId FROM "Classroom" WHERE id = ?',
+        [data.classroomId],
+      );
+      if (!classroom) {
+        throw new NotFoundException('Classroom not found.');
+      }
+      if (classroom.schoolId !== schoolId) {
+        throw new BadRequestException(
+          'Classroom belongs to a different school.',
+        );
+      }
+    }
+
     const oldValues = {
       firstName: (membership as any).firstName,
       lastName: (membership as any).lastName,
       email: (membership as any).email,
       workloadPercentage: (membership as any).workloadPercentage,
+      classroomId: oldStudentProfile?.classroomId ?? null,
     };
 
     const userFields = [];
@@ -1853,8 +1885,8 @@ export class DeputyService {
     }
 
     if (
-      (membership as any).role === 'STUDENT' &&
-      (data.firstName || data.lastName)
+      isStudent &&
+      (data.firstName || data.lastName || data.classroomId !== undefined)
     ) {
       const spFields = [];
       const spValues = [];
@@ -1865,6 +1897,10 @@ export class DeputyService {
       if (data.lastName) {
         spFields.push('lastName = ?');
         spValues.push(data.lastName);
+      }
+      if (data.classroomId !== undefined) {
+        spFields.push('classroomId = ?');
+        spValues.push(data.classroomId); // null is allowed (unassign)
       }
       await this.db.execute(
         `UPDATE "StudentProfile" SET ${spFields.join(', ')} WHERE userId = ?`,

@@ -1215,6 +1215,8 @@ export class DeputyController {
       lastName?: string;
       email?: string;
       workloadPercentage?: number;
+      // null = unassign; undefined = leave classroom unchanged. STUDENT only.
+      classroomId?: string | null;
     },
   ) {
     this.ensureTenant(req);
