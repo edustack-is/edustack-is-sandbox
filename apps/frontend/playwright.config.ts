@@ -1,7 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
     testDir: './e2e',
+    // Login once per role across the suite — /api/auth/login is throttled.
+    globalSetup: path.resolve(__dirname, 'e2e/global-setup.ts'),
     /* Run tests in files in parallel */
     fullyParallel: true,
     /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -11,8 +17,11 @@ export default defineConfig({
     expect: {
         timeout: 10000,
     },
-    /* Retry on CI only */
-    retries: process.env.CI ? 2 : 0,
+    /* Retry on CI only — local runs already get a clean retry through the
+       smoke suite's `expect.poll` loops, but we keep one retry locally
+       for the parallel smoke pass which is sensitive to transient
+       throttle/load spikes. */
+    retries: process.env.CI ? 2 : 1,
     /* Opt out of parallel tests on CI. */
     workers: process.env.CI ? 1 : undefined,
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */

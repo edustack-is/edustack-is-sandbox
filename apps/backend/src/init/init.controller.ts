@@ -34,7 +34,15 @@ export class InitController {
    * Frontend hits this on every page load, so 60 req/min is a generous-but-bounded value.
    */
   @Public()
-  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      // Frontend hits this on every page load, so the limit needs to
+      // accommodate E2E sweeps that load dozens of pages in parallel.
+      // Production keeps the historical 60/IP/min ceiling.
+      limit: process.env.NODE_ENV === 'production' ? 60 : 2000,
+      ttl: 60_000,
+    },
+  })
   @Get('status')
   @ApiOperation({
     summary: 'Stav inicializace',

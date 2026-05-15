@@ -47,7 +47,11 @@ import { DatabaseModule } from './database/database.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 100,
+        // Production caps the global limit to 100/IP/min. Dev and test
+        // raise the ceiling so parallel E2E runs (which fire ~5 requests
+        // per page load × many pages × many roles) don't trip it. The
+        // per-route limits on /auth/login and /init still apply.
+        limit: process.env.NODE_ENV === 'production' ? 100 : 2000,
       },
     ]),
     NestScheduleModule.forRoot(),
