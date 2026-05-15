@@ -18,6 +18,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
+import { parse as parseCookieHeader } from 'cookie';
 import { Public } from './public.decorator';
 import { Roles } from './roles.decorator';
 import { UserRole } from '../database/types';
@@ -53,17 +54,14 @@ import {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /** Parse cookies from the raw Cookie header (no cookie-parser needed) */
+  /** Parse cookies from the raw Cookie header using the `cookie` package. */
   private parseCookies(req: Request): Record<string, string> {
-    const header = req.headers.cookie || '';
-    return header.split(';').reduce(
-      (acc, part) => {
-        const [key, ...val] = part.trim().split('=');
-        if (key) acc[key] = decodeURIComponent(val.join('='));
-        return acc;
-      },
-      {} as Record<string, string>,
-    );
+    try {
+      return parseCookieHeader(req.headers.cookie || '');
+    } catch {
+      // Malformed cookie header — treat as empty rather than 500-ing.
+      return {};
+    }
   }
 
   @Public()

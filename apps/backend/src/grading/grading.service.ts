@@ -133,6 +133,53 @@ export class GradingService {
     return { classroom, students, subjects, grades };
   }
 
+  /**
+   * Compute the weighted average for a student in one subject (school-scoped).
+   * Only NUMERIC grades with a parseable numeric value contribute. Returns
+   * `{ average: null, count: 0 }` if no eligible grades exist.
+   */
+  async getWeightedAverage(
+    schoolId: string,
+    studentId: string,
+    subjectInstanceId: string,
+    semesterId?: string,
+  ): Promise<{ average: number | null; count: number }> {
+    const params: unknown[] = [schoolId, studentId, subjectInstanceId];
+    let sql =
+      'SELECT value, weight FROM "Grade" ' +
+      'WHERE schoolId = ? AND studentId = ? AND subjectInstanceId = ? ' +
+      "AND type = 'NUMERIC'";
+    if (semesterId) {
+      sql += ' AND semesterId = ?';
+      params.push(semesterId);
+    }
+    const rows = await this.db.query<{ value: string; weight: number }>(
+      sql,
+      params,
+    );
+
+    let weightedSum = 0;
+    let weightSum = 0;
+    let count = 0;
+    for (const row of rows) {
+      const numeric = parseFloat(row.value);
+      const weight = Number(row.weight) || 0;
+      if (Number.isFinite(numeric) && weight > 0) {
+        weightedSum += numeric * weight;
+        weightSum += weight;
+        count += 1;
+      }
+    }
+
+    if (weightSum === 0) {
+      return { average: null, count: 0 };
+    }
+    return {
+      average: Math.round((weightedSum / weightSum) * 100) / 100,
+      count,
+    };
+  }
+
   async getStudentGrades(
     schoolId: string,
     studentId: string,

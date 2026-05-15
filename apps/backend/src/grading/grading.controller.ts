@@ -180,9 +180,15 @@ export class GradingController {
     @Req() req: any,
     @Param('studentId') studentId: string,
     @Param('subjectInstanceId') subjectInstanceId: string,
+    @Query('semesterId') semesterId?: string,
   ) {
     this.ensureTenant(req);
-    return { average: 0 };
+    return this.gradingService.getWeightedAverage(
+      req.user.schoolId,
+      studentId,
+      subjectInstanceId,
+      semesterId,
+    );
   }
 
   // ─── REPORT CARDS ───────────────────────────────────────────

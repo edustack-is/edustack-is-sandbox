@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { server } from './server.js';
+import { server, listRegisteredTools } from './server.js';
 import { databasePath } from './db.js';
 import path from 'path';
 import fs from 'fs';
@@ -59,13 +59,16 @@ import './tools/seeding.js';
 import './tools/curriculum.js';
 import './tools/grading.js';
 
-// Store transports by session ID
+// Store transports by session ID.
+// NOTE: McpServer in the current SDK is single-transport — only one connected
+// client is supported at a time. The backend is currently the only legitimate
+// caller, so this is acceptable. Supporting multiple concurrent clients would
+// require one McpServer instance per session (or SDK-level session management).
 const transports = new Map<string, SSEServerTransport>();
 let currentTransport: SSEServerTransport | null = null;
 
 app.get('/', (req, res) => {
-    // Access private tools list for diagnostic info
-    const toolCount = (server as any)._tools?.size || 0;
+    const toolCount = listRegisteredTools().length;
 
     res.send(`
         <!DOCTYPE html>
@@ -187,14 +190,13 @@ app.post('/v1/chat/completions', requireAuth, express.json(), async (req: Reques
     const llm = google(model || 'models/gemini-1.5-flash-latest');
 
     const mcpTools: any = {};
-    const toolDefs = (server as any)._tools?.values() || [];
-    for (const t of toolDefs) {
+    for (const t of listRegisteredTools()) {
         mcpTools[t.name] = tool({
             description: t.description || '',
             inputSchema: t.inputSchema,
             execute: async (args: any) => {
                 console.log(`Executing MCP tool from proxied endpoint: ${t.name}`);
-                const result = await server.callTool({
+                const result = await (server as any).callTool({
                     name: t.name,
                     arguments: args,
                 });

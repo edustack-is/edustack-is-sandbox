@@ -170,35 +170,43 @@ export class SystemAdminService {
   }
 
   async getSchools() {
-    // Get schools with their principals/deputies
+    // Get schools with their principals/deputies — single query for members
+    // across all schools, then group in memory.
     const schools = await this.db.query<School>(
       'SELECT * FROM "School" WHERE deletedAt IS NULL',
     );
-    const result = [];
+    if (schools.length === 0) return [];
 
-    for (const school of schools) {
-      const members = await this.db.query(
-        `SELECT m.*, u.email, u.firstName, u.lastName 
-         FROM "SchoolMembership" m 
-         JOIN "User" u ON m.userId = u.id 
-         WHERE m.schoolId = ? AND m.role IN (?, ?)`,
-        [school.id, UserRole.PRINCIPAL, UserRole.DEPUTY],
-      );
+    const schoolIds = schools.map((s) => s.id);
+    const placeholders = schoolIds.map(() => '?').join(',');
 
-      result.push({
-        ...school,
-        members: members.map((m: any) => ({
-          ...m,
-          user: {
-            id: m.userId,
-            email: m.email,
-            firstName: m.firstName,
-            lastName: m.lastName,
-          },
-        })),
+    const members = await this.db.query<any>(
+      `SELECT m.*, u.email, u.firstName, u.lastName
+       FROM "SchoolMembership" m
+       JOIN "User" u ON m.userId = u.id
+       WHERE m.schoolId IN (${placeholders}) AND m.role IN (?, ?)`,
+      [...schoolIds, UserRole.PRINCIPAL, UserRole.DEPUTY],
+    );
+
+    const membersBySchool = new Map<string, any[]>();
+    for (const m of members) {
+      const arr = membersBySchool.get(m.schoolId) ?? [];
+      arr.push({
+        ...m,
+        user: {
+          id: m.userId,
+          email: m.email,
+          firstName: m.firstName,
+          lastName: m.lastName,
+        },
       });
+      membersBySchool.set(m.schoolId, arr);
     }
-    return result;
+
+    return schools.map((school) => ({
+      ...school,
+      members: membersBySchool.get(school.id) ?? [],
+    }));
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
