@@ -9,7 +9,7 @@ import {
     SortingState,
     ColumnFiltersState,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -64,6 +64,16 @@ export function DataTable<TData, TValue>({
     const [pageSize, setPageSizeState] = useState(initialPageSize);
     const [pageIndex, setPageIndex] = useState(0);
 
+    // Memoise the slice of state we hand to TanStack so the object identity
+    // is stable across renders that don't actually change values. Without
+    // this, every render produced a new `pagination` object (and a new `[]`
+    // for an absent `columnFilters` prop), which under specific React 18
+    // commit timings (e.g. a Radix Dialog/AlertDialog reacting to a trusted
+    // Escape) drove the renderer into a state-restore loop that locked the
+    // page at ~100% CPU.
+    const pagination = useMemo(() => ({ pageIndex, pageSize }), [pageIndex, pageSize]);
+    const resolvedColumnFilters = useMemo(() => columnFilters ?? [], [columnFilters]);
+
     const table = useReactTable({
         data,
         columns,
@@ -79,8 +89,8 @@ export function DataTable<TData, TValue>({
         },
         state: {
             sorting,
-            columnFilters: columnFilters ?? [],
-            pagination: { pageIndex, pageSize },
+            columnFilters: resolvedColumnFilters,
+            pagination,
         },
     });
 

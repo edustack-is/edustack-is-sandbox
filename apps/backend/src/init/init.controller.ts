@@ -38,8 +38,8 @@ export class InitController {
     default: {
       // Frontend hits this on every page load, so the limit needs to
       // accommodate E2E sweeps that load dozens of pages in parallel.
-      // Production keeps the historical 60/IP/min ceiling.
-      limit: process.env.NODE_ENV === 'production' ? 60 : 2000,
+      // Production: 120/IP/min (doubled from 60). Dev/test: 4000.
+      limit: process.env.NODE_ENV === 'production' ? 120 : 4000,
       ttl: 60_000,
     },
   })
@@ -69,7 +69,7 @@ export class InitController {
    */
   @Public()
   @UseGuards(SetupTokenGuard)
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
   @Post('setup')
   @ApiOperation({
     summary: 'Prvotní nastavení systému',
@@ -89,7 +89,7 @@ export class InitController {
 
   @Public()
   @UseGuards(SetupTokenGuard)
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
   @Post('restore-backup')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')

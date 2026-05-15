@@ -549,194 +549,209 @@ export default function Users() {
     }, [users]);
 
     // ── Column definitions ─────────────────────────────────
-    const columns: ColumnDef<SchoolUser>[] = [
-        {
-            accessorKey: 'lastName',
-            header: t('common.name'),
-            cell: ({ row }) => (
-                <span className="font-medium">
-                    {row.original.lastName} {row.original.firstName}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'email',
-            header: t('common.email'),
-            cell: ({ row }) => (
-                <span className={row.original.email.endsWith('@noemail.local') ? 'text-muted-foreground italic' : ''}>
-                    {row.original.email.endsWith('@noemail.local') ? '—' : row.original.email}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'role',
-            header: t('common.role'),
-            cell: ({ row }) => (
-                <Badge variant={roleBadgeVariant(row.original.role) as any}>
-                    {t(`roles.${row.original.role}`, row.original.role)}
-                </Badge>
-            ),
-        },
-        {
-            accessorKey: 'status',
-            header: t('common.status'),
-            cell: ({ row }) => (
-                <Badge variant={statusBadgeVariant(row.original.status) as any}>
-                    {t(`statuses.${row.original.status}`, row.original.status)}
-                </Badge>
-            ),
-        },
-        {
-            id: 'relations',
-            header: 'Vazby',
-            cell: ({ row }) => {
-                const u = row.original;
-                const parts: React.ReactNode[] = [];
-
-                // Classroom for students
-                if (u.role === 'STUDENT' && u.classroomName) {
-                    parts.push(
-                        <Badge key="cls" variant="outline" className="text-[10px] mr-1">
-                            🏫 {u.classroomName}
-                        </Badge>,
-                    );
-                }
-
-                // Homeroom for teachers
-                if (u.role === 'TEACHER' && u.homeroomClassName) {
-                    parts.push(
-                        <Badge key="hr" variant="outline" className="text-[10px] mr-1">
-                            🏠 TÚ: {u.homeroomClassName}
-                        </Badge>,
-                    );
-                }
-
-                // Parents of student
-                if (u.parents && u.parents.length > 0) {
-                    parts.push(
-                        <span key="parents" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-                            <Link2 className="h-3 w-3" />
-                            {u.parents.map((p) => p.name).join(', ')}
-                        </span>,
-                    );
-                }
-
-                // Children of parent
-                if (u.children && u.children.length > 0) {
-                    parts.push(
-                        <span key="children" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-                            <Users2 className="h-3 w-3" />
-                            {u.children.map((c) => c.name).join(', ')}
-                        </span>,
-                    );
-                }
-
-                if (parts.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
-                return <div className="flex flex-col gap-0.5">{parts}</div>;
+    // Memoised so TanStack Table sees a stable reference across renders.
+    // Without this, every render produced a fresh `columns` array; combined
+    // with a fresh `columnFilters ?? []` array inside DataTable, the table
+    // reconciled its internal state in a way that, when a Radix Dialog/AlertDialog
+    // on the page processed a real (trusted) keyboard or pointer event,
+    // pinned the renderer in a focus/state-restore loop and made the page
+    // unresponsive.
+    const columns = useMemo<ColumnDef<SchoolUser>[]>(
+        () => [
+            {
+                accessorKey: 'lastName',
+                header: t('common.name'),
+                cell: ({ row }) => (
+                    <span className="font-medium">
+                        {row.original.lastName} {row.original.firstName}
+                    </span>
+                ),
             },
-        },
-        {
-            id: 'actions',
-            header: t('common.actions'),
-            cell: ({ row }) => (
-                <div className="flex gap-1">
-                    {/* Edit */}
-                    {row.original.role !== 'PRINCIPAL' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.edit_user', 'Upravit')}
-                            onClick={() => openEditDialog(row.original)}
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                    )}
+            {
+                accessorKey: 'email',
+                header: t('common.email'),
+                cell: ({ row }) => (
+                    <span
+                        className={row.original.email.endsWith('@noemail.local') ? 'text-muted-foreground italic' : ''}
+                    >
+                        {row.original.email.endsWith('@noemail.local') ? '—' : row.original.email}
+                    </span>
+                ),
+            },
+            {
+                accessorKey: 'role',
+                header: t('common.role'),
+                cell: ({ row }) => (
+                    <Badge variant={roleBadgeVariant(row.original.role) as any}>
+                        {t(`roles.${row.original.role}`, row.original.role)}
+                    </Badge>
+                ),
+            },
+            {
+                accessorKey: 'status',
+                header: t('common.status'),
+                cell: ({ row }) => (
+                    <Badge variant={statusBadgeVariant(row.original.status) as any}>
+                        {t(`statuses.${row.original.status}`, row.original.status)}
+                    </Badge>
+                ),
+            },
+            {
+                id: 'relations',
+                header: 'Vazby',
+                cell: ({ row }) => {
+                    const u = row.original;
+                    const parts: React.ReactNode[] = [];
 
-                    {/* Quick "assign to class" — students only */}
-                    {row.original.role === 'STUDENT' && row.original.status !== 'ARCHIVED' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.assign_classroom', 'Přiřadit do třídy')}
-                            onClick={() => openAssignDialog(row.original)}
-                        >
-                            <SchoolIcon className="h-4 w-4 text-blue-600" />
-                        </Button>
-                    )}
+                    // Classroom for students
+                    if (u.role === 'STUDENT' && u.classroomName) {
+                        parts.push(
+                            <Badge key="cls" variant="outline" className="text-[10px] mr-1">
+                                🏫 {u.classroomName}
+                            </Badge>,
+                        );
+                    }
 
-                    {/* Resend invitation */}
-                    {row.original.status === 'PENDING' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.resend_invitation')}
-                            onClick={() => handleResendInvitation(row.original.id)}
-                        >
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    )}
+                    // Homeroom for teachers
+                    if (u.role === 'TEACHER' && u.homeroomClassName) {
+                        parts.push(
+                            <Badge key="hr" variant="outline" className="text-[10px] mr-1">
+                                🏠 TÚ: {u.homeroomClassName}
+                            </Badge>,
+                        );
+                    }
 
-                    {/* Suspend / Reactivate */}
-                    {row.original.status === 'ACTIVE' && row.original.role !== 'PRINCIPAL' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.suspend', 'Pozastavit')}
-                            onClick={() => handleSuspend(row.original.id)}
-                        >
-                            <Ban className="h-4 w-4 text-amber-600" />
-                        </Button>
-                    )}
-                    {row.original.status === 'SUSPENDED' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.reactivate', 'Reaktivovat')}
-                            onClick={() => handleReactivate(row.original.id)}
-                        >
-                            <ShieldCheck className="h-4 w-4 text-green-600" />
-                        </Button>
-                    )}
+                    // Parents of student
+                    if (u.parents && u.parents.length > 0) {
+                        parts.push(
+                            <span key="parents" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                                <Link2 className="h-3 w-3" />
+                                {u.parents.map((p) => p.name).join(', ')}
+                            </span>,
+                        );
+                    }
 
-                    {/* Impersonate — only active students/teachers/parents */}
-                    {row.original.status === 'ACTIVE' && !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.impersonate')}
-                            onClick={() => handleImpersonate(row.original.id)}
-                        >
-                            <UserCog className="h-4 w-4 text-amber-600" />
-                        </Button>
-                    )}
+                    // Children of parent
+                    if (u.children && u.children.length > 0) {
+                        parts.push(
+                            <span
+                                key="children"
+                                className="text-[11px] text-muted-foreground flex items-center gap-0.5"
+                            >
+                                <Users2 className="h-3 w-3" />
+                                {u.children.map((c) => c.name).join(', ')}
+                            </span>,
+                        );
+                    }
 
-                    {/* Set as alumni — only active students */}
-                    {row.original.role === 'STUDENT' && row.original.status === 'ACTIVE' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.set_alumni')}
-                            onClick={() => setAlumniTarget(row.original)}
-                        >
-                            <GraduationCap className="h-4 w-4 text-blue-600" />
-                        </Button>
-                    )}
+                    if (parts.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+                    return <div className="flex flex-col gap-0.5">{parts}</div>;
+                },
+            },
+            {
+                id: 'actions',
+                header: t('common.actions'),
+                cell: ({ row }) => (
+                    <div className="flex gap-1">
+                        {/* Edit */}
+                        {row.original.role !== 'PRINCIPAL' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.edit_user', 'Upravit')}
+                                onClick={() => openEditDialog(row.original)}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )}
 
-                    {/* Remove from school — anyone except PRINCIPAL */}
-                    {row.original.role !== 'PRINCIPAL' && row.original.status !== 'ARCHIVED' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.remove_user')}
-                            onClick={() => setRemoveTarget(row.original)}
-                        >
-                            <UserMinus className="h-4 w-4 text-destructive" />
-                        </Button>
-                    )}
-                </div>
-            ),
-        },
-    ];
+                        {/* Quick "assign to class" — students only */}
+                        {row.original.role === 'STUDENT' && row.original.status !== 'ARCHIVED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.assign_classroom', 'Přiřadit do třídy')}
+                                onClick={() => openAssignDialog(row.original)}
+                            >
+                                <SchoolIcon className="h-4 w-4 text-blue-600" />
+                            </Button>
+                        )}
+
+                        {/* Resend invitation */}
+                        {row.original.status === 'PENDING' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.resend_invitation')}
+                                onClick={() => handleResendInvitation(row.original.id)}
+                            >
+                                <Send className="h-4 w-4" />
+                            </Button>
+                        )}
+
+                        {/* Suspend / Reactivate */}
+                        {row.original.status === 'ACTIVE' && row.original.role !== 'PRINCIPAL' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.suspend', 'Pozastavit')}
+                                onClick={() => handleSuspend(row.original.id)}
+                            >
+                                <Ban className="h-4 w-4 text-amber-600" />
+                            </Button>
+                        )}
+                        {row.original.status === 'SUSPENDED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.reactivate', 'Reaktivovat')}
+                                onClick={() => handleReactivate(row.original.id)}
+                            >
+                                <ShieldCheck className="h-4 w-4 text-green-600" />
+                            </Button>
+                        )}
+
+                        {/* Impersonate — only active students/teachers/parents */}
+                        {row.original.status === 'ACTIVE' && !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.impersonate')}
+                                onClick={() => handleImpersonate(row.original.id)}
+                            >
+                                <UserCog className="h-4 w-4 text-amber-600" />
+                            </Button>
+                        )}
+
+                        {/* Set as alumni — only active students */}
+                        {row.original.role === 'STUDENT' && row.original.status === 'ACTIVE' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.set_alumni')}
+                                onClick={() => setAlumniTarget(row.original)}
+                            >
+                                <GraduationCap className="h-4 w-4 text-blue-600" />
+                            </Button>
+                        )}
+
+                        {/* Remove from school — anyone except PRINCIPAL */}
+                        {row.original.role !== 'PRINCIPAL' && row.original.status !== 'ARCHIVED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.remove_user')}
+                                onClick={() => setRemoveTarget(row.original)}
+                            >
+                                <UserMinus className="h-4 w-4 text-destructive" />
+                            </Button>
+                        )}
+                    </div>
+                ),
+            },
+        ],
+        [t],
+    );
 
     // ── Render ──────────────────────────────────────────────
     return (

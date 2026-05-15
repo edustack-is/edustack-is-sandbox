@@ -130,7 +130,6 @@ export const Sidebar: React.FC = () => {
         { path: '/grading', label: t('sidebar.grading', 'Klasifikace'), icon: GraduationCap },
         { path: '/attendance', label: t('sidebar.attendance', 'Docházka'), icon: CalendarDays },
         { path: '/classbook', label: t('sidebar.classbook', 'Třídní kniha'), icon: BookOpen },
-        { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
         { path: '/messages', label: t('sidebar.messages', 'Zprávy'), icon: MessageSquare },
         { path: '/community', label: t('sidebar.community', 'Komunita'), icon: MessageSquare },
     ];
@@ -156,6 +155,7 @@ export const Sidebar: React.FC = () => {
         { path: '/grading/measures', label: t('sidebar.measures', 'Výchovná opatření'), icon: FileText },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
         { path: '/school/users', label: t('sidebar.users', 'Uživatelé'), icon: Users },
+        { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
         { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
     ];
 

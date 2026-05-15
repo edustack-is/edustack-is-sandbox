@@ -32,13 +32,14 @@ const COMMON_SCHOOL_PAGES = [
     '/grading',
     '/attendance',
     '/classbook',
-    '/school/white-book',
     '/messages',
     '/community',
     '/profile',
 ];
 
 // Pages the school-admin accordion exposes (PRINCIPAL / DEPUTY / ADMIN).
+// These all talk to /api/deputy/*; the SchoolAdminGuard in App.tsx redirects
+// anyone else away before the page mounts.
 const SCHOOL_ADMIN_PAGES = [
     '/school/rooms',
     '/school/events',
@@ -56,6 +57,7 @@ const SCHOOL_ADMIN_PAGES = [
     '/grading/measures',
     '/year-setup',
     '/school/users',
+    '/school/white-book',
     '/school/audit-log',
 ];
 
