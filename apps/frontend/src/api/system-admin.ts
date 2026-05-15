@@ -56,14 +56,12 @@ export const listBackups = async () => {
 };
 
 export const downloadBackup = (filename: string) => {
-    // Direct download via browser
-    const token = localStorage.getItem('access_token');
     const url = `/api/system/backups/${encodeURIComponent(filename)}/download`;
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
-    // For auth, use fetch + blob
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    // Send the session cookie (same-origin) so the backend authenticates.
+    fetch(url, { credentials: 'include' })
         .then((r) => r.blob())
         .then((blob) => {
             const blobUrl = URL.createObjectURL(blob);

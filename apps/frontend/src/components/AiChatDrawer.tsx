@@ -161,16 +161,16 @@ export function AiChatDrawer() {
 
     const streamChat = useCallback(
         async (history: ChatMessage[]) => {
-            const token = localStorage.getItem('access_token');
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 180000); // 3min timeout
 
             try {
                 const response = await fetch('/api/ai/chat/stream', {
                     method: 'POST',
+                    // Send the session cookie alongside the streaming POST.
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
                         'Accept-Language': 'cs',
                     },
                     body: JSON.stringify({

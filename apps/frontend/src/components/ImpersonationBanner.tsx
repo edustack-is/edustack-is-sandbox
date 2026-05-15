@@ -1,59 +1,25 @@
-import { useEffect, useState } from 'react';
 import { ShieldAlert, ShieldCheck, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
-
-function decodeJwtPayload(token: string): any {
-    try {
-        const base64 = token.split('.')[1];
-        return JSON.parse(atob(base64));
-    } catch {
-        return {};
-    }
-}
+import { api } from '@/api';
 
 export const ImpersonationBanner = () => {
     const { t } = useTranslation();
-    const {
-        isSysAdminOverride,
-        isImpersonated: contextImpersonated,
-        readOnly,
-        role,
-        currentSchool,
-        leaveSchool,
-    } = useSchool();
-    const [isImpersonating, setIsImpersonating] = useState(false);
-    const [targetEmail, setTargetEmail] = useState('');
+    const { userId, isSysAdminOverride, isImpersonated, readOnly, role, currentSchool, leaveSchool } = useSchool();
 
-    useEffect(() => {
-        const originalToken =
-            localStorage.getItem('original_admin_token') || localStorage.getItem('impersonation_original_token');
-        if (originalToken) {
-            setIsImpersonating(true);
+    // With the JWT now in an httpOnly cookie we can't decode the target
+    // user's email client-side. We fall back to "current user" since the
+    // banner is mostly about the action, not who you're impersonating.
+    const targetLabel = userId ?? t('common.unknown_user');
 
-            // Decode current token to get target user info
-            const currentToken = localStorage.getItem('access_token');
-            if (currentToken) {
-                const payload = decodeJwtPayload(currentToken);
-                if (payload.isImpersonated) {
-                    setTargetEmail(payload.email || t('common.unknown_user'));
-                }
-            }
-        } else {
-            setIsImpersonating(false);
+    const stopImpersonation = async () => {
+        try {
+            await api.post('/api/auth/leave-impersonation');
+        } catch {
+            /* fall through to reload — backend will reject and we'll re-auth */
         }
-    }, [t]);
-
-    const stopImpersonation = () => {
-        const originalToken =
-            localStorage.getItem('original_admin_token') || localStorage.getItem('impersonation_original_token');
-        if (originalToken) {
-            localStorage.setItem('access_token', originalToken);
-            localStorage.removeItem('original_admin_token');
-            localStorage.removeItem('impersonation_original_token');
-            window.location.reload();
-        }
+        window.location.href = '/';
     };
 
     const handleLeaveSchool = async () => {
@@ -62,7 +28,7 @@ export const ImpersonationBanner = () => {
     };
 
     // Sys Admin Override banner (admin visiting school without membership)
-    if (isSysAdminOverride && !isImpersonating) {
+    if (isSysAdminOverride && !isImpersonated) {
         const roleLabel = role ? t(`roles.${role}`, role) : 'ADMIN';
         return (
             <div className="flex-shrink-0 flex items-center justify-center gap-3 bg-blue-600 px-4 py-2 text-white font-semibold shadow-lg z-50">
@@ -84,13 +50,13 @@ export const ImpersonationBanner = () => {
     }
 
     // Standard impersonation banner
-    if (!isImpersonating && !contextImpersonated) return null;
+    if (!isImpersonated) return null;
 
     return (
         <div className="flex-shrink-0 flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-white font-semibold shadow-lg z-50">
             <ShieldAlert size={18} />
             <span>
-                {t('impersonation.banner_text')} <strong>{targetEmail}</strong>
+                {t('impersonation.banner_text')} <strong>{targetLabel}</strong>
                 {readOnly && (
                     <span className="ml-2 inline-flex items-center rounded bg-amber-700 px-1.5 py-0.5 text-xs font-medium">
                         {t('impersonation.read_only', 'Jen pro čtení')}

@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
 import { setupSwagger } from './swagger.setup';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   // ─── Fail-fast: required environment variables ──────────────
@@ -118,6 +119,11 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-setup-token'],
   });
+
+  // ─── Cookie parsing ────────────────────────────────────────────
+  // Required so the JWT strategy can pull the session token out of the
+  // httpOnly cookie that login/select-school/etc. set.
+  app.use(cookieParser());
 
   // ─── Global validation pipe ────────────────────────────────────
   app.useGlobalPipes(

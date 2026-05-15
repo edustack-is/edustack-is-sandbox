@@ -24,6 +24,7 @@ import { Roles } from './roles.decorator';
 import { UserRole } from '../database/types';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { setSessionCookie, clearSessionCookie } from './session-cookie';
 import passport from 'passport';
 import {
   AcceptInviteDto,
@@ -265,6 +266,10 @@ export class AuthController {
       return res.status(401).json({ message: 'Invalid or expired SSO token.' });
     }
 
+    // Promote the SSO token to a full session cookie. The token is also
+    // returned in the body for legacy callers; the frontend now ignores
+    // that field and relies on the cookie.
+    setSessionCookie(res, token);
     return res.json({ access_token: token });
   }
 
@@ -316,8 +321,18 @@ export class AuthController {
     description: 'Neplatný požadavek – chyba validace vstupních dat.',
     type: ErrorResponseDto,
   })
-  async acceptInvite(@Body() body: { token: string; password: string }) {
-    return this.authService.acceptInvitation(body.token, body.password);
+  async acceptInvite(
+    @Body() body: { token: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.acceptInvitation(
+      body.token,
+      body.password,
+    );
+    if ((result as any)?.access_token) {
+      setSessionCookie(res, (result as any).access_token);
+    }
+    return result;
   }
 
   @Public()
@@ -334,8 +349,18 @@ export class AuthController {
 
   @Public()
   @Post('reset-password')
-  async resetPassword(@Body() body: { token: string; password: string }) {
-    return this.authService.resetPassword(body.token, body.password);
+  async resetPassword(
+    @Body() body: { token: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.resetPassword(
+      body.token,
+      body.password,
+    );
+    if ((result as any)?.access_token) {
+      setSessionCookie(res, (result as any).access_token);
+    }
+    return result;
   }
 
   @Get('identities')
@@ -387,7 +412,11 @@ export class AuthController {
     description: 'Záznam nebyl nalezen.',
     type: ErrorResponseDto,
   })
-  async impersonate(@Param('id') targetUserId: string, @Req() req: any) {
+  async impersonate(
+    @Param('id') targetUserId: string,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const adminId = req.user.userId;
 
     // Only system admins or school admins/deputies/principals can impersonate
@@ -415,7 +444,11 @@ export class AuthController {
       }
     }
 
-    return this.authService.impersonate(adminId, targetUserId);
+    const result = await this.authService.impersonate(adminId, targetUserId);
+    if ((result as any)?.access_token) {
+      setSessionCookie(res, (result as any).access_token);
+    }
+    return result;
   }
 
   @Public()
@@ -429,7 +462,11 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, type: LoginResponseDto })
   @ApiBody({ type: LoginDto })
-  async login(@Body() body: LoginDto, @Req() req: Request) {
+  async login(
+    @Body() body: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // Extract IP and User-Agent
     const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -445,7 +482,9 @@ export class AuthController {
       );
       throw new BadRequestException('Invalid credentials');
     }
-    return this.authService.login(user, ip as string, userAgent);
+    const result = await this.authService.login(user, ip as string, userAgent);
+    setSessionCookie(res, result.access_token);
+    return result;
   }
 
   @Get('schools')
@@ -491,9 +530,18 @@ export class AuthController {
   async selectSchool(
     @Param('schoolId') schoolId: string,
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
     @Query('role') role?: string,
   ) {
-    return this.authService.selectSchool(req.user.userId, schoolId, role);
+    const result = await this.authService.selectSchool(
+      req.user.userId,
+      schoolId,
+      role,
+    );
+    if ((result as any)?.access_token) {
+      setSessionCookie(res, (result as any).access_token);
+    }
+    return result;
   }
 
   @Post('refresh-global')
@@ -509,8 +557,59 @@ export class AuthController {
     description: 'Nedostatečná oprávnění pro tuto operaci.',
     type: ErrorResponseDto,
   })
-  async refreshGlobal(@Req() req: any) {
-    return this.authService.refreshGlobalToken(req.user.userId);
+  async refreshGlobal(
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.refreshGlobalToken(req.user.userId);
+    if ((result as any)?.access_token) {
+      setSessionCookie(res, (result as any).access_token);
+    }
+    return result;
+  }
+
+  @Post('leave-impersonation')
+  @ApiOperation({ summary: 'Ukončení impersonace — vrátí původního admina' })
+  async leaveImpersonation(
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.leaveImpersonation(req.user);
+    if ((result as any)?.access_token) {
+      setSessionCookie(res, (result as any).access_token);
+    }
+    return result;
+  }
+
+  /**
+   * Returns the decoded JWT claims for the current session.
+   * The frontend uses this to populate SchoolContext now that the JWT
+   * lives in an httpOnly cookie and cannot be decoded client-side.
+   */
+  @Get('session')
+  @ApiOperation({ summary: 'Aktuální claims relace (z cookie)' })
+  async getSession(@Req() req: any) {
+    return {
+      userId: req.user.userId,
+      email: req.user.email,
+      role: req.user.role ?? null,
+      schoolId: req.user.schoolId ?? null,
+      type: req.user.type ?? 'GLOBAL',
+      isSystemAdmin: !!req.user.isSystemAdmin,
+      isImpersonated: !!req.user.isImpersonated,
+    };
+  }
+
+  /**
+   * Clears the session cookie. The Authorization-header fallback path
+   * still requires the client to drop its token locally.
+   */
+  @Public()
+  @Post('logout')
+  @ApiOperation({ summary: 'Odhlášení — smaže session cookie' })
+  async logout(@Res({ passthrough: true }) res: Response) {
+    clearSessionCookie(res);
+    return { success: true };
   }
 
   @Get('me')

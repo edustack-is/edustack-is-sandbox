@@ -46,8 +46,15 @@ import { BootScreen } from './components/BootScreen';
 import { Toaster } from 'sonner';
 
 const ProtectedRoute = () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
+    // Session lives in an httpOnly cookie now, so we ask SchoolContext.
+    // While the initial /api/auth/session call is in flight, sessionLoading
+    // is true — we render nothing rather than bounce to /login, which would
+    // make the auth check race the network.
+    const { userId, sessionLoading } = useSchool();
+    if (sessionLoading) {
+        return <div className="flex h-dvh items-center justify-center text-muted-foreground">…</div>;
+    }
+    if (!userId) {
         return <Navigate to="/login" replace />;
     }
     return (

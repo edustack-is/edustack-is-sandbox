@@ -21,14 +21,10 @@ const MAX_BUFFER_SIZE = 10;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 
 function getUserId(): string | undefined {
-    try {
-        const token = localStorage.getItem('access_token');
-        if (!token) return undefined;
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload.sub || payload.userId;
-    } catch {
-        return undefined;
-    }
+    // The JWT now lives in an httpOnly cookie and is no longer readable from
+    // JS. The backend log endpoint can derive the actor from the request
+    // cookie if it needs the user id.
+    return undefined;
 }
 
 function createEntry(level: LogEntry['level'], message: string, stack?: string): LogEntry {

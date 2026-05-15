@@ -611,6 +611,32 @@ export class AuthService {
     return { access_token: this.jwtService.sign(payload) };
   }
 
+  /**
+   * End an impersonation session: mints a fresh GLOBAL token for the
+   * impersonator (stored as `actorId` on the impersonation JWT).
+   */
+  async leaveImpersonation(currentUser: any) {
+    if (!currentUser?.isImpersonated || !currentUser?.actorId) {
+      throw new BadRequestException(
+        'Current session is not an impersonation session.',
+      );
+    }
+    const admin = await this.db.queryOne<User>(
+      'SELECT id, email, isSystemAdmin FROM "User" WHERE id = ?',
+      [currentUser.actorId],
+    );
+    if (!admin) {
+      throw new UnauthorizedException('Impersonator no longer exists.');
+    }
+    const payload = {
+      sub: admin.id,
+      email: admin.email,
+      isSystemAdmin: !!admin.isSystemAdmin,
+      type: 'GLOBAL',
+    };
+    return { access_token: this.jwtService.sign(payload) };
+  }
+
   async updateProfile(userId: string, data: { avatarUrl?: string }) {
     const user = await this.db.queryOne<User>(
       'SELECT id FROM "User" WHERE id = ?',

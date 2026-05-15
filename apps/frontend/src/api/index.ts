@@ -19,27 +19,28 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    // Inject current language
+    // The session JWT lives in an httpOnly cookie set by the backend; axios
+    // sends it automatically because withCredentials is true. We no longer
+    // mirror the token in localStorage (XSS exfil risk) so this interceptor
+    // only injects language + content-type.
     config.headers['Accept-Language'] = i18n.language;
-    // Let axios auto-set Content-Type for FormData (multipart/form-data with boundary)
     if (!(config.data instanceof FormData)) {
         config.headers['Content-Type'] = config.headers['Content-Type'] || 'application/json';
     }
     return config;
 });
 
-// Auto-logout on 401 (expired or invalid token)
+// Auto-logout on 401 (expired or invalid cookie).
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
             const currentPath = window.location.pathname;
-            // Don't redirect if already on login/setup to avoid loops
+            // Don't redirect if already on login/setup to avoid loops.
             if (currentPath !== '/login' && currentPath !== '/setup') {
+                // Clean up any legacy localStorage entries from the old
+                // token-in-storage flow. Safe to leave forever; cheap to
+                // do once per 401.
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('global_token');
                 localStorage.removeItem('original_admin_token');
@@ -346,10 +347,11 @@ export const getUserSchools = async () => {
 };
 
 export const linkIdentity = (provider: string) => {
-    // This needs to redirect to the backend SSO route WITH the current token
-    const token = localStorage.getItem('access_token');
+    // Redirects to the backend SSO route. The session cookie is sent on the
+    // top-level navigation by the browser (SameSite=Lax allows it for GETs),
+    // so the backend can identify the linking user without a query token.
     const backendUrl = window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
-    window.location.href = `${backendUrl}/api/auth/sso/${provider}?token=${token}`;
+    window.location.href = `${backendUrl}/api/auth/sso/${provider}`;
 };
 
 // System Admin API

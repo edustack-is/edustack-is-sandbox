@@ -93,16 +93,14 @@ export const Login = () => {
     });
 
     useEffect(() => {
-        // Handle SSO callback — token is in an httpOnly cookie, exchange it
+        // Handle SSO callback — the backend already set the session cookie
+        // via exchange-token; we just refresh our session view and bounce.
         const ssoOk = searchParams.get('sso');
         if (ssoOk === 'ok') {
             exchangeSsoToken()
-                .then((data) => {
-                    if (data.access_token) {
-                        localStorage.setItem('access_token', data.access_token);
-                        refreshTokenInfo();
-                        navigate('/');
-                    }
+                .then(async () => {
+                    await refreshTokenInfo();
+                    navigate('/');
                 })
                 .catch(() => {
                     toast.error(t('login.sso_failed'));
@@ -110,12 +108,12 @@ export const Login = () => {
             return; // don't load SSO options while exchanging
         }
 
-        // Legacy: still handle ?token= for backwards compatibility (e.g. invitation links)
+        // Legacy: ?token= callbacks would have written localStorage previously.
+        // Now the backend should be doing the cookie set itself; if a token
+        // arrives here we just trigger a session refresh and ignore the value.
         const token = searchParams.get('token');
         if (token) {
-            localStorage.setItem('access_token', token);
-            refreshTokenInfo();
-            navigate('/');
+            refreshTokenInfo().then(() => navigate('/'));
         }
 
         const ssoError = searchParams.get('error');
@@ -176,8 +174,9 @@ export const Login = () => {
         try {
             const data = await login(formData);
             if (data.access_token) {
-                localStorage.setItem('access_token', data.access_token);
-                refreshTokenInfo();
+                // Token is set as httpOnly cookie by the backend; we just
+                // need to refresh our local session view.
+                await refreshTokenInfo();
                 navigate('/');
             } else {
                 toast.error(t('login.login_failed'));
@@ -205,8 +204,7 @@ export const Login = () => {
                 password: helperConfig.defaultPassword,
             });
             if (data.access_token) {
-                localStorage.setItem('access_token', data.access_token);
-                refreshTokenInfo();
+                await refreshTokenInfo();
                 navigate('/');
             } else {
                 toast.error(t('login.login_failed'));

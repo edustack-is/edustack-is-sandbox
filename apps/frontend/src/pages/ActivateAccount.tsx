@@ -59,12 +59,12 @@ export const ActivateAccount = () => {
 
         setLoading(true);
         try {
-            const res = await acceptInvitation({
+            await acceptInvitation({
                 token,
                 password: formData.password,
             });
 
-            localStorage.setItem('access_token', res.access_token);
+            // Backend sets the session cookie; we just bounce to school select.
             toast.success(t('activate.success'));
             window.location.href = '/select-school';
         } catch (err: any) {

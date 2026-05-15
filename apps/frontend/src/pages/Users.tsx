@@ -302,16 +302,11 @@ export default function Users() {
     // ── Impersonate (school-scoped) ────────────────────────
     const handleImpersonate = async (targetId: string) => {
         try {
-            const currentToken = localStorage.getItem('access_token');
-            if (!currentToken) {
-                toast.error(t('users_page.impersonation_failed'));
-                return;
-            }
-            const { access_token } = await impersonateSchoolUser(targetId);
-            localStorage.setItem('original_admin_token', currentToken);
-            localStorage.setItem('access_token', access_token);
+            // The backend swaps the httpOnly session cookie. We just reload.
+            // The original admin's userId is embedded in the new JWT as
+            // `actorId`, so /api/auth/leave-impersonation can recover it.
+            await impersonateSchoolUser(targetId);
             toast.success(t('users_page.impersonation_started'));
-            // Navigate to dashboard after impersonation
             window.location.href = '/dashboard';
         } catch (error: any) {
             toast.error(t('users_page.impersonation_failed') + ': ' + (error.response?.data?.message || error.message));

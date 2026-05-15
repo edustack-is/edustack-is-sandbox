@@ -29,7 +29,7 @@ import {
 // Force refresh: 2026-05-02 18:45:00
 import { ThemeToggle } from '../ThemeToggle';
 import clsx from 'clsx';
-import { getMe } from '@/api';
+import { getMe, api } from '@/api';
 import { useSchool } from '@/context/SchoolContext';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -171,11 +171,13 @@ export const Sidebar: React.FC = () => {
             .catch((e) => console.error('Failed to fetch user', e));
     }, []);
 
-    const handleLogout = () => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('global_token');
-        localStorage.removeItem('original_admin_token');
-        localStorage.removeItem('impersonation_original_token');
+    const handleLogout = async () => {
+        try {
+            // Clears the httpOnly session cookie server-side.
+            await api.post('/api/auth/logout');
+        } catch {
+            /* ignore — we still navigate to login */
+        }
         navigate('/login');
     };
 

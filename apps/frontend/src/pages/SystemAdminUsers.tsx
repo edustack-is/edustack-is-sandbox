@@ -25,6 +25,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
+import { useSchool } from '@/context/SchoolContext';
 
 interface Admin {
     id: string;
@@ -33,15 +34,6 @@ interface Admin {
     lastName: string;
     lastLogin?: string;
     createdAt?: string;
-}
-
-function decodeJwtPayload(token: string): any {
-    try {
-        const base64 = token.split('.')[1];
-        return JSON.parse(atob(base64));
-    } catch {
-        return {};
-    }
 }
 
 export function SystemAdminUsers() {
@@ -63,13 +55,13 @@ export function SystemAdminUsers() {
     const [removeTarget, setRemoveTarget] = useState<Admin | null>(null);
     const [removing, setRemoving] = useState(false);
 
+    // Pulled from SchoolContext (which reads /api/auth/session) rather
+    // than decoding the JWT from localStorage — the JWT now lives in an
+    // httpOnly cookie.
+    const { userId } = useSchool();
     useEffect(() => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            const payload = decodeJwtPayload(token);
-            setCurrentUserId(payload.sub || null);
-        }
-    }, []);
+        setCurrentUserId(userId);
+    }, [userId]);
 
     const loadAdmins = async () => {
         setLoading(true);

@@ -69,8 +69,23 @@ async function buildDeputyCreds(baseURL: string): Promise<DeputyCreds> {
     return { email: deputy.email, schoolId, tenantToken };
 }
 
-/** Inject the TENANT token into localStorage before any app code runs. */
+/**
+ * Authenticate the browser context as the deputy by setting the httpOnly
+ * session cookie that the backend would normally set on /api/auth/login.
+ * We also seed localStorage as a transitional fallback for code paths
+ * that haven't been migrated yet.
+ */
 async function loginAsDeputy(page: Page, creds: DeputyCreds) {
+    await page.context().addCookies([
+        {
+            name: '__edu_session',
+            value: creds.tenantToken,
+            url: 'http://localhost:5173',
+            httpOnly: true,
+            secure: false,
+            sameSite: 'Lax',
+        },
+    ]);
     await page.addInitScript((token) => {
         try {
             window.localStorage.setItem('access_token', token);

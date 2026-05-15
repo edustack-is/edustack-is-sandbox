@@ -7,7 +7,7 @@ interface SchoolInfo {
     address?: string;
 }
 
-interface SchoolContextType {
+interface TokenInfo {
     tokenType: 'GLOBAL' | 'TENANT';
     userId: string | null;
     schoolId: string | null;
@@ -16,14 +16,18 @@ interface SchoolContextType {
     isImpersonated: boolean;
     readOnly: boolean;
     role: string | null;
-    currentSchool: SchoolInfo | null;
-    schoolCount: number;
-    selectSchool: (schoolId: string, role?: string) => Promise<void>;
-    leaveSchool: () => Promise<void>;
-    refreshTokenInfo: () => void;
 }
 
-const SchoolContext = createContext<SchoolContextType>({
+interface SchoolContextType extends TokenInfo {
+    currentSchool: SchoolInfo | null;
+    schoolCount: number;
+    sessionLoading: boolean;
+    selectSchool: (schoolId: string, role?: string) => Promise<void>;
+    leaveSchool: () => Promise<void>;
+    refreshTokenInfo: () => Promise<TokenInfo>;
+}
+
+const EMPTY_TOKEN_INFO: TokenInfo = {
     tokenType: 'GLOBAL',
     userId: null,
     schoolId: null,
@@ -32,66 +36,72 @@ const SchoolContext = createContext<SchoolContextType>({
     isImpersonated: false,
     readOnly: false,
     role: null,
+};
+
+const SchoolContext = createContext<SchoolContextType>({
+    ...EMPTY_TOKEN_INFO,
     currentSchool: null,
     schoolCount: 0,
+    sessionLoading: true,
     selectSchool: async () => {},
     leaveSchool: async () => {},
-    refreshTokenInfo: () => {},
+    refreshTokenInfo: async () => EMPTY_TOKEN_INFO,
 });
 
-function decodeJwtPayload(token: string): any {
+/**
+ * Fetches /api/auth/session — the server-side decode of the httpOnly JWT
+ * cookie. We can't read the JWT directly any more (XSS exfil mitigation),
+ * so this endpoint is the single source of truth for session claims.
+ */
+async function fetchSession(): Promise<TokenInfo> {
     try {
-        const base64 = token.split('.')[1];
-        return JSON.parse(atob(base64));
-    } catch {
-        return {};
-    }
-}
-
-function getTokenInfo() {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
+        const res = await api.get('/api/auth/session');
+        const s = res.data || {};
         return {
-            tokenType: 'GLOBAL' as const,
-            userId: null,
-            schoolId: null,
-            isSystemAdmin: false,
-            isSysAdminOverride: false,
-            isImpersonated: false,
-            readOnly: false,
-            role: null,
+            tokenType: (s.type === 'TENANT' ? 'TENANT' : 'GLOBAL') as 'GLOBAL' | 'TENANT',
+            userId: s.userId ?? null,
+            schoolId: s.schoolId ?? null,
+            isSystemAdmin: !!s.isSystemAdmin,
+            isSysAdminOverride: !!s.isSysAdminOverride,
+            isImpersonated: !!s.isImpersonated,
+            readOnly: !!s.readOnly,
+            role: s.role ?? null,
         };
+    } catch {
+        return EMPTY_TOKEN_INFO;
     }
-    const payload = decodeJwtPayload(token);
-    return {
-        tokenType: (payload.type === 'TENANT' ? 'TENANT' : 'GLOBAL') as 'GLOBAL' | 'TENANT',
-        userId: payload.sub || null,
-        schoolId: payload.schoolId || null,
-        isSystemAdmin: payload.isSystemAdmin || false,
-        isSysAdminOverride: payload.isSysAdminOverride || false,
-        isImpersonated: payload.isImpersonated || false,
-        readOnly: payload.readOnly || false,
-        role: payload.role || null,
-    };
 }
 
 export function SchoolProvider({ children }: { children: ReactNode }) {
-    const [tokenInfo, setTokenInfo] = useState(getTokenInfo);
+    const [tokenInfo, setTokenInfo] = useState<TokenInfo>(EMPTY_TOKEN_INFO);
+    const [sessionLoading, setSessionLoading] = useState(true);
     const [currentSchool, setCurrentSchool] = useState<SchoolInfo | null>(null);
     const [schoolCount, setSchoolCount] = useState(0);
 
-    // When token changes, re-read info
-    const refreshTokenInfo = useCallback(() => {
-        const info = getTokenInfo();
+    const refreshTokenInfo = useCallback(async () => {
+        const info = await fetchSession();
         setTokenInfo(info);
         return info;
+    }, []);
+
+    // On mount, populate session from the cookie.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const info = await fetchSession();
+            if (cancelled) return;
+            setTokenInfo(info);
+            setSessionLoading(false);
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     // Fetch school details when we have a schoolId
     useEffect(() => {
         if (tokenInfo.schoolId) {
             const schoolId = tokenInfo.schoolId;
-            // Try to find school in user's memberships first
             api.get('/api/auth/schools')
                 .then((res) => {
                     const schools = res.data;
@@ -104,7 +114,6 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                             address: school.school?.address,
                         });
                     } else if (tokenInfo.isSystemAdmin) {
-                        // System admin may not have membership – fetch from system endpoint
                         api.get('/api/system/schools')
                             .then((sysRes) => {
                                 const sysSchool = sysRes.data.find((s: any) => s.id === schoolId);
@@ -115,7 +124,6 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                                         address: sysSchool.address,
                                     });
                                 } else {
-                                    // Fallback: at least show the school ID
                                     setCurrentSchool({ id: schoolId, name: schoolId });
                                 }
                             })
@@ -125,64 +133,42 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                 .catch(() => setCurrentSchool(null));
         } else {
             setCurrentSchool(null);
-            // Still fetch school count for global token so UI can decide whether to show "change school"
             if (tokenInfo.userId) {
                 api.get('/api/auth/schools')
                     .then((res) => setSchoolCount(Array.isArray(res.data) ? res.data.length : 0))
                     .catch(() => setSchoolCount(0));
             }
         }
-    }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin]);
+    }, [tokenInfo.schoolId, tokenInfo.isSystemAdmin, tokenInfo.userId]);
 
     const selectSchool = useCallback(
         async (schoolId: string, role?: string) => {
-            // Save the current GLOBAL token before switching to TENANT
-            if (!localStorage.getItem('global_token')) {
-                const currentToken = localStorage.getItem('access_token');
-                if (currentToken) {
-                    const payload = decodeJwtPayload(currentToken);
-                    // Only save if it's actually a GLOBAL token
-                    if (payload.type !== 'TENANT') {
-                        localStorage.setItem('global_token', currentToken);
-                    }
-                }
-            }
-
             const url = role
                 ? `/api/auth/select-school/${schoolId}?role=${role}`
                 : `/api/auth/select-school/${schoolId}`;
-            const response = await api.post(url);
-            const { access_token } = response.data;
-            localStorage.setItem('access_token', access_token);
-            refreshTokenInfo();
+            // The backend swaps the cookie for a TENANT-scoped token on success.
+            await api.post(url);
+            await refreshTokenInfo();
         },
         [refreshTokenInfo],
     );
 
     const leaveSchool = useCallback(async () => {
-        const globalToken = localStorage.getItem('global_token');
-        if (globalToken) {
-            // Fast path: restore saved GLOBAL token
-            localStorage.setItem('access_token', globalToken);
-            localStorage.removeItem('global_token');
-            setCurrentSchool(null);
-            refreshTokenInfo();
-        } else {
-            // Slow path: request a fresh GLOBAL token from the backend
+        try {
+            // Ask the backend for a fresh GLOBAL cookie. It replaces the
+            // TENANT cookie set during selectSchool.
+            await api.post('/api/auth/refresh-global');
+        } catch {
+            // If refresh-global fails (e.g. the user is impersonated), the
+            // safest fallback is a hard logout.
             try {
-                const res = await api.post('/api/auth/refresh-global');
-                if (res.data?.access_token) {
-                    localStorage.setItem('access_token', res.data.access_token);
-                    localStorage.removeItem('global_token');
-                }
+                await api.post('/api/auth/logout');
             } catch {
-                // Last resort: clear everything → forces re-login
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('global_token');
+                /* ignore */
             }
-            setCurrentSchool(null);
-            refreshTokenInfo();
         }
+        setCurrentSchool(null);
+        await refreshTokenInfo();
     }, [refreshTokenInfo]);
 
     return (
@@ -191,6 +177,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                 ...tokenInfo,
                 currentSchool,
                 schoolCount,
+                sessionLoading,
                 selectSchool,
                 leaveSchool,
                 refreshTokenInfo,
