@@ -1,7 +1,7 @@
 import { api } from './index';
 
 export interface AiProvider {
-    id: 'google' | 'openai' | 'anthropic';
+    id: 'google' | 'openai' | 'anthropic' | 'opencode';
     name: string;
 }
 

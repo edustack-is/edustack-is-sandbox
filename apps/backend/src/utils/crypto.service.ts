@@ -18,7 +18,12 @@ export class CryptoService {
       );
     }
 
-    // Derive a 32-byte AES key using scrypt with a unique salt
+    // Derive a 32-byte AES key using scrypt.
+    // The salt is intentionally deterministic (SHA-256 of a fixed string) so
+    // that the same ENCRYPTION_KEY decrypts data across restarts and instances.
+    // Acceptable for a single-tenant fixed-key KDF; rotating the salt requires
+    // re-encrypting every stored secret. Confidentiality rests on the secrecy
+    // of ENCRYPTION_KEY (and AES-256-GCM with random IVs below), not the salt.
     const salt = crypto
       .createHash('sha256')
       .update('edustack-encryption-salt')

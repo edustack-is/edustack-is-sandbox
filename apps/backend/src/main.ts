@@ -1,121 +1,11 @@
 import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ErrorResponseDto } from './common/dto/error-response.dto';
-import {
-  LoginDto,
-  LoginResponseDto,
-  AcceptInviteDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
-  SelectSchoolResponseDto,
-  UserProfileDto,
-  SchoolListItemDto,
-  SsoOptionDto,
-  CreateGradeDto,
-  UpdateGradeDto,
-  GradeResponseDto,
-  RecordAttendanceDto,
-  AttendanceRecordItemDto,
-  CreateScheduleEventDto,
-  CreateSubstitutionDto,
-  CreateConversationDto,
-  SendMessageDto,
-  CreateBulletinPostDto,
-  CreatePollDto,
-  CreateCalendarEventDto,
-  UpsertClassbookEntryDto,
-  CreateClassroomDto,
-  CreateSubjectDto,
-  CreateRoomDto,
-  InviteSchoolUserDto,
-  SuccessResponseDto,
-  CountResponseDto,
-  ToggleResponseDto,
-} from './common/dto/api.dto';
-import {
-  ClassroomResponseDto,
-  SubjectResponseDto,
-  RoomResponseDto,
-  BuildingResponseDto,
-  SchoolEventResponseDto,
-  SchoolUserResponseDto,
-  StudentFamilyResponseDto,
-  AuditLogEntryDto,
-  SchoolSettingsResponseDto,
-  AcademicYearResponseDto,
-  GradeLevelResponseDto,
-  SubjectInstanceResponseDto,
-  TeacherWorkloadResponseDto,
-  CurriculumVersionResponseDto,
-  CurriculumEntryResponseDto,
-  CompetencyResponseDto,
-  SemesterResponseDto,
-  ThematicPlanResponseDto,
-  TeachingMaterialResponseDto,
-  LessonPlanResponseDto,
-  EnrollmentResponseDto,
-  ScheduleEventResponseDto,
-  ScheduleMatrixResponseDto,
-  SubstitutionResponseDto,
-  CollisionResultDto,
-  SnapshotResponseDto,
-  RecurringEventResponseDto,
-  AttendanceRecordResponseDto,
-  ExcuseResponseDto,
-  AttendanceStatsResponseDto,
-  UnexcusedAlertDto,
-  ConversationResponseDto,
-  MessageResponseDto,
-  NotificationResponseDto,
-  RecipientResponseDto,
-  BulletinPostResponseDto,
-  PollResponseDto,
-  CommunityEventResponseDto,
-  ClassbookEntryResponseDto,
-  ReportCardResponseDto,
-  GradingTypeResponseDto,
-  BehaviorGradeResponseDto,
-  CompetencyGradeResponseDto,
-  MeasureResponseDto,
-  GradeHistoryEntryDto,
-  CommissionExamResponseDto,
-  GradingDeadlineResponseDto,
-  SchoolDashboardResponseDto,
-  SharedRoomResponseDto,
-  SsoIdentityResponseDto,
-  UploadResultDto,
-  ImportResultDto,
-  StudentDataResponseDto,
-  ChildDashboardResponseDto,
-  ParentChildResponseDto,
-  TeacherClassResponseDto,
-  SystemDashboardResponseDto,
-  SchoolResponseDto,
-  SsoConfigResponseDto,
-  AiConfigResponseDto,
-  AiUsageResponseDto,
-  AiTextResponseDto,
-  BackupResponseDto,
-  HealthCheckResponseDto,
-  MetricsResponseDto,
-  RvpUploadResponseDto,
-  CompetencyMatrixResponseDto,
-  CurriculumDiffResponseDto,
-  ScheduleDiffResponseDto,
-  GenerateScheduleResultDto,
-  GdprDataResponseDto,
-  InitStatusResponseDto,
-  ReportStatsResponseDto,
-  RegistryClassroomResponseDto,
-  SystemSettingsResponseDto,
-  PaginatedUsersResponseDto,
-} from './common/dto/response.dto';
 import { AppModule } from './app.module';
-import { Logger, ValidationPipe, INestApplication } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { InitService } from './init/init.service';
 import { SeedService } from './init/seed.service';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { setupSwagger } from './swagger.setup';
 import helmet from 'helmet';
 
 async function bootstrap() {
@@ -144,11 +34,14 @@ async function bootstrap() {
     }
   }
 
-  // Warn about missing AI keys in production
+  // Warn about missing AI keys in production. GEMINI_API_KEY is accepted as
+  // an alias for GOOGLE_AI_API_KEY for compatibility with the MCP server.
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.GOOGLE_AI_API_KEY && !process.env.OPENAI_API_KEY) {
+    const hasGoogleKey =
+      process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!hasGoogleKey && !process.env.OPENAI_API_KEY) {
       warnings.push(
-        'No AI API key set (GOOGLE_AI_API_KEY or OPENAI_API_KEY) - AI features will be disabled',
+        'No AI API key set (GOOGLE_AI_API_KEY/GEMINI_API_KEY or OPENAI_API_KEY) - AI features will be disabled',
       );
     }
   }
@@ -241,153 +134,8 @@ async function bootstrap() {
   // ─── Request logging middleware ────────────────────────────
   app.use(new RequestLoggingMiddleware().use);
 
-  // ─── Swagger / OpenAPI (disabled in production) ─────────────────
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('EduStack IS API')
-      .setDescription('Školní informační systém – REST API dokumentace')
-      .setVersion('1.0')
-      .addBearerAuth(
-        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-        'JWT-auth',
-      )
-      .addTag('auth', 'Autentizace a pozvánky')
-      .addTag('init', 'Inicializace systému')
-      .addTag('student', 'Studentský modul')
-      .addTag('parent', 'Rodičovský modul')
-      .addTag('teacher', 'Učitelský modul')
-      .addTag('deputy', 'Zástupce školy – administrativa a kurikulum')
-      .addTag('principal', 'Ředitel – audit a vedení')
-      .addTag('system', 'Systémová administrace')
-      .addTag('users', 'Správa uživatelů a pozvánek')
-      .addTag('grading', 'Klasifikace a hodnocení')
-      .addTag('schedule', 'Rozvrh a suplování')
-      .addTag('messaging', 'Komunikace a notifikace')
-      .addTag('attendance', 'Docházka')
-      .addTag('community', 'Komunita – nástěnka, ankety, události')
-      .addTag('classbook', 'Třídní kniha')
-      .addTag('ai', 'AI funkce – generování, analýza, moderace')
-      .addTag('registry', 'Matrika – MŠMT registry')
-      .addTag('export', 'Export dat – CSV/XML/JSON')
-      .addTag('reports', 'Reporty – statistiky, výkazy ČŠI/MŠMT')
-      .addTag('gdpr', 'GDPR – export a smazání osobních dat')
-      .build();
-
-    const document = SwaggerModule.createDocument(app, config, {
-      extraModels: [
-        // Error
-        ErrorResponseDto,
-        // api.dto.ts (request + generic)
-        LoginDto,
-        LoginResponseDto,
-        AcceptInviteDto,
-        ForgotPasswordDto,
-        ResetPasswordDto,
-        SelectSchoolResponseDto,
-        UserProfileDto,
-        SchoolListItemDto,
-        SsoOptionDto,
-        CreateGradeDto,
-        UpdateGradeDto,
-        GradeResponseDto,
-        RecordAttendanceDto,
-        AttendanceRecordItemDto,
-        CreateScheduleEventDto,
-        CreateSubstitutionDto,
-        CreateConversationDto,
-        SendMessageDto,
-        CreateBulletinPostDto,
-        CreatePollDto,
-        CreateCalendarEventDto,
-        UpsertClassbookEntryDto,
-        CreateClassroomDto,
-        CreateSubjectDto,
-        CreateRoomDto,
-        InviteSchoolUserDto,
-        SuccessResponseDto,
-        CountResponseDto,
-        ToggleResponseDto,
-        // response.dto.ts (entity responses)
-        ClassroomResponseDto,
-        SubjectResponseDto,
-        RoomResponseDto,
-        BuildingResponseDto,
-        SchoolEventResponseDto,
-        SchoolUserResponseDto,
-        StudentFamilyResponseDto,
-        AuditLogEntryDto,
-        SchoolSettingsResponseDto,
-        AcademicYearResponseDto,
-        GradeLevelResponseDto,
-        SubjectInstanceResponseDto,
-        TeacherWorkloadResponseDto,
-        CurriculumVersionResponseDto,
-        CurriculumEntryResponseDto,
-        CompetencyResponseDto,
-        SemesterResponseDto,
-        ThematicPlanResponseDto,
-        TeachingMaterialResponseDto,
-        LessonPlanResponseDto,
-        EnrollmentResponseDto,
-        ScheduleEventResponseDto,
-        ScheduleMatrixResponseDto,
-        SubstitutionResponseDto,
-        CollisionResultDto,
-        SnapshotResponseDto,
-        RecurringEventResponseDto,
-        AttendanceRecordResponseDto,
-        ExcuseResponseDto,
-        AttendanceStatsResponseDto,
-        UnexcusedAlertDto,
-        ConversationResponseDto,
-        MessageResponseDto,
-        NotificationResponseDto,
-        RecipientResponseDto,
-        BulletinPostResponseDto,
-        PollResponseDto,
-        CommunityEventResponseDto,
-        ClassbookEntryResponseDto,
-        ReportCardResponseDto,
-        GradingTypeResponseDto,
-        BehaviorGradeResponseDto,
-        CompetencyGradeResponseDto,
-        MeasureResponseDto,
-        GradeHistoryEntryDto,
-        CommissionExamResponseDto,
-        GradingDeadlineResponseDto,
-        SchoolDashboardResponseDto,
-        SharedRoomResponseDto,
-        SsoIdentityResponseDto,
-        UploadResultDto,
-        ImportResultDto,
-        StudentDataResponseDto,
-        ChildDashboardResponseDto,
-        ParentChildResponseDto,
-        TeacherClassResponseDto,
-        SystemDashboardResponseDto,
-        SchoolResponseDto,
-        SsoConfigResponseDto,
-        AiConfigResponseDto,
-        AiUsageResponseDto,
-        AiTextResponseDto,
-        BackupResponseDto,
-        HealthCheckResponseDto,
-        MetricsResponseDto,
-        RvpUploadResponseDto,
-        CompetencyMatrixResponseDto,
-        CurriculumDiffResponseDto,
-        ScheduleDiffResponseDto,
-        GenerateScheduleResultDto,
-        GdprDataResponseDto,
-        InitStatusResponseDto,
-        ReportStatsResponseDto,
-        RegistryClassroomResponseDto,
-        SystemSettingsResponseDto,
-        PaginatedUsersResponseDto,
-      ],
-    });
-    SwaggerModule.setup('/api/docs', app, document);
-  }
+  // ─── Swagger / OpenAPI (no-op in production) ────────────────────
+  setupSwagger(app);
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '127.0.0.1');
@@ -395,41 +143,76 @@ async function bootstrap() {
   logger.log(`Backend API is running on: http://127.0.0.1:${port}`);
 
   // ─── Auto-seed ──────────────────────────────────────────────
+  // AUTO_SEED is a development convenience that creates a demo admin and
+  // populates fixtures on first boot. It is unsafe in production:
+  //   - It creates a known-password admin account.
+  //   - With multiple instances booting in parallel, two processes can both
+  //     observe `initialized=false` and race on setup().
+  // We therefore refuse to run AUTO_SEED unless NODE_ENV !== 'production'.
+  // The race is still possible within a single dev machine if two backends
+  // start simultaneously; the second one will fail on a unique-constraint
+  // violation inside setup() and we surface that as an "already initialized"
+  // skip rather than a crash.
   if (process.env.AUTO_SEED === 'true') {
     const logger = new Logger('AutoSeed');
-    try {
-      const initService = app.get(InitService);
-      const seedService = app.get(SeedService);
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn(
+        'AUTO_SEED=true is ignored in production. Run the setup wizard ' +
+          '(POST /api/init/setup with SETUP_TOKEN) instead.',
+      );
+    } else {
+      try {
+        const initService = app.get(InitService);
+        const seedService = app.get(SeedService);
 
-      const status = await initService.getStatus();
-      if (!status.initialized) {
-        logger.log('AUTO_SEED: System not initialized – running auto-seed...');
+        const status = await initService.getStatus();
+        if (status.initialized) {
+          logger.log('AUTO_SEED: System already initialized – skipping seed.');
+        } else {
+          logger.log(
+            'AUTO_SEED: System not initialized – running auto-seed...',
+          );
 
-        const adminResult = await initService.setup({
-          adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@demo.test',
-          adminPassword:
-            process.env.SEED_ADMIN_PASSWORD ||
-            process.env.DEMO_PASSWORD ||
-            'Demo1234!',
-          adminFirstName: process.env.SEED_ADMIN_FIRST_NAME || 'Admin',
-          adminLastName: process.env.SEED_ADMIN_LAST_NAME || 'Demo',
-        });
+          let adminResult;
+          try {
+            adminResult = await initService.setup({
+              adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@demo.test',
+              adminPassword:
+                process.env.SEED_ADMIN_PASSWORD ||
+                process.env.DEMO_PASSWORD ||
+                'Demo1234!',
+              adminFirstName: process.env.SEED_ADMIN_FIRST_NAME || 'Admin',
+              adminLastName: process.env.SEED_ADMIN_LAST_NAME || 'Demo',
+            });
+          } catch (setupErr: any) {
+            // Lost the race against another booting instance — bail cleanly.
+            const recheck = await initService.getStatus();
+            if (recheck.initialized) {
+              logger.log(
+                'AUTO_SEED: Another process completed setup first – skipping.',
+              );
+              return;
+            }
+            throw setupErr;
+          }
 
-        const seedResult = await seedService.executeSeed(adminResult.admin.id, {
-          filename: process.env.SEED_FILE || 'demo-seed.json',
-          overrideAi: {
-            geminiApiKey: process.env.GOOGLE_AI_API_KEY,
-            openAiApiKey: process.env.OPENAI_API_KEY,
-          },
-        });
+          const seedResult = await seedService.executeSeed(
+            adminResult.admin.id,
+            {
+              filename: process.env.SEED_FILE || 'demo-seed.json',
+              overrideAi: {
+                geminiApiKey:
+                  process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
+                openAiApiKey: process.env.OPENAI_API_KEY,
+              },
+            },
+          );
 
-        logger.log(`AUTO_SEED complete: ${seedResult.summary}`);
-      } else {
-        logger.log('AUTO_SEED: System already initialized – skipping seed.');
+          logger.log(`AUTO_SEED complete: ${seedResult.summary}`);
+        }
+      } catch (err) {
+        logger.error('AUTO_SEED failed:', err);
       }
-    } catch (err) {
-      const logger = new Logger('AutoSeed');
-      logger.error('AUTO_SEED failed:', err);
     }
   }
 }

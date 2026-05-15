@@ -10,5 +10,6 @@ import { SystemAdminModule } from '../system-admin/system-admin.module';
   imports: [CryptoModule, ConfigModule, SystemAdminModule],
   controllers: [AiController],
   providers: [AiService, AiChatService],
+  exports: [AiService],
 })
 export class AiModule {}

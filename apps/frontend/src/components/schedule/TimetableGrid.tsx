@@ -84,6 +84,7 @@ const FALLBACK_COLORS = [
 ];
 
 function getSubjectColor(code: string): string {
+    if (!code) return FALLBACK_COLORS[0];
     if (SUBJECT_COLORS[code]) return SUBJECT_COLORS[code];
     const hash = code.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
     return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
@@ -210,12 +211,12 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                             <div
                                                                 className={`rounded-md border p-1.5 min-h-[52px] transition-all ${
                                                                     todaySub ? 'border-dashed opacity-80' : ''
-                                                                } ${getSubjectColor(event.subject.template.code)} ${
+                                                                } ${getSubjectColor(event.subject?.template?.code)} ${
                                                                     editable ? 'cursor-pointer hover:shadow-md' : ''
                                                                 }`}
                                                             >
                                                                 <div className="font-bold text-xs leading-tight">
-                                                                    {event.subject.template.code}
+                                                                    {event.subject?.template?.code || '-'}
                                                                 </div>
                                                                 {showTeacher && (
                                                                     <div className="text-[10px] leading-tight mt-0.5 opacity-80">

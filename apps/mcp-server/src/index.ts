@@ -1,11 +1,13 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { server } from './server.js';
+import { server, listRegisteredTools } from './server.js';
 import { databasePath } from './db.js';
 import path from 'path';
 import fs from 'fs';
+import { generateText, tool } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 // Find and load root .env
 const envPaths = ['.env', '../../.env'];
@@ -18,7 +20,36 @@ for (const p of envPaths) {
 }
 
 const app = express();
-app.use(cors());
+
+// ─── CORS ──────────────────────────────────────────────────────
+// MCP_CORS_ORIGIN: comma-separated allow-list. Defaults to none (CORS disabled),
+// which is safe because the only legitimate caller is the backend on the same host.
+const mcpCorsOrigin = (process.env.MCP_CORS_ORIGIN || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+if (mcpCorsOrigin.length > 0) {
+    app.use(cors({ origin: mcpCorsOrigin, credentials: true }));
+}
+
+// ─── Bearer-token auth ────────────────────────────────────────
+// When MCP_AUTH_TOKEN is set, /sse, /message, and /v1/chat/completions require
+// Authorization: Bearer <token>. When unset, the server runs unauthenticated
+// (acceptable only when bound to loopback for local dev).
+const mcpAuthToken = process.env.MCP_AUTH_TOKEN;
+const requireAuth = (req: Request, res: Response, next: () => void) => {
+    if (!mcpAuthToken) {
+        next();
+        return;
+    }
+    const header = req.headers.authorization || '';
+    const [scheme, token] = header.split(' ');
+    if (scheme !== 'Bearer' || token !== mcpAuthToken) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+    next();
+};
 
 // Import tools (they register themselves on the server)
 import './tools/management.js';
@@ -28,13 +59,16 @@ import './tools/seeding.js';
 import './tools/curriculum.js';
 import './tools/grading.js';
 
-// Store transports by session ID
+// Store transports by session ID.
+// NOTE: McpServer in the current SDK is single-transport — only one connected
+// client is supported at a time. The backend is currently the only legitimate
+// caller, so this is acceptable. Supporting multiple concurrent clients would
+// require one McpServer instance per session (or SDK-level session management).
 const transports = new Map<string, SSEServerTransport>();
 let currentTransport: SSEServerTransport | null = null;
 
 app.get('/', (req, res) => {
-    // Access private tools list for diagnostic info
-    const toolCount = (server as any)._tools?.size || 0;
+    const toolCount = listRegisteredTools().length;
 
     res.send(`
         <!DOCTYPE html>
@@ -85,7 +119,7 @@ app.get('/', (req, res) => {
     `);
 });
 
-app.get('/sse', async (req, res) => {
+app.get('/sse', requireAuth, async (req, res) => {
     console.log('New SSE connection requested');
 
     // Close existing transport if any
@@ -121,7 +155,7 @@ app.get('/sse', async (req, res) => {
     }
 });
 
-app.post('/message', async (req, res) => {
+app.post('/message', requireAuth, async (req, res) => {
     const sessionId = req.query.sessionId as string;
     console.log(`Received message for session: ${sessionId}`);
 
@@ -143,7 +177,89 @@ app.post('/message', async (req, res) => {
     }
 });
 
+app.post('/v1/chat/completions', requireAuth, express.json(), async (req: Request, res: Response) => {
+    const { messages, model } = req.body;
+
+    // Accept either env name — the backend uses GOOGLE_AI_API_KEY, the MCP
+    // server has historically used GEMINI_API_KEY.
+    const geminiApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+        console.error('Neither GOOGLE_AI_API_KEY nor GEMINI_API_KEY is set.');
+        return res.status(500).json({ error: 'Server is not configured with a Gemini API key.' });
+    }
+
+    const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
+    const llm = google(model || 'models/gemini-1.5-flash-latest');
+
+    const mcpTools: any = {};
+    for (const t of listRegisteredTools()) {
+        mcpTools[t.name] = tool({
+            description: t.description || '',
+            inputSchema: t.inputSchema as any,
+            execute: async (args: any) => {
+                console.log(`Executing MCP tool from proxied endpoint: ${t.name}`);
+                // Call the captured handler directly. It returns an
+                // MCP-style { content, isError? } payload — flatten it to
+                // text for the LLM.
+                const result = (await t.handler(args)) as {
+                    isError?: boolean;
+                    content?: Array<{ text?: string }>;
+                };
+                const text = (result.content ?? []).map((c) => c.text ?? '').join('\n');
+                return text;
+            },
+        });
+    }
+
+    try {
+        const result = await generateText({
+            model: llm,
+            messages,
+            tools: mcpTools,
+        });
+
+        const response = {
+            id: 'chatcmpl-' + Date.now(),
+            object: 'chat.completion',
+            created: Math.floor(Date.now() / 1000),
+            model: model,
+            choices: [
+                {
+                    index: 0,
+                    message: {
+                        role: 'assistant',
+                        content: result.text,
+                    },
+                    finish_reason: 'stop',
+                },
+            ],
+            usage: {
+                // The `ai` SDK renamed promptTokens/completionTokens to
+                // inputTokens/outputTokens. Accept either to stay forward-
+                // compatible while the SDK is in flux.
+                prompt_tokens: (result.usage as any).inputTokens ?? (result.usage as any).promptTokens ?? 0,
+                completion_tokens: (result.usage as any).outputTokens ?? (result.usage as any).completionTokens ?? 0,
+                total_tokens: (result.usage as any).totalTokens ?? 0,
+            },
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error proxying to LLM:', error);
+        res.status(500).json({ error: 'Failed to process request.' });
+    }
+});
+
 const PORT = Number(process.env.MCP_PORT) || 3001;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`MCP Server running on http://0.0.0.0:${PORT}`);
+// Bind to loopback by default so the MCP server is not reachable from the network.
+// Override with MCP_HOST=0.0.0.0 only when fronted by a reverse proxy + auth.
+const HOST = process.env.MCP_HOST || '127.0.0.1';
+app.listen(PORT, HOST, () => {
+    console.log(`MCP Server running on http://${HOST}:${PORT}`);
+    if (!mcpAuthToken && HOST !== '127.0.0.1') {
+        console.warn(
+            '⚠️  MCP server is bound to a non-loopback address without MCP_AUTH_TOKEN. ' +
+                'Set MCP_AUTH_TOKEN to require Bearer authentication on /sse, /message, and /v1/chat/completions.',
+        );
+    }
 });

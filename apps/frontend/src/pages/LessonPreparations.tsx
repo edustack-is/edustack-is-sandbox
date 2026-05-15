@@ -46,7 +46,7 @@ export default function LessonPreparations() {
         try {
             setItems(await getLessonPreparations());
         } catch {
-            toast.error('Nepodařilo se načíst přípravy');
+            toast.error(t('lesson_preparations.load_error'));
         } finally {
             setLoading(false);
         }
@@ -78,34 +78,34 @@ export default function LessonPreparations() {
 
     const handleSave = async () => {
         if (!form.title || !form.date || !form.topic || !form.subjectTemplateId) {
-            toast.error('Vyplňte povinná pole');
+            toast.error(t('lesson_preparations.fill_required'));
             return;
         }
         try {
             const data = { ...form, duration: parseInt(form.duration) || 45 };
             if (editing) {
                 await updateLessonPreparation(editing.id, data);
-                toast.success('Příprava aktualizována');
+                toast.success(t('lesson_preparations.update_success'));
             } else {
                 await createLessonPreparation(data as any);
-                toast.success('Příprava vytvořena');
+                toast.success(t('lesson_preparations.create_success'));
             }
             setDialogOpen(false);
             setEditing(null);
             setForm(emptyForm);
             load();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
     const handleDelete = async (id: string) => {
         try {
             await deleteLessonPreparation(id);
-            toast.success('Smazáno');
+            toast.success(t('common.success'));
             load();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -114,7 +114,7 @@ export default function LessonPreparations() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.lesson_preparations')}</h1>
-                    <p className="text-muted-foreground">Plánování a reflexe vyučovacích hodin</p>
+                    <p className="text-muted-foreground">{t('lesson_preparations.subtitle')}</p>
                 </div>
                 <Button
                     onClick={() => {
@@ -124,7 +124,7 @@ export default function LessonPreparations() {
                     }}
                 >
                     <Plus className="h-4 w-4 mr-2" />
-                    Nová příprava
+                    {t('lesson_preparations.new')}
                 </Button>
             </div>
 
@@ -136,18 +136,18 @@ export default function LessonPreparations() {
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        Zatím nejsou žádné přípravy
+                        {t('lesson_preparations.no_preparations')}
                     </CardContent>
                 </Card>
             ) : (
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Datum</TableHead>
+                            <TableHead>{t('common.date')}</TableHead>
                             <TableHead>{t('common.title')}</TableHead>
                             <TableHead>{t('common.topic')}</TableHead>
-                            <TableHead>Předmět</TableHead>
-                            <TableHead>Min</TableHead>
+                            <TableHead>{t('grading.subject')}</TableHead>
+                            <TableHead>{t('common.duration_min')}</TableHead>
                             <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -188,12 +188,14 @@ export default function LessonPreparations() {
             >
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>{editing ? 'Upravit přípravu' : 'Nová příprava na hodinu'}</DialogTitle>
+                        <DialogTitle>
+                            {editing ? t('lesson_preparations.edit') : t('lesson_preparations.new_title')}
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <Label>Název *</Label>
+                                <Label>{t('common.name')} *</Label>
                                 <Input
                                     value={form.title}
                                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -201,7 +203,7 @@ export default function LessonPreparations() {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <Label>Datum *</Label>
+                                <Label>{t('common.date')} *</Label>
                                 <Input
                                     type="date"
                                     value={form.date}
@@ -211,13 +213,13 @@ export default function LessonPreparations() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <Label>Předmět *</Label>
+                                <Label>{t('grading.subject')} *</Label>
                                 <Select
                                     value={form.subjectTemplateId}
                                     onValueChange={(v) => setForm((f) => ({ ...f, subjectTemplateId: v }))}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Vyberte" />
+                                        <SelectValue placeholder={t('common.select')} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {subjects.map((s: any) => (
@@ -229,7 +231,7 @@ export default function LessonPreparations() {
                                 </Select>
                             </div>
                             <div className="space-y-1">
-                                <Label>Délka (min)</Label>
+                                <Label>{t('common.duration_min')}</Label>
                                 <Input
                                     type="number"
                                     value={form.duration}
@@ -238,7 +240,7 @@ export default function LessonPreparations() {
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <Label>Téma *</Label>
+                            <Label>{t('common.topic')} *</Label>
                             <Input
                                 value={form.topic}
                                 onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
@@ -246,7 +248,7 @@ export default function LessonPreparations() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Cíle / výstupy</Label>
+                            <Label>{t('lesson_preparations.objectives')}</Label>
                             <Textarea
                                 value={form.objectives}
                                 onChange={(e) => setForm((f) => ({ ...f, objectives: e.target.value }))}
@@ -254,7 +256,7 @@ export default function LessonPreparations() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Průběh hodiny</Label>
+                            <Label>{t('lesson_preparations.activities')}</Label>
                             <Textarea
                                 value={form.activities}
                                 onChange={(e) => setForm((f) => ({ ...f, activities: e.target.value }))}
@@ -269,14 +271,14 @@ export default function LessonPreparations() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Domácí úkol</Label>
+                            <Label>{t('lesson_preparations.homework')}</Label>
                             <Input
                                 value={form.homework}
                                 onChange={(e) => setForm((f) => ({ ...f, homework: e.target.value }))}
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Reflexe / hodnocení</Label>
+                            <Label>{t('lesson_preparations.evaluation')}</Label>
                             <Textarea
                                 value={form.evaluation}
                                 onChange={(e) => setForm((f) => ({ ...f, evaluation: e.target.value }))}
@@ -286,9 +288,9 @@ export default function LessonPreparations() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleSave}>{editing ? 'Uložit' : 'Vytvořit'}</Button>
+                        <Button onClick={handleSave}>{editing ? t('common.save') : t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

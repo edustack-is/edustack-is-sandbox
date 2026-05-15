@@ -1,8 +1,15 @@
 # 🔒 Security Audit Report — EduStack IS Sandbox
 
-**Date:** 2026-02-16 (updated after remediation)  
-**Auditor:** Antigravity Security Auditor  
+**Date:** 2026-02-16 (updated after remediation)
+**Auditor:** Antigravity Security Auditor
 **Scope:** Full application (backend NestJS, frontend React/Vite)
+
+> ⚠️ **Status note (2026-05-15):** Several items listed as "FIXED" below regressed
+> on `feat/data-generator-completion` and have since been re-fixed. See
+> `CODE_REVIEW.md` for the up-to-date list. Notable: the "Global guard via
+> APP_GUARD" line in the table below was inaccurate at audit time on this
+> branch (only `ThrottlerGuard` was global) — it is now true again after
+> `JwtAuthGuard` and `RolesGuard` were re-added as global guards.
 
 ---
 

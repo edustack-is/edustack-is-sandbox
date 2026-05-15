@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -33,6 +34,8 @@ import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class DeputyService {
+  private readonly logger = new Logger(DeputyService.name);
+
   constructor(
     private readonly db: DatabaseService,
     private readonly mailService: MailService,
@@ -40,18 +43,231 @@ export class DeputyService {
 
   // ─── SCHOOL DASHBOARD ────────────────────────────────────────────
 
-  async getSchoolDashboard(schoolId: string) {
+  async getSchoolDashboard(schoolId: string, userId: string, role: string) {
+    // Principal/Deputy/Admin see full school overview + their own agenda
+    const isLeadership = ['PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(
+      role,
+    );
+
+    if (isLeadership) {
+      return this.getLeadershipDashboard(schoolId, userId);
+    }
+
+    if (role === 'TEACHER') {
+      return this.getTeacherDashboard(schoolId, userId);
+    }
+
+    if (role === 'STUDENT') {
+      return this.getStudentDashboard(schoolId, userId);
+    }
+
+    if (role === 'PARENT') {
+      return this.getParentDashboard(schoolId, userId);
+    }
+
+    // Default to basic if role unknown
+    return this.getBasicDashboard(schoolId);
+  }
+
+  private async getLeadershipDashboard(schoolId: string, userId: string) {
+    const stats = await this.getBasicDashboard(schoolId);
+    const now = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    const [
+      unreadMessages,
+      tasks,
+      todayAttendance,
+      recentGradeAvg,
+      pendingExcuses,
+    ] = await Promise.all([
+      this.getUnreadCount(userId),
+      this.getTasks(userId, schoolId),
+      this.db.queryOne<any>(
+        `SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as present
+         FROM "Attendance" 
+         WHERE schoolId = ? AND date = ?`,
+        [schoolId, now],
+      ),
+      this.db.queryOne<any>(
+        `SELECT AVG(CAST(value as FLOAT)) as avg
+         FROM "Grade"
+         WHERE schoolId = ? AND date >= ? AND type = 'NUMERIC' AND value BETWEEN '1' AND '5'`,
+        [schoolId, sevenDaysAgo],
+      ),
+      this.db.queryOne<any>(
+        'SELECT COUNT(*) as count FROM "AbsenceExcuse" WHERE schoolId = ? AND status = \'PENDING\'',
+        [schoolId],
+      ),
+    ]);
+
+    const attendanceRate =
+      todayAttendance?.total > 0
+        ? Math.round((todayAttendance.present / todayAttendance.total) * 100)
+        : null;
+
+    return {
+      ...stats,
+      unreadMessages,
+      tasks,
+      pulse: {
+        attendanceRate,
+        recentGradeAvg: recentGradeAvg?.avg
+          ? Math.round(recentGradeAvg.avg * 100) / 100
+          : null,
+        pendingExcuses: pendingExcuses?.count || 0,
+      },
+    };
+  }
+
+  private async getTeacherDashboard(schoolId: string, userId: string) {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7; // ISO week day
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    const [teacherProfile, unreadMessages, tasks, nextLesson, missingData] =
+      await Promise.all([
+        this.db.queryOne<TeacherProfile>(
+          'SELECT id FROM "TeacherProfile" WHERE userId = ?',
+          [userId],
+        ),
+        this.getUnreadCount(userId),
+        this.getTasks(userId, schoolId),
+        this.db
+          .queryOne<any>(
+            `SELECT se.*, st.name as subjectName, c.name as classroomName, r.name as roomName
+           FROM "ScheduleEvent" se
+           JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+           JOIN "SubjectTemplate" st ON si.templateId = st.id
+           JOIN "Classroom" c ON se.classroomId = c.id
+           LEFT JOIN "Room" r ON se.roomId = r.id
+           WHERE se.teacherId = (SELECT id FROM "TeacherProfile" WHERE userId = ?)
+           AND se.dayOfWeek = ? AND se.startTime > ?
+           ORDER BY se.startTime ASC LIMIT 1`,
+            [userId, dayOfWeek, currentTime],
+          )
+          .catch(() => null),
+        this.db.query<any>(
+          `SELECT ce.*, c.name as classroomName
+         FROM "ClassBookEntry" ce
+         JOIN "Classroom" c ON ce.classroomId = c.id
+         LEFT JOIN "TeacherSignature" ts ON ce.id = ts.classBookEntryId
+         WHERE ce.teacherId = ? AND (ce.topic IS NULL OR ts.id IS NULL)
+         AND ce.date < ?
+         ORDER BY ce.date DESC LIMIT 5`,
+          [userId, now.toISOString()],
+        ),
+      ]);
+
+    return {
+      role: 'TEACHER',
+      unreadMessages,
+      tasks,
+      nextLesson,
+      missingData: missingData.map((m) => ({
+        id: m.id,
+        date: m.date,
+        lessonNumber: m.lessonNumber,
+        classroomName: m.classroomName,
+        missingTopic: !m.topic,
+        missingSignature: true, // simplified since we JOINed LEFT
+      })),
+    };
+  }
+
+  private async getStudentDashboard(schoolId: string, userId: string) {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7;
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    const [unreadMessages, tasks, nextLesson, lastGrade, upcomingEvents] =
+      await Promise.all([
+        this.getUnreadCount(userId),
+        this.getTasks(userId, schoolId),
+        this.db
+          .queryOne<any>(
+            `SELECT se.*, st.name as subjectName, r.name as roomName
+           FROM "ScheduleEvent" se
+           LEFT JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+           LEFT JOIN "SubjectTemplate" st ON si.templateId = st.id
+           LEFT JOIN "Room" r ON se.roomId = r.id
+           WHERE se.classroomId = (SELECT classroomId FROM "StudentProfile" WHERE userId = ?)
+           AND se.dayOfWeek = ? AND se.startTime > ?
+           ORDER BY se.startTime ASC LIMIT 1`,
+            [userId, dayOfWeek, currentTime],
+          )
+          .catch(() => null),
+        this.db.queryOne<any>(
+          `SELECT g.*, st.name as subjectName
+         FROM "Grade" g
+         JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id
+         JOIN "SubjectTemplate" st ON si.templateId = st.id
+         WHERE g.studentId = (SELECT id FROM "StudentProfile" WHERE userId = ?)
+         ORDER BY g.date DESC, g.createdAt DESC LIMIT 1`,
+          [userId],
+        ),
+        this.db.query<any>(
+          `SELECT * FROM "SchoolEvent" 
+         WHERE (schoolId = ? OR id IN (SELECT id FROM "SchoolEvent" WHERE schoolId = ?)) -- simplified for now
+         AND date >= ? 
+         ORDER BY date ASC LIMIT 3`,
+          [schoolId, schoolId, now.toISOString()],
+        ),
+      ]);
+
+    return {
+      role: 'STUDENT',
+      unreadMessages,
+      tasks,
+      nextLesson,
+      lastGrade,
+      upcomingEvents,
+    };
+  }
+
+  private async getParentDashboard(schoolId: string, userId: string) {
+    // Get children
+    const children = await this.db.query<any>(
+      `SELECT sp.*, u.firstName, u.lastName 
+       FROM "StudentProfile" sp 
+       JOIN "User" u ON sp.userId = u.id
+       JOIN "ParentStudent" ps ON sp.id = ps.studentId
+       WHERE ps.parentId = ?`,
+      [userId],
+    );
+
+    const results = [];
+    for (const child of children) {
+      const dashboard = await this.getStudentDashboard(schoolId, child.userId);
+      results.push({
+        childName: `${child.firstName} ${child.lastName}`,
+        childId: child.id,
+        ...dashboard,
+      });
+    }
+
+    return {
+      role: 'PARENT',
+      children: results,
+      unreadMessages: await this.getUnreadCount(userId),
+      tasks: await this.getTasks(userId, schoolId),
+    };
+  }
+
+  private async getBasicDashboard(schoolId: string) {
     const [
       studentCountResult,
       teacherCountResult,
       classroomCountResult,
       subjectCountResult,
       roomCountResult,
-      buildingCountResult,
       currentAcademicYear,
       recentMembers,
       upcomingEvents,
-      totalMembersResult,
       pendingMembersResult,
     ] = await Promise.all([
       this.db.queryOne<{ count: number }>(
@@ -74,10 +290,6 @@ export class DeputyService {
         'SELECT COUNT(*) as count FROM "Room" WHERE schoolId = ?',
         [schoolId],
       ),
-      this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "Building" WHERE schoolId = ?',
-        [schoolId],
-      ),
       this.db.queryOne<AcademicYear>(
         'SELECT id, name, startDate, endDate FROM "AcademicYear" WHERE schoolId = ? AND isCurrent = 1 LIMIT 1',
         [schoolId],
@@ -95,10 +307,6 @@ export class DeputyService {
         [schoolId, new Date().toISOString()],
       ),
       this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ?',
-        [schoolId],
-      ),
-      this.db.queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM "SchoolMembership" WHERE schoolId = ? AND status = \'PENDING\'',
         [schoolId],
       ),
@@ -110,8 +318,6 @@ export class DeputyService {
       classroomCount: classroomCountResult?.count || 0,
       subjectCount: subjectCountResult?.count || 0,
       roomCount: roomCountResult?.count || 0,
-      buildingCount: buildingCountResult?.count || 0,
-      totalMembers: totalMembersResult?.count || 0,
       pendingMembers: pendingMembersResult?.count || 0,
       currentAcademicYear,
       upcomingEvents,
@@ -124,6 +330,59 @@ export class DeputyService {
         createdAt: m.createdAt,
       })),
     };
+  }
+
+  private async getUnreadCount(userId: string) {
+    const res = await this.db.queryOne<{ count: number }>(
+      `SELECT COUNT(*) as count FROM "Message" m
+       JOIN "ConversationParticipant" cp ON m.conversationId = cp.conversationId
+       WHERE cp.userId = ? AND (cp.lastReadAt IS NULL OR m.createdAt > cp.lastReadAt)
+       AND m.senderId != ?`,
+      [userId, userId],
+    );
+    return res?.count || 0;
+  }
+
+  // ─── TASKS ───────────────────────────────────────────────────────
+
+  async getTasks(userId: string, schoolId: string) {
+    return this.db.query<any>(
+      'SELECT * FROM "Task" WHERE userId = ? AND schoolId = ? ORDER BY createdAt DESC',
+      [userId, schoolId],
+    );
+  }
+
+  async createTask(userId: string, schoolId: string, title: string) {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await this.db.execute(
+      'INSERT INTO "Task" (id, title, completed, userId, schoolId, createdAt, updatedAt) VALUES (?, ?, 0, ?, ?, ?, ?)',
+      [id, title, userId, schoolId, now, now],
+    );
+    return { id, title, completed: false };
+  }
+
+  async toggleTask(id: string, userId: string) {
+    const task = await this.db.queryOne<any>(
+      'SELECT * FROM "Task" WHERE id = ? AND userId = ?',
+      [id, userId],
+    );
+    if (!task) throw new NotFoundException('Task not found');
+
+    const newStatus = task.completed ? 0 : 1;
+    await this.db.execute(
+      'UPDATE "Task" SET completed = ?, updatedAt = ? WHERE id = ?',
+      [newStatus, new Date().toISOString(), id],
+    );
+    return { ...task, completed: !!newStatus };
+  }
+
+  async deleteTask(id: string, userId: string) {
+    await this.db.execute('DELETE FROM "Task" WHERE id = ? AND userId = ?', [
+      id,
+      userId,
+    ]);
+    return { success: true };
   }
 
   // ─── CLASSROOM CRUD ──────────────────────────────────────────────
@@ -864,7 +1123,7 @@ export class DeputyService {
     );
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(invitationToken, 10);
+    const hashedToken = await bcrypt.hash(invitationToken, 12);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     return this.db.transaction(async (db) => {
@@ -954,7 +1213,9 @@ export class DeputyService {
           `${user.firstName} ${user.lastName}`,
           fullToken,
         )
-        .catch((e) => console.error('Failed to send invitation email', e));
+        .catch((e) =>
+          this.logger.error('Failed to send invitation email', e as Error),
+        );
 
       await this.audit(actorId, 'INVITE_USER', 'User', user.id, {
         email: data.email,
@@ -969,50 +1230,84 @@ export class DeputyService {
   // ─── SCHOOL-SCOPED USER LIST ────────────────────────────────────
 
   async getSchoolUsers(schoolId: string) {
-    const memberships = await this.db.query(
-      `SELECT m.*, u.firstName, u.lastName, u.email, u.lastLogin, u.createdAt as userCreatedAt 
+    const memberships = await this.db.query<any>(
+      `SELECT m.*, u.id as userId, u.firstName, u.lastName, u.email, u.lastLogin, u.createdAt as userCreatedAt 
        FROM "SchoolMembership" m 
        JOIN "User" u ON m.userId = u.id 
-       WHERE m.schoolId = ? 
-       ORDER BY m.createdAt DESC`,
+       WHERE m.schoolId = ? AND u.deletedAt IS NULL
+       ORDER BY u.lastName ASC, u.firstName ASC`,
       [schoolId],
     );
 
-    const result = [];
-    for (const m of memberships) {
-      const studentProfile = await this.db.queryOne(
-        `SELECT sp.id, c.id as classroomId, c.name as classroomName 
-         FROM "StudentProfile" sp 
-         LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
-         WHERE sp.userId = ?`,
-        [m.userId],
-      );
+    if (memberships.length === 0) {
+      return [];
+    }
 
-      const teacherProfile = await this.db.queryOne(
-        `SELECT tp.id, c.id as classroomId, c.name as classroomName 
-         FROM "TeacherProfile" tp 
-         LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id 
-         WHERE tp.userId = ?`,
-        [m.userId],
-      );
+    const userIds = memberships.map((m) => m.userId);
 
-      const parents = await this.db.query(
-        `SELECT u.id, u.firstName, u.lastName 
-         FROM "ParentStudent" ps 
-         JOIN "User" u ON ps.parentId = u.id 
-         WHERE ps.studentId = ?`,
-        [m.userId],
-      );
+    const studentProfiles = await this.db.query<any>(
+      `SELECT sp.id, sp.userId, c.id as classroomId, c.name as classroomName 
+       FROM "StudentProfile" sp 
+       LEFT JOIN "Classroom" c ON sp.classroomId = c.id 
+       WHERE sp.userId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const studentProfileMap = new Map(
+      studentProfiles.map((p) => [p.userId, p]),
+    );
 
-      const children = await this.db.query(
-        `SELECT u.id, u.firstName, u.lastName 
-         FROM "ParentStudent" ps 
-         JOIN "User" u ON ps.studentId = u.id 
-         WHERE ps.parentId = ?`,
-        [m.userId],
-      );
+    const teacherProfiles = await this.db.query<any>(
+      `SELECT tp.id, tp.userId, c.id as classroomId, c.name as classroomName 
+       FROM "TeacherProfile" tp 
+       LEFT JOIN "Classroom" c ON tp.homeroomClassId = c.id 
+       WHERE tp.userId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const teacherProfileMap = new Map(
+      teacherProfiles.map((p) => [p.userId, p]),
+    );
 
-      result.push({
+    const parents = await this.db.query<any>(
+      `SELECT ps.studentId, u.id, u.firstName, u.lastName 
+       FROM "ParentStudent" ps 
+       JOIN "User" u ON ps.parentId = u.id 
+       WHERE ps.studentId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const parentMap = new Map<string, any[]>();
+    for (const p of parents) {
+      if (!parentMap.has(p.studentId)) {
+        parentMap.set(p.studentId, []);
+      }
+      parentMap
+        .get(p.studentId)!
+        .push({ id: p.id, name: `${p.firstName} ${p.lastName}` });
+    }
+
+    const children = await this.db.query<any>(
+      `SELECT ps.parentId, u.id, u.firstName, u.lastName 
+       FROM "ParentStudent" ps 
+       JOIN "User" u ON ps.studentId = u.id 
+       WHERE ps.parentId IN (${userIds.map(() => '?').join(',')})`,
+      userIds,
+    );
+    const childrenMap = new Map<string, any[]>();
+    for (const c of children) {
+      if (!childrenMap.has(c.parentId)) {
+        childrenMap.set(c.parentId, []);
+      }
+      childrenMap
+        .get(c.parentId)!
+        .push({ id: c.id, name: `${c.firstName} ${c.lastName}` });
+    }
+
+    const result = memberships.map((m) => {
+      const studentProfile = studentProfileMap.get(m.userId);
+      const teacherProfile = teacherProfileMap.get(m.userId);
+      const userParents = parentMap.get(m.userId) || [];
+      const userChildren = childrenMap.get(m.userId) || [];
+
+      return {
         id: m.userId,
         membershipId: m.id,
         email: m.email,
@@ -1023,20 +1318,15 @@ export class DeputyService {
         workloadPercentage: m.workloadPercentage,
         lastLogin: m.lastLogin,
         createdAt: m.userCreatedAt,
-        classroomName: (studentProfile as any)?.classroomName || null,
-        classroomId: (studentProfile as any)?.classroomId || null,
-        homeroomClassName: (teacherProfile as any)?.classroomName || null,
-        teacherProfileId: (teacherProfile as any)?.id || null,
-        parents: parents.map((p: any) => ({
-          id: p.id,
-          name: `${p.firstName} ${p.lastName}`,
-        })),
-        children: children.map((c: any) => ({
-          id: c.id,
-          name: `${c.firstName} ${c.lastName}`,
-        })),
-      });
-    }
+        classroomName: studentProfile?.classroomName || null,
+        classroomId: studentProfile?.classroomId || null,
+        homeroomClassName: teacherProfile?.classroomName || null,
+        teacherProfileId: teacherProfile?.id || null,
+        parents: userParents,
+        children: userChildren,
+      };
+    });
+
     return result;
   }
 
@@ -1062,7 +1352,7 @@ export class DeputyService {
         ? crypto.randomBytes(32).toString('hex')
         : null;
       const studentHashedToken = studentInvitationToken
-        ? await bcrypt.hash(studentInvitationToken, 10)
+        ? await bcrypt.hash(studentInvitationToken, 12)
         : null;
       const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
@@ -1110,7 +1400,7 @@ export class DeputyService {
           [parentData.email],
         );
         const parentInvitationToken = crypto.randomBytes(32).toString('hex');
-        const parentHashedToken = await bcrypt.hash(parentInvitationToken, 10);
+        const parentHashedToken = await bcrypt.hash(parentInvitationToken, 12);
 
         if (!parentUser) {
           const pId = crypto.randomUUID();
@@ -1182,7 +1472,10 @@ export class DeputyService {
             fullParentToken,
           )
           .catch((e) =>
-            console.error('Failed to send parent invitation email', e),
+            this.logger.error(
+              'Failed to send parent invitation email',
+              e as Error,
+            ),
           );
       }
 
@@ -1210,7 +1503,10 @@ export class DeputyService {
             `${studentId}.${studentInvitationToken}`,
           )
           .catch((e) =>
-            console.error('Failed to send student invitation email', e),
+            this.logger.error(
+              'Failed to send student invitation email',
+              e as Error,
+            ),
           );
       }
 
@@ -1238,7 +1534,7 @@ export class DeputyService {
     },
   ) {
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(invitationToken, 10);
+    const hashedToken = await bcrypt.hash(invitationToken, 12);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     return this.db.transaction(async (db) => {
@@ -1322,7 +1618,9 @@ export class DeputyService {
           `${user.firstName} ${user.lastName}`,
           fullToken,
         )
-        .catch((e) => console.error('Failed to send invitation email', e));
+        .catch((e) =>
+          this.logger.error('Failed to send invitation email', e as Error),
+        );
 
       await this.audit(actorId, 'CREATE_STAFF', 'User', user.id, {
         email: data.email,
@@ -1345,7 +1643,7 @@ export class DeputyService {
       throw new BadRequestException('User is already active or not pending');
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(invitationToken, 10);
+    const hashedToken = await bcrypt.hash(invitationToken, 12);
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     await this.db.execute(
@@ -1360,7 +1658,9 @@ export class DeputyService {
         `${(membership as any).firstName} ${(membership as any).lastName}`,
         fullToken,
       )
-      .catch((e) => console.error('Failed to resend invitation email', e));
+      .catch((e) =>
+        this.logger.error('Failed to resend invitation email', e as Error),
+      );
 
     await this.audit(actorId, 'RESEND_INVITATION', 'User', userId, {
       email: (membership as any).email,
@@ -1503,6 +1803,7 @@ export class DeputyService {
       lastName?: string;
       email?: string;
       workloadPercentage?: number;
+      classroomId?: string | null;
     },
   ) {
     const membership = await this.db.queryOne(
@@ -1512,11 +1813,42 @@ export class DeputyService {
     if (!membership)
       throw new NotFoundException('User is not a member of this school.');
 
+    const isStudent = (membership as any).role === 'STUDENT';
+    const oldStudentProfile = isStudent
+      ? await this.db.queryOne<{ classroomId: string | null }>(
+          'SELECT classroomId FROM "StudentProfile" WHERE userId = ?',
+          [userId],
+        )
+      : null;
+
+    // If a classroom assignment is requested, validate the classroom belongs
+    // to this school before we touch anything.
+    if (data.classroomId !== undefined && data.classroomId !== null) {
+      if (!isStudent) {
+        throw new BadRequestException(
+          'classroomId can only be set for users with role STUDENT.',
+        );
+      }
+      const classroom = await this.db.queryOne<{ schoolId: string }>(
+        'SELECT schoolId FROM "Classroom" WHERE id = ?',
+        [data.classroomId],
+      );
+      if (!classroom) {
+        throw new NotFoundException('Classroom not found.');
+      }
+      if (classroom.schoolId !== schoolId) {
+        throw new BadRequestException(
+          'Classroom belongs to a different school.',
+        );
+      }
+    }
+
     const oldValues = {
       firstName: (membership as any).firstName,
       lastName: (membership as any).lastName,
       email: (membership as any).email,
       workloadPercentage: (membership as any).workloadPercentage,
+      classroomId: oldStudentProfile?.classroomId ?? null,
     };
 
     const userFields = [];
@@ -1553,8 +1885,8 @@ export class DeputyService {
     }
 
     if (
-      (membership as any).role === 'STUDENT' &&
-      (data.firstName || data.lastName)
+      isStudent &&
+      (data.firstName || data.lastName || data.classroomId !== undefined)
     ) {
       const spFields = [];
       const spValues = [];
@@ -1565,6 +1897,10 @@ export class DeputyService {
       if (data.lastName) {
         spFields.push('lastName = ?');
         spValues.push(data.lastName);
+      }
+      if (data.classroomId !== undefined) {
+        spFields.push('classroomId = ?');
+        spValues.push(data.classroomId); // null is allowed (unassign)
       }
       await this.db.execute(
         `UPDATE "StudentProfile" SET ${spFields.join(', ')} WHERE userId = ?`,

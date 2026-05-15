@@ -700,3 +700,13 @@ export interface Notification {
   read: boolean;
   createdAt: Date;
 }
+
+export interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+  userId: string;
+  schoolId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

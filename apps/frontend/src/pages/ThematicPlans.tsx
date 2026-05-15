@@ -40,7 +40,7 @@ export default function ThematicPlans() {
             const data = await getThematicPlans();
             setPlans(data);
         } catch {
-            toast.error('Nepodařilo se načíst tematické plány');
+            toast.error(t('thematic_plans.load_error'));
         } finally {
             setLoading(false);
         }
@@ -61,17 +61,17 @@ export default function ThematicPlans() {
 
     const handleCreate = async () => {
         if (!form.title || !form.subjectTemplateId || !form.academicYearId || !form.gradeLevelId) {
-            toast.error('Vyplňte všechna pole');
+            toast.error(t('thematic_plans.fill_required'));
             return;
         }
         try {
             await createThematicPlan(form);
-            toast.success('Tematický plán vytvořen');
+            toast.success(t('thematic_plans.create_success'));
             setDialogOpen(false);
             setForm({ title: '', subjectTemplateId: '', academicYearId: '', gradeLevelId: '' });
             load();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -79,11 +79,11 @@ export default function ThematicPlans() {
         if (!deleteTarget) return;
         try {
             await deleteThematicPlan(deleteTarget.id);
-            toast.success('Smazáno');
+            toast.success(t('common.success'));
             setDeleteTarget(null);
             load();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -91,12 +91,12 @@ export default function ThematicPlans() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Tematické plány</h1>
-                    <p className="text-muted-foreground">Rozpis učiva po týdnech pro jednotlivé předměty a ročníky</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('thematic_plans.title')}</h1>
+                    <p className="text-muted-foreground">{t('thematic_plans.subtitle')}</p>
                 </div>
                 <Button onClick={() => setDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Nový plán
+                    {t('thematic_plans.new')}
                 </Button>
             </div>
 
@@ -108,7 +108,7 @@ export default function ThematicPlans() {
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        Zatím nejsou žádné tematické plány
+                        {t('thematic_plans.no_plans')}
                     </CardContent>
                 </Card>
             ) : (
@@ -133,7 +133,8 @@ export default function ThematicPlans() {
                                     </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    {plan.teacher?.firstName} {plan.teacher?.lastName} · {plan._count?.weeks ?? 0} týdnů
+                                    {plan.teacher?.firstName} {plan.teacher?.lastName} ·{' '}
+                                    {t('thematic_plans.weeks', { count: plan._count?.weeks ?? 0 })}
                                 </p>
                             </CardContent>
                         </Card>
@@ -144,7 +145,7 @@ export default function ThematicPlans() {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Nový tematický plán</DialogTitle>
+                        <DialogTitle>{t('thematic_plans.new')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
@@ -162,7 +163,7 @@ export default function ThematicPlans() {
                                 onValueChange={(v) => setForm((f) => ({ ...f, subjectTemplateId: v }))}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Vyberte předmět" />
+                                    <SelectValue placeholder={t('grading.subject')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {subjects.map((s: any) => (
@@ -181,7 +182,7 @@ export default function ThematicPlans() {
                                     onValueChange={(v) => setForm((f) => ({ ...f, academicYearId: v }))}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Rok" />
+                                        <SelectValue placeholder={t('common.date')} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {years.map((y: any) => (
@@ -193,7 +194,7 @@ export default function ThematicPlans() {
                                 </Select>
                             </div>
                             <div className="space-y-1">
-                                <Label>Ročník</Label>
+                                <Label>{t('common.grade_level')}</Label>
                                 <Select
                                     value={form.gradeLevelId}
                                     onValueChange={(v) => setForm((f) => ({ ...f, gradeLevelId: v }))}

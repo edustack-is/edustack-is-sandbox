@@ -499,6 +499,67 @@ export class MeasureDto {
   semesterId?: string;
 }
 
+export class CreateCommissionExamDto {
+  @ApiProperty()
+  @IsUUID()
+  studentId: string;
+
+  @ApiProperty()
+  @IsUUID()
+  subjectInstanceId: string;
+
+  @ApiProperty()
+  @IsUUID()
+  semesterId: string;
+
+  @ApiProperty({ example: '4' })
+  @IsString()
+  @IsNotEmpty()
+  originalGrade: string;
+
+  @ApiPropertyOptional({ example: '3' })
+  @IsOptional()
+  @IsString()
+  newGrade?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class UpdateCommissionExamDto {
+  @ApiPropertyOptional({ example: '3' })
+  @IsOptional()
+  @IsString()
+  newGrade?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class UpsertDeadlineDto {
+  @ApiProperty()
+  @IsUUID()
+  semesterId: string;
+
+  @ApiProperty({ example: '2024-06-30' })
+  @IsDateString()
+  deadline: string;
+}
+
+export class LockClassificationDto {
+  @ApiProperty()
+  @IsUUID()
+  semesterId: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  lock: boolean;
+}
+
 // ─── ATTENDANCE DTOs ────────────────────────────────────
 
 export class AttendanceRecordItemDto {
@@ -909,6 +970,48 @@ export class CreateClassroomDto {
   @Min(1)
   @Max(13)
   grade: number;
+}
+
+export class CreateStudentProfileDto {
+  @ApiProperty()
+  @IsUUID()
+  userId: string;
+
+  @ApiProperty({ example: 'Jan' })
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @ApiProperty({ example: 'Novák' })
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  classroomId?: string | null;
+}
+
+export class CreateTeacherProfileDto {
+  @ApiProperty()
+  @IsUUID()
+  userId: string;
+
+  @ApiPropertyOptional({ example: 'Mgr.' })
+  @IsOptional()
+  @IsString()
+  degree?: string | null;
+
+  @ApiPropertyOptional({ example: 'Matematika, Fyzika' })
+  @IsOptional()
+  @IsString()
+  approbation?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  homeroomClassId?: string | null;
 }
 
 export class CreateSubjectDto {

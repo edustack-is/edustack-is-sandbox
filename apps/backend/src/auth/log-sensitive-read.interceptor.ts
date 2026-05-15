@@ -2,6 +2,7 @@ import {
   CallHandler,
   ExecutionContext,
   Injectable,
+  Logger,
   NestInterceptor,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -12,6 +13,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class LogSensitiveReadInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(LogSensitiveReadInterceptor.name);
+
   constructor(
     private reflector: Reflector,
     private db: DatabaseService,
@@ -55,7 +58,7 @@ export class LogSensitiveReadInterceptor implements NestInterceptor {
               ],
             );
           } catch (e) {
-            console.error('Failed to log sensitive read', e);
+            this.logger.error('Failed to log sensitive read', e as Error);
           }
         }
       }),

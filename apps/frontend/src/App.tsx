@@ -30,6 +30,7 @@ import { AuditLog } from './pages/AuditLog';
 import { SystemAdminSchools } from './pages/SystemAdminSchools';
 import { SystemAdminUsers } from './pages/SystemAdminUsers';
 import { SystemAdminSettings } from './pages/SystemAdminSettings';
+import SystemAdminPrompts from './pages/SystemAdminPrompts';
 import { ActivateAccount } from './pages/ActivateAccount';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
@@ -41,7 +42,7 @@ import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { RoleThemeProvider } from './components/RoleThemeProvider';
 import Messages from './pages/Messages';
 import { TaskQueueProvider } from './context/TaskQueueContext';
-import { getInitStatus } from './api';
+import { BootScreen } from './components/BootScreen';
 import { Toaster } from 'sonner';
 
 const ProtectedRoute = () => {
@@ -90,17 +91,8 @@ const SystemAdminGuard = () => {
 function App() {
     const [initialized, setInitialized] = useState<boolean | null>(null);
 
-    useEffect(() => {
-        getInitStatus()
-            .then((res) => setInitialized(res.initialized))
-            .catch((err) => {
-                console.error('Failed to get init status', err);
-                setInitialized(false);
-            });
-    }, []);
-
     if (initialized === null) {
-        return <div className="flex items-center justify-center h-screen">Loading...</div>;
+        return <BootScreen onReady={setInitialized} />;
     }
 
     return (
@@ -150,6 +142,7 @@ function App() {
                                         <Route path="system/schools" element={<SystemAdminSchools />} />
                                         <Route path="system/users" element={<SystemAdminUsers />} />
                                         <Route path="system/settings" element={<SystemAdminSettings />} />
+                                        <Route path="system/prompts" element={<SystemAdminPrompts />} />
                                     </Route>
                                     <Route path="profile" element={<UserProfile />} />
                                 </Route>

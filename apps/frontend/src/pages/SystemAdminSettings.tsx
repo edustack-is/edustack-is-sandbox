@@ -76,6 +76,7 @@ interface AiSettings {
     gemini: ProviderConfig;
     openai: ProviderConfig;
     anthropic: ProviderConfig;
+    opencode: ProviderConfig;
     updatedAt: string | null;
 }
 
@@ -795,25 +796,32 @@ function KpiCard({
 
 function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; onSaved: () => void }) {
     const { t } = useTranslation();
-    const [keys, setKeys] = useState({ gemini: '', openai: '', anthropic: '' });
+    const [keys, setKeys] = useState({ gemini: '', openai: '', anthropic: '', opencode: '' });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
-    const handleSave = async () => {
-        if (!keys.gemini && !keys.openai && !keys.anthropic) {
+    const handleSave = async (keysToDelete: any = {}) => {
+        const payload = {
+            geminiApiKey: keys.gemini || undefined,
+            openAiApiKey: keys.openai || undefined,
+            anthropicApiKey: keys.anthropic || undefined,
+            opencodeApiKey: keys.opencode || undefined,
+            ...keysToDelete,
+        };
+
+        if (Object.values(payload).every((v) => v === undefined)) {
             setError(t('system_settings.fill_at_least_one'));
             return;
         }
+
         try {
             setSaving(true);
             setError('');
-            await updateAiSettings({
-                geminiApiKey: keys.gemini || undefined,
-                openAiApiKey: keys.openai || undefined,
-                anthropicApiKey: keys.anthropic || undefined,
-            });
-            setKeys({ gemini: '', openai: '', anthropic: '' });
+            await updateAiSettings(payload);
+            setKeys({ gemini: '', openai: '', anthropic: '', opencode: '' });
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
             onSaved();
@@ -824,8 +832,43 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
         }
     };
 
+    const handleDelete = async () => {
+        if (!confirmDelete) return;
+
+        const keysToDelete = {
+            geminiApiKey: confirmDelete === 'gemini' ? '' : undefined,
+            openAiApiKey: confirmDelete === 'openai' ? '' : undefined,
+            anthropicApiKey: confirmDelete === 'anthropic' ? '' : undefined,
+            opencodeApiKey: confirmDelete === 'opencode' ? '' : undefined,
+        };
+
+        try {
+            setDeleting(true);
+            await handleSave(keysToDelete);
+            toast.success(t('system_settings.provider_key_deleted', 'Klíč pro providera byl smazán'));
+        } catch (err) {
+            // handleSave already shows toast on error
+        } finally {
+            setDeleting(false);
+            setConfirmDelete(null);
+        }
+    };
+
     return (
         <Card className="h-full">
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(open) => !open && setConfirmDelete(null)}
+                title={t('system_settings.delete_key_confirm_title', 'Smazat API klíč')}
+                description={t(
+                    'system_settings.delete_key_confirm_desc',
+                    'Opravdu chcete smazat tento API klíč? Tato akce je nevratná.',
+                )}
+                confirmText={t('common.delete', 'Smazat')}
+                variant="destructive"
+                onConfirm={handleDelete}
+                loading={deleting}
+            />
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Key className="h-5 w-5 text-muted-foreground" />
@@ -853,6 +896,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         config={settings?.gemini}
                         value={keys.gemini}
                         onChange={(v: string) => setKeys((p) => ({ ...p, gemini: v }))}
+                        onDelete={() => setConfirmDelete('gemini')}
                         link="https://aistudio.google.com/app/apikey"
                     />
                     <ProviderInput
@@ -861,6 +905,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         config={settings?.openai}
                         value={keys.openai}
                         onChange={(v: string) => setKeys((p) => ({ ...p, openai: v }))}
+                        onDelete={() => setConfirmDelete('openai')}
                         link="https://platform.openai.com/api-keys"
                     />
                     <ProviderInput
@@ -869,11 +914,21 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
                         config={settings?.anthropic}
                         value={keys.anthropic}
                         onChange={(v: string) => setKeys((p) => ({ ...p, anthropic: v }))}
+                        onDelete={() => setConfirmDelete('anthropic')}
                         link="https://console.anthropic.com/settings/keys"
+                    />
+                    <ProviderInput
+                        label="OpenCode.ai"
+                        placeholder="sk-..."
+                        config={settings?.opencode}
+                        value={keys.opencode}
+                        onChange={(v: string) => setKeys((p) => ({ ...p, opencode: v }))}
+                        onDelete={() => setConfirmDelete('opencode')}
+                        link="https://opencode.ai/auth"
                     />
                 </div>
 
-                <Button onClick={handleSave} disabled={saving} className="w-full">
+                <Button onClick={() => handleSave()} disabled={saving} className="w-full">
                     {saving ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('system_settings.saving')}
@@ -893,7 +948,7 @@ function ApiKeySettings({ settings, onSaved }: { settings: AiSettings | null; on
     );
 }
 
-function ProviderInput({ label, placeholder, config, value, onChange, link }: any) {
+function ProviderInput({ label, placeholder, config, value, onChange, link, onDelete }: any) {
     const { t } = useTranslation();
     return (
         <div className="space-y-2">
@@ -909,9 +964,25 @@ function ProviderInput({ label, placeholder, config, value, onChange, link }: an
                         </Badge>
                     )}
                 </label>
-                <a href={link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline">
-                    {t('system_settings.get_key')} ↗
-                </a>
+                <div className="flex items-center gap-3">
+                    {config?.isConfigured && (
+                        <button
+                            onClick={onDelete}
+                            className="text-destructive/60 hover:text-destructive transition-colors"
+                            title={t('system_settings.delete_key', 'Smazat klíč')}
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+                    <a
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-blue-500 hover:underline"
+                    >
+                        {t('system_settings.get_key')} ↗
+                    </a>
+                </div>
             </div>
             <div className="relative">
                 <Input

@@ -1,0 +1,107 @@
+import { test, expect, request as playwrightRequest, APIRequestContext } from '@playwright/test';
+
+// ─── Test helpers ─────────────────────────────────────────────
+
+interface Creds {
+    email: string;
+    tenantToken: string;
+}
+
+async function buildTenantCreds(baseURL: string, role: 'TEACHER' | 'DEPUTY'): Promise<Creds> {
+    const api = await playwrightRequest.newContext({ baseURL });
+    const helperRes = await api.get('/api/auth/login-helper-users');
+    const users = (await helperRes.json()) as Array<{
+        email: string;
+        memberships: Array<{ role: string }>;
+    }>;
+    const target = users.find((u) => u.memberships.some((m) => m.role === role));
+    if (!target) throw new Error(`No ${role} user found in login-helper-users.`);
+
+    let loginRes;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        loginRes = await api.post('/api/auth/login', {
+            data: { email: target.email, password: 'Demo1234!' },
+        });
+        if (loginRes.ok()) break;
+        if (loginRes.status() === 429 && attempt < 2) {
+            await new Promise((r) => setTimeout(r, 15_000));
+            continue;
+        }
+        throw new Error(`Login failed: HTTP ${loginRes.status()} ${await loginRes.text()}`);
+    }
+    const globalToken = (await loginRes!.json()).access_token as string;
+
+    const schoolsRes = await api.get('/api/auth/schools', {
+        headers: { Authorization: `Bearer ${globalToken}` },
+    });
+    const schools = (await schoolsRes.json()) as Array<{
+        schoolId: string;
+        role: string;
+        school: { id: string };
+    }>;
+    const membership = schools.find((s) => s.role === role)!;
+    const schoolId = membership.schoolId ?? membership.school.id;
+
+    const selectRes = await api.post(`/api/auth/select-school/${schoolId}?role=${role}`, {
+        headers: { Authorization: `Bearer ${globalToken}` },
+    });
+    const tenantToken = (await selectRes.json()).access_token as string;
+    return { email: target.email, tenantToken };
+}
+
+function authed(token: string) {
+    return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+// ─── Tests ────────────────────────────────────────────────────
+
+const UNPROFESSIONAL_TEXT =
+    'Docela mu to jde, ale furt se baví se sousedem, nedává pozor a absolutně kašle na domácí úkoly.';
+
+test.describe('Worksheet 3: AI Polish — teacher rewrites a verbal evaluation', () => {
+    let teacherCreds: Creds;
+    let api: APIRequestContext;
+
+    test.beforeAll(async ({ baseURL }) => {
+        teacherCreds = await buildTenantCreds(baseURL ?? 'http://localhost:5173', 'TEACHER');
+        api = await playwrightRequest.newContext({ baseURL });
+    });
+
+    test('Kroky 1-4: polishing rude text returns a different, non-empty rewrite', async () => {
+        const res = await api.post('/api/grading/ai-polish', {
+            ...authed(teacherCreds.tenantToken),
+            data: {
+                text: UNPROFESSIONAL_TEXT,
+                studentName: 'Jan Novák',
+                subjectName: 'Matematika',
+            },
+        });
+        expect(res.ok(), `ai-polish HTTP ${res.status()}: ${await res.text()}`).toBeTruthy();
+
+        const body = (await res.json()) as { polishedText?: string; text?: string };
+        // Service returns { polishedText }, but be defensive about either key.
+        const polished = body.polishedText ?? body.text ?? '';
+
+        expect(polished.length, 'AI must return some rewritten text').toBeGreaterThan(0);
+        expect(polished, 'AI should not echo the input verbatim — it should rewrite it').not.toBe(UNPROFESSIONAL_TEXT);
+    });
+
+    test('endpoint rejects an empty text payload', async () => {
+        const res = await api.post('/api/grading/ai-polish', {
+            ...authed(teacherCreds.tenantToken),
+            data: { text: '' },
+        });
+        // 400 from ValidationPipe (PolishTextDto has @IsNotEmpty on text)
+        // is the expected behaviour; any 4xx is acceptable.
+        expect(res.status()).toBeGreaterThanOrEqual(400);
+        expect(res.status()).toBeLessThan(500);
+    });
+
+    test('endpoint rejects unauthenticated callers (regression: no @Public leak)', async ({ baseURL }) => {
+        const anonCtx = await playwrightRequest.newContext({ baseURL });
+        const res = await anonCtx.post('/api/grading/ai-polish', {
+            data: { text: UNPROFESSIONAL_TEXT },
+        });
+        expect(res.status()).toBe(401);
+    });
+});

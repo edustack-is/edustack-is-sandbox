@@ -1,5 +1,12 @@
 # Audit Log
 
+> ⚠️ **Historical doc.** Tasks below reference Prisma + migrations that no longer
+> exist — the data layer was migrated to a custom `DatabaseService`
+> (`apps/backend/src/database/`) backed by `better-sqlite3` locally and
+> Cloudflare D1 in production. Schema lives in
+> `apps/backend/src/database/schema.sql`. The historical task summaries are
+> kept for context but should not be used as a guide to the current code.
+
 ## Task 0.1: Struktura Monorepa a Git
 
 - **Popis**: Inicializace repozitáře, vytvoření adresářové struktury (apps/backend, apps/frontend, packages/shared).

@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AiService } from '../ai/ai.service';
 import {
   Grade,
   StudentProfile,
@@ -23,13 +23,10 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class GradingService {
-  private genAI: GoogleGenerativeAI;
-  private model: any;
-
-  constructor(private db: DatabaseService) {
-    this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
-  }
+  constructor(
+    private db: DatabaseService,
+    private aiService: AiService,
+  ) {}
 
   // ─── GRADE CRUD ─────────────────────────────────────────────
 
@@ -136,6 +133,53 @@ export class GradingService {
     return { classroom, students, subjects, grades };
   }
 
+  /**
+   * Compute the weighted average for a student in one subject (school-scoped).
+   * Only NUMERIC grades with a parseable numeric value contribute. Returns
+   * `{ average: null, count: 0 }` if no eligible grades exist.
+   */
+  async getWeightedAverage(
+    schoolId: string,
+    studentId: string,
+    subjectInstanceId: string,
+    semesterId?: string,
+  ): Promise<{ average: number | null; count: number }> {
+    const params: unknown[] = [schoolId, studentId, subjectInstanceId];
+    let sql =
+      'SELECT value, weight FROM "Grade" ' +
+      'WHERE schoolId = ? AND studentId = ? AND subjectInstanceId = ? ' +
+      "AND type = 'NUMERIC'";
+    if (semesterId) {
+      sql += ' AND semesterId = ?';
+      params.push(semesterId);
+    }
+    const rows = await this.db.query<{ value: string; weight: number }>(
+      sql,
+      params,
+    );
+
+    let weightedSum = 0;
+    let weightSum = 0;
+    let count = 0;
+    for (const row of rows) {
+      const numeric = parseFloat(row.value);
+      const weight = Number(row.weight) || 0;
+      if (Number.isFinite(numeric) && weight > 0) {
+        weightedSum += numeric * weight;
+        weightSum += weight;
+        count += 1;
+      }
+    }
+
+    if (weightSum === 0) {
+      return { average: null, count: 0 };
+    }
+    return {
+      average: Math.round((weightedSum / weightSum) * 100) / 100,
+      count,
+    };
+  }
+
   async getStudentGrades(
     schoolId: string,
     studentId: string,
@@ -229,9 +273,14 @@ export class GradingService {
   }
 
   async polishVerbalEvaluation(text: string) {
-    const prompt = `Vylepši slovní hodnocení žáka, aby bylo profesionální a povzbuzující: ${text}`;
-    const result = await this.model.generateContent(prompt);
-    return { polishedText: result.response.text().trim() };
+    const result = await this.aiService.refineText({
+      existingText: text,
+      context: 'Jsi učitel na základní škole.',
+      instruction:
+        'Vylepši toto slovní hodnocení žáka, aby bylo profesionální, povzbuzující a spisovné.',
+    });
+    // aiService.refineText returns { text: string }
+    return { polishedText: result.text };
   }
 
   async getGradingTypesForClassroom(classroomId: string) {

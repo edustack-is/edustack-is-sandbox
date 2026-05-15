@@ -135,25 +135,16 @@ export class SsoStrategyFactoryService implements OnModuleInit {
         break;
 
       case 'APPLE': {
-        const AppleStrategyModule = require('passport-appleid');
-        strategy = new AppleStrategyModule(
-          {
-            clientID: clientId,
-            teamID: keys['TEAM_ID'],
-            keyID: keys['KEY_ID'],
-            privateKeyString: clientSecret,
-            callbackURL: callbackURL,
-            scope: ['name', 'email'],
-          },
-          (
-            accessToken: string,
-            refreshToken: string,
-            idToken: string,
-            profile: any,
-            done: any,
-          ) => done(null, profile),
+        // passport-appleid 1.x is unmaintained and pulls in deprecated
+        // `request` + jsonwebtoken@8 (critical/high CVEs). Apple SSO was
+        // never wired through to the UI here, so we fail fast with a
+        // clear message until a maintained replacement is integrated
+        // (e.g. @nicokaiser/passport-apple).
+        throw new Error(
+          'Apple SSO is temporarily disabled: passport-appleid was dropped ' +
+            'for security reasons. Integrate a maintained Apple strategy ' +
+            '(e.g. @nicokaiser/passport-apple) before re-enabling.',
         );
-        break;
       }
 
       default:

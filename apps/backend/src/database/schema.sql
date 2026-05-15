@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "School" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
+    "name" TEXT NOT NULL UNIQUE,
     "address" TEXT,
     "contactEmail" TEXT,
     "allowStudentSelfRegistration" BOOLEAN NOT NULL DEFAULT false,
@@ -998,6 +998,19 @@ CREATE UNIQUE INDEX "EventRsvp_userId_eventId_key" ON "EventRsvp"("userId", "eve
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ClassBookEntry_schoolId_classroomId_date_lessonNumber_key" ON "ClassBookEntry"("schoolId", "classroomId", "date", "lessonNumber");
+
+-- CreateTable
+CREATE TABLE "Task" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "userId" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Task_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Task_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TeacherSignature_classBookEntryId_key" ON "TeacherSignature"("classBookEntryId");

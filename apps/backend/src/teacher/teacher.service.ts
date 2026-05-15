@@ -68,42 +68,59 @@ export class TeacherService {
 
     if (classroomIds.length === 0) return [];
 
-    const result = [];
-    for (const cid of classroomIds) {
-      const classroom = await this.db.queryOne(
-        'SELECT * FROM "Classroom" WHERE id = ?',
-        [cid],
-      );
-      if (!classroom) continue;
+    const placeholders = classroomIds.map(() => '?').join(',');
 
-      const students = await this.db.query(
-        'SELECT sp.*, u.firstName, u.lastName, u.email FROM "StudentProfile" sp JOIN "User" u ON sp.userId = u.id WHERE sp.classroomId = ?',
-        [cid],
-      );
+    const classrooms = await this.db.query<any>(
+      `SELECT * FROM "Classroom" WHERE id IN (${placeholders})`,
+      classroomIds,
+    );
+    const classroomById = new Map(classrooms.map((c) => [c.id, c]));
 
-      const events = await this.db.query(
-        'SELECT se.*, st.name as st_name FROM "ScheduleEvent" se JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id JOIN "SubjectTemplate" st ON si.templateId = st.id WHERE se.classroomId = ? AND se.teacherId = ?',
-        [cid, teacherProfile.id],
-      );
-
-      result.push({
-        ...classroom,
-        students: students.map((s: any) => ({
-          ...s,
-          user: {
-            id: s.userId,
-            firstName: s.firstName,
-            lastName: s.lastName,
-            email: s.email,
-          },
-        })),
-        scheduleEvents: events.map((e: any) => ({
-          ...e,
-          subject: { template: { name: e.st_name } },
-        })),
+    const allStudents = await this.db.query<any>(
+      `SELECT sp.*, u.firstName, u.lastName, u.email
+       FROM "StudentProfile" sp
+       JOIN "User" u ON sp.userId = u.id
+       WHERE sp.classroomId IN (${placeholders})`,
+      classroomIds,
+    );
+    const studentsByClass = new Map<string, any[]>();
+    for (const s of allStudents) {
+      const arr = studentsByClass.get(s.classroomId) ?? [];
+      arr.push({
+        ...s,
+        user: {
+          id: s.userId,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          email: s.email,
+        },
       });
+      studentsByClass.set(s.classroomId, arr);
     }
-    return result;
+
+    const allEvents = await this.db.query<any>(
+      `SELECT se.*, st.name as st_name
+       FROM "ScheduleEvent" se
+       JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+       JOIN "SubjectTemplate" st ON si.templateId = st.id
+       WHERE se.classroomId IN (${placeholders}) AND se.teacherId = ?`,
+      [...classroomIds, teacherProfile.id],
+    );
+    const eventsByClass = new Map<string, any[]>();
+    for (const e of allEvents) {
+      const arr = eventsByClass.get(e.classroomId) ?? [];
+      arr.push({ ...e, subject: { template: { name: e.st_name } } });
+      eventsByClass.set(e.classroomId, arr);
+    }
+
+    return classroomIds
+      .map((cid) => classroomById.get(cid))
+      .filter(Boolean)
+      .map((classroom: any) => ({
+        ...classroom,
+        students: studentsByClass.get(classroom.id) ?? [],
+        scheduleEvents: eventsByClass.get(classroom.id) ?? [],
+      }));
   }
 
   /**

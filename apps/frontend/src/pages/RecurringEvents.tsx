@@ -22,10 +22,18 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const DAY_LABELS = ['', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek'];
-
 export default function RecurringEvents() {
     const { t } = useTranslation();
+
+    const DAY_LABELS = [
+        '',
+        t('days.monday'),
+        t('days.tuesday'),
+        t('days.wednesday'),
+        t('days.thursday'),
+        t('days.friday'),
+    ];
+
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -49,7 +57,7 @@ export default function RecurringEvents() {
         try {
             setEvents(await getRecurringEvents());
         } catch {
-            toast.error('Nepodařilo se načíst kroužky');
+            toast.error(t('recurring_events.load_error'));
         } finally {
             setLoading(false);
         }
@@ -86,7 +94,7 @@ export default function RecurringEvents() {
 
     const handleSubmit = async () => {
         if (!form.title || !form.startTime || !form.endTime) {
-            toast.error('Vyplňte název a časy');
+            toast.error(t('recurring_events.fill_required'));
             return;
         }
         const payload = {
@@ -100,15 +108,15 @@ export default function RecurringEvents() {
         try {
             if (editing) {
                 await updateRecurringEvent(editing.id, payload);
-                toast.success('Kroužek aktualizován');
+                toast.success(t('recurring_events.update_success'));
             } else {
                 await createRecurringEvent(payload);
-                toast.success('Kroužek vytvořen');
+                toast.success(t('recurring_events.create_success'));
             }
             setDialogOpen(false);
             load();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -116,11 +124,11 @@ export default function RecurringEvents() {
         if (!deleteTarget) return;
         try {
             await deleteRecurringEvent(deleteTarget.id);
-            toast.success('Smazáno');
+            toast.success(t('common.success'));
             setDeleteTarget(null);
             load();
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Chyba');
+            toast.error(e.response?.data?.message || t('common.error'));
         }
     };
 
@@ -135,12 +143,12 @@ export default function RecurringEvents() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Kroužky a opakující se akce</h1>
-                    <p className="text-muted-foreground">Pravidelné mimoškolní aktivity a kroužky</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('recurring_events.title')}</h1>
+                    <p className="text-muted-foreground">{t('recurring_events.subtitle')}</p>
                 </div>
                 <Button onClick={openCreate}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Nový kroužek
+                    {t('recurring_events.new')}
                 </Button>
             </div>
 
@@ -152,7 +160,7 @@ export default function RecurringEvents() {
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        Zatím nejsou žádné kroužky
+                        {t('recurring_events.no_events')}
                     </CardContent>
                 </Card>
             ) : (
@@ -213,7 +221,7 @@ export default function RecurringEvents() {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{editing ? 'Upravit kroužek' : 'Nový kroužek'}</DialogTitle>
+                        <DialogTitle>{editing ? t('recurring_events.edit') : t('recurring_events.new')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1">
@@ -225,7 +233,7 @@ export default function RecurringEvents() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>Den</Label>
+                            <Label>{t('common.day')}</Label>
                             <Select
                                 value={form.dayOfWeek}
                                 onValueChange={(v) => setForm((f) => ({ ...f, dayOfWeek: v }))}
@@ -244,7 +252,7 @@ export default function RecurringEvents() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <Label>Od</Label>
+                                <Label>{t('recurring_events.from')}</Label>
                                 <Input
                                     type="time"
                                     value={form.startTime}
@@ -252,7 +260,7 @@ export default function RecurringEvents() {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <Label>Do</Label>
+                                <Label>{t('recurring_events.to')}</Label>
                                 <Input
                                     type="time"
                                     value={form.endTime}
@@ -261,7 +269,7 @@ export default function RecurringEvents() {
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <Label>Místnost (volitelné)</Label>
+                            <Label>{t('recurring_events.room_optional')}</Label>
                             <Select value={form.roomId} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v }))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder={t('common.select_room')} />
@@ -279,7 +287,7 @@ export default function RecurringEvents() {
                             </Select>
                         </div>
                         <div className="space-y-1">
-                            <Label>Vedoucí (volitelné)</Label>
+                            <Label>{t('recurring_events.leader_optional')}</Label>
                             <Select
                                 value={form.teacherId}
                                 onValueChange={(v) => setForm((f) => ({ ...f, teacherId: v }))}
@@ -302,9 +310,9 @@ export default function RecurringEvents() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleSubmit}>{editing ? 'Uložit' : 'Vytvořit'}</Button>
+                        <Button onClick={handleSubmit}>{editing ? t('common.save') : t('common.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -312,8 +320,8 @@ export default function RecurringEvents() {
             <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Smazat kroužek?</AlertDialogTitle>
-                        <AlertDialogDescription>Tato akce je nevratná.</AlertDialogDescription>
+                        <AlertDialogTitle>{t('common.delete_recurring_title')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('common.delete_recurring_confirm')}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
@@ -321,7 +329,7 @@ export default function RecurringEvents() {
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground"
                         >
-                            Smazat
+                            {t('common.delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

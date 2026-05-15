@@ -4,6 +4,7 @@ import { CryptoService } from '../utils/crypto.service';
 import { SecretType, SystemSecret } from '../database/types';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 import * as crypto from 'crypto';
+import { IsString, IsOptional, IsBoolean, MinLength } from 'class-validator';
 
 export interface SsoProviderSettings {
   clientId: string;
@@ -16,10 +17,24 @@ export interface SsoProviderSettings {
 export type SsoSettings = Record<string, SsoProviderSettings>;
 
 export class UpsertSsoDto {
+  @IsString()
+  @MinLength(1)
   clientId: string;
+
+  @IsString()
+  @IsOptional()
   clientSecret?: string;
+
+  @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
   teamId?: string;
+
+  @IsString()
+  @IsOptional()
   keyId?: string;
 }
 
@@ -90,19 +105,19 @@ export class SystemAdminSsoService {
 
     for (const item of secretsToUpsert) {
       await this.db.execute(
-        `INSERT INTO "SystemSecret" (id, type, service, "key", value, isActive, updatedAt)
+        `INSERT INTO "SystemSecret" ("id", "type", "service", "key", "value", "isActive", "updatedAt")
          VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(type, service, "key") DO UPDATE SET
-           value = excluded.value,
-           isActive = excluded.isActive,
-           updatedAt = excluded.updatedAt`,
+         ON CONFLICT("type", "service", "key") DO UPDATE SET
+           "value" = EXCLUDED."value",
+           "isActive" = EXCLUDED."isActive",
+           "updatedAt" = EXCLUDED."updatedAt"`,
         [
           crypto.randomUUID(),
           SecretType.SSO,
           provider,
           item.key,
           item.value,
-          isActive ?? true,
+          (isActive ?? true) ? 1 : 0,
           new Date().toISOString(),
         ],
       );
@@ -112,7 +127,7 @@ export class SystemAdminSsoService {
     if (isActive !== undefined) {
       await this.db.execute(
         'UPDATE "SystemSecret" SET isActive = ?, updatedAt = ? WHERE type = ? AND service = ?',
-        [isActive, new Date().toISOString(), SecretType.SSO, provider],
+        [isActive ? 1 : 0, new Date().toISOString(), SecretType.SSO, provider],
       );
     }
 

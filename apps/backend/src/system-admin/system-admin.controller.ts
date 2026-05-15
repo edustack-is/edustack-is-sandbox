@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsSystemAdminGuard } from './guards/is-system-admin.guard';
 import { SystemAdminService } from './system-admin.service';
 import { validateCreateSchoolDto } from './dto/create-school.dto';
+import { UpsertAiSettingsDto } from './dto/upsert-ai-settings.dto';
 import { SsoStrategyFactoryService } from '../auth/sso-strategy-factory.service';
 import {
   SystemAdminSsoService,
@@ -29,6 +30,7 @@ import {
 } from './system-admin-sso.service';
 import { SystemSettingsService } from './system-settings.service';
 import { SystemAdminAiService } from './system-admin-ai.service';
+import { SystemPromptsService } from './system-prompts.service';
 import { AiUsageResponseDto } from '../common/dto/response.dto';
 
 interface UserRequest extends Request {
@@ -46,7 +48,14 @@ export class SystemAdminController {
     private readonly ssoService: SystemAdminSsoService,
     private readonly settingsService: SystemSettingsService,
     private readonly aiService: SystemAdminAiService,
+    private readonly promptsService: SystemPromptsService,
   ) {}
+
+  @Get('prompts')
+  @ApiOperation({ summary: 'Seznam systémových AI promptů' })
+  getSystemPrompts() {
+    return this.promptsService.getPrompts();
+  }
 
   // ─── SSO SETTINGS ───────────────────────────────────────────────
 
@@ -81,29 +90,23 @@ export class SystemAdminController {
    * Upserts the Gemini API key (encrypted at rest).
    */
   @Put('settings/ai')
-  async updateAiSettings(
-    @Body()
-    body: {
-      geminiApiKey?: string;
-      openAiApiKey?: string;
-      anthropicApiKey?: string;
-    },
-  ) {
-    if (
-      (!body.geminiApiKey && !body.openAiApiKey && !body.anthropicApiKey) ||
-      (body.geminiApiKey && body.geminiApiKey.length < 10) ||
-      (body.openAiApiKey && body.openAiApiKey.length < 10) ||
-      (body.anthropicApiKey && body.anthropicApiKey.length < 10)
-    ) {
-      throw new BadRequestException(
-        'At least one valid API key (min 10 chars) is required.',
-      );
+  async updateAiSettings(@Body() body: UpsertAiSettingsDto) {
+    const providedKeys = [
+      body.geminiApiKey,
+      body.openAiApiKey,
+      body.anthropicApiKey,
+      body.opencodeApiKey,
+    ];
+
+    if (providedKeys.every((k) => k === undefined)) {
+      throw new BadRequestException('At least one API key must be provided.');
     }
 
     return this.aiService.upsertAiSettings({
       geminiApiKey: body.geminiApiKey?.trim(),
       openAiApiKey: body.openAiApiKey?.trim(),
       anthropicApiKey: body.anthropicApiKey?.trim(),
+      opencodeApiKey: body.opencodeApiKey?.trim(),
     });
   }
 

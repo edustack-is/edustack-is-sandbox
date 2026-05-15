@@ -42,6 +42,7 @@
     "better-sqlite3": "^12.8.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "cookie": "^0.6.0",
     "cookie-parser": "^1.4.7",
     "csv-parser": "^3.2.0",
     "helmet": "^8.1.0",
@@ -49,7 +50,6 @@
     "nestjs-cls": "^6.2.0",
     "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
-    "passport-appleid": "^1.0.5",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
@@ -57,7 +57,6 @@
     "pdf-parse": "^2.4.5",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "vite": "7.3.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -68,6 +67,7 @@
     "@nestjs/testing": "^11.0.1",
     "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/cookie": "^0.6.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/eventsource": "^1.1.15",
     "@types/express": "^5.0.0",
@@ -93,7 +93,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "vite": "^7.3.3"
   },
   "jest": {
     "moduleFileExtensions": [

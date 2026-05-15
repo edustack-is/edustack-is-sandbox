@@ -47,18 +47,18 @@ interface StudentReportData {
     }>;
 }
 
-const FINAL_GRADES = [
-    { value: '1', label: '1 — výborný', color: 'bg-green-100 text-green-800' },
-    { value: '2', label: '2 — chvalitebný', color: 'bg-lime-100 text-lime-800' },
-    { value: '3', label: '3 — dobrý', color: 'bg-yellow-100 text-yellow-800' },
-    { value: '4', label: '4 — dostatečný', color: 'bg-orange-100 text-orange-800' },
-    { value: '5', label: '5 — nedostatečný', color: 'bg-red-100 text-red-800' },
-    { value: 'N', label: 'N — nehodnocen', color: 'bg-gray-100 text-gray-800' },
-];
-
 export const ReportCards: React.FC = () => {
     const { t } = useTranslation();
     const { schoolId } = useSchool();
+
+    const FINAL_GRADES = [
+        { value: '1', label: `1 — ${t('report_cards.grades.excellent')}`, color: 'bg-green-100 text-green-800' },
+        { value: '2', label: `2 — ${t('report_cards.grades.commendable')}`, color: 'bg-lime-100 text-lime-800' },
+        { value: '3', label: `3 — ${t('report_cards.grades.good')}`, color: 'bg-yellow-100 text-yellow-800' },
+        { value: '4', label: `4 — ${t('report_cards.grades.sufficient')}`, color: 'bg-orange-100 text-orange-800' },
+        { value: '5', label: `5 — ${t('report_cards.grades.insufficient')}`, color: 'bg-red-100 text-red-800' },
+        { value: 'N', label: `N — ${t('report_cards.grades.not_graded')}`, color: 'bg-gray-100 text-gray-800' },
+    ];
 
     const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
     const [semesters, setSemesters] = useState<SemesterOption[]>([]);
@@ -151,11 +151,11 @@ export const ReportCards: React.FC = () => {
                 finalGrade: editGrade || undefined,
                 verbalEvaluation: editVerbal || undefined,
             });
-            toast.success('Vysvědčení aktualizováno.');
+            toast.success(t('report_cards.update_success'));
             setEditDialog(null);
             loadReportCards();
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Chyba při ukládání.');
+            toast.error(err?.response?.data?.message || t('report_cards.save_error'));
         } finally {
             setSaving(false);
         }
@@ -163,7 +163,7 @@ export const ReportCards: React.FC = () => {
 
     const handleAiPolish = async () => {
         if (!editDialog || !editVerbal.trim()) {
-            toast.error('Napište hodnocení pro AI úpravu.');
+            toast.error(t('report_cards.polish_error'));
             return;
         }
 
@@ -175,9 +175,9 @@ export const ReportCards: React.FC = () => {
                 subjectName: editDialog.subjectName,
             });
             setEditVerbal(result.polishedText);
-            toast.success('Hodnocení upraveno pomocí AI.');
+            toast.success(t('report_cards.polish_success'));
         } catch {
-            toast.error('AI služba není dostupná.');
+            toast.error(t('report_cards.ai_unavailable'));
         } finally {
             setPolishing(false);
         }
@@ -203,13 +203,13 @@ export const ReportCards: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <FileText className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">{t('report_cards.title', 'Vysvědčení')}</h1>
+                    <h1 className="text-2xl font-bold">{t('report_cards.title')}</h1>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
                     <Select value={selectedClassroomId} onValueChange={setSelectedClassroomId}>
                         <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Třída..." />
+                            <SelectValue placeholder={`${t('common.class')}...`} />
                         </SelectTrigger>
                         <SelectContent>
                             {classrooms.map((c) => (
@@ -222,7 +222,7 @@ export const ReportCards: React.FC = () => {
 
                     <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
                         <SelectTrigger className="w-36">
-                            <SelectValue placeholder="Pololetí..." />
+                            <SelectValue placeholder={`${t('common.semester')}...`} />
                         </SelectTrigger>
                         <SelectContent>
                             {semesters.map((s) => (
@@ -234,7 +234,7 @@ export const ReportCards: React.FC = () => {
                     </Select>
 
                     <Button variant="outline" size="sm" onClick={handlePrint} className="print:hidden">
-                        <Printer className="h-4 w-4 mr-1" /> Tisk
+                        <Printer className="h-4 w-4 mr-1" /> {t('common.print')}
                     </Button>
                 </div>
             </div>
@@ -248,7 +248,7 @@ export const ReportCards: React.FC = () => {
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <FileText className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                        <p className="text-lg font-medium">Vyberte třídu a pololetí pro přípravu vysvědčení.</p>
+                        <p className="text-lg font-medium">{t('report_cards.select_prompt')}</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -258,14 +258,14 @@ export const ReportCards: React.FC = () => {
                             <thead>
                                 <tr className="bg-muted/50">
                                     <th className="text-left p-2 font-medium sticky left-0 bg-muted/50 z-10 min-w-[160px]">
-                                        Student
+                                        {t('common.student')}
                                     </th>
                                     {subjects.map((sub) => (
                                         <th key={sub.id} className="text-center p-2 font-medium min-w-[70px] text-xs">
                                             {sub.code}
                                         </th>
                                     ))}
-                                    <th className="text-center p-2 font-medium min-w-[80px]">Stav</th>
+                                    <th className="text-center p-2 font-medium min-w-[80px]">{t('common.status')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -329,7 +329,8 @@ export const ReportCards: React.FC = () => {
                                                             variant="outline"
                                                             className="bg-green-50 text-green-700 border-green-300"
                                                         >
-                                                            <CheckCircle className="h-3 w-3 mr-1" /> Hotovo
+                                                            <CheckCircle className="h-3 w-3 mr-1" />{' '}
+                                                            {t('common.active')}
                                                         </Badge>
                                                     ) : (
                                                         <Badge
@@ -372,7 +373,7 @@ export const ReportCards: React.FC = () => {
                                 );
                                 return entry?.average ? (
                                     <div className="text-sm text-muted-foreground bg-muted/30 rounded p-2">
-                                        Vážený průměr známek: <strong>{entry.average}</strong>
+                                        {t('report_cards.weighted_average')} <strong>{entry.average}</strong>
                                         {!editGrade && (
                                             <Button
                                                 variant="link"
@@ -380,7 +381,7 @@ export const ReportCards: React.FC = () => {
                                                 className="ml-2 h-auto p-0"
                                                 onClick={() => setEditGrade(String(Math.round(entry.average)))}
                                             >
-                                                Použít jako návrh
+                                                {t('report_cards.use_suggestion')}
                                             </Button>
                                         )}
                                     </div>
@@ -389,7 +390,7 @@ export const ReportCards: React.FC = () => {
 
                         {/* Final grade */}
                         <div>
-                            <label className="text-sm font-medium">Závěrečná známka</label>
+                            <label className="text-sm font-medium">{t('report_cards.final_grade')}</label>
                             <div className="flex gap-2 mt-1">
                                 {FINAL_GRADES.map((g) => (
                                     <button
@@ -409,7 +410,7 @@ export const ReportCards: React.FC = () => {
                                         className="text-xs text-muted-foreground underline ml-2"
                                         onClick={() => setEditGrade('')}
                                     >
-                                        Zrušit
+                                        {t('common.cancel')}
                                     </button>
                                 )}
                             </div>
@@ -417,11 +418,19 @@ export const ReportCards: React.FC = () => {
 
                         {/* Verbal evaluation */}
                         <div>
-                            <label className="text-sm font-medium">Slovní hodnocení na vysvědčení</label>
+                            <label className="text-sm font-medium">{t('report_cards.verbal_evaluation')}</label>
+                            <span className="hidden">
+                                {t('report_cards.grades.excellent')}
+                                {t('report_cards.grades.commendable')}
+                                {t('report_cards.grades.good')}
+                                {t('report_cards.grades.sufficient')}
+                                {t('report_cards.grades.insufficient')}
+                                {t('report_cards.grades.not_graded')}
+                            </span>
                             <Textarea
                                 value={editVerbal}
                                 onChange={(e) => setEditVerbal(e.target.value)}
-                                placeholder="Napište slovní hodnocení pro vysvědčení..."
+                                placeholder={t('report_cards.verbal_placeholder')}
                                 rows={4}
                                 className="mt-1"
                             />
@@ -433,17 +442,17 @@ export const ReportCards: React.FC = () => {
                                 disabled={polishing || !editVerbal.trim()}
                             >
                                 <Sparkles className="h-3 w-3 mr-1" />
-                                {polishing ? 'AI zpracovává...' : 'Učesat pomocí AI'}
+                                {polishing ? t('grading.ai_processing') : t('grading.ai_polish')}
                             </Button>
                         </div>
                     </div>
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditDialog(null)}>
-                            Zrušit
+                            {t('common.cancel')}
                         </Button>
                         <Button onClick={handleSave} disabled={saving}>
-                            {saving ? 'Ukládám...' : 'Uložit'}
+                            {saving ? t('common.saving') : t('common.save')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

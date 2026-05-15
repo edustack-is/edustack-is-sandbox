@@ -28,67 +28,88 @@ export class MessagingService {
   // ─── CONVERSATIONS ──────────────────────────────────────
 
   async getConversations(userId: string, schoolId: string) {
-    const participations = await this.db.query(
-      `SELECT cp.*, c.subject, c.type, c.classroomId, c.updatedAt, 
-              (SELECT COUNT(*) FROM "Message" WHERE conversationId = c.id) as messageCount 
-       FROM "ConversationParticipant" cp 
-       JOIN "Conversation" c ON cp.conversationId = c.id 
-       WHERE cp.userId = ? AND c.schoolId = ? 
+    const participations = await this.db.query<any>(
+      `SELECT cp.*, c.subject, c.type, c.classroomId, c.updatedAt,
+              (SELECT COUNT(*) FROM "Message" WHERE conversationId = c.id) as messageCount
+       FROM "ConversationParticipant" cp
+       JOIN "Conversation" c ON cp.conversationId = c.id
+       WHERE cp.userId = ? AND c.schoolId = ?
        ORDER BY c.updatedAt DESC`,
       [userId, schoolId],
     );
+    if (participations.length === 0) return [];
 
-    const result = [];
-    for (const p of participations as any[]) {
-      const lastMessage = await this.db.queryOne(
-        `SELECT m.*, u.firstName, u.lastName, u.avatarUrl 
-         FROM "Message" m 
-         JOIN "User" u ON m.senderId = u.id 
-         WHERE m.conversationId = ? 
-         ORDER BY m.createdAt DESC LIMIT 1`,
-        [p.conversationId],
-      );
+    const conversationIds = participations.map((p) => p.conversationId);
+    const placeholders = conversationIds.map(() => '?').join(',');
 
-      const participants = await this.db.query(
-        `SELECT u.id, u.firstName, u.lastName, u.avatarUrl 
-         FROM "ConversationParticipant" cp 
-         JOIN "User" u ON cp.userId = u.id 
-         WHERE cp.conversationId = ?`,
-        [p.conversationId],
-      );
+    // Last message per conversation. SQLite supports the row-grouped pattern
+    // via a correlated subquery; this is one query for all conversations.
+    const lastMessages = await this.db.query<any>(
+      `SELECT m.*, u.firstName, u.lastName, u.avatarUrl
+       FROM "Message" m
+       JOIN "User" u ON m.senderId = u.id
+       WHERE m.conversationId IN (${placeholders})
+         AND m.id = (
+           SELECT id FROM "Message" m2
+           WHERE m2.conversationId = m.conversationId
+           ORDER BY m2.createdAt DESC LIMIT 1
+         )`,
+      conversationIds,
+    );
+    const lastMessageMap = new Map<string, any>();
+    for (const m of lastMessages) lastMessageMap.set(m.conversationId, m);
 
+    const participants = await this.db.query<any>(
+      `SELECT cp.conversationId, u.id, u.firstName, u.lastName, u.avatarUrl
+       FROM "ConversationParticipant" cp
+       JOIN "User" u ON cp.userId = u.id
+       WHERE cp.conversationId IN (${placeholders})`,
+      conversationIds,
+    );
+    const participantsByConv = new Map<string, any[]>();
+    for (const row of participants) {
+      const arr = participantsByConv.get(row.conversationId) ?? [];
+      arr.push({
+        id: row.id,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        avatarUrl: row.avatarUrl,
+      });
+      participantsByConv.set(row.conversationId, arr);
+    }
+
+    return participations.map((p) => {
+      const lastMessage = lastMessageMap.get(p.conversationId) ?? null;
       const unread =
         lastMessage &&
         (!p.lastReadAt ||
-          new Date((lastMessage as any).createdAt) > new Date(p.lastReadAt))
+          new Date(lastMessage.createdAt) > new Date(p.lastReadAt))
           ? 1
           : 0;
-
-      result.push({
+      return {
         id: p.conversationId,
         subject: p.subject,
         type: p.type,
         classroomId: p.classroomId,
-        participants,
+        participants: participantsByConv.get(p.conversationId) ?? [],
         lastMessage: lastMessage
           ? {
-              id: (lastMessage as any).id,
-              content: (lastMessage as any).content.substring(0, 100),
+              id: lastMessage.id,
+              content: (lastMessage.content as string).substring(0, 100),
               sender: {
-                id: (lastMessage as any).senderId,
-                firstName: (lastMessage as any).firstName,
-                lastName: (lastMessage as any).lastName,
-                avatarUrl: (lastMessage as any).avatarUrl,
+                id: lastMessage.senderId,
+                firstName: lastMessage.firstName,
+                lastName: lastMessage.lastName,
+                avatarUrl: lastMessage.avatarUrl,
               },
-              createdAt: (lastMessage as any).createdAt,
+              createdAt: lastMessage.createdAt,
             }
           : null,
         unreadCount: unread,
         totalMessages: p.messageCount,
         updatedAt: p.updatedAt,
-      });
-    }
-    return result;
+      };
+    });
   }
 
   async getMessages(
@@ -272,23 +293,19 @@ export class MessagingService {
     user2: string,
     schoolId: string,
   ) {
-    const convs = await this.db.query(
-      `SELECT c.id FROM "Conversation" c 
-       JOIN "ConversationParticipant" cp1 ON c.id = cp1.conversationId AND cp1.userId = ? 
-       JOIN "ConversationParticipant" cp2 ON c.id = cp2.conversationId AND cp2.userId = ? 
-       WHERE c.type = 'DIRECT' AND c.schoolId = ?`,
+    // Find a DIRECT conversation that has exactly the two given users as
+    // its only participants. Single query: join on candidate conversations
+    // and filter by participant count == 2.
+    const direct = await this.db.queryOne<{ id: string }>(
+      `SELECT c.id FROM "Conversation" c
+       JOIN "ConversationParticipant" cp1 ON c.id = cp1.conversationId AND cp1.userId = ?
+       JOIN "ConversationParticipant" cp2 ON c.id = cp2.conversationId AND cp2.userId = ?
+       WHERE c.type = 'DIRECT' AND c.schoolId = ?
+         AND (SELECT COUNT(*) FROM "ConversationParticipant" WHERE conversationId = c.id) = 2
+       LIMIT 1`,
       [user1, user2, schoolId],
     );
-
-    // Verify they are the ONLY two participants
-    for (const c of convs as any[]) {
-      const count = await this.db.queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM "ConversationParticipant" WHERE conversationId = ?',
-        [c.id],
-      );
-      if (count?.count === 2) return c;
-    }
-    return null;
+    return direct;
   }
 
   async getAvailableRecipients(userId: string, schoolId: string) {

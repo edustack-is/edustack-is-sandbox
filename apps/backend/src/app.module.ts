@@ -77,9 +77,20 @@ import { DatabaseModule } from './database/database.module';
   controllers: [AppController],
   providers: [
     AppService,
+    // Global guards. Order matters: throttle first (cheap rejects),
+    // then JwtAuthGuard (sets req.user, honours @Public), then RolesGuard
+    // (reads req.user, no-ops without @Roles).
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
     {
       provide: APP_INTERCEPTOR,

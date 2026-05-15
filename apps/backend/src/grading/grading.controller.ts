@@ -26,12 +26,16 @@ import { GradingService } from './grading.service';
 import {
   BehaviorGradeDto,
   CompetencyGradeDto,
+  CreateCommissionExamDto,
   CreateGradeDto,
   GradeResponseDto,
+  LockClassificationDto,
   MeasureDto,
   PolishTextDto,
   SuccessResponseDto,
+  UpdateCommissionExamDto,
   UpdateGradeDto,
+  UpsertDeadlineDto,
   UpsertReportCardDto,
 } from '../common/dto/api.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
@@ -78,7 +82,7 @@ export class GradingController {
   @ApiOperation({ summary: 'Vytvoření známky' })
   @ApiResponse({ status: 201, type: GradeResponseDto })
   @ApiBody({ type: CreateGradeDto })
-  async createGrade(@Req() req: any, @Body() body: any) {
+  async createGrade(@Req() req: any, @Body() body: CreateGradeDto) {
     this.ensureTenant(req);
     return this.gradingService.createGrade(
       req.user.userId,
@@ -95,7 +99,7 @@ export class GradingController {
   async updateGrade(
     @Req() req: any,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateGradeDto,
   ) {
     this.ensureTenant(req);
     return this.gradingService.updateGrade(
@@ -176,9 +180,15 @@ export class GradingController {
     @Req() req: any,
     @Param('studentId') studentId: string,
     @Param('subjectInstanceId') subjectInstanceId: string,
+    @Query('semesterId') semesterId?: string,
   ) {
     this.ensureTenant(req);
-    return { average: 0 };
+    return this.gradingService.getWeightedAverage(
+      req.user.schoolId,
+      studentId,
+      subjectInstanceId,
+      semesterId,
+    );
   }
 
   // ─── REPORT CARDS ───────────────────────────────────────────
@@ -205,7 +215,7 @@ export class GradingController {
   @ApiOperation({ summary: 'Uložení/aktualizace vysvědčení' })
   @ApiResponse({ status: 200, type: ReportCardResponseDto })
   @ApiBody({ type: UpsertReportCardDto })
-  async upsertReportCard(@Req() req: any, @Body() body: any) {
+  async upsertReportCard(@Req() req: any, @Body() body: UpsertReportCardDto) {
     this.ensureTenant(req);
     return this.gradingService.upsertReportCard(req.user.schoolId, body);
   }
@@ -217,10 +227,7 @@ export class GradingController {
   @ApiOperation({ summary: 'AI vylepšení slovního hodnocení' })
   @ApiResponse({ status: 200, type: AiTextResponseDto })
   @ApiBody({ type: PolishTextDto })
-  async polishVerbalEvaluation(
-    @Req() req: any,
-    @Body() body: { text: string },
-  ) {
+  async polishVerbalEvaluation(@Req() req: any, @Body() body: PolishTextDto) {
     this.ensureTenant(req);
     return this.gradingService.polishVerbalEvaluation(body.text);
   }
@@ -245,7 +252,7 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN, UserRole.TEACHER)
   @ApiOperation({ summary: 'Hodnocení chování' })
   @ApiBody({ type: BehaviorGradeDto })
-  async upsertBehaviorGrade(@Req() req: any, @Body() body: any) {
+  async upsertBehaviorGrade(@Req() req: any, @Body() body: BehaviorGradeDto) {
     this.ensureTenant(req);
     return this.gradingService.upsertBehaviorGrade(req.user.schoolId, body);
   }
@@ -273,7 +280,10 @@ export class GradingController {
   @ApiOperation({ summary: 'Hodnocení kompetence' })
   @ApiResponse({ status: 200, type: CompetencyGradeResponseDto })
   @ApiBody({ type: CompetencyGradeDto })
-  async upsertCompetencyGrade(@Req() req: any, @Body() body: any) {
+  async upsertCompetencyGrade(
+    @Req() req: any,
+    @Body() body: CompetencyGradeDto,
+  ) {
     this.ensureTenant(req);
     return this.gradingService.upsertCompetencyGrade(
       req.user.schoolId,
@@ -311,7 +321,7 @@ export class GradingController {
   @ApiOperation({ summary: 'Výchovné opatření (pochvala/důtka)' })
   @ApiResponse({ status: 201, type: MeasureResponseDto })
   @ApiBody({ type: MeasureDto })
-  async createMeasure(@Req() req: any, @Body() body: any) {
+  async createMeasure(@Req() req: any, @Body() body: MeasureDto) {
     this.ensureTenant(req);
     return this.gradingService.createMeasure(
       req.user.schoolId,
@@ -393,7 +403,10 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   @ApiOperation({ summary: 'Vytvoření komisionálního přezkoušení' })
   @ApiResponse({ status: 201, type: CommissionExamResponseDto })
-  async createCommissionExam(@Req() req: any, @Body() body: any) {
+  async createCommissionExam(
+    @Req() req: any,
+    @Body() body: CreateCommissionExamDto,
+  ) {
     this.ensureTenant(req);
     return this.gradingService.createCommissionExam(req.user.schoolId, body);
   }
@@ -421,7 +434,7 @@ export class GradingController {
   async updateCommissionExam(
     @Req() req: any,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateCommissionExamDto,
   ) {
     this.ensureTenant(req);
     return this.gradingService.updateCommissionExam(
@@ -451,7 +464,7 @@ export class GradingController {
 
   @Put('deadline')
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
-  async upsertDeadline(@Req() req: any, @Body() body: any) {
+  async upsertDeadline(@Req() req: any, @Body() body: UpsertDeadlineDto) {
     this.ensureTenant(req);
     return this.gradingService.upsertDeadline(req.user.schoolId, body);
   }
@@ -460,7 +473,7 @@ export class GradingController {
   @Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
   async lockClassification(
     @Req() req: any,
-    @Body() body: { semesterId: string; lock: boolean },
+    @Body() body: LockClassificationDto,
   ) {
     this.ensureTenant(req);
     return this.gradingService.lockClassification(

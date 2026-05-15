@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { CryptoService } from '../utils/crypto.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UserRole, UserStatus } from '../database/types';
@@ -127,12 +128,35 @@ const COMPETENCIES = [
   { code: 'KC6', name: 'Kompetence pracovní', area: 'Obecné' },
 ];
 
+const ADDRESS_STREETS = [
+  'Školní',
+  'U Stadionu',
+  'Lipová',
+  'Nádražní',
+  'Hlavní',
+  'Zahradní',
+  'Krátká',
+  'Polní',
+];
+const ADDRESS_CITIES = [
+  'Praha',
+  'Brno',
+  'Ostrava',
+  'Plzeň',
+  'Liberec',
+  'Olomouc',
+  'České Budějovice',
+  'Hradec Králové',
+];
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
+
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
 function removeDiacritics(s: string): string {
   return s
     .normalize('NFD')
@@ -163,35 +187,150 @@ export interface GenerateConfig {
 export class TestDataService {
   private readonly logger = new Logger(TestDataService.name);
 
-  constructor(private db: DatabaseService) {}
+  constructor(
+    private db: DatabaseService,
+    private cryptoService: CryptoService,
+  ) {}
 
   async generateAll(config: GenerateConfig): Promise<any> {
+    let attempt = 0;
+    const maxAttempts = 5;
+    let lastError: any = null;
+
+    while (attempt < maxAttempts) {
+      try {
+        return await this.generateAllInternal(config);
+      } catch (err: any) {
+        attempt++;
+        lastError = err;
+        if (
+          err.message?.includes('UNIQUE constraint failed') &&
+          attempt < maxAttempts
+        ) {
+          this.logger.warn(
+            `Unique constraint hit (attempt ${attempt}/${maxAttempts}): ${err.message}. Retrying with different random values...`,
+          );
+          // Small delay before retry
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          continue;
+        }
+        break;
+      }
+    }
+
+    this.logger.error(
+      `Data generation failed after ${maxAttempts} attempts: ${lastError?.message}`,
+    );
+    throw new BadRequestException(
+      `Generátor selhal kvůli kolizi unikátních dat (již existující záznam). Zkuste to prosím znovu. Poslední chyba: ${lastError?.message}`,
+    );
+  }
+
+  private async generateAllInternal(config: GenerateConfig): Promise<any> {
     this.logger.log(
-      `Generating comprehensive test data for ${config.schoolName}`,
+      `Generating complete coverage test data for ${config.schoolName} (internal run)`,
     );
 
     const demoPassword = process.env.DEMO_PASSWORD || 'Demo1234!';
-    const passwordHash = await bcrypt.hash(demoPassword, 10);
+    const passwordHash = await bcrypt.hash(demoPassword, 12);
     const now = new Date().toISOString();
 
-    let school = await this.db.queryOne(
-      'SELECT * FROM "School" WHERE name = ?',
+    // 0. GLOBAL CONFIG & SYSTEM SETTINGS
+    await this.db.execute(
+      'INSERT OR IGNORE INTO "SystemSettings" (id, updatedAt) VALUES (?, ?)',
+      ['global', now],
+    );
+    await this.db.execute(
+      'INSERT OR IGNORE INTO "GlobalConfig" (key, value, updatedAt) VALUES (?, ?, ?)',
+      ['system_initialized', 'true', now],
+    );
+
+    // Add some system secrets (MUST BE ENCRYPTED)
+    await this.db.execute(
+      'INSERT OR IGNORE INTO "SystemSecret" (id, type, service, key, value, isActive, updatedAt) VALUES (?, ?, ?, ?, ?, 1, ?)',
+      [
+        crypto.randomUUID(),
+        'SSO',
+        'google',
+        'client_id',
+        this.cryptoService.encrypt('demo-google-id'),
+        now,
+      ],
+    );
+    await this.db.execute(
+      'INSERT OR IGNORE INTO "SystemSecret" (id, type, service, key, value, isActive, updatedAt) VALUES (?, ?, ?, ?, ?, 1, ?)',
+      [
+        crypto.randomUUID(),
+        'AI',
+        'google',
+        'API_KEY',
+        this.cryptoService.encrypt('demo-gemini-key'),
+        now,
+      ],
+    );
+
+    // 1. SCHOOL
+    // Search for all schools with this name to handle potential legacy duplicates
+    const existingSchools = await this.db.query(
+      'SELECT * FROM "School" WHERE name = ? AND deletedAt IS NULL',
       [config.schoolName],
     );
-    if (school) {
-      await this.wipeSchoolData((school as any).id);
-    } else {
-      const id = crypto.randomUUID();
+
+    const schoolAddress = `${pick(ADDRESS_STREETS)} ${randInt(
+      1,
+      250,
+    )}, ${randInt(100, 799)} 00 ${pick(ADDRESS_CITIES)}`;
+
+    let schoolId: string;
+
+    if (existingSchools.length > 0) {
+      // Use the first one found as the primary
+      const primarySchool = existingSchools[0] as any;
+      schoolId = primarySchool.id;
+
+      // Wipe and update address for the primary (preserve school entry)
+      await this.wipeSchoolData(schoolId, false);
       await this.db.execute(
-        'INSERT INTO "School" (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-        [id, config.schoolName, now, now],
+        'UPDATE "School" SET address = ?, updatedAt = ? WHERE id = ?',
+        [schoolAddress, now, schoolId],
       );
-      school = await this.db.queryOne('SELECT * FROM "School" WHERE id = ?', [
-        id,
-      ]);
+
+      // If there were other duplicates, delete them completely
+      if (existingSchools.length > 1) {
+        for (let i = 1; i < existingSchools.length; i++) {
+          const dup = existingSchools[i] as any;
+          await this.wipeSchoolData(dup.id, true);
+        }
+      }
+    } else {
+      // Fresh start
+      schoolId = crypto.randomUUID();
+      try {
+        await this.db.execute(
+          'INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+          [schoolId, config.schoolName, schoolAddress, now, now],
+        );
+      } catch (e: any) {
+        if (e.message?.includes('UNIQUE constraint failed: School.name')) {
+          const uniqueName = `${config.schoolName} (${randInt(10, 99)})`;
+          await this.db.execute(
+            'INSERT INTO "School" (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+            [schoolId, uniqueName, schoolAddress, now, now],
+          );
+        } else {
+          throw e;
+        }
+      }
     }
-    const schoolId = (school as any).id;
-    const schoolDomain = `${removeDiacritics(config.schoolName).replace(/\s+/g, '')}.demo.test`;
+
+    const school = await this.db.queryOne(
+      'SELECT * FROM "School" WHERE id = ?',
+      [schoolId],
+    );
+    const domainBase = removeDiacritics((school as any).name)
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    const schoolDomain = `${domainBase}.${schoolId.slice(0, 8)}.demo.test`;
 
     const stats = {
       academicYear: 1,
@@ -216,6 +355,17 @@ export class TestDataService {
       thematicPlans: 0,
       lessonPreparations: 0,
       materials: 0,
+      identities: 0,
+      notifications: 0,
+      workloads: 0,
+      signatures: 0,
+      tokenUsage: 0,
+      competencyGrades: 0,
+      classificationDeadlines: 0,
+      commissionExams: 0,
+      pollVotes: 0,
+      eventRsvps: 0,
+      messageAttachments: 0,
     };
 
     // 1. INFRASTRUCTURE
@@ -255,6 +405,12 @@ export class TestDataService {
       roomIds.push(roomId);
     }
 
+    // Room Sharing entry
+    await this.db.execute(
+      'INSERT INTO "RoomSharing" (id, roomId, sharedWithSchoolId, createdAt) VALUES (?, ?, ?, ?)',
+      [crypto.randomUUID(), roomIds[0], crypto.randomUUID(), now],
+    );
+
     // 2. ACADEMIC SETUP
     const ayId = crypto.randomUUID();
     await this.db.execute(
@@ -265,13 +421,20 @@ export class TestDataService {
     const s1Id = crypto.randomUUID();
     const s2Id = crypto.randomUUID();
     await this.db.execute(
-      'INSERT INTO "Semester" (id, number, name, startDate, endDate, academicYearId, createdAt, updatedAt) VALUES (?, 1, "1. pololetí", "2025-09-01", "2026-01-31", ?, ?, ?)',
-      [s1Id, ayId, now, now],
+      'INSERT INTO "Semester" (id, number, name, startDate, endDate, academicYearId, createdAt, updatedAt) VALUES (?, 1, ?, ?, ?, ?, ?, ?)',
+      [s1Id, '1. pololetí', '2025-09-01', '2026-01-31', ayId, now, now],
     );
     await this.db.execute(
-      'INSERT INTO "Semester" (id, number, name, startDate, endDate, academicYearId, createdAt, updatedAt) VALUES (?, 2, "2. pololetí", "2026-02-01", "2026-06-30", ?, ?, ?)',
-      [s2Id, ayId, now, now],
+      'INSERT INTO "Semester" (id, number, name, startDate, endDate, academicYearId, createdAt, updatedAt) VALUES (?, 2, ?, ?, ?, ?, ?, ?)',
+      [s2Id, '2. pololetí', '2026-02-01', '2026-06-30', ayId, now, now],
     );
+
+    // Classification Deadline
+    await this.db.execute(
+      'INSERT INTO "ClassificationDeadline" (id, deadline, semesterId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [crypto.randomUUID(), '2026-01-20', s1Id, schoolId, now, now],
+    );
+    stats.classificationDeadlines++;
 
     const START_TIMES = [
       '08:00',
@@ -402,15 +565,37 @@ export class TestDataService {
         [uid, r.email, r.first, r.last, passwordHash, now],
       );
       await this.db.execute(
-        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, "ACTIVE", ?)',
-        [crypto.randomUUID(), uid, schoolId, r.role, now],
+        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), uid, schoolId, r.role, 'ACTIVE', now],
       );
       leadershipUserIds.push(uid);
+
+      // Add Identity for staff
+      await this.db.execute(
+        'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), 'google', `google-staff-${uid}`, uid, now],
+      );
+      stats.identities++;
+
+      // Add Notification
+      await this.db.execute(
+        'INSERT INTO "Notification" (id, userId, type, title, body, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          uid,
+          'SYSTEM',
+          'Vítejte v systému',
+          'Váš účet byl úspěšně nastaven.',
+          now,
+        ],
+      );
+      stats.notifications++;
     }
 
     const teacherProfileIds: string[] = [];
     const teacherUserIds: string[] = [];
-    const teacherCount = config.teacherCount || 15;
+    const teacherProfileToUserMap = new Map<string, string>();
+    const teacherCount = config.teacherCount ?? 15;
     for (let i = 0; i < teacherCount; i++) {
       const isFemale = Math.random() > 0.5;
       const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
@@ -443,8 +628,36 @@ export class TestDataService {
         'INSERT INTO "StaffWorkload" (id, userId, academicYearId, versionLabel, teachingLoad, adminLoad, validFrom, createdAt, updatedAt) VALUES (?, ?, ?, ?, 0.8, 0.2, ?, ?, ?)',
         [crypto.randomUUID(), uid, ayId, 'Základní', '2025-09-01', now, now],
       );
+
+      // Teacher Workload table
+      await this.db.execute(
+        'INSERT INTO "TeacherWorkload" (id, teacherId, academicYearId, workloadPercentage, createdAt, updatedAt) VALUES (?, ?, ?, 100, ?, ?)',
+        [crypto.randomUUID(), uid, ayId, now, now],
+      );
+      stats.workloads++;
+
+      // Staff Subject Assignment
+      const workloadId = (
+        (await this.db.queryOne(
+          'SELECT id FROM "StaffWorkload" WHERE userId = ?',
+          [uid],
+        )) as any
+      ).id;
+      await this.db.execute(
+        'INSERT INTO "StaffSubjectAssignment" (id, staffWorkloadId, subjectTemplateId, gradeLevelIds, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          crypto.randomUUID(),
+          workloadId,
+          pick(templateIds),
+          JSON.stringify([pick(Array.from(gradeLevelMap.values()))]),
+          now,
+          now,
+        ],
+      );
+
       teacherProfileIds.push(pid);
       teacherUserIds.push(uid);
+      teacherProfileToUserMap.set(pid, uid);
       stats.teachers++;
     }
 
@@ -470,7 +683,7 @@ export class TestDataService {
       }
     }
 
-    const studentCount = config.studentCount || 100;
+    const studentCount = config.studentCount ?? 100;
     const parentUserIds: string[] = [];
     const studentUserIds: string[] = [];
     const studentProfileIds: string[] = [];
@@ -516,6 +729,16 @@ export class TestDataService {
           now,
         ],
       );
+
+      // Add Identity for student
+      if (i < 10) {
+        await this.db.execute(
+          'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
+          [crypto.randomUUID(), 'microsoft', `ms-student-${uid}`, uid, now],
+        );
+        stats.identities++;
+      }
+
       studentUserIds.push(uid);
       studentProfileIds.push(pid);
       stats.students++;
@@ -527,7 +750,7 @@ export class TestDataService {
         'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
         [
           pUid,
-          `parent${i}@external.test`,
+          `parent${i}@par.${schoolDomain}`,
           pick(MALE_FIRST),
           parentName,
           passwordHash,
@@ -535,8 +758,8 @@ export class TestDataService {
         ],
       );
       await this.db.execute(
-        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, "ACTIVE", ?)',
-        [crypto.randomUUID(), pUid, schoolId, UserRole.PARENT, now],
+        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), pUid, schoolId, UserRole.PARENT, 'ACTIVE', now],
       );
       await this.db.execute(
         'INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)',
@@ -544,6 +767,25 @@ export class TestDataService {
       );
       parentUserIds.push(pUid);
       stats.parents++;
+
+      // Absence Excuse
+      if (i < 5) {
+        await this.db.execute(
+          'INSERT INTO "AbsenceExcuse" (id, reason, dateFrom, dateTo, status, parentId, studentId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            'Nevolnost',
+            '2026-05-10',
+            '2026-05-12',
+            'PENDING',
+            pUid,
+            pid,
+            schoolId,
+            now,
+          ],
+        );
+        stats.excuses++;
+      }
     }
 
     // 6. SCHEDULE & LESSON DATA
@@ -584,7 +826,7 @@ export class TestDataService {
             const tPid = pick(teacherProfileIds);
             const eventId = crypto.randomUUID();
             await this.db.execute(
-              'INSERT INTO "ScheduleEvent" (id, dayOfWeek, lessonNumber, startTime, endTime, schoolId, subjectInstanceId, classroomId, teacherId, roomId, academicYearId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT OR IGNORE INTO "ScheduleEvent" (id, dayOfWeek, lessonNumber, startTime, endTime, schoolId, subjectInstanceId, classroomId, teacherId, roomId, academicYearId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
               [
                 eventId,
                 d,
@@ -609,8 +851,9 @@ export class TestDataService {
               date.setDate(new Date().getDate() - offset);
               if ((date.getDay() || 7) === d) {
                 const entryId = crypto.randomUUID();
+                const tUid = teacherProfileToUserMap.get(tPid)!;
                 await this.db.execute(
-                  'INSERT INTO "ClassBookEntry" (id, date, lessonNumber, topic, schoolId, classroomId, teacherId, scheduleEventId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  'INSERT OR IGNORE INTO "ClassBookEntry" (id, date, lessonNumber, topic, schoolId, classroomId, teacherId, scheduleEventId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                   [
                     entryId,
                     date.toISOString().split('T')[0],
@@ -618,12 +861,19 @@ export class TestDataService {
                     pick(['Opakování', 'Nová látka', 'Procvičování']),
                     schoolId,
                     cls.id,
-                    tPid,
+                    tUid,
                     eventId,
                     now,
                     now,
                   ],
                 );
+
+                // Teacher Signature
+                await this.db.execute(
+                  'INSERT INTO "TeacherSignature" (id, classBookEntryId, teacherId, signedAt) VALUES (?, ?, ?, ?)',
+                  [crypto.randomUUID(), entryId, tUid, now],
+                );
+                stats.signatures++;
 
                 if (config.generateAttendance !== false) {
                   const studentsInCls = await this.db.query(
@@ -633,7 +883,7 @@ export class TestDataService {
                   for (const st of studentsInCls as any[]) {
                     const isAbsent = Math.random() < 0.05;
                     await this.db.execute(
-                      'INSERT INTO "Attendance" (id, date, status, lessonNumber, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                      'INSERT OR IGNORE INTO "Attendance" (id, date, status, lessonNumber, schoolId, studentId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                       [
                         crypto.randomUUID(),
                         date.toISOString().split('T')[0],
@@ -652,10 +902,11 @@ export class TestDataService {
                       config.generateGrades !== false &&
                       Math.random() < 0.15
                     ) {
+                      const gradeId = crypto.randomUUID();
                       await this.db.execute(
                         'INSERT INTO "Grade" (id, value, weight, description, date, schoolId, studentId, subjectInstanceId, teacherId, academicYearId, semesterId, createdAt) VALUES (?, ?, 1.0, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [
-                          crypto.randomUUID(),
+                          gradeId,
                           String(randInt(1, 3)),
                           pick(GRADE_DESCRIPTIONS),
                           date.toISOString().split('T')[0],
@@ -669,6 +920,45 @@ export class TestDataService {
                         ],
                       );
                       stats.grades++;
+
+                      // Add Competency Grade
+                      await this.db.execute(
+                        'INSERT OR IGNORE INTO "CompetencyGrade" (id, level, note, studentId, competencyId, subjectInstanceId, semesterId, schoolId, teacherId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [
+                          crypto.randomUUID(),
+                          randInt(1, 4),
+                          'Dobrá práce',
+                          st.id,
+                          pick(competencyIds),
+                          siId,
+                          s1Id,
+                          schoolId,
+                          tPid,
+                          now,
+                        ],
+                      );
+                      stats.competencyGrades++;
+
+                      // Commission Exam entry
+                      if (Math.random() < 0.01) {
+                        await this.db.execute(
+                          'INSERT INTO "CommissionExam" (id, date, originalGrade, newGrade, note, studentId, subjectInstanceId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                          [
+                            crypto.randomUUID(),
+                            now,
+                            '5',
+                            '3',
+                            'Opravná zkouška',
+                            st.id,
+                            siId,
+                            s1Id,
+                            schoolId,
+                            now,
+                            now,
+                          ],
+                        );
+                        stats.commissionExams++;
+                      }
                     }
                   }
                 }
@@ -691,17 +981,18 @@ export class TestDataService {
           [
             crypto.randomUUID(),
             'Verze 1.0',
-            JSON.stringify({}),
+            JSON.stringify({ events: [] }),
             schoolId,
             ayId,
             now,
           ],
         );
         await this.db.execute(
-          'INSERT INTO "ScheduleSubstitution" (id, date, type, originalEventId, createdById, schoolId, createdAt, updatedAt) VALUES (?, ?, "TEACHER_CHANGE", ?, ?, ?, ?, ?)',
+          'INSERT INTO "ScheduleSubstitution" (id, date, type, originalEventId, createdById, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [
             crypto.randomUUID(),
             now,
+            'TEACHER_CHANGE',
             someEvent.id,
             leadershipUserIds[0],
             schoolId,
@@ -731,10 +1022,11 @@ export class TestDataService {
     if (config.generateCommunity !== false) {
       const headmasterUid = leadershipUserIds[0];
       for (let i = 1; i <= 4; i++) {
+        const bulletinId = crypto.randomUUID();
         await this.db.execute(
           'INSERT INTO "BulletinPost" (id, title, content, pinned, authorId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [
-            crypto.randomUUID(),
+            bulletinId,
             `Důležité oznámení #${i}`,
             'Informace pro všechny uživatele školy.',
             i === 1 ? 1 : 0,
@@ -748,10 +1040,11 @@ export class TestDataService {
 
         const evDate = new Date();
         evDate.setDate(evDate.getDate() + i * 7);
+        const eventId = crypto.randomUUID();
         await this.db.execute(
           'INSERT INTO "SchoolEvent" (id, title, description, date, type, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [
-            crypto.randomUUID(),
+            eventId,
             `Školní akce #${i}`,
             'Popis události a program.',
             evDate.toISOString(),
@@ -762,6 +1055,29 @@ export class TestDataService {
           ],
         );
         stats.calendarEvents++;
+
+        // Also add CalendarEvent (they are separate tables in this schema)
+        const calEventId = crypto.randomUUID();
+        await this.db.execute(
+          'INSERT INTO "CalendarEvent" (id, title, description, startDate, authorId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            calEventId,
+            `Kalendářová událost #${i}`,
+            'Detail v kalendáři',
+            evDate.toISOString(),
+            headmasterUid,
+            schoolId,
+            now,
+            now,
+          ],
+        );
+
+        // Event RSVP
+        await this.db.execute(
+          'INSERT INTO "EventRsvp" (id, userId, eventId, status, createdAt) VALUES (?, ?, ?, ?, ?)',
+          [crypto.randomUUID(), teacherUserIds[0], calEventId, 'ACCEPTED', now],
+        );
+        stats.eventRsvps++;
       }
 
       const pollId = crypto.randomUUID();
@@ -776,10 +1092,17 @@ export class TestDataService {
         ],
       );
       for (const opt of ['Červen', 'Září']) {
+        const optionId = crypto.randomUUID();
         await this.db.execute(
           'INSERT INTO "PollOption" (id, text, pollId) VALUES (?, ?, ?)',
-          [crypto.randomUUID(), opt, pollId],
+          [optionId, opt, pollId],
         );
+        // Poll Vote
+        await this.db.execute(
+          'INSERT INTO "PollVote" (id, userId, optionId, createdAt) VALUES (?, ?, ?, ?)',
+          [crypto.randomUUID(), teacherUserIds[0], optionId, now],
+        );
+        stats.pollVotes++;
       }
       stats.polls = 1;
     }
@@ -787,8 +1110,8 @@ export class TestDataService {
     if (config.generateCommunication !== false) {
       const cId = crypto.randomUUID();
       await this.db.execute(
-        'INSERT INTO "Conversation" (id, subject, schoolId, createdAt, updatedAt) VALUES (?, "Dotaz na učivo", ?, ?, ?)',
-        [cId, schoolId, now, now],
+        'INSERT INTO "Conversation" (id, subject, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+        [cId, 'Dotaz na učivo', schoolId, now, now],
       );
       await this.db.execute(
         'INSERT INTO "ConversationParticipant" (id, conversationId, userId, createdAt) VALUES (?, ?, ?, ?)',
@@ -799,10 +1122,11 @@ export class TestDataService {
         [crypto.randomUUID(), cId, parentUserIds[0], now],
       );
       for (let j = 0; j < 3; j++) {
+        const msgId = crypto.randomUUID();
         await this.db.execute(
           'INSERT INTO "Message" (id, conversationId, senderId, content, createdAt) VALUES (?, ?, ?, ?, ?)',
           [
-            crypto.randomUUID(),
+            msgId,
             cId,
             j % 2 === 0 ? parentUserIds[0] : teacherUserIds[0],
             pick(MESSAGE_CONTENTS),
@@ -810,6 +1134,23 @@ export class TestDataService {
           ],
         );
         stats.messages++;
+
+        // Message Attachment
+        if (j === 0) {
+          await this.db.execute(
+            'INSERT INTO "MessageAttachment" (id, messageId, fileName, mimeType, fileSize, filePath, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              msgId,
+              'dokument.pdf',
+              'application/pdf',
+              1024,
+              '/path',
+              now,
+            ],
+          );
+          stats.messageAttachments++;
+        }
       }
       stats.conversations = 1;
     }
@@ -871,7 +1212,7 @@ export class TestDataService {
     );
     stats.materials = 1;
 
-    // 10. REPORT CARDS & MEASURES & AUDIT
+    // 10. REPORT CARDS & MEASURES & AUDIT & USAGE
     if (config.generateReportCards !== false) {
       const someStudentPid = studentProfileIds[0];
       const someSiId = (
@@ -882,9 +1223,10 @@ export class TestDataService {
       )[0]?.id;
       if (someSiId) {
         await this.db.execute(
-          'INSERT INTO "ReportCard" (id, finalGrade, studentId, subjectInstanceId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, "1", ?, ?, ?, ?, ?, ?)',
+          'INSERT OR IGNORE INTO "ReportCard" (id, finalGrade, studentId, subjectInstanceId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           [
             crypto.randomUUID(),
+            '1',
             someStudentPid,
             someSiId,
             s1Id,
@@ -896,15 +1238,17 @@ export class TestDataService {
         stats.reportCards = 1;
       }
       await this.db.execute(
-        'INSERT INTO "BehaviorGrade" (id, grade, studentId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, 1, ?, ?, ?, ?, ?)',
+        'INSERT OR IGNORE INTO "BehaviorGrade" (id, grade, studentId, semesterId, schoolId, createdAt, updatedAt) VALUES (?, 1, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), someStudentPid, s1Id, schoolId, now, now],
       );
       stats.behaviorGrades = 1;
 
       await this.db.execute(
-        'INSERT INTO "EducationalMeasure" (id, type, reason, studentId, issuedById, schoolId, createdAt) VALUES (?, "PRAISE", "Za vzornou reprezentaci školy", ?, ?, ?, ?)',
+        'INSERT INTO "EducationalMeasure" (id, type, reason, studentId, issuedById, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
           crypto.randomUUID(),
+          'PRAISE',
+          'Za vzornou reprezentaci školy',
           someStudentPid,
           leadershipUserIds[0] || teacherUserIds[0],
           schoolId,
@@ -912,6 +1256,21 @@ export class TestDataService {
         ],
       );
     }
+
+    // AI Token Usage
+    await this.db.execute(
+      'INSERT INTO "AiTokenUsage" (id, userId, schoolId, provider, modelName, inputTokens, outputTokens, totalTokens, promptType, createdAt) VALUES (?, ?, ?, ?, ?, 100, 200, 300, ?, ?)',
+      [
+        crypto.randomUUID(),
+        leadershipUserIds[0],
+        schoolId,
+        'google',
+        'gemini-pro',
+        'CHAT',
+        now,
+      ],
+    );
+    stats.tokenUsage++;
 
     await this.db.execute(
       'INSERT INTO "AuditLog" (id, actorId, action, entity, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
@@ -936,15 +1295,140 @@ export class TestDataService {
     };
   }
 
-  async wipeSchoolData(schoolId: string) {
+  async wipeSchoolData(schoolId: string, deleteSchoolRecord = true) {
     this.logger.warn(`Wiping data for school ${schoolId}`);
-    const tables = [
+
+    // Get school domain for fallback user cleanup
+    const school = await this.db.queryOne(
+      'SELECT name FROM "School" WHERE id = ?',
+      [schoolId],
+    );
+    const schoolName = (school as any)?.name || '';
+    const domainBase = removeDiacritics(schoolName)
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    const schoolDomain = schoolName
+      ? `${domainBase}.${schoolId.slice(0, 8)}.demo.test`
+      : 'none';
+
+    await this.db.execute('PRAGMA foreign_keys = OFF');
+
+    // 1. Delete from tables that are linked indirectly (MUST DO THIS FIRST while SchoolMembership still exists)
+    const indirectDeletions = [
+      {
+        table: 'Notification',
+        sql: 'DELETE FROM "Notification" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'MessageAttachment',
+        sql: 'DELETE FROM "MessageAttachment" WHERE messageId IN (SELECT m.id FROM "Message" m JOIN "Conversation" c ON m.conversationId = c.id WHERE c.schoolId = ?)',
+      },
+      {
+        table: 'Message',
+        sql: 'DELETE FROM "Message" WHERE conversationId IN (SELECT id FROM "Conversation" WHERE schoolId = ?)',
+      },
+      {
+        table: 'ConversationParticipant',
+        sql: 'DELETE FROM "ConversationParticipant" WHERE conversationId IN (SELECT id FROM "Conversation" WHERE schoolId = ?)',
+      },
+      {
+        table: 'TeacherSignature',
+        sql: 'DELETE FROM "TeacherSignature" WHERE teacherId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'PollVote',
+        sql: 'DELETE FROM "PollVote" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'PollOption',
+        sql: 'DELETE FROM "PollOption" WHERE pollId IN (SELECT id FROM "Poll" WHERE schoolId = ?)',
+      },
+      {
+        table: 'EventRsvp',
+        sql: 'DELETE FROM "EventRsvp" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'CurriculumEntry',
+        sql: 'DELETE FROM "CurriculumEntry" WHERE curriculumVersionId IN (SELECT id FROM "CurriculumVersion" WHERE schoolId = ?)',
+      },
+      {
+        table: 'StaffSubjectAssignment',
+        sql: 'DELETE FROM "StaffSubjectAssignment" WHERE staffWorkloadId IN (SELECT sw.id FROM "StaffWorkload" sw JOIN "AcademicYear" ay ON sw.academicYearId = ay.id WHERE ay.schoolId = ?)',
+      },
+      {
+        table: 'StaffWorkload',
+        sql: 'DELETE FROM "StaffWorkload" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'TeacherWorkload',
+        sql: 'DELETE FROM "TeacherWorkload" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'StudentEnrollment',
+        sql: 'DELETE FROM "StudentEnrollment" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'Semester',
+        sql: 'DELETE FROM "Semester" WHERE academicYearId IN (SELECT id FROM "AcademicYear" WHERE schoolId = ?)',
+      },
+      {
+        table: 'ParentStudent',
+        sql: 'DELETE FROM "ParentStudent" WHERE studentId IN (SELECT sp.id FROM "StudentProfile" sp JOIN "User" u ON sp.userId = u.id JOIN "SchoolMembership" sm ON u.id = sm.userId WHERE sm.schoolId = ?)',
+      },
+      {
+        table: 'TeacherProfile',
+        sql: 'DELETE FROM "TeacherProfile" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'StudentProfile',
+        sql: 'DELETE FROM "StudentProfile" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'Identity',
+        sql: 'DELETE FROM "Identity" WHERE userId IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?)',
+      },
+      {
+        table: 'RoomSharing',
+        sql: 'DELETE FROM "RoomSharing" WHERE roomId IN (SELECT id FROM "Room" WHERE schoolId = ?) OR sharedWithSchoolId = ?',
+      },
+      {
+        table: 'ThematicPlanWeek',
+        sql: 'DELETE FROM "ThematicPlanWeek" WHERE planId IN (SELECT id FROM "ThematicPlan" WHERE schoolId = ?)',
+      },
+      {
+        table: 'CompetencyMapping',
+        sql: 'DELETE FROM "CompetencyMapping" WHERE competencyId IN (SELECT id FROM "RvpCompetency" WHERE schoolId = ?)',
+      },
+    ];
+
+    for (const d of indirectDeletions) {
+      try {
+        const params =
+          d.table === 'RoomSharing' ? [schoolId, schoolId] : [schoolId];
+        await this.db.execute(d.sql, params);
+      } catch (e) {
+        this.logger.warn(
+          `Failed to wipe indirect table ${d.table}: ${e.message}`,
+        );
+      }
+    }
+
+    // 2. Delete non-admin users that belong to this school
+    await this.db.execute(
+      'DELETE FROM "User" WHERE (id IN (SELECT userId FROM "SchoolMembership" WHERE schoolId = ?) OR email LIKE ?) AND isSystemAdmin = 0',
+      [schoolId, `%@${schoolDomain}`],
+    );
+
+    // Also clean up by potential subdomains
+    await this.db.execute(
+      'DELETE FROM "User" WHERE (email LIKE ? OR email LIKE ?) AND isSystemAdmin = 0',
+      [`%@st.${schoolDomain}`, `%@par.${schoolDomain}`],
+    );
+
+    // 3. Delete from tables that have a direct schoolId column
+    const directTables = [
       'AuditLog',
       'AiTokenUsage',
-      'Notification',
-      'MessageAttachment',
-      'Message',
-      'ConversationParticipant',
       'Conversation',
       'Grade',
       'ReportCard',
@@ -953,14 +1437,10 @@ export class TestDataService {
       'EducationalMeasure',
       'CommissionExam',
       'ClassificationDeadline',
-      'TeacherSignature',
       'ClassBookEntry',
       'Attendance',
       'AbsenceExcuse',
-      'EventRsvp',
       'CalendarEvent',
-      'PollVote',
-      'PollOption',
       'Poll',
       'BulletinPost',
       'RecurringEvent',
@@ -968,37 +1448,38 @@ export class TestDataService {
       'ScheduleSubstitution',
       'ScheduleEvent',
       'LessonTimeSlot',
-      'CurriculumEntry',
       'CurriculumVersion',
       'SubjectInstance',
       'SubjectTemplate',
-      'StaffSubjectAssignment',
-      'StaffWorkload',
-      'TeacherWorkload',
-      'StudentEnrollment',
-      'Semester',
       'AcademicYear',
-      'ParentStudent',
-      'TeacherProfile',
-      'StudentProfile',
-      'Identity',
-      'SchoolMembership',
-      'RoomSharing',
       'Room',
       'Building',
       'Classroom',
       'GradeLevel',
+      'RvpCompetency',
+      'ThematicPlan',
+      'LessonPreparation',
+      'TeachingMaterial',
+      'SchoolEvent',
+      'SchoolMembership', // Must be last among these
     ];
-    await this.db.execute('PRAGMA foreign_keys = OFF');
-    for (const t of tables) {
+
+    for (const t of directTables) {
       try {
         await this.db.execute(`DELETE FROM "${t}" WHERE "schoolId" = ?`, [
           schoolId,
         ]);
-      } catch (e) {}
+      } catch (e) {
+        this.logger.warn(`Failed to wipe direct table ${t}: ${e.message}`);
+      }
     }
-    await this.db.execute('DELETE FROM "School" WHERE id = ?', [schoolId]);
+
+    if (deleteSchoolRecord) {
+      await this.db.execute('DELETE FROM "School" WHERE id = ?', [schoolId]);
+    }
+
     await this.db.execute('PRAGMA foreign_keys = ON');
+    return { deletedSchool: schoolName };
   }
 
   async wipeAllData() {
@@ -1054,14 +1535,41 @@ export class TestDataService {
       'Classroom',
       'GradeLevel',
       'School',
+      'ThematicPlanWeek',
+      'ThematicPlan',
+      'LessonPreparation',
+      'TeachingMaterial',
+      'SchoolEvent',
+      'RvpCompetency',
+      'CompetencyMapping',
     ];
     await this.db.execute('PRAGMA foreign_keys = OFF');
+    let deletedSchools = 0;
+    let deletedUsers = 0;
+
+    const schoolCount = await this.db.queryOne<{ count: number }>(
+      'SELECT count(*) as count FROM "School"',
+    );
+    deletedSchools = schoolCount?.count || 0;
+
+    const userCount = await this.db.queryOne<{ count: number }>(
+      'SELECT count(*) as count FROM "User" WHERE isSystemAdmin = 0',
+    );
+    deletedUsers = userCount?.count || 0;
+
     for (const t of tables) {
       try {
         await this.db.execute(`DELETE FROM "${t}"`);
-      } catch (e) {}
+      } catch (e) {
+        this.logger.error(`Wipe all failed for table ${t}: ${e.message}`);
+      }
     }
     await this.db.execute('DELETE FROM "User" WHERE isSystemAdmin = 0');
     await this.db.execute('PRAGMA foreign_keys = ON');
+
+    return {
+      deletedSchools,
+      deletedUsers,
+    };
   }
 }

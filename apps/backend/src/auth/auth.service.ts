@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -35,6 +36,8 @@ export interface LoginHelperUser {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private db: DatabaseService,
     private jwtService: JwtService,
@@ -126,7 +129,7 @@ export class AuthService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(token, 10);
+    const hashedToken = await bcrypt.hash(token, 12);
     const expires = new Date();
     expires.setHours(expires.getHours() + 48);
 
@@ -186,7 +189,7 @@ export class AuthService {
     }
 
     validatePasswordStrength(password);
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const updatedUser = await this.db.transaction(async (db) => {
       await db.execute(
@@ -505,7 +508,7 @@ export class AuthService {
       }
 
       if (!actorId && !success) {
-        console.warn(
+        this.logger.warn(
           `Failed login attempt for unknown user: ${email} from ${ip}`,
         );
         return;
@@ -528,7 +531,7 @@ export class AuthService {
         );
       }
     } catch (e) {
-      console.error('Failed to log login attempt', e);
+      this.logger.error('Failed to log login attempt', e as Error);
     }
   }
 
@@ -644,7 +647,7 @@ export class AuthService {
     }
 
     validatePasswordStrength(newPass);
-    const newHash = await bcrypt.hash(newPass, 10);
+    const newHash = await bcrypt.hash(newPass, 12);
 
     await this.db.execute('UPDATE "User" SET passwordHash = ? WHERE id = ?', [
       newHash,
@@ -709,7 +712,7 @@ export class AuthService {
     if (!user) return { message: 'ok' };
 
     const token = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(token, 10);
+    const hashedToken = await bcrypt.hash(token, 12);
     const expires = new Date();
     expires.setHours(expires.getHours() + 1);
 
@@ -728,7 +731,7 @@ export class AuthService {
         fullToken,
       );
     } catch (e) {
-      console.error('Failed to send password reset email', e);
+      this.logger.error('Failed to send password reset email', e as Error);
     }
 
     return { message: 'ok' };
@@ -758,7 +761,7 @@ export class AuthService {
     if (!isMatch) throw new BadRequestException('Invalid reset link');
 
     validatePasswordStrength(newPassword);
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await this.db.execute(
       'UPDATE "User" SET passwordHash = ?, passwordResetToken = NULL, passwordResetExpires = NULL, failedLoginAttempts = 0, lockedUntil = NULL WHERE id = ?',
@@ -785,45 +788,85 @@ export class AuthService {
       .split(',')
       .map((r) => r.trim().toUpperCase());
 
-    const users = await this.db.query<User>(
-      'SELECT id, email, firstName, lastName, isSystemAdmin FROM "User" WHERE deletedAt IS NULL LIMIT 100',
+    // 1. Get system admins
+    const sysAdmins = await this.db.query<User>(
+      'SELECT email, firstName, lastName FROM "User" WHERE isSystemAdmin = 1 AND deletedAt IS NULL LIMIT 5',
     );
 
     const helperUsers: LoginHelperUser[] = [];
+    const seenEmails = new Set<string>();
 
-    for (const user of users) {
-      const dbMemberships = await this.db.query<{
-        schoolName: string;
-        role: string;
-      }>(
-        `SELECT s.name as schoolName, m.role 
-         FROM "SchoolMembership" m 
-         JOIN "School" s ON m.schoolId = s.id 
-         WHERE m.userId = ?`,
-        [user.id],
-      );
+    for (const user of sysAdmins) {
+      helperUsers.push({
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        memberships: [{ schoolName: 'System', role: 'SYSTEM_ADMIN' }],
+      });
+      seenEmails.add(user.email);
+    }
 
-      const filteredMemberships = dbMemberships.filter((m) =>
-        allowedRoles.includes(m.role.toUpperCase()),
-      );
+    // 2. Get representatives from all schools
+    // We want a good mix of roles per school to demonstrate functionality.
+    const representatives = await this.db.query<any>(
+      `SELECT u.email, u.firstName, u.lastName, m.role, s.name as schoolName
+       FROM "SchoolMembership" m
+       JOIN "User" u ON m.userId = u.id
+       JOIN "School" s ON m.schoolId = s.id
+       WHERE m.status = 'ACTIVE' 
+       AND u.deletedAt IS NULL 
+       AND s.deletedAt IS NULL
+       AND m.role IN ('PRINCIPAL', 'DEPUTY', 'ADMIN', 'TEACHER', 'STUDENT', 'PARENT')
+       ORDER BY s.name ASC, 
+                CASE m.role 
+                  WHEN 'PRINCIPAL' THEN 1 
+                  WHEN 'DEPUTY' THEN 2 
+                  WHEN 'ADMIN' THEN 3 
+                  WHEN 'TEACHER' THEN 4
+                  WHEN 'STUDENT' THEN 5
+                  WHEN 'PARENT' THEN 6
+                  ELSE 7
+                END ASC`,
+    );
 
-      if (user.isSystemAdmin && allowedRoles.includes('SYSTEM_ADMIN')) {
-        filteredMemberships.unshift({
-          schoolName: 'System',
-          role: 'SYSTEM_ADMIN',
-        });
+    // Group by school AND role to ensure each school has a variety of roles
+    const schoolRoleGroups = new Map<string, Map<string, any[]>>();
+    for (const rep of representatives) {
+      if (!schoolRoleGroups.has(rep.schoolName)) {
+        schoolRoleGroups.set(rep.schoolName, new Map());
       }
-
-      if (filteredMemberships.length > 0) {
-        helperUsers.push({
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          memberships: filteredMemberships,
-        });
+      const roleMap = schoolRoleGroups.get(rep.schoolName)!;
+      if (!roleMap.has(rep.role)) {
+        roleMap.set(rep.role, []);
+      }
+      // Add up to 2 people per role per school
+      if (roleMap.get(rep.role)!.length < 2) {
+        roleMap.get(rep.role)!.push(rep);
       }
     }
 
-    return helperUsers;
+    for (const roleMap of schoolRoleGroups.values()) {
+      for (const reps of roleMap.values()) {
+        for (const rep of reps) {
+          if (seenEmails.has(rep.email)) continue;
+          helperUsers.push({
+            email: rep.email,
+            firstName: rep.firstName,
+            lastName: rep.lastName,
+            memberships: [{ schoolName: rep.schoolName, role: rep.role }],
+          });
+          seenEmails.add(rep.email);
+        }
+      }
+    }
+
+    // Sort result: system admin first, then by school name
+    return helperUsers.sort((a, b) => {
+      if (a.memberships[0].role === 'SYSTEM_ADMIN') return -1;
+      if (b.memberships[0].role === 'SYSTEM_ADMIN') return 1;
+      return a.memberships[0].schoolName.localeCompare(
+        b.memberships[0].schoolName,
+      );
+    });
   }
 }

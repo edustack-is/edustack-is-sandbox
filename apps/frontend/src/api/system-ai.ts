@@ -11,6 +11,7 @@ export const updateAiSettings = async (keys: {
     geminiApiKey?: string;
     openAiApiKey?: string;
     anthropicApiKey?: string;
+    opencodeApiKey?: string;
 }) => {
     const response = await api.put('/api/system/settings/ai', keys);
     return response.data;

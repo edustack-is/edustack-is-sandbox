@@ -22,28 +22,37 @@ export class SystemAdminAiService {
     geminiApiKey?: string;
     openAiApiKey?: string;
     anthropicApiKey?: string;
+    opencodeApiKey?: string;
   }) {
     const services = [
       { id: 'google', key: 'API_KEY', value: keys.geminiApiKey },
       { id: 'openai', key: 'API_KEY', value: keys.openAiApiKey },
       { id: 'anthropic', key: 'API_KEY', value: keys.anthropicApiKey },
+      { id: 'opencode', key: 'API_KEY', value: keys.opencodeApiKey },
     ];
 
     for (const s of services) {
-      if (s.value) {
+      if (s.value === '') {
+        // Explicit removal
         await this.db.execute(
-          `INSERT INTO "SystemSecret" (id, type, service, "key", value, isActive, updatedAt)
+          'DELETE FROM "SystemSecret" WHERE "type" = ? AND "service" = ? AND "key" = ?',
+          [SecretType.AI, s.id, s.key],
+        );
+      } else if (s.value) {
+        // Update or insert
+        await this.db.execute(
+          `INSERT INTO "SystemSecret" ("id", "type", "service", "key", "value", "isActive", "updatedAt")
            VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(type, service, "key") DO UPDATE SET
-             value = excluded.value,
-             updatedAt = excluded.updatedAt`,
+           ON CONFLICT("type", "service", "key") DO UPDATE SET
+             "value" = EXCLUDED."value",
+             "updatedAt" = EXCLUDED."updatedAt"`,
           [
             crypto.randomUUID(),
             SecretType.AI,
             s.id,
             s.key,
             this.cryptoService.encrypt(s.value),
-            true,
+            1, // isActive: true as integer
             new Date().toISOString(),
           ],
         );
@@ -77,6 +86,7 @@ export class SystemAdminAiService {
     const gemini = findSecret('google', 'API_KEY');
     const openai = findSecret('openai', 'API_KEY');
     const anthropic = findSecret('anthropic', 'API_KEY');
+    const opencode = findSecret('opencode', 'API_KEY');
 
     return {
       gemini: {
@@ -90,6 +100,10 @@ export class SystemAdminAiService {
       anthropic: {
         isConfigured: !!anthropic,
         keyHint: maskKey(anthropic?.value),
+      },
+      opencode: {
+        isConfigured: !!opencode,
+        keyHint: maskKey(opencode?.value),
       },
       updatedAt: secrets.length > 0 ? secrets[0].updatedAt : null,
     };

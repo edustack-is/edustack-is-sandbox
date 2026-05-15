@@ -24,6 +24,7 @@ import {
     GitCompare,
     History,
     Presentation,
+    Terminal,
 } from 'lucide-react';
 // Force refresh: 2026-05-02 18:45:00
 import { ThemeToggle } from '../ThemeToggle';
@@ -317,6 +318,13 @@ export const Sidebar: React.FC = () => {
                                 label={t('sidebar.system_settings')}
                                 collapsed={collapsed}
                                 data-testid="sidebar-system-settings"
+                            />
+                            <SidebarNavItem
+                                to="/system/prompts"
+                                icon={Terminal}
+                                label={t('sidebar.prompts', 'Systémové prompty')}
+                                collapsed={collapsed}
+                                data-testid="sidebar-system-prompts"
                             />
                         </>
                     )}

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import {
@@ -104,6 +105,22 @@ export class ScheduleService {
   }
 
   async createEvent(schoolId: string, data: any) {
+    const collision = await this.findCollision(
+      data.dayOfWeek,
+      data.lessonNumber,
+      data.teacherId,
+      data.classroomId,
+      data.roomId,
+      data.academicYearId,
+      schoolId,
+    );
+    if (collision) {
+      throw new ConflictException({
+        message: `Schedule collision: ${collision.reason}`,
+        conflict: collision,
+      });
+    }
+
     const id = crypto.randomUUID();
     await this.db.execute(
       'INSERT INTO "ScheduleEvent" (id, dayOfWeek, lessonNumber, startTime, endTime, schoolId, subjectInstanceId, classroomId, teacherId, roomId, academicYearId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -124,6 +141,69 @@ export class ScheduleService {
       ],
     );
     return await this.getEventById(id);
+  }
+
+  /**
+   * Detect a hard collision on (dayOfWeek, lessonNumber, academicYearId) for
+   * the given school. A collision is any of:
+   *  - the teacher is already scheduled at that slot
+   *  - the classroom already has another lesson at that slot
+   *  - the room is already in use at that slot (when a room is requested)
+   *
+   * `excludeId` lets callers update an existing event without colliding
+   * with itself.
+   */
+  private async findCollision(
+    dayOfWeek: number,
+    lessonNumber: number,
+    teacherId: string,
+    classroomId: string,
+    roomId: string | undefined,
+    academicYearId: string,
+    schoolId: string,
+    excludeId?: string,
+  ): Promise<{ reason: string; eventId: string } | null> {
+    const baseParams: unknown[] = [
+      schoolId,
+      academicYearId,
+      dayOfWeek,
+      lessonNumber,
+    ];
+    const baseSql =
+      'FROM "ScheduleEvent" WHERE schoolId = ? AND academicYearId = ? AND dayOfWeek = ? AND lessonNumber = ?';
+    const excludeClause = excludeId ? ' AND id != ?' : '';
+    const excludeParams = excludeId ? [excludeId] : [];
+
+    const teacherHit = await this.db.queryOne<{ id: string }>(
+      `SELECT id ${baseSql} AND teacherId = ?${excludeClause}`,
+      [...baseParams, teacherId, ...excludeParams],
+    );
+    if (teacherHit) {
+      return { reason: 'teacher is already scheduled', eventId: teacherHit.id };
+    }
+
+    const classroomHit = await this.db.queryOne<{ id: string }>(
+      `SELECT id ${baseSql} AND classroomId = ?${excludeClause}`,
+      [...baseParams, classroomId, ...excludeParams],
+    );
+    if (classroomHit) {
+      return {
+        reason: 'classroom is already scheduled',
+        eventId: classroomHit.id,
+      };
+    }
+
+    if (roomId) {
+      const roomHit = await this.db.queryOne<{ id: string }>(
+        `SELECT id ${baseSql} AND roomId = ?${excludeClause}`,
+        [...baseParams, roomId, ...excludeParams],
+      );
+      if (roomHit) {
+        return { reason: 'room is already in use', eventId: roomHit.id };
+      }
+    }
+
+    return null;
   }
 
   private async getEventById(id: string) {
@@ -361,6 +441,18 @@ export class ScheduleService {
     schoolId: string,
     excludeId?: string,
   ) {
-    return { valid: true };
+    const collision = await this.findCollision(
+      day,
+      lesson,
+      teacherId,
+      classroomId,
+      roomId,
+      ayId,
+      schoolId,
+      excludeId,
+    );
+    return collision
+      ? { valid: false, reason: collision.reason, eventId: collision.eventId }
+      : { valid: true };
   }
 }

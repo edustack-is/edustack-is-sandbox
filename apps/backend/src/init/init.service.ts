@@ -66,7 +66,7 @@ export class InitService {
       throw new ForbiddenException('Application is already initialized.');
 
     validatePasswordStrength(data.adminPassword);
-    const hashedPassword = await bcrypt.hash(data.adminPassword, 10);
+    const hashedPassword = await bcrypt.hash(data.adminPassword, 12);
     const id = crypto.randomUUID();
 
     await this.db.execute(

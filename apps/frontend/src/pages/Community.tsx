@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pin, Trash2, Calendar, BarChart3, Megaphone } from 'lucide-react';
+import { Plus, Pin, Trash2, Calendar, BarChart3, Megaphone, Users, GraduationCap, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 
 export default function Community() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
     // Bulletin
     const [posts, setPosts] = useState<any[]>([]);
@@ -75,7 +75,7 @@ export default function Community() {
 
     const handleCreatePost = async () => {
         if (!postForm.title || !postForm.content) {
-            toast.error(t('test_data.generate_error', 'Vyplňte název a obsah'));
+            toast.error(t('common.error'));
             return;
         }
         try {
@@ -146,9 +146,7 @@ export default function Community() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight">{t('sidebar.community')}</h1>
-                <p className="text-muted-foreground">
-                    {t('community.subtitle', 'Nástěnka, ankety a kalendář událostí')}
-                </p>
+                <p className="text-muted-foreground">{t('community.subtitle')}</p>
             </div>
 
             <Tabs
@@ -161,11 +159,11 @@ export default function Community() {
                 <TabsList>
                     <TabsTrigger value="bulletin">
                         <Megaphone className="h-4 w-4 mr-1" />
-                        {t('community.bulletin', 'Nástěnka')}
+                        {t('community.bulletin')}
                     </TabsTrigger>
                     <TabsTrigger value="polls">
                         <BarChart3 className="h-4 w-4 mr-1" />
-                        {t('community.polls', 'Ankety')}
+                        {t('community.polls')}
                     </TabsTrigger>
                     <TabsTrigger value="events">
                         <Calendar className="h-4 w-4 mr-1" />
@@ -178,13 +176,13 @@ export default function Community() {
                     <div className="flex justify-end mb-4">
                         <Button onClick={() => setPostDialog(true)}>
                             <Plus className="h-4 w-4 mr-1" />
-                            {t('community.new_post', 'Nový příspěvek')}
+                            {t('community.new_post')}
                         </Button>
                     </div>
                     {posts.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
-                                {t('community.no_posts', 'Žádné příspěvky')}
+                                {t('community.no_posts')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -200,7 +198,7 @@ export default function Community() {
                                                 </CardTitle>
                                                 <CardDescription>
                                                     {p.author?.lastName} {p.author?.firstName} ·{' '}
-                                                    {new Date(p.createdAt).toLocaleDateString('cs-CZ')}
+                                                    {new Date(p.createdAt).toLocaleDateString(i18n.language)}
                                                 </CardDescription>
                                             </div>
                                             <Button
@@ -236,7 +234,7 @@ export default function Community() {
                     {polls.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
-                                {t('community.no_polls', 'Žádné ankety')}
+                                {t('community.no_polls')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -251,10 +249,12 @@ export default function Community() {
                                             <CardDescription>
                                                 {poll.author?.lastName} {poll.author?.firstName}
                                                 {poll.endsAt &&
-                                                    ` · do ${new Date(poll.endsAt).toLocaleDateString('cs-CZ')}`}
+                                                    ` · ${t('common.to')} ${new Date(poll.endsAt).toLocaleDateString(
+                                                        i18n.language,
+                                                    )}`}
                                                 {poll.multiSelect && (
                                                     <Badge variant="outline" className="ml-2 text-xs">
-                                                        {t('community.multi_select', 'Více odpovědí')}
+                                                        {t('community.multi_select')}
                                                     </Badge>
                                                 )}
                                             </CardDescription>
@@ -287,7 +287,7 @@ export default function Community() {
                                                 );
                                             })}
                                             <p className="text-xs text-muted-foreground mt-2">
-                                                {t('common.total', 'Celkem')} {t('common.votes', 'hlasů')}: {totalVotes}
+                                                {t('common.all')} {t('common.votes')}: {totalVotes}
                                             </p>
                                         </CardContent>
                                     </Card>
@@ -302,13 +302,13 @@ export default function Community() {
                     <div className="flex justify-end mb-4">
                         <Button onClick={() => setEventDialog(true)}>
                             <Plus className="h-4 w-4 mr-1" />
-                            {t('community.new_event', 'Nová událost')}
+                            {t('community.new_event')}
                         </Button>
                     </div>
                     {events.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
-                                {t('community.no_events', 'Žádné události')}
+                                {t('community.no_events')}
                             </CardContent>
                         </Card>
                     ) : (
@@ -322,8 +322,9 @@ export default function Community() {
                                         <CardHeader className="pb-2">
                                             <CardTitle className="text-base">{ev.title}</CardTitle>
                                             <CardDescription>
-                                                {new Date(ev.startDate).toLocaleDateString('cs-CZ')}
-                                                {ev.endDate && ` – ${new Date(ev.endDate).toLocaleDateString('cs-CZ')}`}
+                                                {new Date(ev.startDate).toLocaleDateString(i18n.language)}
+                                                {ev.endDate &&
+                                                    ` – ${new Date(ev.endDate).toLocaleDateString(i18n.language)}`}
                                                 {ev.location && ` · ${ev.location}`}
                                             </CardDescription>
                                         </CardHeader>
@@ -336,7 +337,7 @@ export default function Community() {
                                                     className="text-green-600"
                                                     onClick={() => handleRsvp(ev.id, 'YES')}
                                                 >
-                                                    ✓ {t('common.yes', 'Ano')} ({yes})
+                                                    ✓ {t('common.yes')} ({yes})
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -344,7 +345,7 @@ export default function Community() {
                                                     className="text-yellow-600"
                                                     onClick={() => handleRsvp(ev.id, 'MAYBE')}
                                                 >
-                                                    ? {t('common.maybe', 'Možná')} ({maybe})
+                                                    ? {t('common.maybe')} ({maybe})
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -352,7 +353,7 @@ export default function Community() {
                                                     className="text-red-600"
                                                     onClick={() => handleRsvp(ev.id, 'NO')}
                                                 >
-                                                    ✗ {t('common.no', 'Ne')} ({no})
+                                                    ✗ {t('common.no')} ({no})
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -368,7 +369,7 @@ export default function Community() {
             <Dialog open={postDialog} onOpenChange={setPostDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{t('community.new_post', 'Nový příspěvek')}</DialogTitle>
+                        <DialogTitle>{t('community.new_post')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div>
@@ -379,7 +380,7 @@ export default function Community() {
                             />
                         </div>
                         <div>
-                            <Label>{t('community.content', 'Obsah')}</Label>
+                            <Label>{t('community.content')}</Label>
                             <Textarea
                                 value={postForm.content}
                                 onChange={(e) => setPostForm((f) => ({ ...f, content: e.target.value }))}
@@ -420,7 +421,7 @@ export default function Community() {
                         {pollForm.options.map((opt, i) => (
                             <div key={i}>
                                 <Label>
-                                    {t('community.option', 'Možnost')} {i + 1}
+                                    {t('community.option')} {i + 1}
                                 </Label>
                                 <Input
                                     value={opt}
@@ -437,18 +438,18 @@ export default function Community() {
                             size="sm"
                             onClick={() => setPollForm((f) => ({ ...f, options: [...f.options, ''] }))}
                         >
-                            {t('community.add_option', '+ Přidat možnost')}
+                            {t('community.add_option')}
                         </Button>
                         <div className="flex items-center gap-2">
                             <Switch
                                 checked={pollForm.multiSelect}
                                 onCheckedChange={(v) => setPollForm((f) => ({ ...f, multiSelect: v }))}
                             />
-                            <Label>{t('community.multi_select', 'Více odpovědí')}</Label>
+                            <Label>{t('community.multi_select')}</Label>
                         </div>
                         <div>
                             <Label>
-                                {t('common.end')} ({t('common.optional', 'volitelné')})
+                                {t('common.end')} ({t('common.optional')})
                             </Label>
                             <Input
                                 type="datetime-local"
@@ -470,7 +471,7 @@ export default function Community() {
             <Dialog open={eventDialog} onOpenChange={setEventDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{t('community.new_event', 'Nová událost')}</DialogTitle>
+                        <DialogTitle>{t('community.new_event')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div>
@@ -481,7 +482,7 @@ export default function Community() {
                             />
                         </div>
                         <div>
-                            <Label>{t('common.description', 'Popis')}</Label>
+                            <Label>{t('common.description')}</Label>
                             <Textarea
                                 value={eventForm.description}
                                 onChange={(e) => setEventForm((f) => ({ ...f, description: e.target.value }))}
@@ -490,7 +491,7 @@ export default function Community() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <Label>{t('common.from', 'Od')}</Label>
+                                <Label>{t('common.from')}</Label>
                                 <Input
                                     type="datetime-local"
                                     value={eventForm.startDate}
@@ -498,7 +499,7 @@ export default function Community() {
                                 />
                             </div>
                             <div>
-                                <Label>{t('common.to', 'Do')}</Label>
+                                <Label>{t('common.to')}</Label>
                                 <Input
                                     type="datetime-local"
                                     value={eventForm.endDate}

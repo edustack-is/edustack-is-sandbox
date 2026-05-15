@@ -67,7 +67,10 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Záznam docházky třídy' })
   @ApiResponse({ status: 201, type: SuccessResponseDto })
   @ApiBody({ type: RecordAttendanceDto })
-  async recordAttendance(@Req() req: UserRequest, @Body() body: any) {
+  async recordAttendance(
+    @Req() req: UserRequest,
+    @Body() body: RecordAttendanceDto,
+  ) {
     const schoolId = this.ensureTenant(req);
     return this.attendanceService.recordAttendance(
       req.user.userId,
@@ -102,7 +105,7 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Omluvenka absence (rodič)' })
   @ApiResponse({ status: 201, type: ExcuseResponseDto })
   @ApiBody({ type: CreateExcuseDto })
-  async createExcuse(@Req() req: UserRequest, @Body() body: any) {
+  async createExcuse(@Req() req: UserRequest, @Body() body: CreateExcuseDto) {
     const schoolId = this.ensureTenant(req);
     return this.attendanceService.createExcuse(req.user.userId, schoolId, body);
   }
@@ -127,7 +130,7 @@ export class AttendanceController {
   async reviewExcuse(
     @Req() req: UserRequest,
     @Param('id') id: string,
-    @Body() body: { status: 'APPROVED' | 'REJECTED' },
+    @Body() body: ReviewExcuseDto,
   ) {
     const schoolId = this.ensureTenant(req);
     return this.attendanceService.reviewExcuse(
