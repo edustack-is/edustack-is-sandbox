@@ -170,9 +170,22 @@ export default function Users() {
     const [submitting, setSubmitting] = useState(false);
 
     // Filters
+    const [filterType, setFilterType] = useState<string>('ALL');
     const [filterRole, setFilterRole] = useState<string>('ALL');
+    const [filterStatus, setFilterStatus] = useState<string>('ALL');
     const [filterClassroom, setFilterClassroom] = useState<string>('ALL');
     const [searchText, setSearchText] = useState('');
+
+    // Type → role bucket mapping for the high-level "user type" filter.
+    // STUDENT/PARENT/TEACHER buckets are 1:1; EMPLOYEE covers school
+    // administration (deputy, principal, school admin) so the dropdown
+    // stays useful even after additional admin sub-roles are introduced.
+    const TYPE_TO_ROLES: Record<string, string[]> = {
+        STUDENT: ['STUDENT'],
+        PARENT: ['PARENT'],
+        TEACHER: ['TEACHER'],
+        EMPLOYEE: ['DEPUTY', 'PRINCIPAL', 'ADMIN'],
+    };
 
     // Confirm dialogs
     const [removeTarget, setRemoveTarget] = useState<SchoolUser | null>(null);
@@ -278,12 +291,27 @@ export default function Users() {
     const filteredUsers = useMemo(() => {
         let filtered = users;
 
+        if (filterType !== 'ALL') {
+            const allowed = TYPE_TO_ROLES[filterType] ?? [];
+            filtered = filtered.filter((u) => allowed.includes(u.role));
+        }
+
         if (filterRole !== 'ALL') {
             filtered = filtered.filter((u) => u.role === filterRole);
         }
 
+        if (filterStatus !== 'ALL') {
+            filtered = filtered.filter((u) => u.status === filterStatus);
+        }
+
         if (filterClassroom !== 'ALL') {
-            filtered = filtered.filter((u) => u.classroomId === filterClassroom);
+            // `__NONE__` is a UI-only sentinel meaning "student without a
+            // classroom"; everything else is a real classroom id.
+            if (filterClassroom === '__NONE__') {
+                filtered = filtered.filter((u) => u.role === 'STUDENT' && !u.classroomId);
+            } else {
+                filtered = filtered.filter((u) => u.classroomId === filterClassroom);
+            }
         }
 
         if (searchText.trim()) {
@@ -297,7 +325,7 @@ export default function Users() {
         }
 
         return filtered;
-    }, [users, filterRole, filterClassroom, searchText]);
+    }, [users, filterType, filterRole, filterStatus, filterClassroom, searchText]);
 
     // ── Impersonate (school-scoped) ────────────────────────
     const handleImpersonate = async (targetId: string) => {
@@ -788,9 +816,21 @@ export default function Users() {
                         className="w-52 h-8"
                     />
                 </div>
+                <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-44 h-8">
+                        <SelectValue placeholder={t('users_page.filter_type')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">{t('common.all_types')}</SelectItem>
+                        <SelectItem value="STUDENT">{t('users_page.type_student')}</SelectItem>
+                        <SelectItem value="PARENT">{t('users_page.type_parent')}</SelectItem>
+                        <SelectItem value="TEACHER">{t('users_page.type_teacher')}</SelectItem>
+                        <SelectItem value="EMPLOYEE">{t('users_page.type_employee')}</SelectItem>
+                    </SelectContent>
+                </Select>
                 <Select value={filterRole} onValueChange={setFilterRole}>
                     <SelectTrigger className="w-40 h-8">
-                        <SelectValue placeholder="Role…" />
+                        <SelectValue placeholder={t('common.role')} />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">{t('common.all_roles')}</SelectItem>
@@ -801,28 +841,55 @@ export default function Users() {
                         ))}
                     </SelectContent>
                 </Select>
-                {(filterRole === 'STUDENT' || filterRole === 'ALL') && classrooms.length > 0 && (
-                    <Select value={filterClassroom} onValueChange={setFilterClassroom}>
-                        <SelectTrigger className="w-40 h-8">
-                            <SelectValue placeholder={t('common.class')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">{t('common.all_classes', 'Všechny třídy')}</SelectItem>
-                            {classrooms.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )}
-                {(filterRole !== 'ALL' || filterClassroom !== 'ALL' || searchText) && (
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-40 h-8">
+                        <SelectValue placeholder={t('users_page.filter_status')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">{t('common.all_statuses')}</SelectItem>
+                        <SelectItem value="ACTIVE">{t('statuses.ACTIVE', 'Aktivní')}</SelectItem>
+                        <SelectItem value="PENDING">{t('statuses.PENDING', 'Čekající')}</SelectItem>
+                        <SelectItem value="SUSPENDED">{t('statuses.SUSPENDED', 'Pozastavený')}</SelectItem>
+                        <SelectItem value="ARCHIVED">{t('statuses.ARCHIVED', 'Archivovaný')}</SelectItem>
+                        <SelectItem value="ALUMNI">{t('statuses.ALUMNI', 'Absolvent')}</SelectItem>
+                    </SelectContent>
+                </Select>
+                {(filterRole === 'STUDENT' ||
+                    filterRole === 'ALL' ||
+                    filterType === 'STUDENT' ||
+                    filterType === 'ALL') &&
+                    classrooms.length > 0 && (
+                        <Select value={filterClassroom} onValueChange={setFilterClassroom}>
+                            <SelectTrigger className="w-44 h-8">
+                                <SelectValue placeholder={t('common.class')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t('common.all_classes', 'Všechny třídy')}</SelectItem>
+                                {/* Surface students who aren't assigned to any
+                                    classroom — common when a deputy has just
+                                    invited them and hasn't enrolled them yet. */}
+                                <SelectItem value="__NONE__">{t('users_page.filter_no_class')}</SelectItem>
+                                {classrooms.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                {(filterType !== 'ALL' ||
+                    filterRole !== 'ALL' ||
+                    filterStatus !== 'ALL' ||
+                    filterClassroom !== 'ALL' ||
+                    searchText) && (
                     <Button
                         variant="ghost"
                         size="sm"
                         className="h-8"
                         onClick={() => {
+                            setFilterType('ALL');
                             setFilterRole('ALL');
+                            setFilterStatus('ALL');
                             setFilterClassroom('ALL');
                             setSearchText('');
                         }}

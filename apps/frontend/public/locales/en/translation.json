@@ -7,8 +7,13 @@
     "active": "Active",
     "address": "Address",
     "all": "All",
+    "all_classes": "All classes",
+    "all_roles": "All roles",
+    "all_statuses": "All statuses",
+    "all_types": "All types",
     "attendance": "Attendance",
     "back": "Back",
+    "backups": "Backups",
     "cancel": "Cancel",
     "class": "Class",
     "classroom": "Classroom",
@@ -17,6 +22,7 @@
     "confirm": "Confirm",
     "confirm_description": "Are you sure you want to perform this action?",
     "confirm_title": "Confirm Action",
+    "copy": "Copy",
     "create": "Create",
     "creating": "Creating...",
     "dashboard": "Dashboard",
@@ -49,6 +55,7 @@
     "escalations": "Escalations",
     "event": "Event",
     "excused": "Excused",
+    "excuses": "Excuses",
     "first_name": "First Name",
     "from": "From",
     "grade_level": "Grade level",
@@ -68,6 +75,7 @@
     "no": "No",
     "no_data": "No data to display",
     "no_entries": "No entries found",
+    "no_results": "No results",
     "none": "None",
     "note": "Note",
     "notes": "Notes",
@@ -92,6 +100,7 @@
     "save_first": "Please save the entry first",
     "saving": "Saving...",
     "search": "Search",
+    "semester": "Semester",
     "search_recipient": "Search recipient...",
     "select": "Select",
     "select_both_versions": "Select both versions",
@@ -116,7 +125,9 @@
     "to": "To",
     "tools": "Equipment",
     "topic": "Topic",
+    "total": "Total",
     "type": "Type",
+    "unassigned": "Unassigned",
     "unexcused": "Unexcused",
     "unknown_user": "Unknown user",
     "users": "Users",
@@ -299,7 +310,10 @@
     "grade_number": "Level Number",
     "grade_name_required": "Grade name and number are required.",
     "grade_created": "Grade level created.",
-    "grade_delete_confirm": "Are you sure you want to delete grade level \"{{name}}\"?"
+    "grade_delete_confirm": "Are you sure you want to delete grade level \"{{name}}\"?",
+    "added": "Added",
+    "removed_label": "Removed",
+    "changed_label": "Changed"
   },
   "dashboard": {
     "system_admin_title": "System Administration",
@@ -502,6 +516,7 @@
     "select_student": "Select student",
     "describe_reason": "Describe the reason...",
     "fill_required": "Fill in student and reason",
+    "load_error": "Failed to load measures.",
     "create_success": "Measure created",
     "all_classes": "All Classes",
     "types": {
@@ -594,7 +609,9 @@
     "load_error": "Failed to load clubs",
     "fill_required": "Fill in name and times",
     "update_success": "Club updated",
-    "create_success": "Club created"
+    "create_success": "Club created",
+    "from": "From",
+    "to": "To"
   },
   "registry": {
     "title": "Registry",
@@ -825,6 +842,9 @@
     "monitoring": "Monitoring",
     "select_school_prompt": "Select a school to display menu.",
     "select_school_button": "Select School",
+    "back_to_system": "Back to system",
+    "backups": "Backups",
+    "change_school": "Change school",
     "collapse": "Collapse menu",
     "expand": "Expand menu"
   },
@@ -880,6 +900,8 @@
     "failed_select": "Failed to select school",
     "deleted_success": "School deleted successfully",
     "failed_delete": "Failed to delete school",
+    "delete_title": "Delete school",
+    "delete_confirm": "Are you sure you want to delete the school \"{{name}}\"? All associated data will be lost. This action is irreversible.",
     "require_sso_email_match": "Require SSO email match",
     "require_sso_email_match_desc": "When activating an account via SSO, the provider email (Google, Microsoft…) must match the user's system email."
   },
@@ -1198,7 +1220,14 @@
     "alumni_title": "Mark as Alumni",
     "alumni_description": "Are you sure you want to mark student {{name}} as alumni? This will change their status to \"Alumni\".",
     "confirm_alumni": "Mark as Alumni",
-    "alumni_set": "Student has been successfully marked as alumni."
+    "alumni_set": "Student has been successfully marked as alumni.",
+    "filter_type": "User type",
+    "filter_status": "Status",
+    "filter_no_class": "No class",
+    "type_student": "Student",
+    "type_parent": "Parent",
+    "type_teacher": "Teacher",
+    "type_employee": "Employee"
   },
   "white_book": {
     "title": "White Book",
