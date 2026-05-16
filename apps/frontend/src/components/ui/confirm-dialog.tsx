@@ -19,6 +19,7 @@ interface ConfirmDialogProps {
     cancelText?: string;
     onConfirm: () => void;
     variant?: 'default' | 'destructive';
+    loading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -30,6 +31,7 @@ export function ConfirmDialog({
     cancelText,
     onConfirm,
     variant = 'default',
+    loading = false,
 }: ConfirmDialogProps) {
     const { t } = useTranslation();
 
@@ -45,10 +47,11 @@ export function ConfirmDialog({
                 <AlertDialogFooter>
                     <AlertDialogCancel>{cancelText || t('common.cancel', 'Zrušit')}</AlertDialogCancel>
                     <AlertDialogAction
+                        disabled={loading}
                         onClick={(e) => {
                             e.preventDefault();
                             onConfirm();
-                            onOpenChange(false);
+                            if (!loading) onOpenChange(false);
                         }}
                         className={
                             variant === 'destructive'

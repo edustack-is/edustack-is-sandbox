@@ -9,7 +9,6 @@ import {
     UserCheck,
     Clock,
     CalendarDays,
-    GraduationCap,
     MessageSquare,
     AlertCircle,
     CheckCircle2,
@@ -19,11 +18,7 @@ import {
     Cpu,
     Database,
     HardDrive,
-    Shield,
     Zap,
-    CpuIcon,
-    MemoryStick,
-    Wifi,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -293,7 +288,6 @@ function StudentDashboard({ data, childName }: { data: any; childName?: string }
 }
 
 function ParentDashboard({ data }: { data: any }) {
-    const { t } = useTranslation();
     return (
         <div className="space-y-10">
             {data.children?.map((child: any) => (
