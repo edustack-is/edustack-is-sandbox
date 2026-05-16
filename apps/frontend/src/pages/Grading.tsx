@@ -453,13 +453,15 @@ export const Grading: React.FC = () => {
                                                         </button>
                                                     </td>
                                                     {subjects.map((sub) => {
-                                                        // Backend returns rows where subjectInstance is
-                                                        // a nested object, but legacy queries used to
-                                                        // ship just the flat subjectInstanceId column.
-                                                        // Accept both so a future regression in the
-                                                        // service doesn't blank the grading grid.
+                                                        // Each cell shows the grades of THIS student
+                                                        // in THIS subject. Before the studentId match
+                                                        // was added, every row in a subject column
+                                                        // displayed the same grades — a grade saved
+                                                        // for one student appeared on all of them.
                                                         const cellGrades = grades.filter(
                                                             (g) =>
+                                                                ((g as any).studentId ??
+                                                                    (g.studentProfile as any)?.id) === student.id &&
                                                                 (g.subjectInstance?.id ??
                                                                     (g as any).subjectInstanceId) === sub.id,
                                                         );
