@@ -453,8 +453,15 @@ export const Grading: React.FC = () => {
                                                         </button>
                                                     </td>
                                                     {subjects.map((sub) => {
+                                                        // Backend returns rows where subjectInstance is
+                                                        // a nested object, but legacy queries used to
+                                                        // ship just the flat subjectInstanceId column.
+                                                        // Accept both so a future regression in the
+                                                        // service doesn't blank the grading grid.
                                                         const cellGrades = grades.filter(
-                                                            (g) => g.subjectInstance.id === sub.id,
+                                                            (g) =>
+                                                                (g.subjectInstance?.id ??
+                                                                    (g as any).subjectInstanceId) === sub.id,
                                                         );
                                                         return (
                                                             <td key={sub.id} className="p-1 text-center">
@@ -496,10 +503,8 @@ export const Grading: React.FC = () => {
                                                                                                 i18n.language,
                                                                                             )}{' '}
                                                                                             |{' '}
-                                                                                            {
-                                                                                                g.teacherProfile.user
-                                                                                                    .lastName
-                                                                                            }
+                                                                                            {g.teacherProfile?.user
+                                                                                                ?.lastName ?? ''}
                                                                                         </div>
                                                                                     </div>
                                                                                 </TooltipContent>
@@ -549,8 +554,18 @@ export const Grading: React.FC = () => {
                             {(() => {
                                 const grouped = studentGrades.reduce(
                                     (acc, g) => {
-                                        const key = g.subjectInstance.id;
-                                        if (!acc[key]) acc[key] = { subject: g.subjectInstance, grades: [] };
+                                        // Tolerate rows that came back without the
+                                        // joined `subjectInstance` object (legacy
+                                        // queries elsewhere in the codebase did this).
+                                        const key = g.subjectInstance?.id ?? (g as any).subjectInstanceId ?? 'unknown';
+                                        if (!acc[key])
+                                            acc[key] = {
+                                                subject: g.subjectInstance ?? {
+                                                    id: key,
+                                                    template: { name: '', code: '' },
+                                                },
+                                                grades: [],
+                                            };
                                         acc[key].grades.push(g);
                                         return acc;
                                     },

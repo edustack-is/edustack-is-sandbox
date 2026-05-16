@@ -247,12 +247,18 @@ export class CreateGradeDto {
   @IsString()
   description?: string;
 
+  // Grade.type is the assessment kind (numeric mark vs verbal note vs
+  // pass/fail) and matches the column the DB stores. The assessment
+  // CATEGORY (exam / homework / oral / …) lives on the `category`
+  // field below. Previously this enum had the category values, so the
+  // frontend's `type: 'NUMERIC'` was rejected with
+  // "type must be one of EXAM/TEST/HOMEWORK/...".
   @ApiPropertyOptional({
-    example: 'EXAM',
-    enum: ['EXAM', 'TEST', 'HOMEWORK', 'PROJECT', 'ORAL', 'OTHER'],
+    example: 'NUMERIC',
+    enum: ['NUMERIC', 'VERBAL', 'PASS_FAIL'],
   })
   @IsOptional()
-  @IsEnum(['EXAM', 'TEST', 'HOMEWORK', 'PROJECT', 'ORAL', 'OTHER'])
+  @IsEnum(['NUMERIC', 'VERBAL', 'PASS_FAIL'])
   type?: string;
 
   @ApiPropertyOptional({ description: 'Slovní hodnocení' })

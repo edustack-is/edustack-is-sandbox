@@ -62,16 +62,45 @@ export class GradingService {
   }
 
   private async getGradeWithIncludes(id: string) {
-    return await this.db.queryOne(
-      `SELECT g.*, st.name as subName, st.code as subCode, u.firstName, u.lastName 
-       FROM "Grade" g 
-       JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id 
-       JOIN "SubjectTemplate" st ON si.templateId = st.id 
-       JOIN "TeacherProfile" tp ON g.teacherId = tp.id 
-       JOIN "User" u ON tp.userId = u.id 
+    const row = await this.db.queryOne<any>(
+      `SELECT g.*, si.templateId as subTemplateId, st.name as subName, st.code as subCode,
+              u.firstName as tFN, u.lastName as tLN
+       FROM "Grade" g
+       JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id
+       JOIN "SubjectTemplate" st ON si.templateId = st.id
+       JOIN "TeacherProfile" tp ON g.teacherId = tp.id
+       JOIN "User" u ON tp.userId = u.id
        WHERE g.id = ?`,
       [id],
     );
+    return row ? this.shapeGrade(row) : null;
+  }
+
+  /**
+   * Map a flat Grade row (with optional joined columns subName/subCode/
+   * subTemplateId/tFN/tLN) into the nested shape every frontend consumer
+   * is coded against: `subjectInstance.template.{id,name,code}` and
+   * `teacherProfile.user.{firstName,lastName}`. Without this the
+   * Grading page exploded on `g.subjectInstance.id` for any row that
+   * came back from a raw `SELECT *` query.
+   */
+  private shapeGrade(row: any) {
+    if (!row) return row;
+    return {
+      ...row,
+      subjectInstance: {
+        id: row.subjectInstanceId,
+        template: {
+          id: row.subTemplateId ?? null,
+          name: row.subName ?? null,
+          code: row.subCode ?? null,
+        },
+      },
+      teacherProfile: {
+        id: row.teacherId,
+        user: { firstName: row.tFN ?? null, lastName: row.tLN ?? null },
+      },
+    };
   }
 
   async updateGrade(
@@ -126,10 +155,22 @@ export class GradingService {
       'SELECT DISTINCT si.id, st.name, st.code FROM "ScheduleEvent" se JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id JOIN "SubjectTemplate" st ON si.templateId = st.id WHERE se.classroomId = ?',
       [classroomId],
     );
-    const grades = await this.db.query(
-      'SELECT * FROM "Grade" WHERE schoolId = ? AND studentId IN (SELECT id FROM "StudentProfile" WHERE classroomId = ?)',
+    // Join subject + teacher so the frontend gets the nested shape
+    // (`g.subjectInstance.id`, `g.teacherProfile.user.lastName`) it
+    // already declares; previously this returned raw Grade rows and the
+    // page crashed on the first grade cell.
+    const gradeRows = await this.db.query<any>(
+      `SELECT g.*, si.templateId as subTemplateId, st.name as subName, st.code as subCode,
+              u.firstName as tFN, u.lastName as tLN
+       FROM "Grade" g
+       JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id
+       JOIN "SubjectTemplate" st ON si.templateId = st.id
+       JOIN "TeacherProfile" tp ON g.teacherId = tp.id
+       JOIN "User" u ON tp.userId = u.id
+       WHERE g.schoolId = ? AND g.studentId IN (SELECT id FROM "StudentProfile" WHERE classroomId = ?)`,
       [schoolId, classroomId],
     );
+    const grades = gradeRows.map((r) => this.shapeGrade(r));
     return { classroom, students, subjects, grades };
   }
 
@@ -189,10 +230,18 @@ export class GradingService {
       'SELECT * FROM "StudentProfile" WHERE id = ?',
       [studentId],
     );
-    const grades = await this.db.query(
-      'SELECT g.*, st.name as subName FROM "Grade" g JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id JOIN "SubjectTemplate" st ON si.templateId = st.id WHERE g.studentId = ?',
+    const gradeRows = await this.db.query<any>(
+      `SELECT g.*, si.templateId as subTemplateId, st.name as subName, st.code as subCode,
+              u.firstName as tFN, u.lastName as tLN
+       FROM "Grade" g
+       JOIN "SubjectInstance" si ON g.subjectInstanceId = si.id
+       JOIN "SubjectTemplate" st ON si.templateId = st.id
+       JOIN "TeacherProfile" tp ON g.teacherId = tp.id
+       JOIN "User" u ON tp.userId = u.id
+       WHERE g.studentId = ?`,
       [studentId],
     );
+    const grades = gradeRows.map((r) => this.shapeGrade(r));
     return { student, grades };
   }
 
