@@ -11,6 +11,7 @@ primary_region = "ams"
   MCP_PORT = "3001"
   MCP_HOST = "127.0.0.1"
   DATABASE_URL = "file:/data/edustack.db"
+  ENABLE_LOGIN_HELPER = "true"
 
 [[mounts]]
   source = "edustack_data"
