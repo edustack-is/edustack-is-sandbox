@@ -277,6 +277,11 @@ export class GradingService {
     // teacher can pick the wording closest to what they want, or send a
     // feedback prompt to regenerate. The variants are NOT persisted —
     // only the one the teacher accepts and saves on the report card.
+    //
+    // Each rewrite MUST come back as one clean paragraph ready to paste
+    // into the textarea. The prompt below blocks the model from doing
+    // its usual "here are several options…" thing; sanitizePolish()
+    // below strips anything that slips through anyway.
     const variants = [
       {
         id: 'formal',
@@ -294,18 +299,22 @@ export class GradingService {
         tone: 'stručný, jasný a konkrétní',
       },
     ];
-    const baseInstruction =
-      'Vylepši toto slovní hodnocení žáka, aby bylo spisovné, profesionální a vhodné na vysvědčení. Zachovej obsah a věcný význam.' +
+    const strictInstruction =
+      'Přepiš toto slovní hodnocení žáka do jediného souvislého odstavce vhodného přímo na vysvědčení. ' +
+      'VYSTUP: vrať POUZE samotný přepsaný text. Žádné varianty, žádné možnosti, žádné nadpisy, žádné odrážky, ' +
+      'žádné uvozovky kolem celého textu, žádné markdown formátování, žádné komentáře, žádné poznámky pro učitele, ' +
+      'žádné "doporučení" ani "tipy", žádné dotazy. Pouze hotový text, který lze rovnou vložit do vysvědčení. ' +
+      'Zachovej věcný obsah původního textu, neuváděj fakta, která v něm nejsou.' +
       (feedback?.trim()
-        ? ` Zohledni následující pokyn od učitele: ${feedback.trim()}.`
+        ? ` Zohledni přitom následující pokyn od učitele: ${feedback.trim()}.`
         : '');
 
     const results = await Promise.all(
       variants.map((v) =>
         this.aiService.refineText({
           existingText: text,
-          context: `Jsi učitel na základní škole. Piš tónem, který je ${v.tone}.`,
-          instruction: baseInstruction,
+          context: `Jsi učitel na 1. nebo 2. stupni ZŠ. Piš tónem, který je ${v.tone}.`,
+          instruction: strictInstruction,
         }),
       ),
     );
@@ -315,9 +324,101 @@ export class GradingService {
         id: v.id,
         label: v.label,
         tone: v.tone,
-        text: results[i].text,
+        text: this.sanitizePolish(results[i].text),
       })),
     };
+  }
+
+  /**
+   * Coerce a model response into a single ready-to-paste paragraph.
+   *
+   * The model is instructed to return just the rewrite, but it often
+   * disobeys and returns a "Here are some options…" preamble + several
+   * markdown-quoted variants + a "Recommendation" tail. We handle that
+   * in three passes, from most to least specific:
+   *
+   *  1. If the response contains markdown blockquoted text segments
+   *     (`> "…"` lines — exactly the shape the model produced in the
+   *     bug report), treat those AS the rewrite and use the first one.
+   *  2. Otherwise drop the obvious preamble openers and cut at the
+   *     first "Varianta N" / "Doporučení:" / "Tip:" / bullet / ###
+   *     heading.
+   *  3. Strip surrounding quotes and code fences as cleanup.
+   *
+   * Always returns something — if every step would leave the string
+   * empty, falls back to the raw text. The UI never displays a blank
+   * variant.
+   */
+  private sanitizePolish(raw: string): string {
+    const original = (raw || '').trim();
+    if (!original) return '';
+
+    // Strategy 1: pick the first blockquoted rewrite if the model
+    // produced "list of variants" markdown.
+    const blockquote =
+      /(?:^|\n)\s*>\s*[„"”„«]?([^\n]+?)[“"”»]?\s*(?=\n|$)/u.exec(original);
+    if (blockquote && blockquote[1].trim().length >= 20) {
+      return this.stripWrappers(blockquote[1].trim());
+    }
+
+    // Strategy 2: drop preamble + cut at the first variant header /
+    // commentary section.
+    let s = original;
+
+    // Code fences first.
+    s = s.replace(/^```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+
+    // Drop "Here are a few options…" preamble lines.
+    const preambleMatchers = [
+      /^Jako učitel(\s[a-zá-ž]+){0,12}\s+(doporučuji|navrhuji|nabízím|formuluji|nabídnu)\b.*$/im,
+      /^Zde (je|jsou)\b.*$/im,
+      /^Níže (je|jsou)\b.*$/im,
+      /^Tady (je|jsou)\b.*$/im,
+      /^(Here|Below) (is|are)\b.*$/im,
+      /^Samozřejmě,\s.*$/im,
+      /^Rád(a)? (s )?tím (vám )?pomohu.*$/im,
+    ];
+    for (const re of preambleMatchers) {
+      s = s.replace(re, '').trim();
+    }
+
+    // Cut at the first commentary marker.
+    const cutMarkers = [
+      /\n\s*\*?\*?(Varianta|Variant|Možnost|Verze|Version)\s*\d/i,
+      /\n\s*\*?\*?(Doporučení|Doporucení|Tip|Tipy|Pár tipů|Poznámka|Recommendation|Note)\s*[:：]/i,
+      /\n\s*###\s/,
+      /\n\s*\*\s/,
+      /\n\s*Která z nich/i,
+    ];
+    for (const marker of cutMarkers) {
+      const m = s.search(marker);
+      if (m > 0) s = s.slice(0, m);
+    }
+
+    s = this.stripWrappers(s);
+    s = s.replace(/\n{3,}/g, '\n\n').trim();
+
+    // Strategy 3 — last resort: if our cleanup nuked everything, fall
+    // back to the (admittedly noisy) raw response so the teacher still
+    // has something to work with.
+    return s.length >= 10 ? s : this.stripWrappers(original);
+  }
+
+  /**
+   * Strip surrounding quote characters and inner markdown emphasis
+   * markers (**bold**, _italic_) so the result is paste-ready plain
+   * text.
+   */
+  private stripWrappers(text: string): string {
+    let s = text.trim();
+    // Remove surrounding quote pair (Czech and ASCII forms).
+    const quoted = /^[„"'»](.*)["“'«]$/s.exec(s);
+    if (quoted) s = quoted[1].trim();
+    // Strip leading bullet/blockquote artefacts.
+    s = s.replace(/^>\s*/gm, '').trim();
+    // Remove **bold** and __bold__ markers (keep the inner text).
+    s = s.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/__([^_]+)__/g, '$1');
+    return s.trim();
   }
 
   async getGradingTypesForClassroom(classroomId: string) {
