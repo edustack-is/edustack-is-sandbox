@@ -1,0 +1,88 @@
+name: Reset Database
+
+# Manual recovery action: deletes /data/edustack.db on a sandbox Fly machine
+# and restarts it. start.sh re-initialises an empty DB from schema.sql on
+# next boot. Use this to recover from a crashloop caused by a corrupted DB
+# (e.g. after a failed /api/init/restore-backup).
+#
+# Destroys all data on the target sandbox. Requires a typed confirmation.
+
+on:
+  workflow_dispatch:
+    inputs:
+      env_id:
+        description: 'Environment number to RESET (e.g., 1, 2, 3)'
+        required: true
+      confirm:
+        description: 'Type "wipe sandbox-N" exactly (replace N with env_id) to confirm'
+        required: true
+
+jobs:
+  reset:
+    name: Reset DB for sandbox-${{ github.event.inputs.env_id }}
+    runs-on: ubuntu-latest
+    env:
+      ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
+      APP_NAME: edustack-sandbox-${{ github.event.inputs.env_id }}
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+    steps:
+      - name: Verify confirmation phrase
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        run: |
+          EXPECTED="wipe ${ENV_NAME}"
+          if [ "$CONFIRM" != "$EXPECTED" ]; then
+            echo "::error::Confirmation mismatch. Expected exactly: '$EXPECTED', got: '$CONFIRM'"
+            exit 1
+          fi
+          echo "Confirmation OK"
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Resolve machine ID
+        id: machine
+        run: |
+          MACHINE_ID=$(flyctl machine list --app "$APP_NAME" --json | jq -r '.[0].id // empty')
+          if [ -z "$MACHINE_ID" ]; then
+            echo "::error::No machine found for $APP_NAME"
+            exit 1
+          fi
+          echo "machine_id=$MACHINE_ID" >> "$GITHUB_OUTPUT"
+          echo "Target machine: $MACHINE_ID"
+
+      - name: Ensure machine is started
+        run: |
+          # flyctl machine start is a no-op if already running.
+          # It also wakes machines that exhausted their restart budget.
+          flyctl machine start "${{ steps.machine.outputs.machine_id }}" --app "$APP_NAME" \
+            || echo "Machine may already be started, continuing"
+          # SSH listens before the backend boots; give it a moment to come up.
+          sleep 10
+
+      - name: Delete corrupted database file
+        run: |
+          flyctl ssh console \
+            --app "$APP_NAME" \
+            --machine "${{ steps.machine.outputs.machine_id }}" \
+            -C "sh -c 'rm -f /data/edustack.db && echo removed && ls -la /data/'"
+
+      - name: Restart machine
+        run: |
+          flyctl machine restart "${{ steps.machine.outputs.machine_id }}" --app "$APP_NAME"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Database reset for ${ENV_NAME}"
+            echo ""
+            echo "- App: \`$APP_NAME\`"
+            echo "- Machine: \`${{ steps.machine.outputs.machine_id }}\`"
+            echo ""
+            echo "On the next boot, \`scripts/start.sh\` sees no DB and re-initialises"
+            echo "from \`apps/backend/src/database/schema.sql\`. Watch the live logs;"
+            echo "you should see: \`[start] no DB at /data/edustack.db — initialising from schema.sql\`."
+            echo ""
+            echo "Visit https://be-${ENV_NAME}.is-edustack.org and run the setup wizard."
+          } >> "$GITHUB_STEP_SUMMARY"
