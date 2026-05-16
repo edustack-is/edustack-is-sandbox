@@ -63,6 +63,14 @@ export class DeputyCurriculumController {
   // ─── ACADEMIC YEARS ─────────────────────────────────────────────
 
   @Get('academic-years')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Školní roky' })
   @ApiResponse({
     status: 200,

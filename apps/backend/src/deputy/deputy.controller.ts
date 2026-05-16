@@ -163,6 +163,14 @@ export class DeputyController {
   // ─── CLASSROOM ───────────────────────────────────────────────────
 
   @Get('classrooms')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Seznam tříd' })
   @ApiResponse({
     status: 200,
