@@ -42,8 +42,12 @@ def main() -> int:
         if not stripped.startswith("| sandbox-"):
             continue
         cols = [c.strip() for c in stripped.strip("|").split("|")]
-        if len(cols) >= 4:
-            rows[cols[0]] = cols[:4]
+        # Accept legacy 4-col rows (Env, Frontend, Backend, Last deployed) and
+        # upgrade them in place to 5-col (insert "—" for MailDev).
+        if len(cols) == 4:
+            cols = [cols[0], cols[1], cols[2], "—", cols[3]]
+        if len(cols) >= 5:
+            rows[cols[0]] = cols[:5]
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -52,6 +56,7 @@ def main() -> int:
             env_name,
             f"https://{env_name}.{domain}",
             f"https://be-{env_name}.{domain}",
+            f"https://mail-{env_name}.{domain}",
             now,
         ]
     elif action == "delete":
@@ -72,11 +77,11 @@ def main() -> int:
         lines = [
             "",
             "",
-            "| Env | Frontend | Backend | Last deployed |",
-            "| --- | --- | --- | --- |",
+            "| Env | Frontend | Backend | MailDev | Last deployed |",
+            "| --- | --- | --- | --- | --- |",
         ]
         for r in sorted_rows:
-            lines.append(f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} |")
+            lines.append(f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} |")
         lines.append("")
         body = "\n".join(lines)
     else:

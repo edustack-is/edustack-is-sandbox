@@ -1,0 +1,25 @@
+app = "__APP_NAME__"
+primary_region = "ams"
+
+[build]
+  image = "maildev/maildev:2.2.1"
+
+[env]
+  MAILDEV_SMTP_PORT = "1025"
+  MAILDEV_WEB_PORT = "1080"
+
+# Public web UI — Fly terminates TLS at the edge.
+[http_service]
+  internal_port = 1080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+# SMTP (1025) intentionally has no [[services]] block — it is reachable only
+# inside the org over Fly's 6PN, via __APP_NAME__.internal:1025.
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

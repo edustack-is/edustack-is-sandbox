@@ -71,6 +71,68 @@ jobs:
           fi
           echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
 
+      # ───── MailDev on Fly.io (per-env inbox) ─────────────────────
+      - name: Render MailDev fly.toml
+        id: fly_maildev_cfg
+        run: |
+          APP_NAME="mail-edustack-${ENV_NAME}"
+          mkdir -p .fly
+          sed "s/__APP_NAME__/${APP_NAME}/g" \
+            fly-maildev.toml.template > ".fly/${APP_NAME}.toml"
+          echo "app_name=${APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "config_path=.fly/${APP_NAME}.toml" >> "$GITHUB_OUTPUT"
+
+      - name: Create MailDev Fly app (idempotent)
+        run: |
+          APP_NAME="${{ steps.fly_maildev_cfg.outputs.app_name }}"
+          if flyctl apps list --json | jq -e --arg n "$APP_NAME" '.[] | select(.Name == $n)' > /dev/null; then
+            echo "Fly app $APP_NAME already exists"
+          else
+            flyctl apps create "$APP_NAME" --org "$FLY_ORG"
+          fi
+
+      - name: Deploy MailDev
+        run: |
+          flyctl deploy \
+            --config "${{ steps.fly_maildev_cfg.outputs.config_path }}" \
+            --app "${{ steps.fly_maildev_cfg.outputs.app_name }}" \
+            --remote-only \
+            --wait-timeout 600
+
+      - name: Attach MailDev custom domain + TLS
+        run: |
+          APP_NAME="${{ steps.fly_maildev_cfg.outputs.app_name }}"
+          HOSTNAME="mail-${ENV_NAME}.${DOMAIN}"
+          FLY_HOST="${APP_NAME}.fly.dev"
+          ZONE_ID="${{ steps.zone.outputs.zone_id }}"
+
+          EXISTING_ID=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
+            | jq -r '.result[0].id // empty')
+
+          DNS_DATA=$(jq -nc \
+            --arg name "mail-${ENV_NAME}" \
+            --arg content "$FLY_HOST" \
+            '{type:"CNAME", name:$name, content:$content, ttl:1, proxied:false}')
+
+          if [ -n "$EXISTING_ID" ]; then
+            curl -fsS -X PUT \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${EXISTING_ID}" \
+              --data "$DNS_DATA" > /dev/null
+          else
+            curl -fsS -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+              --data "$DNS_DATA" > /dev/null
+          fi
+
+          flyctl certs add "$HOSTNAME" --app "$APP_NAME" || \
+            echo "Certificate may already exist for $HOSTNAME, continuing"
+
       # ───── Backend + MCP on Fly.io ────────────────────────────────
       - name: Render fly.toml
         id: fly_cfg
@@ -117,12 +179,16 @@ jobs:
           MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
         run: |
           APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
+          MAILDEV_APP="${{ steps.fly_maildev_cfg.outputs.app_name }}"
           flyctl secrets set \
             JWT_SECRET="$JWT_SECRET" \
             ENCRYPTION_KEY="$ENCRYPTION_KEY" \
             MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
             MCP_SERVER_URL="http://127.0.0.1:3001/sse" \
             CORS_ORIGIN="https://${ENV_NAME}.${DOMAIN}" \
+            SMTP_HOST="${MAILDEV_APP}.internal" \
+            SMTP_PORT="1025" \
+            MAIL_FROM="no-reply@${ENV_NAME}.${DOMAIN}" \
             --app "$APP_NAME" \
             --stage
 
@@ -257,9 +323,12 @@ jobs:
             echo ""
             echo "- Frontend: https://${ENV_NAME}.${DOMAIN}"
             echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}"
+            echo "- MailDev:  https://mail-${ENV_NAME}.${DOMAIN}"
             echo "- Fly app:  ${{ steps.fly_cfg.outputs.app_name }} (region $FLY_REGION)"
+            echo "- MailDev Fly app: ${{ steps.fly_maildev_cfg.outputs.app_name }}"
             echo ""
             echo "MCP server is internal-only on 127.0.0.1:3001 inside the Fly container."
+            echo "MailDev SMTP is internal-only on ${{ steps.fly_maildev_cfg.outputs.app_name }}.internal:1025."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Update README live-sandbox table
@@ -307,6 +376,11 @@ jobs:
           APP_NAME="edustack-${ENV_NAME}"
           flyctl apps destroy "$APP_NAME" --yes || echo "Fly app destroy returned non-zero, continuing"
 
+      - name: Destroy MailDev Fly app
+        run: |
+          APP_NAME="mail-edustack-${ENV_NAME}"
+          flyctl apps destroy "$APP_NAME" --yes || echo "MailDev Fly app destroy returned non-zero, continuing"
+
       - name: Resolve Cloudflare zone ID
         id: zone
         run: |
@@ -319,7 +393,7 @@ jobs:
       - name: Remove backend + frontend CNAMEs
         run: |
           ZONE_ID="${{ steps.zone.outputs.zone_id }}"
-          for HOSTNAME in "be-${ENV_NAME}.${DOMAIN}" "${ENV_NAME}.${DOMAIN}"; do
+          for HOSTNAME in "be-${ENV_NAME}.${DOMAIN}" "${ENV_NAME}.${DOMAIN}" "mail-${ENV_NAME}.${DOMAIN}"; do
             REC_ID=$(curl -fsS \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
@@ -346,8 +420,8 @@ jobs:
           {
             echo "### Environment ${ENV_NAME} deleted"
             echo ""
-            echo "- Fly app destroyed: edustack-${ENV_NAME}"
-            echo "- DNS records removed: be-${ENV_NAME}.${DOMAIN}, ${ENV_NAME}.${DOMAIN}"
+            echo "- Fly apps destroyed: edustack-${ENV_NAME}, mail-edustack-${ENV_NAME}"
+            echo "- DNS records removed: be-${ENV_NAME}.${DOMAIN}, ${ENV_NAME}.${DOMAIN}, mail-${ENV_NAME}.${DOMAIN}"
             echo "- Pages project removed: edustack-frontend-${ENV_NAME}"
           } >> "$GITHUB_STEP_SUMMARY"
 
