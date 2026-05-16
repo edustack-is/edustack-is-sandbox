@@ -50,7 +50,7 @@ def main() -> int:
     if action == "deploy":
         rows[env_name] = [
             env_name,
-            f"https://fe-{env_name}.{domain}",
+            f"https://{env_name}.{domain}",
             f"https://be-{env_name}.{domain}",
             now,
         ]

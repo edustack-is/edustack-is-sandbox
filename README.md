@@ -4,7 +4,7 @@ School information system for primary and secondary schools. Monorepo with a bac
 
 ## Info website
 
-A public information website is already deployed at **https://is-edustack.org/**. It serves as the landing/marketing page for the EduStack IS project and points to the running application instances. The DNS zone `is-edustack.org` is the same zone used for the per-environment subdomains (`fe-sandbox-*` for the frontend on Cloudflare Pages, `be-sandbox-*` for the backend on Fly.io) created by the deployment workflow described below.
+A public information website is already deployed at **https://is-edustack.org/**. It serves as the landing/marketing page for the EduStack IS project and points to the running application instances. The DNS zone `is-edustack.org` is the same zone used for the per-environment subdomains (`sandbox-*` for the frontend on Cloudflare Pages, `be-sandbox-*` for the backend on Fly.io) created by the deployment workflow described below.
 
 ## Live sandboxes
 
@@ -123,7 +123,7 @@ The `.github/workflows/deploy-env.yml` GitHub Actions workflow provisions an iso
 - **Backend + MCP server**: one Fly.io app per env (`edustack-sandbox-N`) running both Node processes in a single container, with a 1 GB persistent volume mounted at `/data` for the SQLite database. MCP listens on `127.0.0.1:3001` inside the container; only the backend can reach it.
 - **Frontend**: one Cloudflare Pages project per env (`edustack-frontend-sandbox-N`), built from `apps/frontend` with `VITE_API_URL` pointed at the matching backend.
 - **Custom domains** under `is-edustack.org`:
-    - `fe-sandbox-N.is-edustack.org` → Cloudflare Pages
+    - `sandbox-N.is-edustack.org` → Cloudflare Pages
     - `be-sandbox-N.is-edustack.org` → Fly.io (CNAME to `edustack-sandbox-N.fly.dev`, TLS via Fly Let's Encrypt)
 
 ### 1. GitHub repository secrets
@@ -179,7 +179,7 @@ Create a **Custom token** with these permissions:
 | **deploy** | Full provision: create Fly app + volume (idempotent), stage secrets, `flyctl deploy`, attach DNS + TLS, build + deploy frontend | First time and any subsequent push — every step is idempotent |
 | **delete** | Destroys the Fly app (machines + volume), removes the CNAMEs, deletes the Pages project                                         | Tearing an environment down                                   |
 
-After a successful `deploy`, the run summary lists the live URLs (`fe-sandbox-N`, `be-sandbox-N`) and the Fly app name.
+After a successful `deploy`, the run summary lists the live URLs (`sandbox-N`, `be-sandbox-N`) and the Fly app name.
 
 ### 5. Costs
 

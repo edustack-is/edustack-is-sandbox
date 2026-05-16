@@ -122,7 +122,7 @@ jobs:
             ENCRYPTION_KEY="$ENCRYPTION_KEY" \
             MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
             MCP_SERVER_URL="http://127.0.0.1:3001/sse" \
-            CORS_ORIGIN="https://fe-${ENV_NAME}.${DOMAIN}" \
+            CORS_ORIGIN="https://${ENV_NAME}.${DOMAIN}" \
             --app "$APP_NAME" \
             --stage
 
@@ -204,7 +204,7 @@ jobs:
         env:
           PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
-          HOSTNAME="fe-${ENV_NAME}.${DOMAIN}"
+          HOSTNAME="${ENV_NAME}.${DOMAIN}"
           PAGES_HOST="${PROJECT_NAME}.pages.dev"
           ZONE_ID="${{ steps.zone.outputs.zone_id }}"
 
@@ -214,7 +214,7 @@ jobs:
             | jq -r '.result[0].id // empty')
 
           DNS_DATA=$(jq -nc \
-            --arg name "fe-${ENV_NAME}" \
+            --arg name "${ENV_NAME}" \
             --arg content "$PAGES_HOST" \
             '{type:"CNAME", name:$name, content:$content, ttl:1, proxied:true}')
 
@@ -255,7 +255,7 @@ jobs:
           {
             echo "### Environment ${ENV_NAME} deployed"
             echo ""
-            echo "- Frontend: https://fe-${ENV_NAME}.${DOMAIN}"
+            echo "- Frontend: https://${ENV_NAME}.${DOMAIN}"
             echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}"
             echo "- Fly app:  ${{ steps.fly_cfg.outputs.app_name }} (region $FLY_REGION)"
             echo ""
@@ -319,7 +319,7 @@ jobs:
       - name: Remove backend + frontend CNAMEs
         run: |
           ZONE_ID="${{ steps.zone.outputs.zone_id }}"
-          for HOSTNAME in "be-${ENV_NAME}.${DOMAIN}" "fe-${ENV_NAME}.${DOMAIN}"; do
+          for HOSTNAME in "be-${ENV_NAME}.${DOMAIN}" "${ENV_NAME}.${DOMAIN}"; do
             REC_ID=$(curl -fsS \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
@@ -347,7 +347,7 @@ jobs:
             echo "### Environment ${ENV_NAME} deleted"
             echo ""
             echo "- Fly app destroyed: edustack-${ENV_NAME}"
-            echo "- DNS records removed: be-${ENV_NAME}.${DOMAIN}, fe-${ENV_NAME}.${DOMAIN}"
+            echo "- DNS records removed: be-${ENV_NAME}.${DOMAIN}, ${ENV_NAME}.${DOMAIN}"
             echo "- Pages project removed: edustack-frontend-${ENV_NAME}"
           } >> "$GITHUB_STEP_SUMMARY"
 
