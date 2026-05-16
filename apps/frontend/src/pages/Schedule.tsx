@@ -87,68 +87,79 @@ export const Schedule: React.FC = () => {
     // Today for highlighting substitutions
     const today = new Date().toISOString().slice(0, 10);
 
+    // Roles allowed to call /api/deputy/*. The schedule page used to fire
+    // those endpoints for every logged-in user, which produced a stream
+    // of 403s in the backend log for TEACHER/STUDENT/PARENT visitors.
+    // /api/registry/classrooms is open to TEACHER too, so we use it as a
+    // fallback for teachers; STUDENT/PARENT just rely on the "My"
+    // and (TEACHER-supplied) classroom views.
+    const isSchoolAdmin = !!role && ['ADMIN', 'DEPUTY', 'PRINCIPAL', 'DIRECTOR'].includes(role);
+    const isTeachingStaff = isSchoolAdmin || role === 'TEACHER';
+
     // ─── One-time init: classrooms, teachers, academic years, student info ────
     useEffect(() => {
         if (!schoolId) return;
         let cancelled = false;
 
         const init = async () => {
-            // Load classrooms
-            const clsRes = await api.get('/api/deputy/classrooms').catch(() => ({ data: [] }));
-            const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
-            if (!cancelled) setClassrooms(clsList);
+            // Classrooms — admins use /api/deputy/classrooms; teachers can
+            // hit /api/registry/classrooms which is open to them; everyone
+            // else gets no dropdown and relies on the "My" view.
+            if (isSchoolAdmin) {
+                const clsRes = await api.get('/api/deputy/classrooms').catch(() => ({ data: [] }));
+                const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
+                if (!cancelled) setClassrooms(clsList);
+            } else if (role === 'TEACHER') {
+                const clsRes = await api.get('/api/registry/classrooms').catch(() => ({ data: [] }));
+                const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
+                if (!cancelled) setClassrooms(clsList);
+            }
 
-            // Load rooms
-            const rRes = await api.get('/api/deputy/rooms').catch(() => ({ data: [] }));
-            const rList: RoomOption[] = Array.isArray(rRes.data) ? rRes.data : [];
-            if (!cancelled) setRooms(rList);
+            // Rooms — admin-only endpoint, skip otherwise.
+            if (isSchoolAdmin) {
+                const rRes = await api.get('/api/deputy/rooms').catch(() => ({ data: [] }));
+                const rList: RoomOption[] = Array.isArray(rRes.data) ? rRes.data : [];
+                if (!cancelled) setRooms(rList);
+            }
 
-            // Load teachers. The backend returns rows shaped as
-            //   { id: userId, firstName, lastName, teacherProfile: { id, ... } }
-            // and getTeacherSchedule() filters by teacher-PROFILE id, so we
-            // must store `teacherProfile.id` here, not the user id. Before
-            // this fix the dropdown silently mapped the user id and every
-            // selection returned an empty schedule.
-            let teacherList: TeacherOption[] = [];
-            try {
-                const tRes = await api.get('/api/deputy/teachers');
-                const tData = Array.isArray(tRes.data) ? tRes.data : [];
-                teacherList = tData
-                    .map((t: any) => ({
-                        id: t.teacherProfile?.id || t.teacherProfileId || '',
-                        user: {
-                            firstName: t.user?.firstName || t.firstName || '',
-                            lastName: t.user?.lastName || t.lastName || '',
-                        },
-                    }))
-                    .filter((t: TeacherOption) => t.id);
-            } catch {
+            // Teachers — admin-only endpoint. /api/deputy/teachers returns
+            // { id: userId, ..., teacherProfile: { id } } and
+            // getTeacherSchedule filters by teacher-PROFILE id, so we
+            // store teacherProfile.id, not the user id.
+            if (isTeachingStaff) {
                 try {
-                    const uRes = await api.get('/api/deputy/users');
-                    const uData = Array.isArray(uRes.data) ? uRes.data : [];
-                    teacherList = uData
-                        .filter((u: any) => u.role === 'TEACHER' && u.teacherProfileId)
+                    const tRes = await api.get('/api/deputy/teachers');
+                    const tData = Array.isArray(tRes.data) ? tRes.data : [];
+                    const teacherList = tData
                         .map((t: any) => ({
-                            id: t.teacherProfileId,
-                            user: { firstName: t.firstName, lastName: t.lastName },
-                        }));
+                            id: t.teacherProfile?.id || t.teacherProfileId || '',
+                            user: {
+                                firstName: t.user?.firstName || t.firstName || '',
+                                lastName: t.user?.lastName || t.lastName || '',
+                            },
+                        }))
+                        .filter((t: TeacherOption) => t.id);
+                    if (!cancelled) setTeachers(teacherList);
+                } catch {
+                    /* ignore — non-admin TEACHER may legitimately get 403 here */
+                }
+            }
+
+            // Academic years — admin-only endpoint. Without it we just
+            // skip the year selector; the schedule view endpoints work
+            // without it (they return the current year by default).
+            if (isSchoolAdmin) {
+                try {
+                    const ayRes = await api.get('/api/deputy/academic-years');
+                    const years = Array.isArray(ayRes.data) ? ayRes.data : [];
+                    if (!cancelled) {
+                        setAcademicYears(years);
+                        const current = years.find((y: any) => y.isCurrent);
+                        if (current) setSelectedAcademicYearId((prev) => prev || current.id);
+                    }
                 } catch {
                     /* ignore */
                 }
-            }
-            if (!cancelled) setTeachers(teacherList);
-
-            // Load academic years
-            try {
-                const ayRes = await api.get('/api/deputy/academic-years');
-                const years = Array.isArray(ayRes.data) ? ayRes.data : [];
-                if (!cancelled) {
-                    setAcademicYears(years);
-                    const current = years.find((y: any) => y.isCurrent);
-                    if (current) setSelectedAcademicYearId((prev) => prev || current.id);
-                }
-            } catch {
-                /* ignore */
             }
 
             // Resolve the current user's profiles once. /api/auth/me
@@ -176,12 +187,17 @@ export const Schedule: React.FC = () => {
                 }
             }
 
-            // Admin/Principal/Deputy: default to first classroom
-            if (role !== 'TEACHER' && role !== 'STUDENT' && role !== 'PARENT' && clsList.length > 0) {
-                if (!cancelled) {
-                    setSelectedClassroomId((prev) => prev || clsList[0].id);
-                    setViewMode((prev) => (prev === 'my' ? 'classroom' : prev));
-                }
+            // Admin/Principal/Deputy: default to first classroom (after
+            // setClassrooms has settled — we re-read state via the setter
+            // closure to avoid referencing a no-longer-in-scope local).
+            if (isSchoolAdmin && !cancelled) {
+                setClassrooms((current) => {
+                    if (current.length > 0) {
+                        setSelectedClassroomId((prev) => prev || current[0].id);
+                        setViewMode((prev) => (prev === 'my' ? 'classroom' : prev));
+                    }
+                    return current;
+                });
             }
         };
 
@@ -191,9 +207,9 @@ export const Schedule: React.FC = () => {
         };
     }, [schoolId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Load semesters when academic year changes
+    // Load semesters when academic year changes (admin-only endpoint).
     useEffect(() => {
-        if (!schoolId || !selectedAcademicYearId) {
+        if (!schoolId || !selectedAcademicYearId || !isSchoolAdmin) {
             setSemesters([]);
             return;
         }
@@ -210,7 +226,7 @@ export const Schedule: React.FC = () => {
                 setSelectedSemesterId(currentSem?.id || '');
             })
             .catch(() => setSemesters([]));
-    }, [schoolId, selectedAcademicYearId]);
+    }, [schoolId, selectedAcademicYearId, isSchoolAdmin]);
 
     // Load time slots
     useEffect(() => {
