@@ -15,7 +15,7 @@ echo "[start] launching MCP server on ${MCP_HOST:-127.0.0.1}:${MCP_PORT:-3001}"
 MCP_PID=$!
 
 echo "[start] launching backend on ${HOST:-0.0.0.0}:${PORT:-3000}"
-( cd /app/apps/backend && node dist/main.js ) &
+( cd /app/apps/backend && node dist/src/main.js ) &
 BACKEND_PID=$!
 
 shutdown() {
