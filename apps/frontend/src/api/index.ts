@@ -469,8 +469,20 @@ export const upsertReportCard = async (data: {
     return response.data;
 };
 
-export const polishVerbalEvaluation = async (data: { text: string; studentName: string; subjectName: string }) => {
-    const response = await api.post('/api/grading/ai-polish', data);
+export interface PolishVariant {
+    id: string;
+    label: string;
+    tone: string;
+    text: string;
+}
+
+export const polishVerbalEvaluation = async (data: {
+    text: string;
+    studentName: string;
+    subjectName: string;
+    feedback?: string;
+}) => {
+    const response = await api.post<{ variants: PolishVariant[] }>('/api/grading/ai-polish', data);
     return response.data;
 };
 

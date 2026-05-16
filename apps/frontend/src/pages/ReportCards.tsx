@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
-import { getReportCards, upsertReportCard, polishVerbalEvaluation, api } from '@/api';
+import { getReportCards, upsertReportCard, api } from '@/api';
+import { PolishWithAiDialog } from '@/components/grading/PolishWithAiDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +79,11 @@ export const ReportCards: React.FC = () => {
     const [editGrade, setEditGrade] = useState('');
     const [editVerbal, setEditVerbal] = useState('');
     const [saving, setSaving] = useState(false);
-    const [polishing, setPolishing] = useState(false);
+    // The polish flow now opens a side-by-side dialog of variants
+    // instead of overwriting the textarea. `polishOpen` toggles the
+    // dialog; the final replacement happens in `handleAcceptPolish`
+    // when the teacher picks a variant.
+    const [polishOpen, setPolishOpen] = useState(false);
 
     // ─── Load reference data ────────────────────────────────
 
@@ -161,26 +166,20 @@ export const ReportCards: React.FC = () => {
         }
     };
 
-    const handleAiPolish = async () => {
+    const handleOpenPolish = () => {
         if (!editDialog || !editVerbal.trim()) {
             toast.error(t('report_cards.polish_error'));
             return;
         }
+        setPolishOpen(true);
+    };
 
-        setPolishing(true);
-        try {
-            const result = await polishVerbalEvaluation({
-                text: editVerbal,
-                studentName: `${editDialog.student.firstName} ${editDialog.student.lastName}`,
-                subjectName: editDialog.subjectName,
-            });
-            setEditVerbal(result.polishedText);
-            toast.success(t('report_cards.polish_success'));
-        } catch {
-            toast.error(t('report_cards.ai_unavailable'));
-        } finally {
-            setPolishing(false);
-        }
+    const handleAcceptPolish = (text: string) => {
+        // The dialog hands back the variant the teacher picked. Replace
+        // the textarea content; the polished text is otherwise never
+        // persisted server-side.
+        setEditVerbal(text);
+        toast.success(t('report_cards.polish_success'));
     };
 
     const handlePrint = () => {
@@ -438,11 +437,11 @@ export const ReportCards: React.FC = () => {
                                 variant="outline"
                                 size="sm"
                                 className="mt-2"
-                                onClick={handleAiPolish}
-                                disabled={polishing || !editVerbal.trim()}
+                                onClick={handleOpenPolish}
+                                disabled={!editVerbal.trim()}
                             >
                                 <Sparkles className="h-3 w-3 mr-1" />
-                                {polishing ? t('grading.ai_processing') : t('grading.ai_polish')}
+                                {t('grading.ai_polish')}
                             </Button>
                         </div>
                     </div>
@@ -457,6 +456,19 @@ export const ReportCards: React.FC = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* AI polish — opens with N standalone variants, leaves
+                the textarea untouched until the teacher picks one. */}
+            {editDialog && (
+                <PolishWithAiDialog
+                    open={polishOpen}
+                    onOpenChange={setPolishOpen}
+                    originalText={editVerbal}
+                    studentName={`${editDialog.student.firstName} ${editDialog.student.lastName}`}
+                    subjectName={editDialog.subjectName}
+                    onAccept={handleAcceptPolish}
+                />
+            )}
 
             {/* Print styles */}
             <style>{`

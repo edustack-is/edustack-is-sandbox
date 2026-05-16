@@ -272,15 +272,52 @@ export class GradingService {
     ]);
   }
 
-  async polishVerbalEvaluation(text: string) {
-    const result = await this.aiService.refineText({
-      existingText: text,
-      context: 'Jsi učitel na základní škole.',
-      instruction:
-        'Vylepši toto slovní hodnocení žáka, aby bylo profesionální, povzbuzující a spisovné.',
-    });
-    // aiService.refineText returns { text: string }
-    return { polishedText: result.text };
+  async polishVerbalEvaluation(text: string, feedback?: string) {
+    // Three independently-generated rewrites with distinct tones so the
+    // teacher can pick the wording closest to what they want, or send a
+    // feedback prompt to regenerate. The variants are NOT persisted —
+    // only the one the teacher accepts and saves on the report card.
+    const variants = [
+      {
+        id: 'formal',
+        label: 'Formální',
+        tone: 'formální, věcný a spisovný',
+      },
+      {
+        id: 'encouraging',
+        label: 'Povzbuzující',
+        tone: 'povzbuzující, vřelý a motivační',
+      },
+      {
+        id: 'concise',
+        label: 'Stručný',
+        tone: 'stručný, jasný a konkrétní',
+      },
+    ];
+    const baseInstruction =
+      'Vylepši toto slovní hodnocení žáka, aby bylo spisovné, profesionální a vhodné na vysvědčení. Zachovej obsah a věcný význam.' +
+      (feedback?.trim()
+        ? ` Zohledni následující pokyn od učitele: ${feedback.trim()}.`
+        : '');
+
+    const results = await Promise.all(
+      variants.map((v) =>
+        this.aiService.refineText({
+          existingText: text,
+          context: `Jsi učitel na základní škole. Piš tónem, který je ${v.tone}.`,
+          instruction: baseInstruction,
+        }),
+      ),
+    );
+
+    return {
+      variants: variants.map((v, i) => ({
+        id: v.id,
+        label: v.label,
+        tone: v.tone,
+        text: results[i].text,
+      })),
+    };
   }
 
   async getGradingTypesForClassroom(classroomId: string) {

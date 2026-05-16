@@ -229,7 +229,7 @@ export class GradingController {
   @ApiBody({ type: PolishTextDto })
   async polishVerbalEvaluation(@Req() req: any, @Body() body: PolishTextDto) {
     this.ensureTenant(req);
-    return this.gradingService.polishVerbalEvaluation(body.text);
+    return this.gradingService.polishVerbalEvaluation(body.text, body.feedback);
   }
 
   // ─── GRADING TYPES ──────────────────────────────────────────

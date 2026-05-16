@@ -409,6 +409,13 @@ export class PolishTextDto {
   @IsString()
   @IsNotEmpty()
   subjectName: string;
+
+  // Optional refinement prompt from the teacher when they iterate on
+  // the variants. Empty / undefined on the first call.
+  @ApiProperty({ required: false, example: 'Více pozitivní, méně formální.' })
+  @IsString()
+  @IsOptional()
+  feedback?: string;
 }
 
 export class BehaviorGradeDto {
