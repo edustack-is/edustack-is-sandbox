@@ -6,6 +6,16 @@ School information system for primary and secondary schools. Monorepo with a bac
 
 A public information website is already deployed at **https://is-edustack.org/**. It serves as the landing/marketing page for the EduStack IS project and points to the running application instances. The DNS zone `is-edustack.org` is the same zone used for the per-environment subdomains (`fe-sandbox-*` for the frontend on Cloudflare Pages, `be-sandbox-*` for the backend on Fly.io) created by the deployment workflow described below.
 
+## Live sandboxes
+
+The table below is maintained automatically by the **Deploy Environment** workflow — each successful `deploy` adds or refreshes a row and each `delete` removes one.
+
+<!-- DEPLOYED_ENVS_START -->
+
+_No environments deployed._
+
+<!-- DEPLOYED_ENVS_END -->
+
 ## Technology
 
 | Layer      | Stack                                               |
