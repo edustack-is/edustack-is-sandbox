@@ -502,25 +502,27 @@ export const Schedule: React.FC = () => {
                 className="w-full"
             >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-wrap">
-                    <TabsList className="grid grid-cols-4 w-full sm:w-auto sm:inline-grid">
-                        <TabsTrigger value="my" className="flex items-center gap-1.5">
-                            <UserCheck className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">{t('schedule.my_schedule')}</span>
-                            <span className="sm:hidden">{t('common.my')}</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="classroom" className="flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5" />
-                            <span>{t('common.class')}</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="teacher" className="flex items-center gap-1.5">
-                            <GraduationCap className="h-3.5 w-3.5" />
-                            <span>{t('common.teacher')}</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="room" className="flex items-center gap-1.5">
-                            <DoorOpen className="h-3.5 w-3.5" />
-                            <span>{t('common.classroom')}</span>
-                        </TabsTrigger>
-                    </TabsList>
+                    {role !== 'STUDENT' && (
+                        <TabsList className="grid grid-cols-4 w-full sm:w-auto sm:inline-grid">
+                            <TabsTrigger value="my" className="flex items-center gap-1.5">
+                                <UserCheck className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">{t('schedule.my_schedule')}</span>
+                                <span className="sm:hidden">{t('common.my')}</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="classroom" className="flex items-center gap-1.5">
+                                <Users className="h-3.5 w-3.5" />
+                                <span>{t('common.class')}</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="teacher" className="flex items-center gap-1.5">
+                                <GraduationCap className="h-3.5 w-3.5" />
+                                <span>{t('common.teacher')}</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="room" className="flex items-center gap-1.5">
+                                <DoorOpen className="h-3.5 w-3.5" />
+                                <span>{t('common.classroom')}</span>
+                            </TabsTrigger>
+                        </TabsList>
+                    )}
 
                     {viewMode === 'classroom' && (
                         <Select value={selectedClassroomId} onValueChange={(v) => setSelectedClassroomId(v)}>

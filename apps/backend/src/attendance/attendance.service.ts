@@ -189,7 +189,11 @@ export class AttendanceService {
 
   async getExcuses(
     schoolId: string,
-    filters?: { classroomId?: string; status?: string },
+    filters?: {
+      classroomId?: string;
+      status?: string;
+      actor?: { userId: string; role: 'STUDENT' | 'PARENT' };
+    },
   ) {
     let where = 'WHERE ae.schoolId = ?';
     const params: any[] = [schoolId];
@@ -200,6 +204,17 @@ export class AttendanceService {
     if (filters?.classroomId) {
       where += ' AND sp.classroomId = ?';
       params.push(filters.classroomId);
+    }
+    // Scope to the caller's own data: STUDENT sees only their own
+    // excuses; PARENT sees those filed for any of their children.
+    if (filters?.actor?.role === 'STUDENT') {
+      where +=
+        ' AND ae.studentId = (SELECT id FROM "StudentProfile" WHERE userId = ?)';
+      params.push(filters.actor.userId);
+    } else if (filters?.actor?.role === 'PARENT') {
+      where +=
+        ' AND ae.studentId IN (SELECT studentId FROM "ParentStudent" WHERE parentId = ?)';
+      params.push(filters.actor.userId);
     }
 
     const excuses = await this.db.query(

@@ -211,7 +211,7 @@ function TeacherDashboard({ data }: { data: any }) {
     );
 }
 
-function StudentDashboard({ data }: { data: any; childName?: string }) {
+function StudentDashboard({ data, childName }: { data: any; childName?: string }) {
     const { t, i18n } = useTranslation();
     return (
         <div className="space-y-6">

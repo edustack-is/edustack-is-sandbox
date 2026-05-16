@@ -45,6 +45,7 @@ interface UserRequest extends Request {
     email: string;
     type: 'TENANT' | 'SYSTEM';
     schoolId?: string;
+    role?: string;
   };
 }
 
@@ -111,7 +112,14 @@ export class AttendanceController {
   }
 
   @Get('excuses')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Seznam omluvenek' })
   @ApiResponse({ status: 200, type: ExcuseResponseDto, isArray: true })
   async getExcuses(
@@ -120,7 +128,16 @@ export class AttendanceController {
     @Query('status') status?: string,
   ) {
     const schoolId = this.ensureTenant(req);
-    return this.attendanceService.getExcuses(schoolId, { classroomId, status });
+    // STUDENT (and PARENT) can read excuses but only their own scope —
+    // STUDENT sees their own, PARENT sees those of their children.
+    return this.attendanceService.getExcuses(schoolId, {
+      classroomId,
+      status,
+      actor:
+        req.user.role === 'STUDENT' || req.user.role === 'PARENT'
+          ? { userId: req.user.userId, role: req.user.role }
+          : undefined,
+    });
   }
 
   @Put('excuses/:id/review')

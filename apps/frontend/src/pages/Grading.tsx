@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
-import { getGradesForClassroom, getStudentGrades, createGrade, updateGrade, deleteGrade, api } from '@/api';
+import { getGradesForClassroom, getStudentGrades, createGrade, updateGrade, deleteGrade, getMe, api } from '@/api';
 import { PolishWithAiDialog } from '@/components/grading/PolishWithAiDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,9 @@ const GRADE_COLORS: Record<string, string> = {
 
 export const Grading: React.FC = () => {
     const { t, i18n } = useTranslation();
-    const { schoolId } = useSchool();
+    const { schoolId, role } = useSchool();
+    const isStudent = role === 'STUDENT';
+    const canEditGrades = !!role && ['TEACHER', 'PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(role);
 
     // Data
     const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
@@ -119,6 +121,9 @@ export const Grading: React.FC = () => {
 
     useEffect(() => {
         if (!schoolId) return;
+        // Students cannot hit /api/deputy/*. Their view loads their own
+        // grades via a separate effect below.
+        if (isStudent) return;
 
         // Load classrooms
         api.get('/api/deputy/classrooms')
@@ -142,11 +147,37 @@ export const Grading: React.FC = () => {
                 }
             })
             .catch(() => setAcademicYears([]));
-    }, [schoolId]);
+    }, [schoolId, isStudent]);
+
+    // Students: auto-load their own grades from /api/grading/student/:id
+    // (the only grading endpoint open to the STUDENT role).
+    useEffect(() => {
+        if (!schoolId || !isStudent) return;
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            try {
+                const me: any = await getMe();
+                const sp = me?.studentProfile;
+                if (!sp?.id || cancelled) return;
+                const data = await getStudentGrades(sp.id);
+                if (cancelled) return;
+                setSelectedStudent({ id: sp.id, firstName: sp.firstName, lastName: sp.lastName });
+                setStudentGrades(data.grades || []);
+            } catch {
+                if (!cancelled) setStudentGrades([]);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [schoolId, isStudent]);
 
     // Load semesters when academic year changes
     useEffect(() => {
-        if (!schoolId || !selectedAcademicYearId) {
+        if (!schoolId || !selectedAcademicYearId || isStudent) {
             setSemesters([]);
             return;
         }
@@ -164,12 +195,12 @@ export const Grading: React.FC = () => {
                 setSelectedSemesterId(currentSem?.id || '');
             })
             .catch(() => setSemesters([]));
-    }, [schoolId, selectedAcademicYearId]);
+    }, [schoolId, selectedAcademicYearId, isStudent]);
 
     // ─── Load grades grid ───────────────────────────────────
 
     const loadGrades = useCallback(async () => {
-        if (!schoolId || !selectedClassroomId) return;
+        if (!schoolId || !selectedClassroomId || isStudent) return;
         setLoading(true);
         try {
             const data = await getGradesForClassroom(
@@ -186,7 +217,7 @@ export const Grading: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [schoolId, selectedClassroomId, selectedSemesterId]);
+    }, [schoolId, selectedClassroomId, selectedSemesterId, isStudent]);
 
     useEffect(() => {
         loadGrades();
@@ -325,77 +356,83 @@ export const Grading: React.FC = () => {
                     <h1 className="text-2xl font-bold">{t('grading.title')}</h1>
                 </div>
 
-                {/* Filters */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    {academicYears.length > 0 && (
+                {/* Filters — admins/teachers only; students see just their
+                    own grades and don't pick a classroom/year/semester. */}
+                {!isStudent && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {academicYears.length > 0 && (
+                            <Select
+                                value={selectedAcademicYearId}
+                                onValueChange={(val) => {
+                                    setSelectedAcademicYearId(val);
+                                    setSelectedSemesterId('');
+                                    setSelectedStudent(null);
+                                }}
+                            >
+                                <SelectTrigger className="w-40">
+                                    <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                                    <SelectValue placeholder={`${t('common.year')}...`} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {academicYears.map((y) => (
+                                        <SelectItem key={y.id} value={y.id}>
+                                            {y.name}{' '}
+                                            {y.isCurrent ? `(${t('year_setup.current_year').toLowerCase()})` : ''}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+
                         <Select
-                            value={selectedAcademicYearId}
+                            value={selectedClassroomId}
                             onValueChange={(val) => {
-                                setSelectedAcademicYearId(val);
-                                setSelectedSemesterId('');
+                                setSelectedClassroomId(val);
                                 setSelectedStudent(null);
                             }}
                         >
-                            <SelectTrigger className="w-40">
-                                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                                <SelectValue placeholder={`${t('common.year')}...`} />
+                            <SelectTrigger className="w-32">
+                                <SelectValue placeholder={`${t('common.class')}...`} />
                             </SelectTrigger>
                             <SelectContent>
-                                {academicYears.map((y) => (
-                                    <SelectItem key={y.id} value={y.id}>
-                                        {y.name} {y.isCurrent ? `(${t('year_setup.current_year').toLowerCase()})` : ''}
+                                {classrooms.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
-                    )}
 
-                    <Select
-                        value={selectedClassroomId}
-                        onValueChange={(val) => {
-                            setSelectedClassroomId(val);
-                            setSelectedStudent(null);
-                        }}
-                    >
-                        <SelectTrigger className="w-32">
-                            <SelectValue placeholder={`${t('common.class')}...`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {classrooms.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    {semesters.length > 0 && (
-                        <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder={`${t('curriculum.semester')}...`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">{t('common.all')}</SelectItem>
-                                {semesters.map((s) => (
-                                    <SelectItem key={s.id} value={s.id}>
-                                        {s.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
-                </div>
+                        {semesters.length > 0 && (
+                            <Select value={selectedSemesterId} onValueChange={setSelectedSemesterId}>
+                                <SelectTrigger className="w-36">
+                                    <SelectValue placeholder={`${t('curriculum.semester')}...`} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">{t('common.all')}</SelectItem>
+                                    {semesters.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                )}
             </div>
 
-            <Tabs defaultValue="grid" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="grid">{t('grading.title')}</TabsTrigger>
-                    <TabsTrigger value="student" disabled={!selectedStudent}>
-                        {selectedStudent
-                            ? `${selectedStudent.lastName} ${selectedStudent.firstName}`
-                            : t('grading.student_overview')}
-                    </TabsTrigger>
-                </TabsList>
+            <Tabs defaultValue={isStudent ? 'student' : 'grid'} className="space-y-4">
+                {!isStudent && (
+                    <TabsList>
+                        <TabsTrigger value="grid">{t('grading.title')}</TabsTrigger>
+                        <TabsTrigger value="student" disabled={!selectedStudent}>
+                            {selectedStudent
+                                ? `${selectedStudent.lastName} ${selectedStudent.firstName}`
+                                : t('grading.student_overview')}
+                        </TabsTrigger>
+                    </TabsList>
+                )}
 
                 {/* ─── Grid Tab ───────────────────────────────── */}
                 <TabsContent value="grid">
@@ -544,9 +581,11 @@ export const Grading: React.FC = () => {
                     {selectedStudent && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>
-                                    <ArrowLeft className="h-4 w-4 mr-1" /> {t('common.back')}
-                                </Button>
+                                {!isStudent && (
+                                    <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>
+                                        <ArrowLeft className="h-4 w-4 mr-1" /> {t('common.back')}
+                                    </Button>
+                                )}
                                 <h2 className="text-lg font-semibold">
                                     {selectedStudent.lastName} {selectedStudent.firstName}
                                 </h2>
@@ -642,24 +681,26 @@ export const Grading: React.FC = () => {
                                                                     {g.weight} |{' '}
                                                                     {new Date(g.date).toLocaleDateString(i18n.language)}
                                                                 </span>
-                                                                <div className="flex gap-1">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-6 w-6 p-0"
-                                                                        onClick={() => openEditDialog(g)}
-                                                                    >
-                                                                        <Pencil className="h-3 w-3" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-6 w-6 p-0 text-destructive"
-                                                                        onClick={() => handleDeleteGrade(g.id)}
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </Button>
-                                                                </div>
+                                                                {canEditGrades && (
+                                                                    <div className="flex gap-1">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="h-6 w-6 p-0"
+                                                                            onClick={() => openEditDialog(g)}
+                                                                        >
+                                                                            <Pencil className="h-3 w-3" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="h-6 w-6 p-0 text-destructive"
+                                                                            onClick={() => handleDeleteGrade(g.id)}
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                 </div>

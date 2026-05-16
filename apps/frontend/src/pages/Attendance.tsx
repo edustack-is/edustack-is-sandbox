@@ -12,6 +12,7 @@ import {
     getUnexcusedAlerts,
 } from '../api';
 import { api } from '../api';
+import { useSchool } from '@/context/SchoolContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,9 @@ const STATUS_COLORS: Record<StatusKey, string> = {
 
 export default function AttendancePage() {
     const { t, i18n } = useTranslation();
+    const { role } = useSchool();
+    const isStudent = role === 'STUDENT';
+    const canReviewExcuses = !!role && ['TEACHER', 'PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(role);
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -58,10 +62,11 @@ export default function AttendancePage() {
     };
 
     useEffect(() => {
+        if (isStudent) return;
         api.get('/api/deputy/classrooms')
             .then((r) => setClassrooms(r.data))
             .catch(() => {});
-    }, []);
+    }, [isStudent]);
 
     const loadAttendance = async () => {
         if (!selectedClassroom) return;
@@ -164,22 +169,24 @@ export default function AttendancePage() {
                     <h1 className="text-2xl font-bold tracking-tight">{t('common.attendance')}</h1>
                     <p className="text-muted-foreground">{t('attendance.subtitle')}</p>
                 </div>
-                <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
-                    <SelectTrigger className="w-44">
-                        <SelectValue placeholder={t('common.select_class')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {classrooms.map((c: any) => (
-                            <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                {!isStudent && (
+                    <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder={t('common.select_class')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {classrooms.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
             </div>
 
             <Tabs
-                defaultValue="record"
+                defaultValue={isStudent ? 'stats' : 'record'}
                 onValueChange={(v) => {
                     if (v === 'stats') loadStats();
                     if (v === 'excuses') loadExcuses();
@@ -187,10 +194,10 @@ export default function AttendancePage() {
                 }}
             >
                 <TabsList>
-                    <TabsTrigger value="record">{t('common.record')}</TabsTrigger>
+                    {!isStudent && <TabsTrigger value="record">{t('common.record')}</TabsTrigger>}
                     <TabsTrigger value="stats">{t('common.statistics')}</TabsTrigger>
                     <TabsTrigger value="excuses">{t('common.excuses')}</TabsTrigger>
-                    <TabsTrigger value="alerts">{t('common.escalations')}</TabsTrigger>
+                    {!isStudent && <TabsTrigger value="alerts">{t('common.escalations')}</TabsTrigger>}
                 </TabsList>
 
                 {/* ─── RECORD TAB ─── */}
@@ -393,7 +400,7 @@ export default function AttendancePage() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {e.status === 'PENDING' && (
+                                                    {canReviewExcuses && e.status === 'PENDING' && (
                                                         <div className="flex gap-1">
                                                             <Button
                                                                 size="sm"
