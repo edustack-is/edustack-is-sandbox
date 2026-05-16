@@ -14,7 +14,7 @@ export interface LoginHelperConfig {
 }
 
 export const api = axios.create({
-    baseURL: '/',
+    baseURL: import.meta.env.VITE_API_URL || '/',
     withCredentials: true,
 });
 
