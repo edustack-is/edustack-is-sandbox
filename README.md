@@ -12,7 +12,9 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 
 <!-- DEPLOYED_ENVS_START -->
 
-_No environments deployed._
+| Env       | Frontend                             | Backend                              | Last deployed        |
+| --------- | ------------------------------------ | ------------------------------------ | -------------------- |
+| sandbox-1 | https://fe-sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | 2026-05-16 17:20 UTC |
 
 <!-- DEPLOYED_ENVS_END -->
 
