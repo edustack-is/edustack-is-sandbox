@@ -47,8 +47,33 @@ export class ClassBookController {
       throw new ForbiddenException('School context required.');
   }
 
+  /**
+   * Read endpoints are open to STUDENT/PARENT, but only for a classroom
+   * they belong to (student) or their child belongs to (parent). Staff
+   * roles can read any classroom in the school.
+   */
+  private async ensureCanReadClassroom(req: any, classroomId: string) {
+    const role = req.user?.role;
+    if (role !== 'STUDENT' && role !== 'PARENT') return;
+    const allowed = await this.classBookService.canActorReadClassroom(
+      req.user.userId,
+      role,
+      classroomId,
+    );
+    if (!allowed) {
+      throw new ForbiddenException('Classroom not accessible.');
+    }
+  }
+
   @Get('entries/:classroomId')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Záznamy třídní knihy za den' })
   @ApiResponse({
     status: 200,
@@ -62,6 +87,7 @@ export class ClassBookController {
     @Query('date') date: string,
   ) {
     this.ensureTenant(req);
+    await this.ensureCanReadClassroom(req, classroomId);
     return this.classBookService.getEntriesForDate(
       req.user.schoolId,
       classroomId,
@@ -101,7 +127,14 @@ export class ClassBookController {
   }
 
   @Get('range/:classroomId')
-  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.ADMIN,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Záznamy třídní knihy za období' })
   @ApiResponse({
     status: 200,
@@ -116,6 +149,7 @@ export class ClassBookController {
     @Query('dateTo') dateTo: string,
   ) {
     this.ensureTenant(req);
+    await this.ensureCanReadClassroom(req, classroomId);
     return this.classBookService.getEntriesForRange(
       req.user.schoolId,
       classroomId,

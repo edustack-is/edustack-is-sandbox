@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Printer, Save, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
-import { getClassBookEntries, upsertClassBookEntry, signClassBookEntry, getClassBookPrintUrl, api } from '../api';
+import {
+    getClassBookEntries,
+    upsertClassBookEntry,
+    signClassBookEntry,
+    getClassBookPrintUrl,
+    getMe,
+    api,
+} from '../api';
+import { useSchool } from '@/context/SchoolContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +22,9 @@ import { Textarea } from '@/components/ui/textarea';
 
 export default function ClassBook() {
     const { t, i18n } = useTranslation();
+    const { role } = useSchool();
+    const isStudent = role === 'STUDENT';
+    const canEdit = !!role && ['TEACHER', 'PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(role);
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -27,10 +38,21 @@ export default function ClassBook() {
     const [printTo, setPrintTo] = useState(new Date().toISOString().slice(0, 10));
 
     useEffect(() => {
+        // Staff & teachers can browse all classrooms in the school. A
+        // student only has their own — we resolve it from /api/auth/me.
+        if (isStudent) {
+            getMe()
+                .then((me: any) => {
+                    const classroomId = me?.studentProfile?.classroomId;
+                    if (classroomId) setSelectedClassroom(classroomId);
+                })
+                .catch(() => {});
+            return;
+        }
         api.get('/api/deputy/classrooms')
             .then((r) => setClassrooms(r.data))
             .catch(() => {});
-    }, []);
+    }, [isStudent]);
 
     const loadEntries = async () => {
         if (!selectedClassroom) return;
@@ -108,18 +130,20 @@ export default function ClassBook() {
                     </h1>
                     <p className="text-muted-foreground">{t('classbook.subtitle')}</p>
                 </div>
-                <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
-                    <SelectTrigger className="w-44">
-                        <SelectValue placeholder={t('common.select_class')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {classrooms.map((c: any) => (
-                            <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                {!isStudent && (
+                    <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder={t('common.select_class')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {classrooms.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -127,32 +151,34 @@ export default function ClassBook() {
                     <Label>{t('common.date')}</Label>
                     <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
                 </div>
-                <div className="flex items-end gap-2 ml-auto">
-                    <div className="space-y-1">
-                        <Label>
-                            {t('common.print')} {t('common.from').toLowerCase()}
-                        </Label>
-                        <Input
-                            type="date"
-                            value={printFrom}
-                            onChange={(e) => setPrintFrom(e.target.value)}
-                            className="w-36"
-                        />
+                {canEdit && (
+                    <div className="flex items-end gap-2 ml-auto">
+                        <div className="space-y-1">
+                            <Label>
+                                {t('common.print')} {t('common.from').toLowerCase()}
+                            </Label>
+                            <Input
+                                type="date"
+                                value={printFrom}
+                                onChange={(e) => setPrintFrom(e.target.value)}
+                                className="w-36"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label>{t('common.to').toLowerCase()}</Label>
+                            <Input
+                                type="date"
+                                value={printTo}
+                                onChange={(e) => setPrintTo(e.target.value)}
+                                className="w-36"
+                            />
+                        </div>
+                        <Button variant="outline" onClick={handlePrint}>
+                            <Printer className="h-4 w-4 mr-1" />
+                            {t('common.print')}
+                        </Button>
                     </div>
-                    <div className="space-y-1">
-                        <Label>{t('common.to').toLowerCase()}</Label>
-                        <Input
-                            type="date"
-                            value={printTo}
-                            onChange={(e) => setPrintTo(e.target.value)}
-                            className="w-36"
-                        />
-                    </div>
-                    <Button variant="outline" onClick={handlePrint}>
-                        <Printer className="h-4 w-4 mr-1" />
-                        {t('common.print')}
-                    </Button>
-                </div>
+                )}
             </div>
 
             <Card>
@@ -185,7 +211,7 @@ export default function ClassBook() {
                                     <TableHead>{t('common.notes')}</TableHead>
                                     <TableHead className="w-16">{t('common.absent_short')}</TableHead>
                                     <TableHead className="w-24">{t('common.signature')}</TableHead>
-                                    <TableHead className="w-20"></TableHead>
+                                    {canEdit && <TableHead className="w-20"></TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -250,7 +276,7 @@ export default function ClassBook() {
                                                     <Check className="h-3 w-3" />
                                                     {t('common.signed')}
                                                 </Badge>
-                                            ) : (
+                                            ) : canEdit ? (
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -259,24 +285,32 @@ export default function ClassBook() {
                                                 >
                                                     {t('common.sign')}
                                                 </Button>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {editingId === i ? (
-                                                <Button size="sm" className="h-6 text-xs" onClick={() => handleSave(e)}>
-                                                    <Save className="h-3 w-3" />
-                                                </Button>
                                             ) : (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-6 text-xs"
-                                                    onClick={() => handleEdit(i)}
-                                                >
-                                                    {t('common.edit')}
-                                                </Button>
+                                                <span className="text-muted-foreground text-xs italic">–</span>
                                             )}
                                         </TableCell>
+                                        {canEdit && (
+                                            <TableCell>
+                                                {editingId === i ? (
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-6 text-xs"
+                                                        onClick={() => handleSave(e)}
+                                                    >
+                                                        <Save className="h-3 w-3" />
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-6 text-xs"
+                                                        onClick={() => handleEdit(i)}
+                                                    >
+                                                        {t('common.edit')}
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>

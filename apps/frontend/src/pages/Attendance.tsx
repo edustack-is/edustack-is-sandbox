@@ -68,6 +68,13 @@ export default function AttendancePage() {
             .catch(() => {});
     }, [isStudent]);
 
+    // Tabs.onValueChange only fires on a change, not on mount, so the
+    // student's single-tab view would otherwise sit empty until they
+    // click. Kick the load off as soon as the role is known.
+    useEffect(() => {
+        if (isStudent) loadExcuses();
+    }, [isStudent]);
+
     const loadAttendance = async () => {
         if (!selectedClassroom) return;
         setLoading(true);
@@ -186,19 +193,21 @@ export default function AttendancePage() {
             </div>
 
             <Tabs
-                defaultValue={isStudent ? 'stats' : 'record'}
+                defaultValue={isStudent ? 'excuses' : 'record'}
                 onValueChange={(v) => {
                     if (v === 'stats') loadStats();
                     if (v === 'excuses') loadExcuses();
                     if (v === 'alerts') loadAlerts();
                 }}
             >
-                <TabsList>
-                    {!isStudent && <TabsTrigger value="record">{t('common.record')}</TabsTrigger>}
-                    <TabsTrigger value="stats">{t('common.statistics')}</TabsTrigger>
-                    <TabsTrigger value="excuses">{t('common.excuses')}</TabsTrigger>
-                    {!isStudent && <TabsTrigger value="alerts">{t('common.escalations')}</TabsTrigger>}
-                </TabsList>
+                {!isStudent && (
+                    <TabsList>
+                        <TabsTrigger value="record">{t('common.record')}</TabsTrigger>
+                        <TabsTrigger value="stats">{t('common.statistics')}</TabsTrigger>
+                        <TabsTrigger value="excuses">{t('common.excuses')}</TabsTrigger>
+                        <TabsTrigger value="alerts">{t('common.escalations')}</TabsTrigger>
+                    </TabsList>
+                )}
 
                 {/* ─── RECORD TAB ─── */}
                 <TabsContent value="record">

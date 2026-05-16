@@ -290,7 +290,7 @@ export class AttendanceService {
     if (!classroom) throw new NotFoundException('Classroom not found');
 
     const students = await this.db.query(
-      `SELECT sp.*, u.firstName, u.lastName FROM "StudentProfile" sp 
+      `SELECT sp.*, u.firstName, u.lastName FROM "StudentProfile" sp
        JOIN "User" u ON sp.userId = u.id WHERE sp.classroomId = ?`,
       [classroomId],
     );

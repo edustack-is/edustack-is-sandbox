@@ -17,6 +17,37 @@ import * as crypto from 'crypto';
 export class ClassBookService {
   constructor(private readonly db: DatabaseService) {}
 
+  // ─── ACCESS HELPERS ─────────────────────────────────────
+  /**
+   * STUDENT may only read their own classroom; PARENT may only read
+   * classrooms of children linked via ParentStudent. Returns true on
+   * allowed access.
+   */
+  async canActorReadClassroom(
+    userId: string,
+    role: 'STUDENT' | 'PARENT',
+    classroomId: string,
+  ): Promise<boolean> {
+    if (role === 'STUDENT') {
+      const row = await this.db.queryOne<{ id: string }>(
+        'SELECT id FROM "StudentProfile" WHERE userId = ? AND classroomId = ?',
+        [userId, classroomId],
+      );
+      return !!row;
+    }
+    if (role === 'PARENT') {
+      const row = await this.db.queryOne<{ id: string }>(
+        `SELECT sp.id FROM "StudentProfile" sp
+         JOIN "ParentStudent" ps ON ps.studentId = sp.id
+         WHERE ps.parentId = ? AND sp.classroomId = ?
+         LIMIT 1`,
+        [userId, classroomId],
+      );
+      return !!row;
+    }
+    return false;
+  }
+
   // ─── GET ENTRIES FOR A DATE ─────────────────────────────
 
   async getEntriesForDate(schoolId: string, classroomId: string, date: string) {

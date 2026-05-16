@@ -130,13 +130,14 @@ export class AttendanceController {
     const schoolId = this.ensureTenant(req);
     // STUDENT (and PARENT) can read excuses but only their own scope —
     // STUDENT sees their own, PARENT sees those of their children.
+    const actor: { userId: string; role: 'STUDENT' | 'PARENT' } | undefined =
+      req.user.role === 'STUDENT' || req.user.role === 'PARENT'
+        ? { userId: req.user.userId, role: req.user.role }
+        : undefined;
     return this.attendanceService.getExcuses(schoolId, {
       classroomId,
       status,
-      actor:
-        req.user.role === 'STUDENT' || req.user.role === 'PARENT'
-          ? { userId: req.user.userId, role: req.user.role }
-          : undefined,
+      actor,
     });
   }
 
