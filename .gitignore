@@ -8,6 +8,7 @@ data/*.db
 *.db
 .idea/
 .wrangler
+.fly/
 
 # Test reports and results
 playwright-report/

@@ -279,7 +279,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md
           git commit -m "docs(envs): ${ACTION} ${ENV_NAME}"
-          git pull --rebase origin main
+          git pull --rebase --autostash origin main
           git push origin main
 
   teardown:
@@ -368,5 +368,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md
           git commit -m "docs(envs): ${ACTION} ${ENV_NAME}"
-          git pull --rebase origin main
+          git pull --rebase --autostash origin main
           git push origin main
