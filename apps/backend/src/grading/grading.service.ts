@@ -30,8 +30,19 @@ export class GradingService {
 
   // ─── GRADE CRUD ─────────────────────────────────────────────
 
-  async createGrade(userId: string, schoolId: string, data: any) {
-    const teacher = await this.getTeacherProfile(userId);
+  async createGrade(
+    userId: string,
+    schoolId: string,
+    data: any,
+    role?: string,
+  ) {
+    // A grade row needs a TeacherProfile.id for `Grade.teacherId`.
+    // Plain TEACHERs always have one (created when the school invited
+    // them). PRINCIPAL/DEPUTY/ADMIN/DIRECTOR sometimes don't — they
+    // were added straight as leadership. We auto-provision an empty
+    // TeacherProfile for that case so a headmaster can still author
+    // grades without breaking the FK constraint.
+    const teacher = await this.getOrCreateTeacherProfile(userId, role);
     const student = await this.db.queryOne<StudentProfile>(
       'SELECT id, classroomId FROM "StudentProfile" WHERE id = ?',
       [data.studentId],
@@ -759,5 +770,39 @@ export class GradingService {
     );
     if (!p) throw new NotFoundException('Teacher profile not found');
     return p;
+  }
+
+  /**
+   * Variant of getTeacherProfile that transparently creates an empty
+   * profile when the caller is a school leader (PRINCIPAL / DEPUTY /
+   * ADMIN / DIRECTOR) without one. Plain TEACHER callers still hit the
+   * 404 fast path — if they reach this point without a profile it's a
+   * real seeding bug worth surfacing.
+   */
+  private async getOrCreateTeacherProfile(
+    userId: string,
+    role?: string,
+  ): Promise<TeacherProfile> {
+    const existing = await this.db.queryOne<TeacherProfile>(
+      'SELECT * FROM "TeacherProfile" WHERE userId = ?',
+      [userId],
+    );
+    if (existing) return existing;
+    const leadership = ['PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'];
+    if (!role || !leadership.includes(role.toUpperCase())) {
+      throw new NotFoundException('Teacher profile not found');
+    }
+    const id = crypto.randomUUID();
+    await this.db.execute(
+      'INSERT INTO "TeacherProfile" (id, userId, degree, approbation, homeroomClassId) VALUES (?, ?, ?, ?, ?)',
+      [id, userId, null, null, null],
+    );
+    return {
+      id,
+      userId,
+      degree: null,
+      approbation: null,
+      homeroomClassId: null,
+    } as TeacherProfile;
   }
 }

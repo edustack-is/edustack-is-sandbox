@@ -89,6 +89,7 @@ export class GradingController {
       req.user.userId,
       req.user.schoolId,
       body,
+      req.user.role,
     );
   }
 
