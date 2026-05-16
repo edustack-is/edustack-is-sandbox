@@ -182,6 +182,33 @@ jobs:
           PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
           HOSTNAME="fe-${ENV_NAME}.${DOMAIN}"
+          PAGES_HOST="${PROJECT_NAME}.pages.dev"
+          ZONE_ID="${{ steps.zone.outputs.zone_id }}"
+
+          EXISTING_ID=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
+            | jq -r '.result[0].id // empty')
+
+          DNS_DATA=$(jq -nc \
+            --arg name "fe-${ENV_NAME}" \
+            --arg content "$PAGES_HOST" \
+            '{type:"CNAME", name:$name, content:$content, ttl:1, proxied:true}')
+
+          if [ -n "$EXISTING_ID" ]; then
+            curl -fsS -X PUT \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${EXISTING_ID}" \
+              --data "$DNS_DATA" > /dev/null
+          else
+            curl -fsS -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+              --data "$DNS_DATA" > /dev/null
+          fi
+
           curl -fsS -X POST \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H "Content-Type: application/json" \
@@ -235,19 +262,21 @@ jobs:
             | jq -r '.result[0].id')
           echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Remove backend CNAME
+      - name: Remove backend + frontend CNAMEs
         run: |
-          HOSTNAME="be-${ENV_NAME}.${DOMAIN}"
           ZONE_ID="${{ steps.zone.outputs.zone_id }}"
-          REC_ID=$(curl -fsS \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
-            | jq -r '.result[0].id // empty')
-          if [ -n "$REC_ID" ]; then
-            curl -fsS -X DELETE \
+          for HOSTNAME in "be-${ENV_NAME}.${DOMAIN}" "fe-${ENV_NAME}.${DOMAIN}"; do
+            REC_ID=$(curl -fsS \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${REC_ID}" > /dev/null
-          fi
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
+              | jq -r '.result[0].id // empty')
+            if [ -n "$REC_ID" ]; then
+              curl -fsS -X DELETE \
+                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${REC_ID}" > /dev/null
+              echo "Removed $HOSTNAME"
+            fi
+          done
 
       - name: Delete Pages project
         env:
@@ -264,6 +293,6 @@ jobs:
             echo "### Environment ${ENV_NAME} deleted"
             echo ""
             echo "- Fly app destroyed: edustack-${ENV_NAME}"
-            echo "- DNS record removed: be-${ENV_NAME}.${DOMAIN}"
+            echo "- DNS records removed: be-${ENV_NAME}.${DOMAIN}, fe-${ENV_NAME}.${DOMAIN}"
             echo "- Pages project removed: edustack-frontend-${ENV_NAME}"
           } >> "$GITHUB_STEP_SUMMARY"
