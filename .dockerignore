@@ -2,6 +2,7 @@ node_modules
 apps/*/node_modules
 apps/*/dist
 apps/frontend
+!apps/frontend/package.json
 .git
 .github
 .next
