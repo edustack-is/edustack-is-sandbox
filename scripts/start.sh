@@ -10,13 +10,19 @@ if [ ! -s "$DB_FILE" ]; then
   sqlite3 "$DB_FILE" < /app/apps/backend/src/database/schema.sql
 fi
 
-echo "[start] launching MCP server on ${MCP_HOST:-127.0.0.1}:${MCP_PORT:-3001}"
-( cd /app/apps/mcp-server && node dist/index.js ) &
-MCP_PID=$!
-
 echo "[start] launching backend on ${HOST:-0.0.0.0}:${PORT:-3000}"
 ( cd /app/apps/backend && node dist/src/main.js ) &
 BACKEND_PID=$!
+
+# Stagger MCP boot — on shared-cpu-1x, two Node processes starting at the
+# same instant stretch the backend's first log line past 60s, which loses
+# to Fly's restart timeout. AiChatService retries the MCP connection
+# (attempt 1/10), so the MCP arriving a few seconds late is fine.
+sleep 5
+
+echo "[start] launching MCP server on ${MCP_HOST:-127.0.0.1}:${MCP_PORT:-3001}"
+( cd /app/apps/mcp-server && node dist/index.js ) &
+MCP_PID=$!
 
 shutdown() {
   echo "[start] shutting down…"
