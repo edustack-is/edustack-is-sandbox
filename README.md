@@ -172,7 +172,7 @@ After a successful `deploy`, the run summary lists the live URLs (`fe-sandbox-N`
 
 ### 5. Costs
 
-Each environment is one Fly.io machine (`shared-cpu-1x`, 512 MB) that auto-stops when idle, plus a 1 GB volume. At demo / low-traffic usage the per-env cost is a few cents to a few euros per month; idle envs cost almost nothing because the machine is stopped. The Cloudflare Pages side stays on the free tier comfortably.
+Each environment is one Fly.io machine (`shared-cpu-1x`, 512 MB) that auto-stops when idle, plus a 1 GB volume. Fly.io offers a 7-day trial; afterwards a payment method is required for the pay-as-you-go plan (the old always-free Hobby tier no longer exists). The 1 GB volume (~$0.15/month) accrues even while the machine is stopped — to drop to zero between demos, `delete` the env and `deploy` it again later. Realistic cost at demo / low-traffic usage is roughly **$1–2 per environment per month**. The Cloudflare Pages side stays on the free tier comfortably.
 
 ## Documentation
 
