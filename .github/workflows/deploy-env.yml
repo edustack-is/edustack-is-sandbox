@@ -167,12 +167,23 @@ jobs:
           echo "VITE_API_URL=https://be-${ENV_NAME}.${DOMAIN}" > .env
           npm run build
 
-          curl -fsS -X POST \
+          HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
-            --data "$(jq -nc --arg n "$PROJECT_NAME" '{name:$n, production_branch:"main"}')" \
-            || echo "Pages project create returned non-zero (likely already exists)"
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}")
+          if [ "$HTTP" = "200" ]; then
+            echo "Pages project ${PROJECT_NAME} already exists"
+          elif [ "$HTTP" = "404" ]; then
+            curl -fsS -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+              --data "$(jq -nc --arg n "$PROJECT_NAME" '{name:$n, production_branch:"main"}')" \
+              > /dev/null
+            echo "Created Pages project ${PROJECT_NAME}"
+          else
+            echo "Unexpected status $HTTP while checking Pages project ${PROJECT_NAME}" >&2
+            exit 1
+          fi
 
           wrangler pages deploy dist --project-name "$PROJECT_NAME" --branch main
 
@@ -209,12 +220,23 @@ jobs:
               --data "$DNS_DATA" > /dev/null
           fi
 
-          curl -fsS -X POST \
+          HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains" \
-            --data "$(jq -nc --arg h "$HOSTNAME" '{name:$h}')" \
-            || echo "Pages domain attach returned non-zero (likely already attached)"
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains/${HOSTNAME}")
+          if [ "$HTTP" = "200" ]; then
+            echo "Domain ${HOSTNAME} already attached to ${PROJECT_NAME}"
+          elif [ "$HTTP" = "404" ]; then
+            curl -fsS -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains" \
+              --data "$(jq -nc --arg h "$HOSTNAME" '{name:$h}')" \
+              > /dev/null
+            echo "Attached ${HOSTNAME} to ${PROJECT_NAME}"
+          else
+            echo "Unexpected status $HTTP while checking domain ${HOSTNAME}" >&2
+            exit 1
+          fi
 
       - name: Summary
         env:
