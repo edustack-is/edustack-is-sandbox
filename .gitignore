@@ -9,6 +9,8 @@ data/*.db
 .idea/
 .wrangler
 .fly/
+.claude/
+.next/
 
 # Test reports and results
 playwright-report/
