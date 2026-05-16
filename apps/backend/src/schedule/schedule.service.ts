@@ -315,11 +315,83 @@ export class ScheduleService {
 
   // ─── SUBSTITUTIONS ──────────────────────────────────────
 
-  async getSubstitutions(schoolId: string, filters: any) {
-    return this.db.query(
-      'SELECT * FROM "ScheduleSubstitution" WHERE schoolId = ?',
+  async getSubstitutions(schoolId: string, _filters: any) {
+    // Join the original event + substitute teacher/room/subject so the
+    // frontend gets the nested shape its UI is built around. Without
+    // this it just got raw foreign-key ids and exploded on every row.
+    const rows = await this.db.query<any>(
+      `SELECT
+         ss.*,
+         se.dayOfWeek as origDow, se.lessonNumber as origLesson,
+         se.startTime as origStart, se.endTime as origEnd,
+         se.subjectInstanceId as origSubjectInstanceId,
+         se.classroomId as origClassroomId, se.teacherId as origTeacherId,
+         st.id as origSubTemplateId, st.name as origSubName, st.code as origSubCode,
+         c.name as origClassName,
+         otU.firstName as origTFN, otU.lastName as origTLN,
+         stU.firstName as subTFN, stU.lastName as subTLN,
+         srR.name as subRoomName,
+         stS.name as subSubName, stS.code as subSubCode
+       FROM "ScheduleSubstitution" ss
+       LEFT JOIN "ScheduleEvent" se ON ss.originalEventId = se.id
+       LEFT JOIN "SubjectInstance" osi ON se.subjectInstanceId = osi.id
+       LEFT JOIN "SubjectTemplate" st ON osi.templateId = st.id
+       LEFT JOIN "Classroom" c ON se.classroomId = c.id
+       LEFT JOIN "TeacherProfile" otp ON se.teacherId = otp.id
+       LEFT JOIN "User" otU ON otp.userId = otU.id
+       LEFT JOIN "TeacherProfile" stp ON ss.substituteTeacherId = stp.id
+       LEFT JOIN "User" stU ON stp.userId = stU.id
+       LEFT JOIN "Room" srR ON ss.substituteRoomId = srR.id
+       LEFT JOIN "SubjectInstance" ssi ON ss.substituteSubjectId = ssi.id
+       LEFT JOIN "SubjectTemplate" stS ON ssi.templateId = stS.id
+       WHERE ss.schoolId = ?
+       ORDER BY ss.date DESC, se.lessonNumber ASC`,
       [schoolId],
     );
+
+    return rows.map((r) => ({
+      id: r.id,
+      date: r.date,
+      type: r.type,
+      note: r.note,
+      createdAt: r.createdAt,
+      originalEvent: r.originalEventId
+        ? {
+            id: r.originalEventId,
+            dayOfWeek: r.origDow,
+            lessonNumber: r.origLesson,
+            startTime: r.origStart,
+            endTime: r.origEnd,
+            subject: {
+              id: r.origSubjectInstanceId,
+              template: {
+                id: r.origSubTemplateId,
+                name: r.origSubName,
+                code: r.origSubCode,
+              },
+            },
+            classroom: { id: r.origClassroomId, name: r.origClassName },
+            teacherProfile: r.origTeacherId
+              ? {
+                  id: r.origTeacherId,
+                  user: { firstName: r.origTFN, lastName: r.origTLN },
+                }
+              : null,
+          }
+        : null,
+      substituteTeacher: r.substituteTeacherId
+        ? {
+            id: r.substituteTeacherId,
+            user: { firstName: r.subTFN, lastName: r.subTLN },
+          }
+        : null,
+      substituteRoom: r.substituteRoomId
+        ? { id: r.substituteRoomId, name: r.subRoomName }
+        : null,
+      substituteSubject: r.substituteSubjectId
+        ? { template: { name: r.subSubName, code: r.subSubCode } }
+        : null,
+    }));
   }
 
   async createSubstitution(schoolId: string, userId: string, data: any) {

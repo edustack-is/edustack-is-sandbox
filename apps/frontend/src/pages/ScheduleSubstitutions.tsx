@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { CalendarDays, Plus, Trash2, UserCheck, Ban, ArrowLeftRight, MapPin, BookOpen } from 'lucide-react';
+import { CalendarDays, Plus, Trash2, UserCheck, Ban, ArrowLeftRight, MapPin, BookOpen, HelpCircle } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -55,13 +55,25 @@ interface TeacherOption {
 export const ScheduleSubstitutions: React.FC = () => {
     const { t } = useTranslation();
 
-    const TYPE_CONFIG = {
+    // Maps every substitution `type` value we expect to see in the
+    // database to its display config. The DB currently mixes legacy
+    // values (TEACHER_CHANGE, CANCELED) with the canonical
+    // CANCELLED/SUBSTITUTION/... set, so both spellings live here.
+    // Any unknown future value falls through to UNKNOWN_TYPE_CONFIG
+    // below instead of throwing.
+    const TYPE_CONFIG: Record<string, { label: string; icon: typeof UserCheck; color: string }> = {
         SUBSTITUTION: {
             label: t('sidebar.substitutions'),
             icon: UserCheck,
             color: 'bg-amber-100 text-amber-800 border-amber-300',
         },
+        TEACHER_CHANGE: {
+            label: t('schedule.teacher_change', 'Zástup učitele'),
+            icon: UserCheck,
+            color: 'bg-amber-100 text-amber-800 border-amber-300',
+        },
         CANCELLED: { label: t('schedule.cancelled'), icon: Ban, color: 'bg-red-100 text-red-800 border-red-300' },
+        CANCELED: { label: t('schedule.cancelled'), icon: Ban, color: 'bg-red-100 text-red-800 border-red-300' },
         MERGED: {
             label: t('schedule.merged', 'Spojeno'),
             icon: ArrowLeftRight,
@@ -77,6 +89,16 @@ export const ScheduleSubstitutions: React.FC = () => {
             icon: BookOpen,
             color: 'bg-orange-100 text-orange-800 border-orange-300',
         },
+        OTHER: {
+            label: t('schedule.other', 'Jiné'),
+            icon: HelpCircle,
+            color: 'bg-slate-100 text-slate-700 border-slate-300',
+        },
+    };
+    const UNKNOWN_TYPE_CONFIG = {
+        label: t('schedule.other', 'Jiné'),
+        icon: HelpCircle,
+        color: 'bg-slate-100 text-slate-700 border-slate-300',
     };
 
     const { role, schoolId } = useSchool();
@@ -288,10 +310,16 @@ export const ScheduleSubstitutions: React.FC = () => {
                             <CardContent className="p-0">
                                 <div className="divide-y">
                                     {subs
-                                        .sort((a, b) => a.originalEvent.lessonNumber - b.originalEvent.lessonNumber)
+                                        .sort(
+                                            (a, b) =>
+                                                (a.originalEvent?.lessonNumber ?? 0) -
+                                                (b.originalEvent?.lessonNumber ?? 0),
+                                        )
                                         .map((sub) => {
-                                            const cfg = TYPE_CONFIG[sub.type];
+                                            const cfg = TYPE_CONFIG[sub.type] ?? UNKNOWN_TYPE_CONFIG;
                                             const Icon = cfg.icon;
+                                            const origEvent = sub.originalEvent;
+                                            const origTeacher = origEvent?.teacherProfile?.user;
                                             return (
                                                 <div
                                                     key={sub.id}
@@ -304,31 +332,40 @@ export const ScheduleSubstitutions: React.FC = () => {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="font-medium text-sm">
-                                                                {sub.originalEvent.lessonNumber}. hodina
-                                                            </span>
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {sub.originalEvent.subject.template.code}
-                                                            </Badge>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {sub.originalEvent.classroom.name}
-                                                            </span>
+                                                            {origEvent && (
+                                                                <span className="font-medium text-sm">
+                                                                    {origEvent.lessonNumber}. hodina
+                                                                </span>
+                                                            )}
+                                                            {origEvent?.subject?.template?.code && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {origEvent.subject.template.code}
+                                                                </Badge>
+                                                            )}
+                                                            {origEvent?.classroom?.name && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {origEvent.classroom.name}
+                                                                </span>
+                                                            )}
                                                             <Badge className={`text-xs border ${cfg.color}`}>
                                                                 {cfg.label}
                                                             </Badge>
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground mt-0.5">
-                                                            {t('schedule.originally', 'Původně')}:{' '}
-                                                            {sub.originalEvent.teacherProfile.user.lastName}{' '}
-                                                            {sub.originalEvent.teacherProfile.user.firstName}
-                                                            {sub.substituteTeacher && (
-                                                                <span className="text-foreground font-medium">
-                                                                    {' → '}
-                                                                    {sub.substituteTeacher.user.lastName}{' '}
-                                                                    {sub.substituteTeacher.user.firstName}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        {(origTeacher || sub.substituteTeacher) && (
+                                                            <div className="text-xs text-muted-foreground mt-0.5">
+                                                                {t('schedule.originally', 'Původně')}:{' '}
+                                                                {origTeacher
+                                                                    ? `${origTeacher.lastName} ${origTeacher.firstName}`
+                                                                    : '—'}
+                                                                {sub.substituteTeacher && (
+                                                                    <span className="text-foreground font-medium">
+                                                                        {' → '}
+                                                                        {sub.substituteTeacher.user.lastName}{' '}
+                                                                        {sub.substituteTeacher.user.firstName}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         {sub.note && (
                                                             <div className="text-xs italic text-muted-foreground mt-0.5">
                                                                 {sub.note}
