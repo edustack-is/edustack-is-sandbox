@@ -14,13 +14,12 @@ on:
         type: choice
         options:
           - deploy
-          - redeploy
           - delete
 
 jobs:
   deploy:
-    if: github.event.inputs.action == 'deploy' || github.event.inputs.action == 'redeploy'
-    name: ${{ github.event.inputs.action == 'redeploy' && 'Redeploy' || 'Deploy' }} Environment ${{ github.event.inputs.env_id }}
+    if: github.event.inputs.action == 'deploy'
+    name: Deploy Environment ${{ github.event.inputs.env_id }}
     runs-on: ubuntu-latest
     env:
       ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
@@ -49,7 +48,6 @@ jobs:
 
       - name: Resolve Cloudflare zone ID
         id: zone
-        if: github.event.inputs.action == 'deploy'
         run: |
           ZONE_ID=$(curl -fsS \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -72,7 +70,6 @@ jobs:
           echo "config_path=.fly/${APP_NAME}.toml" >> "$GITHUB_OUTPUT"
 
       - name: Create Fly app (idempotent)
-        if: github.event.inputs.action == 'deploy'
         run: |
           APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
           if flyctl apps list --json | jq -e --arg n "$APP_NAME" '.[] | select(.Name == $n)' > /dev/null; then
@@ -82,7 +79,6 @@ jobs:
           fi
 
       - name: Create Fly volume (idempotent)
-        if: github.event.inputs.action == 'deploy'
         run: |
           APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
           if flyctl volumes list --app "$APP_NAME" --json | jq -e '.[] | select(.name == "edustack_data")' > /dev/null; then
@@ -96,7 +92,6 @@ jobs:
           fi
 
       - name: Stage Fly secrets
-        if: github.event.inputs.action == 'deploy'
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef' }}
@@ -121,7 +116,6 @@ jobs:
             --wait-timeout 600
 
       - name: Attach backend custom domain + TLS
-        if: github.event.inputs.action == 'deploy'
         run: |
           APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
           HOSTNAME="be-${ENV_NAME}.${DOMAIN}"
@@ -188,7 +182,6 @@ jobs:
           wrangler pages deploy dist --project-name "$PROJECT_NAME" --branch main
 
       - name: Attach frontend custom domain
-        if: github.event.inputs.action == 'deploy'
         env:
           PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
@@ -239,11 +232,9 @@ jobs:
           fi
 
       - name: Summary
-        env:
-          ACTION_VERB: ${{ github.event.inputs.action == 'redeploy' && 'redeployed' || 'deployed' }}
         run: |
           {
-            echo "### Environment ${ENV_NAME} ${ACTION_VERB}"
+            echo "### Environment ${ENV_NAME} deployed"
             echo ""
             echo "- Frontend: https://fe-${ENV_NAME}.${DOMAIN}"
             echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}"

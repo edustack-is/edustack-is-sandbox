@@ -141,7 +141,7 @@ openssl rand -hex 32   # JWT_SECRET / MCP_AUTH_TOKEN
 openssl rand -hex 16   # ENCRYPTION_KEY (32 hex chars)
 ```
 
-These three values are pushed into Fly with `flyctl secrets set` during the first deploy of each env; subsequent `redeploy` runs leave them untouched.
+These three values are pushed into Fly with `flyctl secrets set` on every deploy of each env. If you ever rotate them manually in the Fly dashboard, the next workflow run will overwrite them with the GitHub-secret values.
 
 ### 2. Cloudflare API token permissions
 
@@ -160,13 +160,12 @@ Create a **Custom token** with these permissions:
 
 ### 4. Running the workflow
 
-**GitHub → Actions → Deploy Environment → Run workflow**, pick an `env_id` (e.g. `1`) and one of three actions:
+**GitHub → Actions → Deploy Environment → Run workflow**, pick an `env_id` (e.g. `1`) and one of two actions:
 
-| Action       | What it does                                                                                      | When to use                                 |
-| ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **deploy**   | Full provision: create Fly app + volume, stage secrets, deploy, attach DNS + TLS, deploy frontend | First time setting up an environment        |
-| **redeploy** | Fast path: just `flyctl deploy` and rebuild + redeploy the frontend. Skips create / secrets / DNS | Pushing new code to an existing environment |
-| **delete**   | Destroys the Fly app (machines + volume), removes the CNAME, deletes the Pages project            | Tearing an environment down                 |
+| Action     | What it does                                                                                                                    | When to use                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| **deploy** | Full provision: create Fly app + volume (idempotent), stage secrets, `flyctl deploy`, attach DNS + TLS, build + deploy frontend | First time and any subsequent push — every step is idempotent |
+| **delete** | Destroys the Fly app (machines + volume), removes the CNAMEs, deletes the Pages project                                         | Tearing an environment down                                   |
 
 After a successful `deploy`, the run summary lists the live URLs (`fe-sandbox-N`, `be-sandbox-N`) and the Fly app name.
 
