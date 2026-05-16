@@ -36,9 +36,11 @@ export class ClassBookService {
       return !!row;
     }
     if (role === 'PARENT') {
+      // ParentStudent.studentId references User.id, not
+      // StudentProfile.id, so join through sp.userId.
       const row = await this.db.queryOne<{ id: string }>(
         `SELECT sp.id FROM "StudentProfile" sp
-         JOIN "ParentStudent" ps ON ps.studentId = sp.id
+         JOIN "ParentStudent" ps ON ps.studentId = sp.userId
          WHERE ps.parentId = ? AND sp.classroomId = ?
          LIMIT 1`,
         [userId, classroomId],

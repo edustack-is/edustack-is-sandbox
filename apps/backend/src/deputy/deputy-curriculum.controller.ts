@@ -238,6 +238,18 @@ export class DeputyCurriculumController {
   // ─── TEACHERS ───────────────────────────────────────────────────
 
   @Get('teachers')
+  // Read-only list — students/parents need it to populate the
+  // Schedule page's teacher picker. The class-level @Roles only
+  // grants admin/principal/deputy, so opt those extra read roles in
+  // here explicitly.
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.PRINCIPAL,
+    UserRole.DEPUTY,
+    UserRole.TEACHER,
+    UserRole.STUDENT,
+    UserRole.PARENT,
+  )
   @ApiOperation({ summary: 'Seznam učitelů' })
   @ApiResponse({
     status: 200,

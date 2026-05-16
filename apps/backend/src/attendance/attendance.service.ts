@@ -207,13 +207,20 @@ export class AttendanceService {
     }
     // Scope to the caller's own data: STUDENT sees only their own
     // excuses; PARENT sees those filed for any of their children.
+    // ParentStudent.studentId references User.id, but
+    // AbsenceExcuse.studentId references StudentProfile.id — hence the
+    // join through StudentProfile for the parent scope.
     if (filters?.actor?.role === 'STUDENT') {
       where +=
         ' AND ae.studentId = (SELECT id FROM "StudentProfile" WHERE userId = ?)';
       params.push(filters.actor.userId);
     } else if (filters?.actor?.role === 'PARENT') {
       where +=
-        ' AND ae.studentId IN (SELECT studentId FROM "ParentStudent" WHERE parentId = ?)';
+        ' AND ae.studentId IN (' +
+        'SELECT sp.id FROM "StudentProfile" sp ' +
+        'JOIN "ParentStudent" ps ON ps.studentId = sp.userId ' +
+        'WHERE ps.parentId = ?' +
+        ')';
       params.push(filters.actor.userId);
     }
 

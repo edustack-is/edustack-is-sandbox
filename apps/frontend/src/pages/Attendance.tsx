@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Clock, AlertTriangle, Download, BarChart3 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, AlertTriangle, Download, BarChart3, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,6 +10,7 @@ import {
     getAbsenceExcuses,
     reviewAbsenceExcuse,
     getUnexcusedAlerts,
+    createAbsenceExcuse,
 } from '../api';
 import { api } from '../api';
 import { useSchool } from '@/context/SchoolContext';
@@ -21,6 +22,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type StatusKey = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
@@ -42,6 +45,10 @@ export default function AttendancePage() {
     const { t, i18n } = useTranslation();
     const { role } = useSchool();
     const isStudent = role === 'STUDENT';
+    const isParent = role === 'PARENT';
+    // STUDENT and PARENT share the same collapsed single-tab view; the
+    // parent extension is the "Add excuse" affordance below.
+    const isFamilyView = isStudent || isParent;
     const canReviewExcuses = !!role && ['TEACHER', 'PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(role);
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
@@ -54,6 +61,16 @@ export default function AttendancePage() {
     const [alerts, setAlerts] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Parent-only state — children list for the Add-Excuse picker and
+    // the dialog form values.
+    const [children, setChildren] = useState<{ studentProfileId: string; firstName: string; lastName: string }[]>([]);
+    const [excuseDialogOpen, setExcuseDialogOpen] = useState(false);
+    const [excuseChildId, setExcuseChildId] = useState('');
+    const [excuseDateFrom, setExcuseDateFrom] = useState(new Date().toISOString().slice(0, 10));
+    const [excuseDateTo, setExcuseDateTo] = useState(new Date().toISOString().slice(0, 10));
+    const [excuseReason, setExcuseReason] = useState('');
+    const [excuseSaving, setExcuseSaving] = useState(false);
+
     const STATUS_LABELS: Record<StatusKey, string> = {
         PRESENT: t('common.present'),
         ABSENT: t('common.absent'),
@@ -62,18 +79,71 @@ export default function AttendancePage() {
     };
 
     useEffect(() => {
-        if (isStudent) return;
+        if (isFamilyView) return;
         api.get('/api/deputy/classrooms')
             .then((r) => setClassrooms(r.data))
             .catch(() => {});
-    }, [isStudent]);
+    }, [isFamilyView]);
 
     // Tabs.onValueChange only fires on a change, not on mount, so the
-    // student's single-tab view would otherwise sit empty until they
-    // click. Kick the load off as soon as the role is known.
+    // student's / parent's single-tab view would otherwise sit empty
+    // until they click. Kick the load off as soon as the role is known.
     useEffect(() => {
-        if (isStudent) loadExcuses();
-    }, [isStudent]);
+        if (isFamilyView) loadExcuses();
+    }, [isFamilyView]);
+
+    // Parent: load the children list once so the Add-Excuse dialog
+    // can offer the right child picker.
+    useEffect(() => {
+        if (!isParent) return;
+        api.get('/api/parent/children')
+            .then((res) => {
+                const data = Array.isArray(res.data) ? res.data : [];
+                const list = data
+                    .map((c: any) => ({
+                        studentProfileId: c.student?.studentProfile?.id || '',
+                        firstName: c.student?.firstName || '',
+                        lastName: c.student?.lastName || '',
+                    }))
+                    .filter((c: { studentProfileId: string }) => c.studentProfileId);
+                setChildren(list);
+                if (list.length > 0) setExcuseChildId((prev) => prev || list[0].studentProfileId);
+            })
+            .catch(() => setChildren([]));
+    }, [isParent]);
+
+    const openExcuseDialog = () => {
+        if (children.length === 0) return;
+        const today = new Date().toISOString().slice(0, 10);
+        setExcuseChildId((prev) => prev || children[0].studentProfileId);
+        setExcuseDateFrom(today);
+        setExcuseDateTo(today);
+        setExcuseReason('');
+        setExcuseDialogOpen(true);
+    };
+
+    const handleCreateExcuse = async () => {
+        if (!excuseChildId || !excuseReason.trim() || !excuseDateFrom || !excuseDateTo) {
+            toast.error(t('common.error'));
+            return;
+        }
+        setExcuseSaving(true);
+        try {
+            await createAbsenceExcuse({
+                studentId: excuseChildId,
+                reason: excuseReason.trim(),
+                dateFrom: excuseDateFrom,
+                dateTo: excuseDateTo,
+            });
+            toast.success(t('common.success'));
+            setExcuseDialogOpen(false);
+            loadExcuses();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || t('common.error'));
+        } finally {
+            setExcuseSaving(false);
+        }
+    };
 
     const loadAttendance = async () => {
         if (!selectedClassroom) return;
@@ -176,31 +246,39 @@ export default function AttendancePage() {
                     <h1 className="text-2xl font-bold tracking-tight">{t('common.attendance')}</h1>
                     <p className="text-muted-foreground">{t('attendance.subtitle')}</p>
                 </div>
-                {!isStudent && (
-                    <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
-                        <SelectTrigger className="w-44">
-                            <SelectValue placeholder={t('common.select_class')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {classrooms.map((c: any) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )}
+                <div className="flex items-center gap-2">
+                    {isParent && (
+                        <Button onClick={openExcuseDialog} disabled={children.length === 0}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            {t('attendance.add_excuse', 'Přidat omluvenku')}
+                        </Button>
+                    )}
+                    {!isFamilyView && (
+                        <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder={t('common.select_class')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {classrooms.map((c: any) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </div>
             </div>
 
             <Tabs
-                defaultValue={isStudent ? 'excuses' : 'record'}
+                defaultValue={isFamilyView ? 'excuses' : 'record'}
                 onValueChange={(v) => {
                     if (v === 'stats') loadStats();
                     if (v === 'excuses') loadExcuses();
                     if (v === 'alerts') loadAlerts();
                 }}
             >
-                {!isStudent && (
+                {!isFamilyView && (
                     <TabsList>
                         <TabsTrigger value="record">{t('common.record')}</TabsTrigger>
                         <TabsTrigger value="stats">{t('common.statistics')}</TabsTrigger>
@@ -479,6 +557,64 @@ export default function AttendancePage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            {/* Add-Excuse dialog — parent-only. Backend enforces that
+                the submitted studentId belongs to this parent, so the
+                child picker just lists eligible kids. */}
+            <Dialog open={excuseDialogOpen} onOpenChange={setExcuseDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('attendance.add_excuse', 'Přidat omluvenku')}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="space-y-1">
+                            <Label>{t('common.student')}</Label>
+                            <Select value={excuseChildId} onValueChange={setExcuseChildId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t('common.child', 'Dítě')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {children.map((c) => (
+                                        <SelectItem key={c.studentProfileId} value={c.studentProfileId}>
+                                            {c.lastName} {c.firstName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label>{t('common.from')}</Label>
+                                <Input
+                                    type="date"
+                                    value={excuseDateFrom}
+                                    onChange={(e) => setExcuseDateFrom(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label>{t('common.to')}</Label>
+                                <Input
+                                    type="date"
+                                    value={excuseDateTo}
+                                    onChange={(e) => setExcuseDateTo(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>{t('common.reason')}</Label>
+                            <Textarea value={excuseReason} onChange={(e) => setExcuseReason(e.target.value)} rows={3} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setExcuseDialogOpen(false)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleCreateExcuse} disabled={excuseSaving}>
+                            {excuseSaving ? t('common.saving') : t('common.save')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

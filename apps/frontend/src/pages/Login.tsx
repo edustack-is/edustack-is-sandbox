@@ -218,13 +218,16 @@ export const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <InlineLanguageSwitcher />
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 gap-6">
             <div
                 className={`w-full transition-all duration-500 ease-in-out flex flex-col md:flex-row items-stretch justify-center gap-8 ${helperConfig?.enabled && helperUsers.length > 0 ? 'max-w-4xl' : 'max-w-md'}`}
             >
-                {/* ─── Main Login Card ────────────────────────── */}
-                <div className="flex-1 bg-white p-8 rounded-xl shadow-lg border border-gray-100 max-w-md w-full mx-auto">
+                {/* ─── Main Login Card ──────────────────────────
+                    `justify-center` keeps the inner content vertically
+                    centered inside the card so SSO buttons or other
+                    add-ons don't push the form to the top when the
+                    helper card stretches this column taller. */}
+                <div className="flex-1 bg-white p-8 rounded-xl shadow-lg border border-gray-100 max-w-md w-full mx-auto flex flex-col justify-center">
                     <div className="text-center">
                         {/* Brand mark — show the dark-text variant on the
                             white login card; the white-text variant kicks in
@@ -441,6 +444,13 @@ export const Login = () => {
                         </div>{' '}
                     </div>
                 )}
+            </div>
+
+            {/* Language switcher sits on its own row below the cards
+                so both columns keep matching heights without one of
+                them having to carry the switcher. */}
+            <div className="flex justify-center">
+                <InlineLanguageSwitcher floating={false} />
             </div>
         </div>
     );

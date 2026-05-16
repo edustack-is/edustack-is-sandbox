@@ -70,10 +70,21 @@ const GRADE_COLORS: Record<string, string> = {
     '5': 'bg-red-100 text-red-800 border-red-300',
 };
 
+interface ChildOption {
+    studentProfileId: string;
+    firstName: string;
+    lastName: string;
+}
+
 export const Grading: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { schoolId, role } = useSchool();
     const isStudent = role === 'STUDENT';
+    const isParent = role === 'PARENT';
+    // STUDENT and PARENT share the same read-only per-subject view —
+    // grouped by `isReadOnly` they get no edit affordances and skip
+    // the /api/deputy/* admin calls.
+    const isReadOnly = isStudent || isParent;
     const canEditGrades = !!role && ['TEACHER', 'PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(role);
 
     // Data
@@ -93,6 +104,9 @@ export const Grading: React.FC = () => {
     // Student detail
     const [selectedStudent, setSelectedStudent] = useState<StudentBrief | null>(null);
     const [studentGrades, setStudentGrades] = useState<GradeItem[]>([]);
+
+    // Parent-only: list of children for the child picker.
+    const [children, setChildren] = useState<ChildOption[]>([]);
 
     // Add grade dialog
     const [addDialog, setAddDialog] = useState<{ studentId: string; subjectId: string } | null>(null);
@@ -121,9 +135,9 @@ export const Grading: React.FC = () => {
 
     useEffect(() => {
         if (!schoolId) return;
-        // Students cannot hit /api/deputy/*. Their view loads their own
-        // grades via a separate effect below.
-        if (isStudent) return;
+        // Students/parents cannot hit /api/deputy/*. Their view loads
+        // grades via separate read-only effects below.
+        if (isReadOnly) return;
 
         // Load classrooms
         api.get('/api/deputy/classrooms')
@@ -147,7 +161,7 @@ export const Grading: React.FC = () => {
                 }
             })
             .catch(() => setAcademicYears([]));
-    }, [schoolId, isStudent]);
+    }, [schoolId, isReadOnly]);
 
     // Students: auto-load their own grades from /api/grading/student/:id
     // (the only grading endpoint open to the STUDENT role).
@@ -175,9 +189,67 @@ export const Grading: React.FC = () => {
         };
     }, [schoolId, isStudent]);
 
+    // Parents: load their children via /api/parent/children, then load
+    // the first child's grades. The picker in the header rewires the
+    // selected child for subsequent views.
+    useEffect(() => {
+        if (!schoolId || !isParent) return;
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            try {
+                const res = await api.get('/api/parent/children');
+                const data = Array.isArray(res.data) ? res.data : [];
+                const list: ChildOption[] = data
+                    .map((c: any) => ({
+                        studentProfileId: c.student?.studentProfile?.id || '',
+                        firstName: c.student?.firstName || '',
+                        lastName: c.student?.lastName || '',
+                    }))
+                    .filter((c: ChildOption) => c.studentProfileId);
+                if (cancelled) return;
+                setChildren(list);
+                if (list.length > 0) {
+                    const first = list[0];
+                    setSelectedStudent({
+                        id: first.studentProfileId,
+                        firstName: first.firstName,
+                        lastName: first.lastName,
+                    });
+                }
+            } catch {
+                if (!cancelled) setChildren([]);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [schoolId, isParent]);
+
+    // Parents: whenever the picker selects a different child, fetch
+    // that child's grades. Student-detail mutates this same state, so
+    // we gate by isParent to avoid double-fetching for non-parents.
+    useEffect(() => {
+        if (!isParent || !selectedStudent?.id) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const data = await getStudentGrades(selectedStudent.id);
+                if (!cancelled) setStudentGrades(data.grades || []);
+            } catch {
+                if (!cancelled) setStudentGrades([]);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isParent, selectedStudent?.id]);
+
     // Load semesters when academic year changes
     useEffect(() => {
-        if (!schoolId || !selectedAcademicYearId || isStudent) {
+        if (!schoolId || !selectedAcademicYearId || isReadOnly) {
             setSemesters([]);
             return;
         }
@@ -195,12 +267,12 @@ export const Grading: React.FC = () => {
                 setSelectedSemesterId(currentSem?.id || '');
             })
             .catch(() => setSemesters([]));
-    }, [schoolId, selectedAcademicYearId, isStudent]);
+    }, [schoolId, selectedAcademicYearId, isReadOnly]);
 
     // ─── Load grades grid ───────────────────────────────────
 
     const loadGrades = useCallback(async () => {
-        if (!schoolId || !selectedClassroomId || isStudent) return;
+        if (!schoolId || !selectedClassroomId || isReadOnly) return;
         setLoading(true);
         try {
             const data = await getGradesForClassroom(
@@ -217,7 +289,7 @@ export const Grading: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [schoolId, selectedClassroomId, selectedSemesterId, isStudent]);
+    }, [schoolId, selectedClassroomId, selectedSemesterId, isReadOnly]);
 
     useEffect(() => {
         loadGrades();
@@ -356,9 +428,39 @@ export const Grading: React.FC = () => {
                     <h1 className="text-2xl font-bold">{t('grading.title')}</h1>
                 </div>
 
-                {/* Filters — admins/teachers only; students see just their
-                    own grades and don't pick a classroom/year/semester. */}
-                {!isStudent && (
+                {/* Parent: child picker. The Grading page mirrors what
+                    they get on Schedule — pick a child, see their data. */}
+                {isParent && children.length > 0 && (
+                    <Select
+                        value={selectedStudent?.id || ''}
+                        onValueChange={(val) => {
+                            const child = children.find((c) => c.studentProfileId === val);
+                            if (child) {
+                                setSelectedStudent({
+                                    id: child.studentProfileId,
+                                    firstName: child.firstName,
+                                    lastName: child.lastName,
+                                });
+                            }
+                        }}
+                    >
+                        <SelectTrigger className="w-56">
+                            <SelectValue placeholder={t('common.child', 'Dítě')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {children.map((c) => (
+                                <SelectItem key={c.studentProfileId} value={c.studentProfileId}>
+                                    {c.lastName} {c.firstName}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+
+                {/* Filters — admins/teachers only; students/parents see
+                    just the read-only per-subject view and don't pick a
+                    classroom/year/semester. */}
+                {!isReadOnly && (
                     <div className="flex items-center gap-2 flex-wrap">
                         {academicYears.length > 0 && (
                             <Select
@@ -422,8 +524,8 @@ export const Grading: React.FC = () => {
                 )}
             </div>
 
-            <Tabs defaultValue={isStudent ? 'student' : 'grid'} className="space-y-4">
-                {!isStudent && (
+            <Tabs defaultValue={isReadOnly ? 'student' : 'grid'} className="space-y-4">
+                {!isReadOnly && (
                     <TabsList>
                         <TabsTrigger value="grid">{t('grading.title')}</TabsTrigger>
                         <TabsTrigger value="student" disabled={!selectedStudent}>
@@ -581,7 +683,7 @@ export const Grading: React.FC = () => {
                     {selectedStudent && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2">
-                                {!isStudent && (
+                                {!isReadOnly && (
                                     <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>
                                         <ArrowLeft className="h-4 w-4 mr-1" /> {t('common.back')}
                                     </Button>

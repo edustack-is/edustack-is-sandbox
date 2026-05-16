@@ -20,13 +20,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 
+interface ChildOption {
+    studentProfileId: string;
+    classroomId: string;
+    firstName: string;
+    lastName: string;
+}
+
 export default function ClassBook() {
     const { t, i18n } = useTranslation();
     const { role } = useSchool();
     const isStudent = role === 'STUDENT';
+    const isParent = role === 'PARENT';
+    const isFamilyView = isStudent || isParent;
     const canEdit = !!role && ['TEACHER', 'PRINCIPAL', 'DEPUTY', 'ADMIN', 'DIRECTOR'].includes(role);
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState('');
+    // Parent-only: children + currently selected child (drives
+    // selectedClassroom for the table).
+    const [children, setChildren] = useState<ChildOption[]>([]);
+    const [selectedChildProfileId, setSelectedChildProfileId] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
     const [entries, setEntries] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -40,6 +53,8 @@ export default function ClassBook() {
     useEffect(() => {
         // Staff & teachers can browse all classrooms in the school. A
         // student only has their own — we resolve it from /api/auth/me.
+        // A parent only has the classrooms of their children — we
+        // resolve those via /api/parent/children and let them pick.
         if (isStudent) {
             getMe()
                 .then((me: any) => {
@@ -49,10 +64,31 @@ export default function ClassBook() {
                 .catch(() => {});
             return;
         }
+        if (isParent) {
+            api.get('/api/parent/children')
+                .then((res) => {
+                    const data = Array.isArray(res.data) ? res.data : [];
+                    const list: ChildOption[] = data
+                        .map((c: any) => ({
+                            studentProfileId: c.student?.studentProfile?.id || '',
+                            classroomId: c.student?.studentProfile?.classroom?.id || '',
+                            firstName: c.student?.firstName || '',
+                            lastName: c.student?.lastName || '',
+                        }))
+                        .filter((c: ChildOption) => c.studentProfileId && c.classroomId);
+                    setChildren(list);
+                    if (list.length > 0) {
+                        setSelectedChildProfileId(list[0].studentProfileId);
+                        setSelectedClassroom(list[0].classroomId);
+                    }
+                })
+                .catch(() => setChildren([]));
+            return;
+        }
         api.get('/api/deputy/classrooms')
             .then((r) => setClassrooms(r.data))
             .catch(() => {});
-    }, [isStudent]);
+    }, [isStudent, isParent]);
 
     const loadEntries = async () => {
         if (!selectedClassroom) return;
@@ -130,7 +166,30 @@ export default function ClassBook() {
                     </h1>
                     <p className="text-muted-foreground">{t('classbook.subtitle')}</p>
                 </div>
-                {!isStudent && (
+                {isParent && children.length > 0 && (
+                    <Select
+                        value={selectedChildProfileId}
+                        onValueChange={(val) => {
+                            const child = children.find((c) => c.studentProfileId === val);
+                            if (child) {
+                                setSelectedChildProfileId(child.studentProfileId);
+                                setSelectedClassroom(child.classroomId);
+                            }
+                        }}
+                    >
+                        <SelectTrigger className="w-56">
+                            <SelectValue placeholder={t('common.child', 'Dítě')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {children.map((c) => (
+                                <SelectItem key={c.studentProfileId} value={c.studentProfileId}>
+                                    {c.lastName} {c.firstName}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+                {!isFamilyView && (
                     <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
                         <SelectTrigger className="w-44">
                             <SelectValue placeholder={t('common.select_class')} />

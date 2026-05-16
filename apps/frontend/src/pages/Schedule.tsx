@@ -46,13 +46,19 @@ interface SemesterOption {
     endDate: string;
 }
 
-type ViewMode = 'my' | 'classroom' | 'teacher' | 'room';
+type ViewMode = 'my' | 'classroom' | 'teacher' | 'room' | 'child';
+
+interface ChildOption {
+    studentUserId: string;
+    name: string;
+}
 
 export const Schedule: React.FC = () => {
     const { t } = useTranslation();
     const { role, userId, schoolId } = useSchool();
+    const isParent = role === 'PARENT';
 
-    const [viewMode, setViewMode] = useState<ViewMode>('my');
+    const [viewMode, setViewMode] = useState<ViewMode>(isParent ? 'child' : 'my');
     const [events, setEvents] = useState<ScheduleEventData[]>([]);
     const [slots, setSlots] = useState<TimeSlot[]>([]);
     const [loading, setLoading] = useState(true);
@@ -66,6 +72,10 @@ export const Schedule: React.FC = () => {
     const [selectedClassroomId, setSelectedClassroomId] = useState<string>('');
     const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
     const [selectedRoomId, setSelectedRoomId] = useState<string>('');
+
+    // Parent-only: list of their children + currently selected child.
+    const [children, setChildren] = useState<ChildOption[]>([]);
+    const [selectedChildUserId, setSelectedChildUserId] = useState<string>('');
 
     // Student/teacher homeroom info
     const [myClassroomId, setMyClassroomId] = useState<string>('');
@@ -122,11 +132,14 @@ export const Schedule: React.FC = () => {
                 if (!cancelled) setRooms(rList);
             }
 
-            // Teachers — admin-only endpoint. /api/deputy/teachers returns
+            // Teachers — /api/deputy/teachers is open to read for
+            // STUDENT/PARENT too (they need it to populate the teacher
+            // picker), so we fetch for everyone who can plausibly use
+            // the Teacher view. The response shape is
             // { id: userId, ..., teacherProfile: { id } } and
             // getTeacherSchedule filters by teacher-PROFILE id, so we
             // store teacherProfile.id, not the user id.
-            if (isTeachingStaff) {
+            if (isTeachingStaff || isParent) {
                 try {
                     const tRes = await api.get('/api/deputy/teachers');
                     const tData = Array.isArray(tRes.data) ? tRes.data : [];
@@ -142,6 +155,30 @@ export const Schedule: React.FC = () => {
                     if (!cancelled) setTeachers(teacherList);
                 } catch {
                     /* ignore — non-admin TEACHER may legitimately get 403 here */
+                }
+            }
+
+            // Parent-only: fetch the list of children so the Schedule
+            // page's child picker can be populated. Defaults to the
+            // first child.
+            if (isParent) {
+                try {
+                    const cRes = await api.get('/api/parent/children');
+                    const cData = Array.isArray(cRes.data) ? cRes.data : [];
+                    const childList: ChildOption[] = cData
+                        .map((c: any) => ({
+                            studentUserId: c.studentId,
+                            name: `${c.student?.lastName ?? ''} ${c.student?.firstName ?? ''}`.trim(),
+                        }))
+                        .filter((c: ChildOption) => c.studentUserId);
+                    if (!cancelled) {
+                        setChildren(childList);
+                        if (childList.length > 0) {
+                            setSelectedChildUserId((prev) => prev || childList[0].studentUserId);
+                        }
+                    }
+                } catch {
+                    /* ignore */
                 }
             }
 
@@ -281,6 +318,12 @@ export const Schedule: React.FC = () => {
                         }
                         break;
                     }
+                    case 'child': {
+                        if (selectedChildUserId) {
+                            data = await getStudentSchedule(selectedChildUserId, yearId);
+                        }
+                        break;
+                    }
                 }
 
                 if (!cancelled) setEvents(Array.isArray(data) ? data : []);
@@ -307,6 +350,7 @@ export const Schedule: React.FC = () => {
         selectedClassroomId,
         selectedTeacherId,
         selectedRoomId,
+        selectedChildUserId,
         selectedAcademicYearId,
     ]);
 
@@ -328,6 +372,10 @@ export const Schedule: React.FC = () => {
             case 'room': {
                 const room = rooms.find((r) => r.id === selectedRoomId);
                 return room ? `${t('schedule.room_schedule')} ${room.name}` : t('schedule.room_schedule');
+            }
+            case 'child': {
+                const child = children.find((c) => c.studentUserId === selectedChildUserId);
+                return child ? `${t('schedule.my_schedule')} — ${child.name}` : t('schedule.my_schedule');
             }
         }
     };
@@ -502,7 +550,7 @@ export const Schedule: React.FC = () => {
                 className="w-full"
             >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-wrap">
-                    {role !== 'STUDENT' && (
+                    {role !== 'STUDENT' && !isParent && (
                         <TabsList className="grid grid-cols-4 w-full sm:w-auto sm:inline-grid">
                             <TabsTrigger value="my" className="flex items-center gap-1.5">
                                 <UserCheck className="h-3.5 w-3.5" />
@@ -522,6 +570,37 @@ export const Schedule: React.FC = () => {
                                 <span>{t('common.classroom')}</span>
                             </TabsTrigger>
                         </TabsList>
+                    )}
+
+                    {/* Parents only have two tabs — pick a child to see
+                        their schedule, or look up a teacher's schedule.
+                        My/Class/Room don't apply to them. */}
+                    {isParent && (
+                        <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:inline-grid">
+                            <TabsTrigger value="child" className="flex items-center gap-1.5">
+                                <UserCheck className="h-3.5 w-3.5" />
+                                <span>{t('common.child', 'Dítě')}</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="teacher" className="flex items-center gap-1.5">
+                                <GraduationCap className="h-3.5 w-3.5" />
+                                <span>{t('common.teacher')}</span>
+                            </TabsTrigger>
+                        </TabsList>
+                    )}
+
+                    {viewMode === 'child' && (
+                        <Select value={selectedChildUserId} onValueChange={(v) => setSelectedChildUserId(v)}>
+                            <SelectTrigger className="w-full sm:w-64">
+                                <SelectValue placeholder={t('common.child', 'Dítě')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {children.map((c) => (
+                                    <SelectItem key={c.studentUserId} value={c.studentUserId}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     )}
 
                     {viewMode === 'classroom' && (
