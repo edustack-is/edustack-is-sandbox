@@ -5,7 +5,7 @@ Screen designs exported from Pencil (.pen) for use with AI CLI tools (Gemini CLI
 ## Directory Structure
 
 ```
-source/
+design-exports/
 ├── screens/       # 37 app screen designs (PNG, 2x)
 ├── roles/         # 6 role-themed dashboard screens (PNG, 2x)
 ├── components/    # 12 reusable UI components (PNG, 2x)
