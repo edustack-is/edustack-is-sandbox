@@ -125,8 +125,9 @@ export const Schedule: React.FC = () => {
                 if (!cancelled) setClassrooms(clsList);
             }
 
-            // Rooms — admin-only endpoint, skip otherwise.
-            if (isSchoolAdmin) {
+            // Rooms — teaching staff can read; the "Učebna" tab is hidden
+            // for students/parents, so we skip the fetch for them.
+            if (isTeachingStaff) {
                 const rRes = await api.get('/api/deputy/rooms').catch(() => ({ data: [] }));
                 const rList: RoomOption[] = Array.isArray(rRes.data) ? rRes.data : [];
                 if (!cancelled) setRooms(rList);

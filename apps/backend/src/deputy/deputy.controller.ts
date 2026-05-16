@@ -437,6 +437,7 @@ export class DeputyController {
   // ─── ROOM ────────────────────────────────────────────────────────
 
   @Get('rooms')
+  @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.TEACHER)
   @ApiOperation({ summary: 'Seznam místností' })
   @ApiResponse({
     status: 200,
