@@ -272,54 +272,107 @@ export class GradingService {
     ]);
   }
 
-  async polishVerbalEvaluation(text: string, feedback?: string) {
+  async polishVerbalEvaluation(
+    text: string,
+    feedback?: string,
+    language?: string,
+  ) {
     // Three independently-generated rewrites with distinct tones so the
     // teacher can pick the wording closest to what they want, or send a
     // feedback prompt to regenerate. The variants are NOT persisted —
     // only the one the teacher accepts and saves on the report card.
     //
-    // Each rewrite MUST come back as one clean paragraph ready to paste
-    // into the textarea. The prompt below blocks the model from doing
-    // its usual "here are several options…" thing; sanitizePolish()
-    // below strips anything that slips through anyway.
-    const variants = [
-      {
-        id: 'formal',
-        label: 'Formální',
-        tone: 'formální, věcný a spisovný',
-      },
-      {
-        id: 'encouraging',
-        label: 'Povzbuzující',
-        tone: 'povzbuzující, vřelý a motivační',
-      },
-      {
-        id: 'concise',
-        label: 'Stručný',
-        tone: 'stručný, jasný a konkrétní',
-      },
-    ];
+    // The model produces the rewrite in `language` (defaults to cs).
+    // The frontend passes the active UI language so teachers get
+    // suggestions in the language they're working in; if a variant
+    // comes back in the wrong language anyway, the UI shows a
+    // Translate button that calls translateText() below.
+    const lang = (language || 'cs').toLowerCase().startsWith('en')
+      ? 'en'
+      : 'cs';
+    const variants =
+      lang === 'en'
+        ? [
+            {
+              id: 'formal',
+              label: 'Formal',
+              tone: 'formal, factual and polished',
+            },
+            {
+              id: 'encouraging',
+              label: 'Encouraging',
+              tone: 'encouraging, warm and motivating',
+            },
+            {
+              id: 'concise',
+              label: 'Concise',
+              tone: 'concise, clear and specific',
+            },
+          ]
+        : [
+            {
+              id: 'formal',
+              label: 'Formální',
+              tone: 'formální, věcný a spisovný',
+            },
+            {
+              id: 'encouraging',
+              label: 'Povzbuzující',
+              tone: 'povzbuzující, vřelý a motivační',
+            },
+            {
+              id: 'concise',
+              label: 'Stručný',
+              tone: 'stručný, jasný a konkrétní',
+            },
+          ];
+
     const strictInstruction =
-      'Přepiš toto slovní hodnocení žáka do jediného souvislého odstavce vhodného přímo na vysvědčení. ' +
-      'VYSTUP: vrať POUZE samotný přepsaný text. Žádné varianty, žádné možnosti, žádné nadpisy, žádné odrážky, ' +
-      'žádné uvozovky kolem celého textu, žádné markdown formátování, žádné komentáře, žádné poznámky pro učitele, ' +
-      'žádné "doporučení" ani "tipy", žádné dotazy. Pouze hotový text, který lze rovnou vložit do vysvědčení. ' +
-      'Zachovej věcný obsah původního textu, neuváděj fakta, která v něm nejsou.' +
-      (feedback?.trim()
-        ? ` Zohledni přitom následující pokyn od učitele: ${feedback.trim()}.`
-        : '');
+      lang === 'en'
+        ? 'Rewrite this verbal student evaluation as a single, continuous text suitable for a report card. ' +
+          'TARGET LENGTH: 150–500 words (roughly 1–3 paragraphs). If the original is very short, expand it — ' +
+          "describe the student's attitude, strengths, room for improvement, and overall impression of the term — " +
+          'but never invent concrete facts (grades, names, dates, numbers) that were not in the original. ' +
+          'WRITE THE RESPONSE IN ENGLISH, even if the original is in another language. ' +
+          'OUTPUT: return ONLY the rewritten text itself. No alternatives, no options, no headings, no bullet lists, ' +
+          'no surrounding quotes, no markdown, no commentary, no teacher notes, no "recommendations" or "tips", no ' +
+          'questions. Just the finished text ready to paste into a report card.' +
+          (feedback?.trim()
+            ? ` Apply the following teacher feedback: ${feedback.trim()}.`
+            : '')
+        : 'Přepiš toto slovní hodnocení žáka do jediného souvislého textu vhodného přímo na vysvědčení. ' +
+          'CÍLOVÝ ROZSAH: 150 až 500 slov (přibližně 1–3 odstavce). Pokud je původní text příliš stručný, ' +
+          'rozveď ho — popiš přístup žáka, jeho silné stránky, prostor pro zlepšení a celkový dojem z pololetí — ' +
+          'ale neuváděj žádná konkrétní fakta (známky, jména, dny, čísla), která v původním textu nezazněla. ' +
+          'PIŠ ODPOVĚĎ ČESKY, i kdyby původní text byl v jiném jazyce. ' +
+          'VÝSTUP: vrať POUZE samotný přepsaný text. Žádné varianty, žádné možnosti, žádné nadpisy, žádné odrážky, ' +
+          'žádné uvozovky kolem celého textu, žádné markdown formátování, žádné komentáře, žádné poznámky pro učitele, ' +
+          'žádné "doporučení" ani "tipy", žádné dotazy. Pouze hotový text, který lze rovnou vložit do vysvědčení.' +
+          (feedback?.trim()
+            ? ` Zohledni přitom následující pokyn od učitele: ${feedback.trim()}.`
+            : '');
+
+    const contextFor = (tone: string) =>
+      lang === 'en'
+        ? `You are a teacher at a primary or lower-secondary school. Write in a tone that is ${tone}.`
+        : `Jsi učitel na 1. nebo 2. stupni ZŠ. Piš tónem, který je ${tone}.`;
 
     const results = await Promise.all(
       variants.map((v) =>
         this.aiService.refineText({
           existingText: text,
-          context: `Jsi učitel na 1. nebo 2. stupni ZŠ. Piš tónem, který je ${v.tone}.`,
+          context: contextFor(v.tone),
           instruction: strictInstruction,
+          // 500 words ≈ ~800-900 output tokens; 1500 leaves comfortable
+          // headroom for the model to land inside the target range
+          // without getting cut off mid-sentence.
+          maxTokens: 1500,
         }),
       ),
     );
 
     return {
+      language: lang,
       variants: variants.map((v, i) => ({
         id: v.id,
         label: v.label,
@@ -327,6 +380,28 @@ export class GradingService {
         text: this.sanitizePolish(results[i].text),
       })),
     };
+  }
+
+  /**
+   * Translate a polished variant to a different language. Used by the
+   * "Translate to X" button shown next to each variant when the model
+   * ignored the language instruction and produced output in the wrong
+   * language.
+   */
+  async translateText(text: string, targetLanguage: string) {
+    const target = (targetLanguage || 'en').toLowerCase().startsWith('cs')
+      ? 'cs'
+      : 'en';
+    const targetLabel = target === 'cs' ? 'Czech' : 'English';
+    const result = await this.aiService.refineText({
+      existingText: text,
+      context: `You translate verbal student evaluations into ${targetLabel}, preserving the meaning, tone and length.`,
+      instruction:
+        `Translate the following text into ${targetLabel}. Return ONLY the translated text — no commentary, ` +
+        'no explanations, no surrounding quotes, no markdown.',
+      maxTokens: 1500,
+    });
+    return { text: this.sanitizePolish(result.text), language: target };
   }
 
   /**

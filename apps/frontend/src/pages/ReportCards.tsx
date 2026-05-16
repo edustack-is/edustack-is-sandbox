@@ -356,7 +356,10 @@ export const ReportCards: React.FC = () => {
                     if (!open) setEditDialog(null);
                 }}
             >
-                <DialogContent className="max-w-lg">
+                {/* Wide enough + tall enough to show ~300 words of the
+                    verbal evaluation without scrolling. max-h-[90vh] +
+                    overflow-y-auto handles the small-screen edge. */}
+                <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>
                             {editDialog?.student.lastName} {editDialog?.student.firstName} — {editDialog?.subjectName}
@@ -426,12 +429,15 @@ export const ReportCards: React.FC = () => {
                                 {t('report_cards.grades.insufficient')}
                                 {t('report_cards.grades.not_graded')}
                             </span>
+                            {/* 15 visible rows fits ~300 Czech words without
+                                scrolling; min-h keeps the height stable when
+                                the user is still typing. */}
                             <Textarea
                                 value={editVerbal}
                                 onChange={(e) => setEditVerbal(e.target.value)}
                                 placeholder={t('report_cards.verbal_placeholder')}
-                                rows={4}
-                                className="mt-1"
+                                rows={15}
+                                className="mt-1 min-h-[260px]"
                             />
                             <Button
                                 variant="outline"

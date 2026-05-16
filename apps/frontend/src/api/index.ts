@@ -481,8 +481,15 @@ export const polishVerbalEvaluation = async (data: {
     studentName: string;
     subjectName: string;
     feedback?: string;
+    /** ISO 639-1, defaults to 'cs' on the server. */
+    language?: string;
 }) => {
-    const response = await api.post<{ variants: PolishVariant[] }>('/api/grading/ai-polish', data);
+    const response = await api.post<{ language: string; variants: PolishVariant[] }>('/api/grading/ai-polish', data);
+    return response.data;
+};
+
+export const translateVerbalEvaluation = async (data: { text: string; targetLanguage: string }) => {
+    const response = await api.post<{ text: string; language: string }>('/api/grading/ai-translate', data);
     return response.data;
 };
 

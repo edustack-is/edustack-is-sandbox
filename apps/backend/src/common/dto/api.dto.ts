@@ -416,6 +416,26 @@ export class PolishTextDto {
   @IsString()
   @IsOptional()
   feedback?: string;
+
+  // ISO 639-1 code (cs/en …). Backend tells the model which language
+  // to produce, so the teacher gets variants in their UI language by
+  // default. Defaults to Czech for backwards compatibility.
+  @ApiProperty({ required: false, example: 'cs' })
+  @IsString()
+  @IsOptional()
+  language?: string;
+}
+
+export class TranslateTextDto {
+  @ApiProperty({ description: 'Text to translate' })
+  @IsString()
+  @IsNotEmpty()
+  text: string;
+
+  @ApiProperty({ description: 'Target language (ISO 639-1)', example: 'en' })
+  @IsString()
+  @IsNotEmpty()
+  targetLanguage: string;
 }
 
 export class BehaviorGradeDto {

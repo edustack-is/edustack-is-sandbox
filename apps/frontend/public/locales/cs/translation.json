@@ -1,4 +1,24 @@
 {
+  "polish_dialog": {
+    "title": "AI návrhy slovního hodnocení",
+    "description": "Vyberte návrh, který nejlépe odpovídá, nebo upřesněte pokyn a vygenerujte nové varianty. Vaše původní hodnocení zůstává nezměněné, dokud nějaký návrh nepřevezmete.",
+    "original": "Váš původní text",
+    "use_this": "Použít tento návrh",
+    "generating": "Generuji návrhy…",
+    "regenerate": "Vygenerovat znovu",
+    "feedback_label": "Zpětná vazba pro AI (volitelné)",
+    "feedback_placeholder": "např. Zaměř se více na pokrok studenta. Buď stručnější.",
+    "translate_to_cs": "Přeložit do češtiny",
+    "translate_to_en": "Přeložit do angličtiny",
+    "translating": "Překládám…",
+    "language_mismatch": "Návrh je v jiném jazyce než vaše rozhraní.",
+    "tone_formal": "formální, věcný a spisovný",
+    "tone_encouraging": "povzbuzující, vřelý a motivační",
+    "tone_concise": "stručný, jasný a konkrétní",
+    "label_formal": "Formální",
+    "label_encouraging": "Povzbuzující",
+    "label_concise": "Stručný"
+  },
   "common": {
     "absent": "Nepřítomen",
     "absent_short": "Abs.",

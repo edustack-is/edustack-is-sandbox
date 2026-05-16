@@ -32,6 +32,7 @@ import {
   LockClassificationDto,
   MeasureDto,
   PolishTextDto,
+  TranslateTextDto,
   SuccessResponseDto,
   UpdateCommissionExamDto,
   UpdateGradeDto,
@@ -229,7 +230,23 @@ export class GradingController {
   @ApiBody({ type: PolishTextDto })
   async polishVerbalEvaluation(@Req() req: any, @Body() body: PolishTextDto) {
     this.ensureTenant(req);
-    return this.gradingService.polishVerbalEvaluation(body.text, body.feedback);
+    return this.gradingService.polishVerbalEvaluation(
+      body.text,
+      body.feedback,
+      body.language,
+    );
+  }
+
+  @Post('ai-translate')
+  @Roles(UserRole.TEACHER, UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
+  @ApiOperation({ summary: 'AI překlad vygenerovaného slovního hodnocení' })
+  @ApiBody({ type: TranslateTextDto })
+  async translateVerbalEvaluation(
+    @Req() req: any,
+    @Body() body: TranslateTextDto,
+  ) {
+    this.ensureTenant(req);
+    return this.gradingService.translateText(body.text, body.targetLanguage);
   }
 
   // ─── GRADING TYPES ──────────────────────────────────────────

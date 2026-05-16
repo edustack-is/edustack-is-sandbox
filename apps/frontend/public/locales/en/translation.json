@@ -1,4 +1,24 @@
 {
+  "polish_dialog": {
+    "title": "AI suggestions for the verbal evaluation",
+    "description": "Pick the suggestion that fits best, or refine the prompt and regenerate. Your original evaluation stays unchanged until you accept a suggestion.",
+    "original": "Your original text",
+    "use_this": "Use this draft",
+    "generating": "Generating drafts…",
+    "regenerate": "Regenerate",
+    "feedback_label": "Feedback for the AI (optional)",
+    "feedback_placeholder": "e.g. Focus more on the student's progress. Be more concise.",
+    "translate_to_cs": "Translate to Czech",
+    "translate_to_en": "Translate to English",
+    "translating": "Translating…",
+    "language_mismatch": "This draft is in a different language than your interface.",
+    "tone_formal": "formal, factual and polished",
+    "tone_encouraging": "encouraging, warm and motivating",
+    "tone_concise": "concise, clear and specific",
+    "label_formal": "Formal",
+    "label_encouraging": "Encouraging",
+    "label_concise": "Concise"
+  },
   "common": {
     "absent": "Absent",
     "absent_short": "Abs.",
