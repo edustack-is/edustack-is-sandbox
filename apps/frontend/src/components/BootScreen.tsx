@@ -84,9 +84,13 @@ export const BootScreen = ({ onReady }: BootScreenProps) => {
         >
             <Card className="w-full max-w-md shadow-lg border-none">
                 <CardContent className="pt-10 pb-8 flex flex-col items-center gap-6">
-                    <div className="bg-indigo-600 p-3 rounded-2xl shadow-indigo-200 shadow-xl mb-2">
-                        <Loader2 className="w-8 h-8 text-white animate-spin" aria-hidden="true" />
-                    </div>
+                    <img
+                        src="/edustack-logo.png"
+                        alt=""
+                        aria-hidden="true"
+                        className="h-32 w-auto mb-1 drop-shadow-lg"
+                    />
+                    <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" aria-hidden="true" />
 
                     <div className="text-center space-y-2">
                         <h1 id="boot-title" className="text-2xl font-bold text-slate-900 tracking-tight">

@@ -170,9 +170,22 @@ export default function Users() {
     const [submitting, setSubmitting] = useState(false);
 
     // Filters
+    const [filterType, setFilterType] = useState<string>('ALL');
     const [filterRole, setFilterRole] = useState<string>('ALL');
+    const [filterStatus, setFilterStatus] = useState<string>('ALL');
     const [filterClassroom, setFilterClassroom] = useState<string>('ALL');
     const [searchText, setSearchText] = useState('');
+
+    // Type → role bucket mapping for the high-level "user type" filter.
+    // STUDENT/PARENT/TEACHER buckets are 1:1; EMPLOYEE covers school
+    // administration (deputy, principal, school admin) so the dropdown
+    // stays useful even after additional admin sub-roles are introduced.
+    const TYPE_TO_ROLES: Record<string, string[]> = {
+        STUDENT: ['STUDENT'],
+        PARENT: ['PARENT'],
+        TEACHER: ['TEACHER'],
+        EMPLOYEE: ['DEPUTY', 'PRINCIPAL', 'ADMIN'],
+    };
 
     // Confirm dialogs
     const [removeTarget, setRemoveTarget] = useState<SchoolUser | null>(null);
@@ -278,12 +291,27 @@ export default function Users() {
     const filteredUsers = useMemo(() => {
         let filtered = users;
 
+        if (filterType !== 'ALL') {
+            const allowed = TYPE_TO_ROLES[filterType] ?? [];
+            filtered = filtered.filter((u) => allowed.includes(u.role));
+        }
+
         if (filterRole !== 'ALL') {
             filtered = filtered.filter((u) => u.role === filterRole);
         }
 
+        if (filterStatus !== 'ALL') {
+            filtered = filtered.filter((u) => u.status === filterStatus);
+        }
+
         if (filterClassroom !== 'ALL') {
-            filtered = filtered.filter((u) => u.classroomId === filterClassroom);
+            // `__NONE__` is a UI-only sentinel meaning "student without a
+            // classroom"; everything else is a real classroom id.
+            if (filterClassroom === '__NONE__') {
+                filtered = filtered.filter((u) => u.role === 'STUDENT' && !u.classroomId);
+            } else {
+                filtered = filtered.filter((u) => u.classroomId === filterClassroom);
+            }
         }
 
         if (searchText.trim()) {
@@ -297,7 +325,7 @@ export default function Users() {
         }
 
         return filtered;
-    }, [users, filterRole, filterClassroom, searchText]);
+    }, [users, filterType, filterRole, filterStatus, filterClassroom, searchText]);
 
     // ── Impersonate (school-scoped) ────────────────────────
     const handleImpersonate = async (targetId: string) => {
@@ -549,194 +577,209 @@ export default function Users() {
     }, [users]);
 
     // ── Column definitions ─────────────────────────────────
-    const columns: ColumnDef<SchoolUser>[] = [
-        {
-            accessorKey: 'lastName',
-            header: t('common.name'),
-            cell: ({ row }) => (
-                <span className="font-medium">
-                    {row.original.lastName} {row.original.firstName}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'email',
-            header: t('common.email'),
-            cell: ({ row }) => (
-                <span className={row.original.email.endsWith('@noemail.local') ? 'text-muted-foreground italic' : ''}>
-                    {row.original.email.endsWith('@noemail.local') ? '—' : row.original.email}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'role',
-            header: t('common.role'),
-            cell: ({ row }) => (
-                <Badge variant={roleBadgeVariant(row.original.role) as any}>
-                    {t(`roles.${row.original.role}`, row.original.role)}
-                </Badge>
-            ),
-        },
-        {
-            accessorKey: 'status',
-            header: t('common.status'),
-            cell: ({ row }) => (
-                <Badge variant={statusBadgeVariant(row.original.status) as any}>
-                    {t(`statuses.${row.original.status}`, row.original.status)}
-                </Badge>
-            ),
-        },
-        {
-            id: 'relations',
-            header: 'Vazby',
-            cell: ({ row }) => {
-                const u = row.original;
-                const parts: React.ReactNode[] = [];
-
-                // Classroom for students
-                if (u.role === 'STUDENT' && u.classroomName) {
-                    parts.push(
-                        <Badge key="cls" variant="outline" className="text-[10px] mr-1">
-                            🏫 {u.classroomName}
-                        </Badge>,
-                    );
-                }
-
-                // Homeroom for teachers
-                if (u.role === 'TEACHER' && u.homeroomClassName) {
-                    parts.push(
-                        <Badge key="hr" variant="outline" className="text-[10px] mr-1">
-                            🏠 TÚ: {u.homeroomClassName}
-                        </Badge>,
-                    );
-                }
-
-                // Parents of student
-                if (u.parents && u.parents.length > 0) {
-                    parts.push(
-                        <span key="parents" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-                            <Link2 className="h-3 w-3" />
-                            {u.parents.map((p) => p.name).join(', ')}
-                        </span>,
-                    );
-                }
-
-                // Children of parent
-                if (u.children && u.children.length > 0) {
-                    parts.push(
-                        <span key="children" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-                            <Users2 className="h-3 w-3" />
-                            {u.children.map((c) => c.name).join(', ')}
-                        </span>,
-                    );
-                }
-
-                if (parts.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
-                return <div className="flex flex-col gap-0.5">{parts}</div>;
+    // Memoised so TanStack Table sees a stable reference across renders.
+    // Without this, every render produced a fresh `columns` array; combined
+    // with a fresh `columnFilters ?? []` array inside DataTable, the table
+    // reconciled its internal state in a way that, when a Radix Dialog/AlertDialog
+    // on the page processed a real (trusted) keyboard or pointer event,
+    // pinned the renderer in a focus/state-restore loop and made the page
+    // unresponsive.
+    const columns = useMemo<ColumnDef<SchoolUser>[]>(
+        () => [
+            {
+                accessorKey: 'lastName',
+                header: t('common.name'),
+                cell: ({ row }) => (
+                    <span className="font-medium">
+                        {row.original.lastName} {row.original.firstName}
+                    </span>
+                ),
             },
-        },
-        {
-            id: 'actions',
-            header: t('common.actions'),
-            cell: ({ row }) => (
-                <div className="flex gap-1">
-                    {/* Edit */}
-                    {row.original.role !== 'PRINCIPAL' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.edit_user', 'Upravit')}
-                            onClick={() => openEditDialog(row.original)}
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                    )}
+            {
+                accessorKey: 'email',
+                header: t('common.email'),
+                cell: ({ row }) => (
+                    <span
+                        className={row.original.email.endsWith('@noemail.local') ? 'text-muted-foreground italic' : ''}
+                    >
+                        {row.original.email.endsWith('@noemail.local') ? '—' : row.original.email}
+                    </span>
+                ),
+            },
+            {
+                accessorKey: 'role',
+                header: t('common.role'),
+                cell: ({ row }) => (
+                    <Badge variant={roleBadgeVariant(row.original.role) as any}>
+                        {t(`roles.${row.original.role}`, row.original.role)}
+                    </Badge>
+                ),
+            },
+            {
+                accessorKey: 'status',
+                header: t('common.status'),
+                cell: ({ row }) => (
+                    <Badge variant={statusBadgeVariant(row.original.status) as any}>
+                        {t(`statuses.${row.original.status}`, row.original.status)}
+                    </Badge>
+                ),
+            },
+            {
+                id: 'relations',
+                header: 'Vazby',
+                cell: ({ row }) => {
+                    const u = row.original;
+                    const parts: React.ReactNode[] = [];
 
-                    {/* Quick "assign to class" — students only */}
-                    {row.original.role === 'STUDENT' && row.original.status !== 'ARCHIVED' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.assign_classroom', 'Přiřadit do třídy')}
-                            onClick={() => openAssignDialog(row.original)}
-                        >
-                            <SchoolIcon className="h-4 w-4 text-blue-600" />
-                        </Button>
-                    )}
+                    // Classroom for students
+                    if (u.role === 'STUDENT' && u.classroomName) {
+                        parts.push(
+                            <Badge key="cls" variant="outline" className="text-[10px] mr-1">
+                                🏫 {u.classroomName}
+                            </Badge>,
+                        );
+                    }
 
-                    {/* Resend invitation */}
-                    {row.original.status === 'PENDING' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.resend_invitation')}
-                            onClick={() => handleResendInvitation(row.original.id)}
-                        >
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    )}
+                    // Homeroom for teachers
+                    if (u.role === 'TEACHER' && u.homeroomClassName) {
+                        parts.push(
+                            <Badge key="hr" variant="outline" className="text-[10px] mr-1">
+                                🏠 TÚ: {u.homeroomClassName}
+                            </Badge>,
+                        );
+                    }
 
-                    {/* Suspend / Reactivate */}
-                    {row.original.status === 'ACTIVE' && row.original.role !== 'PRINCIPAL' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.suspend', 'Pozastavit')}
-                            onClick={() => handleSuspend(row.original.id)}
-                        >
-                            <Ban className="h-4 w-4 text-amber-600" />
-                        </Button>
-                    )}
-                    {row.original.status === 'SUSPENDED' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.reactivate', 'Reaktivovat')}
-                            onClick={() => handleReactivate(row.original.id)}
-                        >
-                            <ShieldCheck className="h-4 w-4 text-green-600" />
-                        </Button>
-                    )}
+                    // Parents of student
+                    if (u.parents && u.parents.length > 0) {
+                        parts.push(
+                            <span key="parents" className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                                <Link2 className="h-3 w-3" />
+                                {u.parents.map((p) => p.name).join(', ')}
+                            </span>,
+                        );
+                    }
 
-                    {/* Impersonate — only active students/teachers/parents */}
-                    {row.original.status === 'ACTIVE' && !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.impersonate')}
-                            onClick={() => handleImpersonate(row.original.id)}
-                        >
-                            <UserCog className="h-4 w-4 text-amber-600" />
-                        </Button>
-                    )}
+                    // Children of parent
+                    if (u.children && u.children.length > 0) {
+                        parts.push(
+                            <span
+                                key="children"
+                                className="text-[11px] text-muted-foreground flex items-center gap-0.5"
+                            >
+                                <Users2 className="h-3 w-3" />
+                                {u.children.map((c) => c.name).join(', ')}
+                            </span>,
+                        );
+                    }
 
-                    {/* Set as alumni — only active students */}
-                    {row.original.role === 'STUDENT' && row.original.status === 'ACTIVE' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.set_alumni')}
-                            onClick={() => setAlumniTarget(row.original)}
-                        >
-                            <GraduationCap className="h-4 w-4 text-blue-600" />
-                        </Button>
-                    )}
+                    if (parts.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+                    return <div className="flex flex-col gap-0.5">{parts}</div>;
+                },
+            },
+            {
+                id: 'actions',
+                header: t('common.actions'),
+                cell: ({ row }) => (
+                    <div className="flex gap-1">
+                        {/* Edit */}
+                        {row.original.role !== 'PRINCIPAL' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.edit_user', 'Upravit')}
+                                onClick={() => openEditDialog(row.original)}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )}
 
-                    {/* Remove from school — anyone except PRINCIPAL */}
-                    {row.original.role !== 'PRINCIPAL' && row.original.status !== 'ARCHIVED' && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('users_page.remove_user')}
-                            onClick={() => setRemoveTarget(row.original)}
-                        >
-                            <UserMinus className="h-4 w-4 text-destructive" />
-                        </Button>
-                    )}
-                </div>
-            ),
-        },
-    ];
+                        {/* Quick "assign to class" — students only */}
+                        {row.original.role === 'STUDENT' && row.original.status !== 'ARCHIVED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.assign_classroom', 'Přiřadit do třídy')}
+                                onClick={() => openAssignDialog(row.original)}
+                            >
+                                <SchoolIcon className="h-4 w-4 text-blue-600" />
+                            </Button>
+                        )}
+
+                        {/* Resend invitation */}
+                        {row.original.status === 'PENDING' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.resend_invitation')}
+                                onClick={() => handleResendInvitation(row.original.id)}
+                            >
+                                <Send className="h-4 w-4" />
+                            </Button>
+                        )}
+
+                        {/* Suspend / Reactivate */}
+                        {row.original.status === 'ACTIVE' && row.original.role !== 'PRINCIPAL' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.suspend', 'Pozastavit')}
+                                onClick={() => handleSuspend(row.original.id)}
+                            >
+                                <Ban className="h-4 w-4 text-amber-600" />
+                            </Button>
+                        )}
+                        {row.original.status === 'SUSPENDED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.reactivate', 'Reaktivovat')}
+                                onClick={() => handleReactivate(row.original.id)}
+                            >
+                                <ShieldCheck className="h-4 w-4 text-green-600" />
+                            </Button>
+                        )}
+
+                        {/* Impersonate — only active students/teachers/parents */}
+                        {row.original.status === 'ACTIVE' && !['PRINCIPAL', 'DEPUTY'].includes(row.original.role) && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.impersonate')}
+                                onClick={() => handleImpersonate(row.original.id)}
+                            >
+                                <UserCog className="h-4 w-4 text-amber-600" />
+                            </Button>
+                        )}
+
+                        {/* Set as alumni — only active students */}
+                        {row.original.role === 'STUDENT' && row.original.status === 'ACTIVE' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.set_alumni')}
+                                onClick={() => setAlumniTarget(row.original)}
+                            >
+                                <GraduationCap className="h-4 w-4 text-blue-600" />
+                            </Button>
+                        )}
+
+                        {/* Remove from school — anyone except PRINCIPAL */}
+                        {row.original.role !== 'PRINCIPAL' && row.original.status !== 'ARCHIVED' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title={t('users_page.remove_user')}
+                                onClick={() => setRemoveTarget(row.original)}
+                            >
+                                <UserMinus className="h-4 w-4 text-destructive" />
+                            </Button>
+                        )}
+                    </div>
+                ),
+            },
+        ],
+        [t],
+    );
 
     // ── Render ──────────────────────────────────────────────
     return (
@@ -746,18 +789,20 @@ export default function Users() {
                     <h1 className="text-2xl font-bold tracking-tight">{t('users_page.title')}</h1>
                     <p className="text-muted-foreground">{t('users_page.subtitle')}</p>
                 </div>
-                <Button
-                    onClick={() => {
-                        setDialogOpen(true);
-                    }}
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('users_page.add_user')}
-                </Button>
-                <Button variant="outline" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" />
-                    {t('users_page.export', 'Export CSV')}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={() => {
+                            setDialogOpen(true);
+                        }}
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('users_page.add_user')}
+                    </Button>
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="h-4 w-4 mr-2" />
+                        {t('users_page.export', 'Export CSV')}
+                    </Button>
+                </div>
             </div>
 
             {/* ─── Filters ─────────────────────────────────────── */}
@@ -771,9 +816,21 @@ export default function Users() {
                         className="w-52 h-8"
                     />
                 </div>
+                <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-44 h-8">
+                        <SelectValue placeholder={t('users_page.filter_type')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">{t('common.all_types')}</SelectItem>
+                        <SelectItem value="STUDENT">{t('users_page.type_student')}</SelectItem>
+                        <SelectItem value="PARENT">{t('users_page.type_parent')}</SelectItem>
+                        <SelectItem value="TEACHER">{t('users_page.type_teacher')}</SelectItem>
+                        <SelectItem value="EMPLOYEE">{t('users_page.type_employee')}</SelectItem>
+                    </SelectContent>
+                </Select>
                 <Select value={filterRole} onValueChange={setFilterRole}>
                     <SelectTrigger className="w-40 h-8">
-                        <SelectValue placeholder="Role…" />
+                        <SelectValue placeholder={t('common.role')} />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">{t('common.all_roles')}</SelectItem>
@@ -784,28 +841,55 @@ export default function Users() {
                         ))}
                     </SelectContent>
                 </Select>
-                {(filterRole === 'STUDENT' || filterRole === 'ALL') && classrooms.length > 0 && (
-                    <Select value={filterClassroom} onValueChange={setFilterClassroom}>
-                        <SelectTrigger className="w-40 h-8">
-                            <SelectValue placeholder={t('common.class')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">{t('common.all_classes', 'Všechny třídy')}</SelectItem>
-                            {classrooms.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )}
-                {(filterRole !== 'ALL' || filterClassroom !== 'ALL' || searchText) && (
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-40 h-8">
+                        <SelectValue placeholder={t('users_page.filter_status')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">{t('common.all_statuses')}</SelectItem>
+                        <SelectItem value="ACTIVE">{t('statuses.ACTIVE', 'Aktivní')}</SelectItem>
+                        <SelectItem value="PENDING">{t('statuses.PENDING', 'Čekající')}</SelectItem>
+                        <SelectItem value="SUSPENDED">{t('statuses.SUSPENDED', 'Pozastavený')}</SelectItem>
+                        <SelectItem value="ARCHIVED">{t('statuses.ARCHIVED', 'Archivovaný')}</SelectItem>
+                        <SelectItem value="ALUMNI">{t('statuses.ALUMNI', 'Absolvent')}</SelectItem>
+                    </SelectContent>
+                </Select>
+                {(filterRole === 'STUDENT' ||
+                    filterRole === 'ALL' ||
+                    filterType === 'STUDENT' ||
+                    filterType === 'ALL') &&
+                    classrooms.length > 0 && (
+                        <Select value={filterClassroom} onValueChange={setFilterClassroom}>
+                            <SelectTrigger className="w-44 h-8">
+                                <SelectValue placeholder={t('common.class')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t('common.all_classes', 'Všechny třídy')}</SelectItem>
+                                {/* Surface students who aren't assigned to any
+                                    classroom — common when a deputy has just
+                                    invited them and hasn't enrolled them yet. */}
+                                <SelectItem value="__NONE__">{t('users_page.filter_no_class')}</SelectItem>
+                                {classrooms.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                {(filterType !== 'ALL' ||
+                    filterRole !== 'ALL' ||
+                    filterStatus !== 'ALL' ||
+                    filterClassroom !== 'ALL' ||
+                    searchText) && (
                     <Button
                         variant="ghost"
                         size="sm"
                         className="h-8"
                         onClick={() => {
+                            setFilterType('ALL');
                             setFilterRole('ALL');
+                            setFilterStatus('ALL');
                             setFilterClassroom('ALL');
                             setSearchText('');
                         }}

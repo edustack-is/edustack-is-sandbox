@@ -24,7 +24,11 @@ import { AuditLogEntryDto } from '../common/dto/response.dto';
 @ApiBearerAuth('JWT-auth')
 @Controller('api/principal')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.PRINCIPAL, UserRole.ADMIN)
+// Audit log is the school leadership's view of who did what. Both the
+// headmaster (PRINCIPAL) and their deputy (DEPUTY) need it. UserRole.ADMIN
+// covers the school-admin role; system admins bypass RolesGuard via
+// isSystemAdmin elsewhere.
+@Roles(UserRole.PRINCIPAL, UserRole.DEPUTY, UserRole.ADMIN)
 export class PrincipalController {
   constructor(private readonly principalService: PrincipalService) {}
 

@@ -218,12 +218,12 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                                 <div className="font-bold text-xs leading-tight">
                                                                     {event.subject?.template?.code || '-'}
                                                                 </div>
-                                                                {showTeacher && (
+                                                                {showTeacher && event.teacherProfile?.user && (
                                                                     <div className="text-[10px] leading-tight mt-0.5 opacity-80">
                                                                         {event.teacherProfile.user.lastName}
                                                                     </div>
                                                                 )}
-                                                                {showClassroom && (
+                                                                {showClassroom && event.classroom && (
                                                                     <div className="text-[10px] leading-tight opacity-70">
                                                                         {event.classroom.name}
                                                                     </div>
@@ -243,16 +243,20 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                                         <TooltipContent side="right" className="max-w-xs">
                                                             <div className="space-y-1">
                                                                 <div className="font-semibold">
-                                                                    {event.subject.template.name}
+                                                                    {event.subject?.template?.name ?? '—'}
                                                                 </div>
-                                                                <div className="text-xs">
-                                                                    {t('common.teacher')}:{' '}
-                                                                    {event.teacherProfile.user.firstName}{' '}
-                                                                    {event.teacherProfile.user.lastName}
-                                                                </div>
-                                                                <div className="text-xs">
-                                                                    {t('common.class')}: {event.classroom.name}
-                                                                </div>
+                                                                {event.teacherProfile?.user && (
+                                                                    <div className="text-xs">
+                                                                        {t('common.teacher')}:{' '}
+                                                                        {event.teacherProfile.user.firstName}{' '}
+                                                                        {event.teacherProfile.user.lastName}
+                                                                    </div>
+                                                                )}
+                                                                {event.classroom && (
+                                                                    <div className="text-xs">
+                                                                        {t('common.class')}: {event.classroom.name}
+                                                                    </div>
+                                                                )}
                                                                 {event.room && (
                                                                     <div className="text-xs">
                                                                         {t('common.classroom')}: {event.room.name}

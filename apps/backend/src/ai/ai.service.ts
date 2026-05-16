@@ -142,9 +142,16 @@ export class AiService {
     existingText?: string;
     context: string;
     instruction: string;
+    /**
+     * Optional token cap. Defaults to the generic safeGenerate limit
+     * (500), which truncates around ~350 Czech words. Callers that
+     * legitimately need longer output (e.g. the verbal-evaluation
+     * polish, which targets up to 500 words) should bump this.
+     */
+    maxTokens?: number;
   }) {
     const prompt = `Jsi asistent. ${data.context}. ${data.instruction}. ${data.existingText || ''}`;
-    const text = await this.safeGenerate(prompt);
+    const text = await this.safeGenerate(prompt, data.maxTokens);
     return { text: text.trim() };
   }
 
@@ -160,13 +167,13 @@ export class AiService {
     };
   }
 
-  private async safeGenerate(prompt: string): Promise<string> {
+  private async safeGenerate(prompt: string, maxTokens = 500): Promise<string> {
     try {
       const model = await this.getModel();
       const { text } = await generateText({
         model,
         prompt,
-        maxTokens: 500,
+        maxTokens,
         temperature: 0.7,
       } as any);
       return text;

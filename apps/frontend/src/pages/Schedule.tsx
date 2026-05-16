@@ -13,7 +13,7 @@ import {
 } from '@/api';
 import { CalendarDays, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Calendar, GraduationCap, UserCheck, Users, DoorOpen } from 'lucide-react';
@@ -70,6 +70,10 @@ export const Schedule: React.FC = () => {
     // Student/teacher homeroom info
     const [myClassroomId, setMyClassroomId] = useState<string>('');
     const [myHomeroomTeacherId, setMyHomeroomTeacherId] = useState<string>('');
+    // Resolved teacher-profile id of the current user (TEACHER role, plus
+    // DEPUTY/PRINCIPAL who also teach). Empty when the user has no
+    // teaching role.
+    const [myTeacherProfileId, setMyTeacherProfileId] = useState<string>('');
 
     // Academic year & semester
     const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
@@ -83,67 +87,92 @@ export const Schedule: React.FC = () => {
     // Today for highlighting substitutions
     const today = new Date().toISOString().slice(0, 10);
 
+    // Roles allowed to call /api/deputy/*. The schedule page used to fire
+    // those endpoints for every logged-in user, which produced a stream
+    // of 403s in the backend log for TEACHER/STUDENT/PARENT visitors.
+    // /api/registry/classrooms is open to TEACHER too, so we use it as a
+    // fallback for teachers; STUDENT/PARENT just rely on the "My"
+    // and (TEACHER-supplied) classroom views.
+    const isSchoolAdmin = !!role && ['ADMIN', 'DEPUTY', 'PRINCIPAL', 'DIRECTOR'].includes(role);
+    const isTeachingStaff = isSchoolAdmin || role === 'TEACHER';
+
     // ─── One-time init: classrooms, teachers, academic years, student info ────
     useEffect(() => {
         if (!schoolId) return;
         let cancelled = false;
 
         const init = async () => {
-            // Load classrooms
-            const clsRes = await api.get('/api/deputy/classrooms').catch(() => ({ data: [] }));
-            const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
-            if (!cancelled) setClassrooms(clsList);
+            // Classrooms — admins use /api/deputy/classrooms; teachers can
+            // hit /api/registry/classrooms which is open to them; everyone
+            // else gets no dropdown and relies on the "My" view.
+            if (isSchoolAdmin) {
+                const clsRes = await api.get('/api/deputy/classrooms').catch(() => ({ data: [] }));
+                const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
+                if (!cancelled) setClassrooms(clsList);
+            } else if (role === 'TEACHER') {
+                const clsRes = await api.get('/api/registry/classrooms').catch(() => ({ data: [] }));
+                const clsList: ClassroomOption[] = Array.isArray(clsRes.data) ? clsRes.data : [];
+                if (!cancelled) setClassrooms(clsList);
+            }
 
-            // Load rooms
-            const rRes = await api.get('/api/deputy/rooms').catch(() => ({ data: [] }));
-            const rList: RoomOption[] = Array.isArray(rRes.data) ? rRes.data : [];
-            if (!cancelled) setRooms(rList);
+            // Rooms — admin-only endpoint, skip otherwise.
+            if (isSchoolAdmin) {
+                const rRes = await api.get('/api/deputy/rooms').catch(() => ({ data: [] }));
+                const rList: RoomOption[] = Array.isArray(rRes.data) ? rRes.data : [];
+                if (!cancelled) setRooms(rList);
+            }
 
-            // Load teachers (fallback to users list)
-            let teacherList: TeacherOption[] = [];
-            try {
-                const tRes = await api.get('/api/deputy/teachers');
-                const tData = Array.isArray(tRes.data) ? tRes.data : [];
-                teacherList = tData.map((t: any) => ({
-                    id: t.id,
-                    user: {
-                        firstName: t.user?.firstName || t.firstName || '',
-                        lastName: t.user?.lastName || t.lastName || '',
-                    },
-                }));
-            } catch {
+            // Teachers — admin-only endpoint. /api/deputy/teachers returns
+            // { id: userId, ..., teacherProfile: { id } } and
+            // getTeacherSchedule filters by teacher-PROFILE id, so we
+            // store teacherProfile.id, not the user id.
+            if (isTeachingStaff) {
                 try {
-                    const uRes = await api.get('/api/deputy/users');
-                    const uData = Array.isArray(uRes.data) ? uRes.data : [];
-                    teacherList = uData
-                        .filter((u: any) => u.role === 'TEACHER')
+                    const tRes = await api.get('/api/deputy/teachers');
+                    const tData = Array.isArray(tRes.data) ? tRes.data : [];
+                    const teacherList = tData
                         .map((t: any) => ({
-                            id: t.teacherProfileId || t.id,
-                            user: { firstName: t.firstName, lastName: t.lastName },
-                        }));
+                            id: t.teacherProfile?.id || t.teacherProfileId || '',
+                            user: {
+                                firstName: t.user?.firstName || t.firstName || '',
+                                lastName: t.user?.lastName || t.lastName || '',
+                            },
+                        }))
+                        .filter((t: TeacherOption) => t.id);
+                    if (!cancelled) setTeachers(teacherList);
+                } catch {
+                    /* ignore — non-admin TEACHER may legitimately get 403 here */
+                }
+            }
+
+            // Academic years — admin-only endpoint. Without it we just
+            // skip the year selector; the schedule view endpoints work
+            // without it (they return the current year by default).
+            if (isSchoolAdmin) {
+                try {
+                    const ayRes = await api.get('/api/deputy/academic-years');
+                    const years = Array.isArray(ayRes.data) ? ayRes.data : [];
+                    if (!cancelled) {
+                        setAcademicYears(years);
+                        const current = years.find((y: any) => y.isCurrent);
+                        if (current) setSelectedAcademicYearId((prev) => prev || current.id);
+                    }
                 } catch {
                     /* ignore */
                 }
             }
-            if (!cancelled) setTeachers(teacherList);
 
-            // Load academic years
-            try {
-                const ayRes = await api.get('/api/deputy/academic-years');
-                const years = Array.isArray(ayRes.data) ? ayRes.data : [];
-                if (!cancelled) {
-                    setAcademicYears(years);
-                    const current = years.find((y: any) => y.isCurrent);
-                    if (current) setSelectedAcademicYearId((prev) => prev || current.id);
-                }
-            } catch {
-                /* ignore */
-            }
-
-            // Student homeroom defaults
-            if (role === 'STUDENT' && userId) {
+            // Resolve the current user's profiles once. /api/auth/me
+            // returns both `teacherProfile` and `studentProfile` so we can
+            // wire "My schedule" for anyone who actually teaches or is a
+            // student — TEACHER, STUDENT, and DEPUTY/PRINCIPAL who hold a
+            // teaching profile alongside their admin role.
+            if (userId) {
                 try {
                     const me: any = await getMe();
+                    if (!cancelled && me?.teacherProfile?.id) {
+                        setMyTeacherProfileId(me.teacherProfile.id);
+                    }
                     if (!cancelled && me?.studentProfile?.classroomId) {
                         setMyClassroomId(me.studentProfile.classroomId);
                         setSelectedClassroomId((prev) => prev || me.studentProfile.classroomId);
@@ -158,12 +187,17 @@ export const Schedule: React.FC = () => {
                 }
             }
 
-            // Admin/Principal/Deputy: default to first classroom
-            if (role !== 'TEACHER' && role !== 'STUDENT' && role !== 'PARENT' && clsList.length > 0) {
-                if (!cancelled) {
-                    setSelectedClassroomId((prev) => prev || clsList[0].id);
-                    setViewMode((prev) => (prev === 'my' ? 'classroom' : prev));
-                }
+            // Admin/Principal/Deputy: default to first classroom (after
+            // setClassrooms has settled — we re-read state via the setter
+            // closure to avoid referencing a no-longer-in-scope local).
+            if (isSchoolAdmin && !cancelled) {
+                setClassrooms((current) => {
+                    if (current.length > 0) {
+                        setSelectedClassroomId((prev) => prev || current[0].id);
+                        setViewMode((prev) => (prev === 'my' ? 'classroom' : prev));
+                    }
+                    return current;
+                });
             }
         };
 
@@ -173,9 +207,9 @@ export const Schedule: React.FC = () => {
         };
     }, [schoolId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Load semesters when academic year changes
+    // Load semesters when academic year changes (admin-only endpoint).
     useEffect(() => {
-        if (!schoolId || !selectedAcademicYearId) {
+        if (!schoolId || !selectedAcademicYearId || !isSchoolAdmin) {
             setSemesters([]);
             return;
         }
@@ -192,7 +226,7 @@ export const Schedule: React.FC = () => {
                 setSelectedSemesterId(currentSem?.id || '');
             })
             .catch(() => setSemesters([]));
-    }, [schoolId, selectedAcademicYearId]);
+    }, [schoolId, selectedAcademicYearId, isSchoolAdmin]);
 
     // Load time slots
     useEffect(() => {
@@ -217,15 +251,15 @@ export const Schedule: React.FC = () => {
 
                 switch (viewMode) {
                     case 'my': {
-                        if (role === 'TEACHER') {
-                            const profileRes = await api.get('/api/teacher/profile');
-                            if (profileRes.data?.id) {
-                                data = await getTeacherSchedule(profileRes.data.id, yearId);
-                            }
-                        } else if (role === 'STUDENT') {
-                            if (userId) {
-                                data = await getStudentSchedule(userId, yearId);
-                            }
+                        // Whoever holds a teacher-profile (TEACHER, plus
+                        // teaching DEPUTY/PRINCIPAL) sees the teacher
+                        // schedule for themselves; pure students get the
+                        // student classroom schedule. Anyone else falls
+                        // through to the "no data" empty state.
+                        if (myTeacherProfileId) {
+                            data = await getTeacherSchedule(myTeacherProfileId, yearId);
+                        } else if (role === 'STUDENT' && userId) {
+                            data = await getStudentSchedule(userId, yearId);
                         }
                         break;
                     }
@@ -269,6 +303,7 @@ export const Schedule: React.FC = () => {
         schoolId,
         role,
         userId,
+        myTeacherProfileId,
         selectedClassroomId,
         selectedTeacherId,
         selectedRoomId,
@@ -447,7 +482,10 @@ export const Schedule: React.FC = () => {
                 </div>
             </div>
 
-            {/* View mode tabs */}
+            {/* View mode tabs + the matching filter, on a single row.
+                Tabs use a 4-column grid so the "Room" tab doesn't wrap;
+                the filter shown to the right of the tabs is whichever
+                applies to the active tab (none for "My"). */}
             <Tabs
                 value={viewMode}
                 onValueChange={(v) => {
@@ -463,81 +501,80 @@ export const Schedule: React.FC = () => {
                 }}
                 className="w-full"
             >
-                <TabsList className="grid w-full grid-cols-3 max-w-md">
-                    <TabsTrigger value="my" className="flex items-center gap-1.5">
-                        <UserCheck className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">{t('schedule.my_schedule')}</span>
-                        <span className="sm:hidden">{t('common.my')}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="classroom" className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">{t('common.class')}</span>
-                        <span className="sm:hidden">{t('common.class')}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="teacher" className="flex items-center gap-1.5">
-                        <GraduationCap className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">{t('common.teacher')}</span>
-                        <span className="sm:hidden">{t('common.teacher')}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="room" className="flex items-center gap-1.5">
-                        <DoorOpen className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">{t('common.classroom')}</span>
-                        <span className="sm:hidden">{t('common.classroom')}</span>
-                    </TabsTrigger>
-                </TabsList>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-wrap">
+                    <TabsList className="grid grid-cols-4 w-full sm:w-auto sm:inline-grid">
+                        <TabsTrigger value="my" className="flex items-center gap-1.5">
+                            <UserCheck className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">{t('schedule.my_schedule')}</span>
+                            <span className="sm:hidden">{t('common.my')}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="classroom" className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5" />
+                            <span>{t('common.class')}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="teacher" className="flex items-center gap-1.5">
+                            <GraduationCap className="h-3.5 w-3.5" />
+                            <span>{t('common.teacher')}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="room" className="flex items-center gap-1.5">
+                            <DoorOpen className="h-3.5 w-3.5" />
+                            <span>{t('common.classroom')}</span>
+                        </TabsTrigger>
+                    </TabsList>
 
-                {/* Classroom filter */}
-                <TabsContent value="classroom" className="mt-3">
-                    <Select value={selectedClassroomId} onValueChange={(v) => setSelectedClassroomId(v)}>
-                        <SelectTrigger className="w-full max-w-xs">
-                            <SelectValue placeholder={t('schedule.select_classroom')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {classrooms
-                                .filter((c) => c.id)
-                                .map((c) => (
-                                    <SelectItem key={c.id} value={c.id}>
-                                        {c.name}{' '}
-                                        {c.id === myClassroomId ? ` (${t('common.my')} ${t('common.class')})` : ''}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
-                </TabsContent>
+                    {viewMode === 'classroom' && (
+                        <Select value={selectedClassroomId} onValueChange={(v) => setSelectedClassroomId(v)}>
+                            <SelectTrigger className="w-full sm:w-64">
+                                <SelectValue placeholder={t('schedule.select_classroom')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {classrooms
+                                    .filter((c) => c.id)
+                                    .map((c) => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                            {c.name}
+                                            {c.id === myClassroomId ? ` (${t('common.my')} ${t('common.class')})` : ''}
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
+                    )}
 
-                {/* Teacher filter */}
-                <TabsContent value="teacher" className="mt-3">
-                    <Select value={selectedTeacherId} onValueChange={(v) => setSelectedTeacherId(v)}>
-                        <SelectTrigger className="w-full max-w-xs">
-                            <SelectValue placeholder={t('schedule.select_teacher')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {teachers
-                                .filter((tr) => tr.id)
-                                .map((tr) => (
-                                    <SelectItem key={tr.id} value={tr.id}>
-                                        {tr.user.lastName} {tr.user.firstName}{' '}
-                                        {tr.id === myHomeroomTeacherId ? ` (${t('common.teacher')})` : ''}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
-                </TabsContent>
+                    {viewMode === 'teacher' && (
+                        <Select value={selectedTeacherId} onValueChange={(v) => setSelectedTeacherId(v)}>
+                            <SelectTrigger className="w-full sm:w-64">
+                                <SelectValue placeholder={t('schedule.select_teacher')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {teachers
+                                    .filter((tr) => tr.id)
+                                    .map((tr) => (
+                                        <SelectItem key={tr.id} value={tr.id}>
+                                            {tr.user.lastName} {tr.user.firstName}
+                                            {tr.id === myHomeroomTeacherId ? ` (${t('common.teacher')})` : ''}
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
+                    )}
 
-                <TabsContent value="room" className="mt-3">
-                    <Select value={selectedRoomId} onValueChange={(v) => setSelectedRoomId(v)}>
-                        <SelectTrigger className="w-full sm:w-64">
-                            <SelectValue placeholder={t('common.classroom')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {rooms.map((r) => (
-                                <SelectItem key={r.id} value={r.id}>
-                                    {r.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </TabsContent>
+                    {viewMode === 'room' && (
+                        <Select value={selectedRoomId} onValueChange={(v) => setSelectedRoomId(v)}>
+                            <SelectTrigger className="w-full sm:w-64">
+                                <SelectValue placeholder={t('common.classroom')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {rooms
+                                    .filter((r) => r.id)
+                                    .map((r) => (
+                                        <SelectItem key={r.id} value={r.id}>
+                                            {r.name}
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </div>
             </Tabs>
 
             {/* Timetable */}

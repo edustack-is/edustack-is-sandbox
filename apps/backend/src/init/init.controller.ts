@@ -34,7 +34,15 @@ export class InitController {
    * Frontend hits this on every page load, so 60 req/min is a generous-but-bounded value.
    */
   @Public()
-  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      // Frontend hits this on every page load, so the limit needs to
+      // accommodate E2E sweeps that load dozens of pages in parallel.
+      // Production: 240/IP/min. Dev/test: 8000.
+      limit: process.env.NODE_ENV === 'production' ? 240 : 8000,
+      ttl: 60_000,
+    },
+  })
   @Get('status')
   @ApiOperation({
     summary: 'Stav inicializace',
@@ -61,7 +69,7 @@ export class InitController {
    */
   @Public()
   @UseGuards(SetupTokenGuard)
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({ default: { limit: 12, ttl: 60000 } })
   @Post('setup')
   @ApiOperation({
     summary: 'Prvotní nastavení systému',
@@ -81,7 +89,7 @@ export class InitController {
 
   @Public()
   @UseGuards(SetupTokenGuard)
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({ default: { limit: 12, ttl: 60000 } })
   @Post('restore-backup')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')

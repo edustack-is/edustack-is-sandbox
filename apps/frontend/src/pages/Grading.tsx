@@ -1,15 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSchool } from '@/context/SchoolContext';
-import {
-    getGradesForClassroom,
-    getStudentGrades,
-    createGrade,
-    updateGrade,
-    deleteGrade,
-    polishVerbalEvaluation,
-    api,
-} from '@/api';
+import { getGradesForClassroom, getStudentGrades, createGrade, updateGrade, deleteGrade, api } from '@/api';
+import { PolishWithAiDialog } from '@/components/grading/PolishWithAiDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -109,7 +102,10 @@ export const Grading: React.FC = () => {
     const [formVerbalText, setFormVerbalText] = useState('');
     const [formCategory, setFormCategory] = useState('');
     const [saving, setSaving] = useState(false);
-    const [polishing, setPolishing] = useState(false);
+    // Polish flow now shows a side-by-side variant picker instead of
+    // overwriting the textarea. The dialog handles its own loading
+    // state; we just remember whether it's open here.
+    const [polishOpen, setPolishOpen] = useState(false);
 
     const CATEGORIES = [
         { value: 'EXAM', label: t('grading.exam') },
@@ -307,30 +303,16 @@ export const Grading: React.FC = () => {
         }
     };
 
-    const handleAiPolish = async () => {
+    const handleOpenPolish = () => {
         if (!formVerbalText.trim()) {
             toast.error(t('grading.enter_assessment', 'Enter assessment for AI polish.'));
             return;
         }
-
-        const student = selectedStudent || students.find((s) => s.id === addDialog?.studentId);
-        const subject = subjects.find((s) => s.id === (addDialog?.subjectId || editDialog?.subjectInstance.id));
-
-        setPolishing(true);
-        try {
-            const result = await polishVerbalEvaluation({
-                text: formVerbalText,
-                studentName: student ? `${student.firstName} ${student.lastName}` : t('common.student'),
-                subjectName: subject?.name || t('common.subject'),
-            });
-            setFormVerbalText(result.polishedText);
-            toast.success(t('grading.ai_polish_success', 'Assessment polished by AI.'));
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || t('common.error'));
-        } finally {
-            setPolishing(false);
-        }
+        setPolishOpen(true);
     };
+
+    const polishStudent = selectedStudent || students.find((s) => s.id === addDialog?.studentId);
+    const polishSubject = subjects.find((s) => s.id === (addDialog?.subjectId || editDialog?.subjectInstance.id));
 
     // ─── Render ─────────────────────────────────────────────
 
@@ -471,8 +453,17 @@ export const Grading: React.FC = () => {
                                                         </button>
                                                     </td>
                                                     {subjects.map((sub) => {
+                                                        // Each cell shows the grades of THIS student
+                                                        // in THIS subject. Before the studentId match
+                                                        // was added, every row in a subject column
+                                                        // displayed the same grades — a grade saved
+                                                        // for one student appeared on all of them.
                                                         const cellGrades = grades.filter(
-                                                            (g) => g.subjectInstance.id === sub.id,
+                                                            (g) =>
+                                                                ((g as any).studentId ??
+                                                                    (g.studentProfile as any)?.id) === student.id &&
+                                                                (g.subjectInstance?.id ??
+                                                                    (g as any).subjectInstanceId) === sub.id,
                                                         );
                                                         return (
                                                             <td key={sub.id} className="p-1 text-center">
@@ -514,10 +505,8 @@ export const Grading: React.FC = () => {
                                                                                                 i18n.language,
                                                                                             )}{' '}
                                                                                             |{' '}
-                                                                                            {
-                                                                                                g.teacherProfile.user
-                                                                                                    .lastName
-                                                                                            }
+                                                                                            {g.teacherProfile?.user
+                                                                                                ?.lastName ?? ''}
                                                                                         </div>
                                                                                     </div>
                                                                                 </TooltipContent>
@@ -567,8 +556,18 @@ export const Grading: React.FC = () => {
                             {(() => {
                                 const grouped = studentGrades.reduce(
                                     (acc, g) => {
-                                        const key = g.subjectInstance.id;
-                                        if (!acc[key]) acc[key] = { subject: g.subjectInstance, grades: [] };
+                                        // Tolerate rows that came back without the
+                                        // joined `subjectInstance` object (legacy
+                                        // queries elsewhere in the codebase did this).
+                                        const key = g.subjectInstance?.id ?? (g as any).subjectInstanceId ?? 'unknown';
+                                        if (!acc[key])
+                                            acc[key] = {
+                                                subject: g.subjectInstance ?? {
+                                                    id: key,
+                                                    template: { name: '', code: '' },
+                                                },
+                                                grades: [],
+                                            };
                                         acc[key].grades.push(g);
                                         return acc;
                                     },
@@ -797,11 +796,11 @@ export const Grading: React.FC = () => {
                                 variant="outline"
                                 size="sm"
                                 className="mt-1"
-                                onClick={handleAiPolish}
-                                disabled={polishing || !formVerbalText.trim()}
+                                onClick={handleOpenPolish}
+                                disabled={!formVerbalText.trim()}
                             >
                                 <Sparkles className="h-3 w-3 mr-1" />
-                                {polishing ? t('grading.ai_processing') : t('grading.ai_polish')}
+                                {t('grading.ai_polish')}
                             </Button>
                         </div>
                     </div>
@@ -834,6 +833,22 @@ export const Grading: React.FC = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* AI polish — opens with N standalone variants, leaves
+                the textarea untouched until the teacher picks one. */}
+            <PolishWithAiDialog
+                open={polishOpen}
+                onOpenChange={setPolishOpen}
+                originalText={formVerbalText}
+                studentName={
+                    polishStudent ? `${polishStudent.firstName} ${polishStudent.lastName}` : t('common.student')
+                }
+                subjectName={polishSubject?.name || t('common.subject')}
+                onAccept={(text) => {
+                    setFormVerbalText(text);
+                    toast.success(t('grading.ai_polish_success', 'Assessment polished by AI.'));
+                }}
+            />
         </div>
     );
 };

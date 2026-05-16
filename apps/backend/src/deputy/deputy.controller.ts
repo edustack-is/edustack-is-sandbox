@@ -93,7 +93,7 @@ export class DeputyController {
     this.ensureTenant(req);
     return this.deputyService.getSchoolDashboard(
       req.user.schoolId,
-      req.user.sub,
+      req.user.userId,
       req.user.role,
     );
   }
@@ -110,7 +110,7 @@ export class DeputyController {
   @ApiOperation({ summary: 'Seznam úkolů na dashboardu' })
   async getTasks(@Req() req: any) {
     this.ensureTenant(req);
-    return this.deputyService.getTasks(req.user.sub, req.user.schoolId);
+    return this.deputyService.getTasks(req.user.userId, req.user.schoolId);
   }
 
   @Post('tasks')
@@ -126,7 +126,7 @@ export class DeputyController {
   async createTask(@Req() req: any, @Body('title') title: string) {
     this.ensureTenant(req);
     return this.deputyService.createTask(
-      req.user.sub,
+      req.user.userId,
       req.user.schoolId,
       title,
     );
@@ -143,7 +143,7 @@ export class DeputyController {
   )
   @ApiOperation({ summary: 'Přepnout stav úkolu' })
   async toggleTask(@Req() req: any, @Param('id') id: string) {
-    return this.deputyService.toggleTask(id, req.user.sub);
+    return this.deputyService.toggleTask(id, req.user.userId);
   }
 
   @Delete('tasks/:id')
@@ -157,7 +157,7 @@ export class DeputyController {
   )
   @ApiOperation({ summary: 'Smazat úkol' })
   async deleteTask(@Req() req: any, @Param('id') id: string) {
-    return this.deputyService.deleteTask(id, req.user.sub);
+    return this.deputyService.deleteTask(id, req.user.userId);
   }
 
   // ─── CLASSROOM ───────────────────────────────────────────────────

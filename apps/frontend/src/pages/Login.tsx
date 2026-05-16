@@ -9,7 +9,7 @@ import {
     LoginHelperUser,
     LoginHelperConfig,
 } from '../api';
-import { Loader2, Shield, UserCircle, ChevronRight, GraduationCap, Building2 } from 'lucide-react';
+import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -226,9 +226,20 @@ export const Login = () => {
                 {/* ─── Main Login Card ────────────────────────── */}
                 <div className="flex-1 bg-white p-8 rounded-xl shadow-lg border border-gray-100 max-w-md w-full mx-auto">
                     <div className="text-center">
-                        <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-                            <Shield className="h-6 w-6 text-indigo-600" />
-                        </div>
+                        {/* Brand mark — show the dark-text variant on the
+                            white login card; the white-text variant kicks in
+                            via Tailwind's `dark:` class when the user has
+                            toggled their OS / app to dark mode. */}
+                        <img
+                            src="/edustack-logo-light.png"
+                            alt="EduStack IS"
+                            className="mx-auto h-20 w-auto mb-4 block dark:hidden"
+                        />
+                        <img
+                            src="/edustack-logo-dark.png"
+                            alt="EduStack IS"
+                            className="mx-auto h-20 w-auto mb-4 hidden dark:block"
+                        />
                         <h2 className="text-3xl font-extrabold text-gray-900">{t('login.welcome_back')}</h2>
                         <p className="mt-2 text-sm text-gray-600">{t('login.sign_in_subtitle')}</p>
                     </div>

@@ -71,14 +71,14 @@ export class ScheduleService {
   // ─── SCHEDULE EVENTS ────────────────────────────────────────
 
   async getEvents(schoolId: string, filters?: any) {
-    let sql = `SELECT se.*, st.name as subName, st.code as subCode, c.name as cName, u.firstName as tFN, u.lastName as tLN, r.name as rName 
-               FROM "ScheduleEvent" se 
-               JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id 
-               JOIN "SubjectTemplate" st ON si.templateId = st.id 
-               JOIN "Classroom" c ON se.classroomId = c.id 
-               JOIN "TeacherProfile" tp ON se.teacherId = tp.id 
-               JOIN "User" u ON tp.userId = u.id 
-               LEFT JOIN "Room" r ON se.roomId = r.id 
+    let sql = `SELECT se.*, st.id as subTemplateId, st.name as subName, st.code as subCode, c.name as cName, u.firstName as tFN, u.lastName as tLN, r.name as rName
+               FROM "ScheduleEvent" se
+               JOIN "SubjectInstance" si ON se.subjectInstanceId = si.id
+               JOIN "SubjectTemplate" st ON si.templateId = st.id
+               JOIN "Classroom" c ON se.classroomId = c.id
+               JOIN "TeacherProfile" tp ON se.teacherId = tp.id
+               JOIN "User" u ON tp.userId = u.id
+               LEFT JOIN "Room" r ON se.roomId = r.id
                WHERE se.schoolId = ?`;
     const params = [schoolId];
     if (filters?.academicYearId) {
@@ -98,10 +98,37 @@ export class ScheduleService {
       params.push(filters.roomId);
     }
 
-    return this.db.query(
+    const rows = await this.db.query<any>(
       sql + ' ORDER BY se.dayOfWeek ASC, se.lessonNumber ASC',
       params,
     );
+
+    // Map the flat join result to the nested shape the frontend's
+    // TimetableGrid (and every other ScheduleEventData consumer) is
+    // built around. Before this, the page crashed on the very first
+    // event because `event.teacherProfile` was undefined.
+    return rows.map((r) => ({
+      id: r.id,
+      dayOfWeek: r.dayOfWeek,
+      lessonNumber: r.lessonNumber,
+      startTime: r.startTime,
+      endTime: r.endTime,
+      academicYearId: r.academicYearId,
+      subject: {
+        id: r.subjectInstanceId,
+        template: {
+          id: r.subTemplateId,
+          name: r.subName,
+          code: r.subCode,
+        },
+      },
+      classroom: { id: r.classroomId, name: r.cName },
+      teacherProfile: {
+        id: r.teacherId,
+        user: { firstName: r.tFN, lastName: r.tLN },
+      },
+      room: r.roomId ? { id: r.roomId, name: r.rName } : null,
+    }));
   }
 
   async createEvent(schoolId: string, data: any) {
@@ -288,11 +315,83 @@ export class ScheduleService {
 
   // ─── SUBSTITUTIONS ──────────────────────────────────────
 
-  async getSubstitutions(schoolId: string, filters: any) {
-    return this.db.query(
-      'SELECT * FROM "ScheduleSubstitution" WHERE schoolId = ?',
+  async getSubstitutions(schoolId: string, _filters: any) {
+    // Join the original event + substitute teacher/room/subject so the
+    // frontend gets the nested shape its UI is built around. Without
+    // this it just got raw foreign-key ids and exploded on every row.
+    const rows = await this.db.query<any>(
+      `SELECT
+         ss.*,
+         se.dayOfWeek as origDow, se.lessonNumber as origLesson,
+         se.startTime as origStart, se.endTime as origEnd,
+         se.subjectInstanceId as origSubjectInstanceId,
+         se.classroomId as origClassroomId, se.teacherId as origTeacherId,
+         st.id as origSubTemplateId, st.name as origSubName, st.code as origSubCode,
+         c.name as origClassName,
+         otU.firstName as origTFN, otU.lastName as origTLN,
+         stU.firstName as subTFN, stU.lastName as subTLN,
+         srR.name as subRoomName,
+         stS.name as subSubName, stS.code as subSubCode
+       FROM "ScheduleSubstitution" ss
+       LEFT JOIN "ScheduleEvent" se ON ss.originalEventId = se.id
+       LEFT JOIN "SubjectInstance" osi ON se.subjectInstanceId = osi.id
+       LEFT JOIN "SubjectTemplate" st ON osi.templateId = st.id
+       LEFT JOIN "Classroom" c ON se.classroomId = c.id
+       LEFT JOIN "TeacherProfile" otp ON se.teacherId = otp.id
+       LEFT JOIN "User" otU ON otp.userId = otU.id
+       LEFT JOIN "TeacherProfile" stp ON ss.substituteTeacherId = stp.id
+       LEFT JOIN "User" stU ON stp.userId = stU.id
+       LEFT JOIN "Room" srR ON ss.substituteRoomId = srR.id
+       LEFT JOIN "SubjectInstance" ssi ON ss.substituteSubjectId = ssi.id
+       LEFT JOIN "SubjectTemplate" stS ON ssi.templateId = stS.id
+       WHERE ss.schoolId = ?
+       ORDER BY ss.date DESC, se.lessonNumber ASC`,
       [schoolId],
     );
+
+    return rows.map((r) => ({
+      id: r.id,
+      date: r.date,
+      type: r.type,
+      note: r.note,
+      createdAt: r.createdAt,
+      originalEvent: r.originalEventId
+        ? {
+            id: r.originalEventId,
+            dayOfWeek: r.origDow,
+            lessonNumber: r.origLesson,
+            startTime: r.origStart,
+            endTime: r.origEnd,
+            subject: {
+              id: r.origSubjectInstanceId,
+              template: {
+                id: r.origSubTemplateId,
+                name: r.origSubName,
+                code: r.origSubCode,
+              },
+            },
+            classroom: { id: r.origClassroomId, name: r.origClassName },
+            teacherProfile: r.origTeacherId
+              ? {
+                  id: r.origTeacherId,
+                  user: { firstName: r.origTFN, lastName: r.origTLN },
+                }
+              : null,
+          }
+        : null,
+      substituteTeacher: r.substituteTeacherId
+        ? {
+            id: r.substituteTeacherId,
+            user: { firstName: r.subTFN, lastName: r.subTLN },
+          }
+        : null,
+      substituteRoom: r.substituteRoomId
+        ? { id: r.substituteRoomId, name: r.subRoomName }
+        : null,
+      substituteSubject: r.substituteSubjectId
+        ? { template: { name: r.subSubName, code: r.subSubCode } }
+        : null,
+    }));
   }
 
   async createSubstitution(schoolId: string, userId: string, data: any) {

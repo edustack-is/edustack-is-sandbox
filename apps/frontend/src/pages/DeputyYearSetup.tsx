@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useSchool } from '@/context/SchoolContext';
@@ -117,18 +117,20 @@ export function DeputyYearSetup() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{t('year_setup.title')}</h1>
-                    <p className="text-muted-foreground mt-1">
-                        {currentSchool?.name ?? t('year_setup.school_label')}
+                    {/* This is the page subtitle. Using <p> here caused a
+                        validateDOMNesting warning because <Badge> renders
+                        a <div> and <p> forbids block-level descendants.
+                        <div> with the same typography class keeps the
+                        same look without the nesting violation. */}
+                    <div className="text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
+                        <span>{currentSchool?.name ?? t('year_setup.school_label')}</span>
                         {selectedYear && (
                             <>
-                                {' '}
-                                —{' '}
-                                <Badge variant="outline" className="ml-1">
-                                    {selectedYear.name}
-                                </Badge>
+                                <span>—</span>
+                                <Badge variant="outline">{selectedYear.name}</Badge>
                             </>
                         )}
-                    </p>
+                    </div>
                 </div>
                 {selectedYear?.isCurrent && (
                     <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
@@ -1048,9 +1050,16 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
                                             const isExpanded = expandedId === wl.id;
                                             const isEditing = editingId === wl.id;
                                             return (
-                                                <>
+                                                // Each workload renders two sibling
+                                                // <TableRow>s (the row + the optional
+                                                // expanded panel). Wrapping them in a
+                                                // keyed Fragment satisfies React's
+                                                // unique-key requirement at the list
+                                                // level — without the key the inner
+                                                // TableRow key was ignored by the
+                                                // reconciler.
+                                                <Fragment key={wl.id}>
                                                     <TableRow
-                                                        key={wl.id}
                                                         className="cursor-pointer hover:bg-muted/50"
                                                         onClick={() => toggleExpand(wl)}
                                                     >
@@ -1184,7 +1193,7 @@ function StepTeacherWorkloads({ selectedYear }: { selectedYear: AcademicYear | n
                                                             </TableCell>
                                                         </TableRow>
                                                     )}
-                                                </>
+                                                </Fragment>
                                             );
                                         })}
                                     </TableBody>

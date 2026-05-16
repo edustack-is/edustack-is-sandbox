@@ -1,4 +1,24 @@
 {
+  "polish_dialog": {
+    "title": "AI návrhy slovního hodnocení",
+    "description": "Vyberte návrh, který nejlépe odpovídá, nebo upřesněte pokyn a vygenerujte nové varianty. Vaše původní hodnocení zůstává nezměněné, dokud nějaký návrh nepřevezmete.",
+    "original": "Váš původní text",
+    "use_this": "Použít tento návrh",
+    "generating": "Generuji návrhy…",
+    "regenerate": "Vygenerovat znovu",
+    "feedback_label": "Zpětná vazba pro AI (volitelné)",
+    "feedback_placeholder": "např. Zaměř se více na pokrok studenta. Buď stručnější.",
+    "translate_to_cs": "Přeložit do češtiny",
+    "translate_to_en": "Přeložit do angličtiny",
+    "translating": "Překládám…",
+    "language_mismatch": "Návrh je v jiném jazyce než vaše rozhraní.",
+    "tone_formal": "formální, věcný a spisovný",
+    "tone_encouraging": "povzbuzující, vřelý a motivační",
+    "tone_concise": "stručný, jasný a konkrétní",
+    "label_formal": "Formální",
+    "label_encouraging": "Povzbuzující",
+    "label_concise": "Stručný"
+  },
   "common": {
     "absent": "Nepřítomen",
     "absent_short": "Abs.",
@@ -7,8 +27,13 @@
     "active": "Aktivní",
     "address": "Adresa",
     "all": "Vše",
+    "all_classes": "Všechny třídy",
+    "all_roles": "Všechny role",
+    "all_statuses": "Všechny stavy",
+    "all_types": "Všechny typy",
     "attendance": "Docházka",
     "back": "Zpět",
+    "backups": "Zálohy",
     "cancel": "Zrušit",
     "class": "Třída",
     "classroom": "Učebna",
@@ -17,6 +42,7 @@
     "confirm": "Potvrdit",
     "confirm_description": "Opravdu chcete tuto akci provést?",
     "confirm_title": "Potvrdit akci",
+    "copy": "Kopírovat",
     "create": "Vytvořit",
     "creating": "Vytvářím...",
     "dashboard": "Nástěnka",
@@ -49,6 +75,7 @@
     "escalations": "Eskalace",
     "event": "Událost",
     "excused": "Omluven",
+    "excuses": "Omluvenky",
     "first_name": "Jméno",
     "from": "Od",
     "grade_level": "Ročník",
@@ -68,6 +95,7 @@
     "no": "Ne",
     "no_data": "Žádná data k zobrazení",
     "no_entries": "Žádné záznamy",
+    "no_results": "Žádné výsledky",
     "none": "Žádné",
     "note": "Poznámka",
     "notes": "Poznámky",
@@ -92,6 +120,7 @@
     "save_first": "Nejprve záznam uložte",
     "saving": "Ukládám...",
     "search": "Hledat",
+    "semester": "Pololetí",
     "search_recipient": "Hledat příjemce...",
     "select": "Vybrat",
     "select_both_versions": "Vyberte obě verze",
@@ -116,7 +145,9 @@
     "to": "Do",
     "tools": "Pomůcky",
     "topic": "Téma",
+    "total": "Celkem",
     "type": "Typ",
+    "unassigned": "Nepřiřazeno",
     "unexcused": "Neomluven",
     "unknown_user": "Neznámý uživatel",
     "users": "Uživatelé",
@@ -299,7 +330,10 @@
     "grade_number": "Číslo ročníku",
     "grade_name_required": "Název a číslo ročníku jsou povinné.",
     "grade_created": "Ročník byl vytvořen.",
-    "grade_delete_confirm": "Opravdu chcete smazat ročník \"{{name}}\"?"
+    "grade_delete_confirm": "Opravdu chcete smazat ročník \"{{name}}\"?",
+    "added": "Přidáno",
+    "removed_label": "Odebráno",
+    "changed_label": "Změněno"
   },
   "dashboard": {
     "system_admin_title": "Nástěnka systémového správce",
@@ -503,6 +537,7 @@
     "describe_reason": "Popište důvod...",
     "fill_required": "Vyplňte studenta a důvod",
     "create_success": "Opatření vytvořeno",
+    "load_error": "Nepodařilo se načíst opatření.",
     "all_classes": "Všechny třídy",
     "types": {
       "praise": "Pochvala",
@@ -594,7 +629,9 @@
     "load_error": "Nepodařilo se načíst kroužky",
     "fill_required": "Vyplňte název a časy",
     "update_success": "Kroužek aktualizován",
-    "create_success": "Kroužek vytvořen"
+    "create_success": "Kroužek vytvořen",
+    "from": "Od",
+    "to": "Do"
   },
   "registry": {
     "title": "Matrika",
@@ -825,6 +862,9 @@
     "monitoring": "Monitoring",
     "select_school_prompt": "Vyberte školu pro zobrazení menu.",
     "select_school_button": "Vybrat školu",
+    "back_to_system": "Zpět na správu",
+    "backups": "Zálohy",
+    "change_school": "Změnit školu",
     "collapse": "Sbalit menu",
     "expand": "Rozbalit menu"
   },
@@ -880,6 +920,8 @@
     "failed_select": "Nepodařilo se vybrat školu",
     "deleted_success": "Škola byla smazána",
     "failed_delete": "Nepodařilo se smazat školu",
+    "delete_title": "Smazat školu",
+    "delete_confirm": "Opravdu chcete smazat školu \"{{name}}\"? Všechna související data budou ztracena. Tato akce je nevratná.",
     "require_sso_email_match": "Vyžadovat shodu emailu u SSO",
     "require_sso_email_match_desc": "Při aktivaci účtu přes SSO musí být email z poskytovatele (Google, Microsoft…) shodný se systémovým emailem uživatele."
   },
@@ -1198,7 +1240,14 @@
     "alumni_title": "Označit jako absolventa",
     "alumni_description": "Opravdu chcete označit žáka {{name}} jako absolvent? Tato akce změní jeho status na \"Absolvent\".",
     "confirm_alumni": "Označit jako absolventa",
-    "alumni_set": "Žák byl úspěšně označen jako absolvent."
+    "alumni_set": "Žák byl úspěšně označen jako absolvent.",
+    "filter_type": "Typ uživatele",
+    "filter_status": "Stav",
+    "filter_no_class": "Bez třídy",
+    "type_student": "Žák",
+    "type_parent": "Rodič",
+    "type_teacher": "Učitel",
+    "type_employee": "Zaměstnanec"
   },
   "white_book": {
     "title": "Bílá kniha",

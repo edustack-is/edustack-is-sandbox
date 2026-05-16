@@ -16,7 +16,6 @@ import {
     User,
     Globe,
     PanelLeftClose,
-    PanelLeftOpen,
     FileText,
     MessageSquare,
     Target,
@@ -130,7 +129,6 @@ export const Sidebar: React.FC = () => {
         { path: '/grading', label: t('sidebar.grading', 'Klasifikace'), icon: GraduationCap },
         { path: '/attendance', label: t('sidebar.attendance', 'Docházka'), icon: CalendarDays },
         { path: '/classbook', label: t('sidebar.classbook', 'Třídní kniha'), icon: BookOpen },
-        { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
         { path: '/messages', label: t('sidebar.messages', 'Zprávy'), icon: MessageSquare },
         { path: '/community', label: t('sidebar.community', 'Komunita'), icon: MessageSquare },
     ];
@@ -156,14 +154,14 @@ export const Sidebar: React.FC = () => {
         { path: '/grading/measures', label: t('sidebar.measures', 'Výchovná opatření'), icon: FileText },
         { path: '/year-setup', label: t('sidebar.year_setup', 'Příprava roku'), icon: Settings },
         { path: '/school/users', label: t('sidebar.users', 'Uživatelé'), icon: Users },
+        { path: '/school/white-book', label: t('sidebar.white_book', 'Bílá kniha'), icon: FileText },
         { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
     ];
 
-    // Principal/Deputy items (also visible to ADMIN)
-    const principalItems = [
-        { path: '/school/users', label: t('common.users'), icon: Users },
-        { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
-    ];
+    // Both `/school/users` and `/school/audit-log` already live in
+    // `schoolAdminItems` above, so they appear once for every school
+    // admin (PRINCIPAL/DEPUTY/ADMIN). A separate principal-only array
+    // used to duplicate them for PRINCIPAL — removed.
 
     useEffect(() => {
         getMe()
@@ -188,7 +186,6 @@ export const Sidebar: React.FC = () => {
 
     const hasSchoolContext = tokenType === 'TENANT';
     const isSchoolAdmin = role === 'ADMIN' || role === 'DEPUTY' || role === 'PRINCIPAL';
-    const isPrincipalOrAdmin = role === 'ADMIN' || role === 'PRINCIPAL';
     const canSwitchSchool = isSystemAdmin || schoolCount > 1;
 
     return (
@@ -209,9 +206,20 @@ export const Sidebar: React.FC = () => {
                     {!collapsed ? (
                         <>
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-xl font-black text-primary tracking-tighter uppercase italic">
-                                    EduStack
-                                </h1>
+                                {/* Two logo variants — Tailwind toggles them
+                                    via the .dark class on <html>, so the
+                                    correct one ends up visible without a JS
+                                    flash. */}
+                                <img
+                                    src="/edustack-logo-light.png"
+                                    alt="EduStack IS"
+                                    className="block dark:hidden h-14 w-auto"
+                                />
+                                <img
+                                    src="/edustack-logo-dark.png"
+                                    alt="EduStack IS"
+                                    className="hidden dark:block h-14 w-auto"
+                                />
                                 {hasSchoolContext && currentSchool && (
                                     <div className="mt-3 space-y-2">
                                         <div className="flex items-center gap-2">
@@ -263,10 +271,16 @@ export const Sidebar: React.FC = () => {
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={toggleCollapsed}
-                                    className="p-1.5 rounded-md text-primary hover:bg-primary/10 transition-colors"
+                                    className="rounded-md hover:bg-primary/10 transition-colors p-1"
                                     title={t('sidebar.expand', 'Rozbalit menu')}
+                                    aria-label={t('sidebar.expand', 'Rozbalit menu')}
                                 >
-                                    <PanelLeftOpen size={22} />
+                                    <img
+                                        src="/edustack-logo.png"
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="h-12 w-12 object-contain"
+                                    />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" sideOffset={8}>
@@ -361,16 +375,6 @@ export const Sidebar: React.FC = () => {
                                                     collapsed={false}
                                                 />
                                             ))}
-                                            {isPrincipalOrAdmin &&
-                                                principalItems.map((item) => (
-                                                    <SidebarNavItem
-                                                        key={item.path}
-                                                        to={item.path}
-                                                        icon={item.icon}
-                                                        label={item.label}
-                                                        collapsed={false}
-                                                    />
-                                                ))}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
@@ -389,16 +393,6 @@ export const Sidebar: React.FC = () => {
                                             collapsed={collapsed}
                                         />
                                     ))}
-                                    {isPrincipalOrAdmin &&
-                                        principalItems.map((item) => (
-                                            <SidebarNavItem
-                                                key={item.path}
-                                                to={item.path}
-                                                icon={item.icon}
-                                                label={item.label}
-                                                collapsed={collapsed}
-                                            />
-                                        ))}
                                 </>
                             )}
                         </>

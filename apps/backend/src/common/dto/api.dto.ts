@@ -247,12 +247,18 @@ export class CreateGradeDto {
   @IsString()
   description?: string;
 
+  // Grade.type is the assessment kind (numeric mark vs verbal note vs
+  // pass/fail) and matches the column the DB stores. The assessment
+  // CATEGORY (exam / homework / oral / …) lives on the `category`
+  // field below. Previously this enum had the category values, so the
+  // frontend's `type: 'NUMERIC'` was rejected with
+  // "type must be one of EXAM/TEST/HOMEWORK/...".
   @ApiPropertyOptional({
-    example: 'EXAM',
-    enum: ['EXAM', 'TEST', 'HOMEWORK', 'PROJECT', 'ORAL', 'OTHER'],
+    example: 'NUMERIC',
+    enum: ['NUMERIC', 'VERBAL', 'PASS_FAIL'],
   })
   @IsOptional()
-  @IsEnum(['EXAM', 'TEST', 'HOMEWORK', 'PROJECT', 'ORAL', 'OTHER'])
+  @IsEnum(['NUMERIC', 'VERBAL', 'PASS_FAIL'])
   type?: string;
 
   @ApiPropertyOptional({ description: 'Slovní hodnocení' })
@@ -409,6 +415,33 @@ export class PolishTextDto {
   @IsString()
   @IsNotEmpty()
   subjectName: string;
+
+  // Optional refinement prompt from the teacher when they iterate on
+  // the variants. Empty / undefined on the first call.
+  @ApiProperty({ required: false, example: 'Více pozitivní, méně formální.' })
+  @IsString()
+  @IsOptional()
+  feedback?: string;
+
+  // ISO 639-1 code (cs/en …). Backend tells the model which language
+  // to produce, so the teacher gets variants in their UI language by
+  // default. Defaults to Czech for backwards compatibility.
+  @ApiProperty({ required: false, example: 'cs' })
+  @IsString()
+  @IsOptional()
+  language?: string;
+}
+
+export class TranslateTextDto {
+  @ApiProperty({ description: 'Text to translate' })
+  @IsString()
+  @IsNotEmpty()
+  text: string;
+
+  @ApiProperty({ description: 'Target language (ISO 639-1)', example: 'en' })
+  @IsString()
+  @IsNotEmpty()
+  targetLanguage: string;
 }
 
 export class BehaviorGradeDto {
