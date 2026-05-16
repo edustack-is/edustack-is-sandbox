@@ -144,9 +144,10 @@ async function bootstrap() {
   setupSwagger(app);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port, '127.0.0.1');
+  const host = process.env.HOST ?? '127.0.0.1';
+  await app.listen(port, host);
   const logger = new Logger('Bootstrap');
-  logger.log(`Backend API is running on: http://127.0.0.1:${port}`);
+  logger.log(`Backend API is running on: http://${host}:${port}`);
 
   // ─── Auto-seed ──────────────────────────────────────────────
   // AUTO_SEED is a development convenience that creates a demo admin and

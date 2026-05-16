@@ -14,16 +14,20 @@ on:
         type: choice
         options:
           - deploy
+          - redeploy
           - delete
 
 jobs:
   deploy:
-    if: github.event.inputs.action == 'deploy'
-    name: Deploy Environment ${{ github.event.inputs.env_id }}
+    if: github.event.inputs.action == 'deploy' || github.event.inputs.action == 'redeploy'
+    name: ${{ github.event.inputs.action == 'redeploy' && 'Redeploy' || 'Deploy' }} Environment ${{ github.event.inputs.env_id }}
     runs-on: ubuntu-latest
     env:
       ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
       DOMAIN: is-edustack.org
+      FLY_ORG: personal
+      FLY_REGION: ams
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
@@ -37,107 +41,125 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Install Wrangler
         run: npm install -g wrangler@4
 
-      - name: Resolve zone ID
+      - name: Resolve Cloudflare zone ID
         id: zone
+        if: github.event.inputs.action == 'deploy'
         run: |
           ZONE_ID=$(curl -fsS \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}" \
             | jq -r '.result[0].id')
           if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" = "null" ]; then
-            echo "Zone ${DOMAIN} not found in account ${CLOUDFLARE_ACCOUNT_ID}" >&2
+            echo "Zone ${DOMAIN} not found" >&2
             exit 1
           fi
-          echo "zone_id=$ZONE_ID" >> $GITHUB_OUTPUT
+          echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Create D1 Database
-        id: d1
+      # ───── Backend + MCP on Fly.io ────────────────────────────────
+      - name: Render fly.toml
+        id: fly_cfg
         run: |
-          DB_NAME="edustack_db_${ENV_NAME}"
-          wrangler d1 create "$DB_NAME" || true
-          DB_ID=$(wrangler d1 info "$DB_NAME" --json | jq -r '.uuid')
-          if [ -z "$DB_ID" ] || [ "$DB_ID" = "null" ]; then
-            echo "Failed to resolve D1 database id for $DB_NAME" >&2
-            exit 1
+          APP_NAME="edustack-${ENV_NAME}"
+          mkdir -p .fly
+          sed "s/__APP_NAME__/${APP_NAME}/g" fly.toml.template > ".fly/${APP_NAME}.toml"
+          echo "app_name=${APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "config_path=.fly/${APP_NAME}.toml" >> "$GITHUB_OUTPUT"
+
+      - name: Create Fly app (idempotent)
+        if: github.event.inputs.action == 'deploy'
+        run: |
+          APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
+          if flyctl apps list --json | jq -e --arg n "$APP_NAME" '.[] | select(.Name == $n)' > /dev/null; then
+            echo "Fly app $APP_NAME already exists"
+          else
+            flyctl apps create "$APP_NAME" --org "$FLY_ORG"
           fi
-          echo "db_id=$DB_ID" >> $GITHUB_OUTPUT
-          echo "db_name=$DB_NAME" >> $GITHUB_OUTPUT
 
-      - name: Initialize Database Schema
+      - name: Create Fly volume (idempotent)
+        if: github.event.inputs.action == 'deploy'
         run: |
-          wrangler d1 execute "${{ steps.d1.outputs.db_name }}" \
-            --file=apps/backend/src/database/schema.sql \
-            --remote
+          APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
+          if flyctl volumes list --app "$APP_NAME" --json | jq -e '.[] | select(.name == "edustack_data")' > /dev/null; then
+            echo "Volume edustack_data already exists for $APP_NAME"
+          else
+            flyctl volumes create edustack_data \
+              --app "$APP_NAME" \
+              --region "$FLY_REGION" \
+              --size 1 \
+              --yes
+          fi
 
-      - name: Deploy MCP Server
-        env:
-          MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
-          WORKER_NAME: edustack-mcp-${{ env.ENV_NAME }}
-        run: |
-          cd apps/mcp-server
-          sed -i "s|^name = \".*\"|name = \"${WORKER_NAME}\"|" wrangler.toml
-          sed -i "s|^database_id = \".*\"|database_id = \"${{ steps.d1.outputs.db_id }}\"|" wrangler.toml
-          sed -i "s|^database_name = \".*\"|database_name = \"${{ steps.d1.outputs.db_name }}\"|" wrangler.toml
-
-          wrangler deploy --name "$WORKER_NAME"
-
-          printf '{"MCP_AUTH_TOKEN":"%s"}' "$MCP_AUTH_TOKEN" \
-            | wrangler secret bulk --name "$WORKER_NAME"
-
-      - name: Attach MCP custom domain
-        env:
-          WORKER_NAME: edustack-mcp-${{ env.ENV_NAME }}
-        run: |
-          HOSTNAME="mcp-${ENV_NAME}.${DOMAIN}"
-          curl -fsS -X PUT \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains" \
-            --data "$(jq -nc --arg h "$HOSTNAME" --arg s "$WORKER_NAME" --arg z "${{ steps.zone.outputs.zone_id }}" \
-              '{environment:"production", hostname:$h, service:$s, zone_id:$z}')"
-
-      - name: Deploy Backend
+      - name: Stage Fly secrets
+        if: github.event.inputs.action == 'deploy'
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef' }}
           MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
-          WORKER_NAME: edustack-backend-${{ env.ENV_NAME }}
         run: |
-          cd apps/backend
-          sed -i "s|^name = \".*\"|name = \"${WORKER_NAME}\"|" wrangler.toml
-          sed -i "s|^database_id = \".*\"|database_id = \"${{ steps.d1.outputs.db_id }}\"|" wrangler.toml
-          sed -i "s|^database_name = \".*\"|database_name = \"${{ steps.d1.outputs.db_name }}\"|" wrangler.toml
+          APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
+          flyctl secrets set \
+            JWT_SECRET="$JWT_SECRET" \
+            ENCRYPTION_KEY="$ENCRYPTION_KEY" \
+            MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
+            MCP_SERVER_URL="http://127.0.0.1:3001/sse" \
+            CORS_ORIGIN="https://fe-${ENV_NAME}.${DOMAIN}" \
+            --app "$APP_NAME" \
+            --stage
 
-          wrangler deploy --name "$WORKER_NAME" \
-            --var "CORS_ORIGIN:https://fe-${ENV_NAME}.${DOMAIN}" \
-            --var "MCP_SERVER_URL:https://mcp-${ENV_NAME}.${DOMAIN}/sse"
-
-          jq -nc \
-            --arg jwt "$JWT_SECRET" \
-            --arg enc "$ENCRYPTION_KEY" \
-            --arg mcp "$MCP_AUTH_TOKEN" \
-            '{JWT_SECRET:$jwt, ENCRYPTION_KEY:$enc, MCP_AUTH_TOKEN:$mcp}' \
-            | wrangler secret bulk --name "$WORKER_NAME"
-
-      - name: Attach Backend custom domain
-        env:
-          WORKER_NAME: edustack-backend-${{ env.ENV_NAME }}
+      - name: Deploy to Fly
         run: |
+          flyctl deploy \
+            --config "${{ steps.fly_cfg.outputs.config_path }}" \
+            --app "${{ steps.fly_cfg.outputs.app_name }}" \
+            --remote-only \
+            --wait-timeout 600
+
+      - name: Attach backend custom domain + TLS
+        if: github.event.inputs.action == 'deploy'
+        run: |
+          APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
           HOSTNAME="be-${ENV_NAME}.${DOMAIN}"
-          curl -fsS -X PUT \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains" \
-            --data "$(jq -nc --arg h "$HOSTNAME" --arg s "$WORKER_NAME" --arg z "${{ steps.zone.outputs.zone_id }}" \
-              '{environment:"production", hostname:$h, service:$s, zone_id:$z}')"
+          FLY_HOST="${APP_NAME}.fly.dev"
+          ZONE_ID="${{ steps.zone.outputs.zone_id }}"
 
-      - name: Build and Deploy Frontend
+          EXISTING_ID=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
+            | jq -r '.result[0].id // empty')
+
+          DNS_DATA=$(jq -nc \
+            --arg name "be-${ENV_NAME}" \
+            --arg content "$FLY_HOST" \
+            '{type:"CNAME", name:$name, content:$content, ttl:1, proxied:false}')
+
+          if [ -n "$EXISTING_ID" ]; then
+            curl -fsS -X PUT \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${EXISTING_ID}" \
+              --data "$DNS_DATA" > /dev/null
+          else
+            curl -fsS -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+              --data "$DNS_DATA" > /dev/null
+          fi
+
+          flyctl certs add "$HOSTNAME" --app "$APP_NAME" || \
+            echo "Certificate may already exist for $HOSTNAME, continuing"
+
+      # ───── Frontend on Cloudflare Pages ─────────────────────
+      - name: Install dependencies (frontend build)
+        run: npm install
+
+      - name: Build and deploy frontend
         env:
           PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
@@ -145,18 +167,17 @@ jobs:
           echo "VITE_API_URL=https://be-${ENV_NAME}.${DOMAIN}" > .env
           npm run build
 
-          # Create Pages project if it does not exist (API call is idempotent-safe)
           curl -fsS -X POST \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H "Content-Type: application/json" \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
-            --data "$(jq -nc --arg n "$PROJECT_NAME" \
-              '{name:$n, production_branch:"main"}')" \
-            || echo "Pages project create returned non-zero (likely already exists), continuing"
+            --data "$(jq -nc --arg n "$PROJECT_NAME" '{name:$n, production_branch:"main"}')" \
+            || echo "Pages project create returned non-zero (likely already exists)"
 
           wrangler pages deploy dist --project-name "$PROJECT_NAME" --branch main
 
-      - name: Attach Frontend custom domain
+      - name: Attach frontend custom domain
+        if: github.event.inputs.action == 'deploy'
         env:
           PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
@@ -166,53 +187,21 @@ jobs:
             -H "Content-Type: application/json" \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains" \
             --data "$(jq -nc --arg h "$HOSTNAME" '{name:$h}')" \
-            || echo "Pages domain attach returned non-zero (likely already attached), continuing"
-
-      - name: Deploy MailDev Placeholder
-        env:
-          WORKER_NAME: edustack-mail-${{ env.ENV_NAME }}
-        run: |
-          mkdir -p apps/mail-placeholder
-          cat > apps/mail-placeholder/index.ts <<'EOF'
-          export default {
-            async fetch() {
-              return new Response(
-                "MailDev is not available on Cloudflare Workers (SMTP limitation). Use local dev for email testing.",
-                { headers: { "content-type": "text/plain" } }
-              );
-            }
-          }
-          EOF
-          cat > apps/mail-placeholder/wrangler.toml <<EOF
-          name = "${WORKER_NAME}"
-          main = "index.ts"
-          compatibility_date = "2024-04-03"
-          EOF
-
-          cd apps/mail-placeholder
-          wrangler deploy --name "$WORKER_NAME"
-
-      - name: Attach Mail custom domain
-        env:
-          WORKER_NAME: edustack-mail-${{ env.ENV_NAME }}
-        run: |
-          HOSTNAME="mail-${ENV_NAME}.${DOMAIN}"
-          curl -fsS -X PUT \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains" \
-            --data "$(jq -nc --arg h "$HOSTNAME" --arg s "$WORKER_NAME" --arg z "${{ steps.zone.outputs.zone_id }}" \
-              '{environment:"production", hostname:$h, service:$s, zone_id:$z}')"
+            || echo "Pages domain attach returned non-zero (likely already attached)"
 
       - name: Summary
+        env:
+          ACTION_VERB: ${{ github.event.inputs.action == 'redeploy' && 'redeployed' || 'deployed' }}
         run: |
-          echo "### Environment ${ENV_NAME} deployed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: https://fe-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
-          echo "- MCP:      https://mcp-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
-          echo "- Mail:     https://mail-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
-          echo "- D1:       ${{ steps.d1.outputs.db_name }} (\`${{ steps.d1.outputs.db_id }}\`)" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Environment ${ENV_NAME} ${ACTION_VERB}"
+            echo ""
+            echo "- Frontend: https://fe-${ENV_NAME}.${DOMAIN}"
+            echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}"
+            echo "- Fly app:  ${{ steps.fly_cfg.outputs.app_name }} (region $FLY_REGION)"
+            echo ""
+            echo "MCP server is internal-only on 127.0.0.1:3001 inside the Fly container."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   teardown:
     if: github.event.inputs.action == 'delete'
@@ -221,6 +210,7 @@ jobs:
     env:
       ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
       DOMAIN: is-edustack.org
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
@@ -228,14 +218,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Wrangler
-        run: npm install -g wrangler@4
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Delete Workers
+      - name: Destroy Fly app (machines + volumes)
         run: |
-          for w in edustack-backend-${ENV_NAME} edustack-mcp-${ENV_NAME} edustack-mail-${ENV_NAME}; do
-            wrangler delete --name "$w" || true
-          done
+          APP_NAME="edustack-${ENV_NAME}"
+          flyctl apps destroy "$APP_NAME" --yes || echo "Fly app destroy returned non-zero, continuing"
+
+      - name: Resolve Cloudflare zone ID
+        id: zone
+        run: |
+          ZONE_ID=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}" \
+            | jq -r '.result[0].id')
+          echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Remove backend CNAME
+        run: |
+          HOSTNAME="be-${ENV_NAME}.${DOMAIN}"
+          ZONE_ID="${{ steps.zone.outputs.zone_id }}"
+          REC_ID=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=CNAME&name=${HOSTNAME}" \
+            | jq -r '.result[0].id // empty')
+          if [ -n "$REC_ID" ]; then
+            curl -fsS -X DELETE \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${REC_ID}" > /dev/null
+          fi
 
       - name: Delete Pages project
         env:
@@ -246,7 +258,12 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}" \
             || echo "Pages project delete returned non-zero, continuing"
 
-      - name: Delete D1 Database
+      - name: Summary
         run: |
-          DB_NAME="edustack_db_${ENV_NAME}"
-          wrangler d1 delete "$DB_NAME" --skip-confirmation || true
+          {
+            echo "### Environment ${ENV_NAME} deleted"
+            echo ""
+            echo "- Fly app destroyed: edustack-${ENV_NAME}"
+            echo "- DNS record removed: be-${ENV_NAME}.${DOMAIN}"
+            echo "- Pages project removed: edustack-frontend-${ENV_NAME}"
+          } >> "$GITHUB_STEP_SUMMARY"
