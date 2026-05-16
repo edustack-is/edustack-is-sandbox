@@ -1,107 +1,179 @@
 # EduStack IS
 
-Školní informační systém pro základní a střední školy. Monorepo s backendem (NestJS), frontendem (React) a MCP serverem pro AI agenty.
+School information system for primary and secondary schools. Monorepo with a backend (NestJS), frontend (React) and an MCP server for AI agents.
 
-## Technologie
+## Info website
 
-| Vrstva     | Stack                                                |
-| ---------- | ---------------------------------------------------- |
-| Backend    | NestJS, Custom SQLite/D1 service (better-sqlite3)    |
-| Databáze   | Cloudflare D1 (SQLite)                               |
-| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui  |
-| MCP Server | Node.js, SSE transport, 36 AI nástrojů               |
-| AI         | Google Gemini (konfigurovatelné – OpenAI, Anthropic) |
-| Infra      | Cloudflare Workers, Cloudflare Pages                 |
+A public information website is already deployed at **https://is-edustack.org/**. It serves as the landing/marketing page for the EduStack IS project and points to the running application instances. The DNS zone `is-edustack.org` is the same zone used for the per-environment subdomains (`fe-sandbox-*` for the frontend on Cloudflare Pages, `be-sandbox-*` for the backend on Fly.io) created by the deployment workflow described below.
 
-## Rychlý start
+## Technology
 
-### Prerekvizity
+| Layer      | Stack                                               |
+| ---------- | --------------------------------------------------- |
+| Backend    | NestJS, better-sqlite3                              |
+| Database   | SQLite (file on a Fly.io persistent volume)         |
+| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui |
+| MCP Server | Node.js, Express, SSE transport, 36 AI tools        |
+| AI         | Google Gemini (configurable – OpenAI, Anthropic)    |
+| Infra      | Fly.io (backend + MCP), Cloudflare Pages (frontend) |
+
+## Quick start
+
+### Prerequisites
 
 - Node.js 20+
 - npm 10+
-- Cloudflare Wrangler (`npm install -g wrangler`)
+- For deploying: a Fly.io account (`flyctl auth signup`) and a Cloudflare account with the `is-edustack.org` zone added
 
-### 1. Konfigurace
+### 1. Configuration
 
-Aplikace používá jeden společný soubor s proměnnými prostředí v kořenu projektu.
+The application uses a single shared environment file in the project root.
 
 ```bash
 cp .env.example .env
 ```
 
-| Proměnná              | Popis                                         | Jak vygenerovat           |
-| --------------------- | --------------------------------------------- | ------------------------- |
-| `JWT_SECRET`          | Klíč pro podepisování JWT tokenů              | `openssl rand -base64 64` |
-| `ENCRYPTION_KEY`      | AES-256 klíč pro šifrování secrets            | `openssl rand -base64 32` |
-| `ENABLE_LOGIN_HELPER` | Zapne panel s demo uživateli na login screenu | `true` nebo `false`       |
+| Variable              | Description                                  | How to generate           |
+| --------------------- | -------------------------------------------- | ------------------------- |
+| `JWT_SECRET`          | Key used to sign JWT tokens                  | `openssl rand -base64 64` |
+| `ENCRYPTION_KEY`      | AES-256 key for encrypting secrets           | `openssl rand -base64 32` |
+| `ENABLE_LOGIN_HELPER` | Shows a demo-users panel on the login screen | `true` or `false`         |
 
-**SMTP (E-maily):**
-Pro lokální testování e-mailů se při spuštění aplikace automaticky aktivuje MailDev:
+**SMTP (emails):**
+For local email testing, MailDev starts automatically with the application:
 
-- **SMTP server:** Port 1025
-- **Webové rozhraní:** http://localhost:1081 (konzultace doručených e-mailů)
+- **SMTP server:** port 1025
+- **Web UI:** http://localhost:1081 (inspect delivered messages)
 
-### 2. Instalace a příprava databáze
-
-Aplikace je plně integrovaná s **Cloudflare D1**. Pro lokální vývoj i produkci používáme stejný Wrangler workflow.
+### 2. Install and prepare the database
 
 ```bash
-# 1. Instalace závislostí
+# 1. Install dependencies
 npm install
 
-# 2. Inicializace lokální D1 databáze (vytvoří schéma přes Wrangler)
+# 2. Initialize the local SQLite database
 npm run db:init
 ```
 
-#### Práce s databází
+#### Working with the database
 
-| Akce             | Příkaz              | Popis                                       |
-| :--------------- | :------------------ | :------------------------------------------ |
-| **Reset / Init** | `npm run db:init`   | Vytvoří/aktualizuje lokální D1 schéma       |
-| **Deploy**       | `npm run db:deploy` | Přenese změny schématu do Cloudflare Cloudu |
-| **Prohlížení**   | `npm run db:view`   | Otevře SQLite prohlížeč (např. DBeaver)     |
+| Action           | Command           | Description                             |
+| :--------------- | :---------------- | :-------------------------------------- |
+| **Reset / Init** | `npm run db:init` | Creates/updates the local SQLite schema |
+| **Browse**       | `npm run db:view` | Opens a SQLite browser (e.g. DBeaver)   |
 
-### 3. Demo Data
+In deployed environments the SQLite file lives on the Fly volume at `/data/edustack.db` and is initialised automatically from `apps/backend/src/database/schema.sql` on first boot.
 
-Systém podporuje automatické naplnění daty při startu, pokud je v `.env` nastavena proměnná `AUTO_SEED=true`.
+### 3. Demo data
 
-**Výchozí přihlašovací údaje (pokud jsou data načtena):**
+The system can auto-seed demo data at startup when `AUTO_SEED=true` is set in `.env`.
 
-- Systémový administrátor: `admin@edustack.cz`
-- Ředitel: `headmaster@tgmasaryk.cz`
+**Default credentials (if seed data is loaded):**
 
-### 4. Spuštění aplikace
+- System administrator: `admin@edustack.cz`
+- Headmaster: `headmaster@tgmasaryk.cz`
+
+### 4. Run the application
 
 ```bash
-# Spustí backend, frontend a MCP server najednou
+# Starts backend, frontend and MCP server together
 npm run dev
 ```
 
-| Služba       | URL                            |
+| Service      | URL                            |
 | ------------ | ------------------------------ |
-| Aplikace     | http://localhost:5173          |
+| Application  | http://localhost:5173          |
 | Backend API  | http://localhost:3000          |
 | Swagger docs | http://localhost:3000/api/docs |
 
-## Zálohování (Backup Storage)
+## Backup storage
 
-Systém podporuje automatické i manuální zálohy databáze. Úložiště je konfigurovatelné:
+The system supports both automatic and manual database backups. Storage is configurable:
 
-### 1. Lokální režim (Výchozí)
+### 1. Local mode (default)
 
-Pokud ponecháte proměnné `R2_*` v `.env` prázdné, zálohy se budou ukládat do adresáře `data/backups`.
+If the `R2_*` variables in `.env` are left empty, backups are written to `data/backups`.
 
-### 2. Produkční režim (Cloudflare R2)
+### 2. Production mode (Cloudflare R2)
 
-Pro bezpečné uložení v cloudu nastavte přihlašovací údaje k R2 bucketu:
+For secure cloud storage, configure the R2 bucket credentials:
 
-- **R2_ENDPOINT:** URL vašeho R2 rozhraní (najdete v CF dashboardu).
-- **R2_ACCESS_KEY_ID:** Přístupový klíč s právy pro zápis.
-- **R2_SECRET_ACCESS_KEY:** Tajný klíč (v produkci vložte jako `wrangler secret`).
+- **R2_ENDPOINT:** URL of your R2 endpoint (found in the Cloudflare dashboard).
+- **R2_ACCESS_KEY_ID:** Access key with write permission.
+- **R2_SECRET_ACCESS_KEY:** Secret key (set as a Fly secret in production: `flyctl secrets set R2_SECRET_ACCESS_KEY=… --app edustack-sandbox-N`).
 
-**Upozornění:** Pro lokální vývoj nepoužívejte náhodné hodnoty (způsobí chybu spojení). Pokud nemáte R2 klíče, nechte pole prázdná pro aktivaci lokálního režimu.
+**Note:** Do not use random values for local development (they will cause connection errors). If you do not have R2 keys, leave the fields empty to fall back to local mode.
 
-## Dokumentace
+## Deployment
 
-- [Funkční analýza](docs/funkcni-analyza.md) – přehled 169 funkcí s aktuálním stavem implementace.
-- [Cloudflare Guide](README_CLOUDFLARE.md) – podrobnější info k nasazení.
+The `.github/workflows/deploy-env.yml` GitHub Actions workflow provisions an isolated environment per `env_id`:
+
+- **Backend + MCP server**: one Fly.io app per env (`edustack-sandbox-N`) running both Node processes in a single container, with a 1 GB persistent volume mounted at `/data` for the SQLite database. MCP listens on `127.0.0.1:3001` inside the container; only the backend can reach it.
+- **Frontend**: one Cloudflare Pages project per env (`edustack-frontend-sandbox-N`), built from `apps/frontend` with `VITE_API_URL` pointed at the matching backend.
+- **Custom domains** under `is-edustack.org`:
+    - `fe-sandbox-N.is-edustack.org` → Cloudflare Pages
+    - `be-sandbox-N.is-edustack.org` → Fly.io (CNAME to `edustack-sandbox-N.fly.dev`, TLS via Fly Let's Encrypt)
+
+### 1. GitHub repository secrets
+
+Add these under **Settings → Secrets and variables → Actions → New repository secret**.
+
+**Required:**
+
+| Secret                  | What it is                                             | Where to get it                                                       |
+| ----------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `FLY_API_TOKEN`         | Fly.io API token (account-wide, so it can create apps) | `flyctl auth login`, then `flyctl auth token`                         |
+| `CLOUDFLARE_API_TOKEN`  | API token for Pages deploys + DNS edits                | Cloudflare → My Profile → API Tokens → Create Token                   |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID                             | Cloudflare dashboard → right sidebar on any Workers / domain overview |
+
+**Recommended (the workflow has weak fallbacks if these are missing):**
+
+| Secret           | What it is                                             |
+| ---------------- | ------------------------------------------------------ |
+| `JWT_SECRET`     | ≥32-character random string used for signing JWTs      |
+| `ENCRYPTION_KEY` | Exactly 32 hex characters (AES-256 key)                |
+| `MCP_AUTH_TOKEN` | Shared bearer token between the backend and MCP server |
+
+Generate them locally:
+
+```bash
+openssl rand -hex 32   # JWT_SECRET / MCP_AUTH_TOKEN
+openssl rand -hex 16   # ENCRYPTION_KEY (32 hex chars)
+```
+
+These three values are pushed into Fly with `flyctl secrets set` during the first deploy of each env; subsequent `redeploy` runs leave them untouched.
+
+### 2. Cloudflare API token permissions
+
+Create a **Custom token** with these permissions:
+
+- Account → **Cloudflare Pages** → Edit
+- Account → **Account Settings** → Read
+- Zone → **Zone** → Read (scoped to `is-edustack.org`)
+- Zone → **DNS** → Edit (scoped to `is-edustack.org`)
+- User → **User Details** → Read
+
+### 3. One-time prerequisites
+
+1. **Cloudflare:** add the zone `is-edustack.org` (Websites → Add a site) and point your registrar's nameservers to Cloudflare.
+2. **Fly.io:** create an account (`flyctl auth signup`) and confirm your org slug is `personal` (default for personal accounts). If you've created a custom org, update `FLY_ORG` in `.github/workflows/deploy-env.yml`.
+
+### 4. Running the workflow
+
+**GitHub → Actions → Deploy Environment → Run workflow**, pick an `env_id` (e.g. `1`) and one of three actions:
+
+| Action       | What it does                                                                                      | When to use                                 |
+| ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **deploy**   | Full provision: create Fly app + volume, stage secrets, deploy, attach DNS + TLS, deploy frontend | First time setting up an environment        |
+| **redeploy** | Fast path: just `flyctl deploy` and rebuild + redeploy the frontend. Skips create / secrets / DNS | Pushing new code to an existing environment |
+| **delete**   | Destroys the Fly app (machines + volume), removes the CNAME, deletes the Pages project            | Tearing an environment down                 |
+
+After a successful `deploy`, the run summary lists the live URLs (`fe-sandbox-N`, `be-sandbox-N`) and the Fly app name.
+
+### 5. Costs
+
+Each environment is one Fly.io machine (`shared-cpu-1x`, 512 MB) that auto-stops when idle, plus a 1 GB volume. At demo / low-traffic usage the per-env cost is a few cents to a few euros per month; idle envs cost almost nothing because the machine is stopped. The Cloudflare Pages side stays on the free tier comfortably.
+
+## Documentation
+
+- [Functional analysis](docs/funkcni-analyza.md) – overview of 169 features with current implementation status.

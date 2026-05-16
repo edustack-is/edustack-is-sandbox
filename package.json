@@ -7,7 +7,6 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "db:init": "cd apps/backend && rm -rf .wrangler && npx wrangler d1 execute edustack_db --local --command=\"SELECT 1\" && npx wrangler d1 execute edustack_db --local --file=./src/database/schema.sql",
-    "db:deploy": "cd apps/backend && npx wrangler d1 execute edustack_db --remote --file=./src/database/schema.sql",
     "format": "prettier --write \".\"",
     "test:e2e": "npm run test:e2e -w frontend",
     "test:e2e:ui": "npm run test:e2e:ui -w frontend",
