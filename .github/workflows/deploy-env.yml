@@ -41,95 +41,178 @@ jobs:
         run: npm install
 
       - name: Install Wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4
+
+      - name: Resolve zone ID
+        id: zone
+        run: |
+          ZONE_ID=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}" \
+            | jq -r '.result[0].id')
+          if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" = "null" ]; then
+            echo "Zone ${DOMAIN} not found in account ${CLOUDFLARE_ACCOUNT_ID}" >&2
+            exit 1
+          fi
+          echo "zone_id=$ZONE_ID" >> $GITHUB_OUTPUT
 
       - name: Create D1 Database
         id: d1
         run: |
           DB_NAME="edustack_db_${ENV_NAME}"
-          # Try to create, ignore error if exists
-          wrangler d1 create $DB_NAME || true
-          # Get ID
-          DB_ID=$(wrangler d1 info $DB_NAME --json | jq -r '.[0].uuid')
+          wrangler d1 create "$DB_NAME" || true
+          DB_ID=$(wrangler d1 info "$DB_NAME" --json | jq -r '.uuid')
+          if [ -z "$DB_ID" ] || [ "$DB_ID" = "null" ]; then
+            echo "Failed to resolve D1 database id for $DB_NAME" >&2
+            exit 1
+          fi
           echo "db_id=$DB_ID" >> $GITHUB_OUTPUT
           echo "db_name=$DB_NAME" >> $GITHUB_OUTPUT
 
       - name: Initialize Database Schema
         run: |
-          wrangler d1 execute ${{ steps.d1.outputs.db_name }} --file=apps/backend/src/database/schema.sql --local=false --yes
+          wrangler d1 execute "${{ steps.d1.outputs.db_name }}" \
+            --file=apps/backend/src/database/schema.sql \
+            --remote
 
       - name: Deploy MCP Server
         env:
           MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
+          WORKER_NAME: edustack-mcp-${{ env.ENV_NAME }}
         run: |
           cd apps/mcp-server
-          # Update wrangler.toml with dynamic info
-          sed -i "s/name = \".*\"/name = \"edustack-mcp-${ENV_NAME}\"/" wrangler.toml
-          sed -i "s/database_id = \".*\"/database_id = \"${{ steps.d1.outputs.db_id }}\"/" wrangler.toml
-          sed -i "s/database_name = \".*\"/database_name = \"${{ steps.d1.outputs.db_name }}\"/" wrangler.toml
-          
-          wrangler deploy --name edustack-mcp-${ENV_NAME}
-          
-          # Assign custom domain
-          wrangler routes set --name edustack-mcp-${ENV_NAME} --domain mcp-${ENV_NAME}.${DOMAIN}
+          sed -i "s|^name = \".*\"|name = \"${WORKER_NAME}\"|" wrangler.toml
+          sed -i "s|^database_id = \".*\"|database_id = \"${{ steps.d1.outputs.db_id }}\"|" wrangler.toml
+          sed -i "s|^database_name = \".*\"|database_name = \"${{ steps.d1.outputs.db_name }}\"|" wrangler.toml
+
+          wrangler deploy --name "$WORKER_NAME"
+
+          printf '{"MCP_AUTH_TOKEN":"%s"}' "$MCP_AUTH_TOKEN" \
+            | wrangler secret bulk --name "$WORKER_NAME"
+
+      - name: Attach MCP custom domain
+        env:
+          WORKER_NAME: edustack-mcp-${{ env.ENV_NAME }}
+        run: |
+          HOSTNAME="mcp-${ENV_NAME}.${DOMAIN}"
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains" \
+            --data "$(jq -nc --arg h "$HOSTNAME" --arg s "$WORKER_NAME" --arg z "${{ steps.zone.outputs.zone_id }}" \
+              '{environment:"production", hostname:$h, service:$s, zone_id:$z}')"
 
       - name: Deploy Backend
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef' }}
+          MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
+          WORKER_NAME: edustack-backend-${{ env.ENV_NAME }}
         run: |
           cd apps/backend
-          # Update wrangler.toml
-          sed -i "s/name = \".*\"/name = \"edustack-backend-${ENV_NAME}\"/" wrangler.toml
-          sed -i "s/database_id = \".*\"/database_id = \"${{ steps.d1.outputs.db_id }}\"/" wrangler.toml
-          sed -i "s/database_name = \".*\"/database_name = \"${{ steps.d1.outputs.db_name }}\"/" wrangler.toml
-          
-          # Set variables for the environment
-          wrangler deploy --name edustack-backend-${ENV_NAME} \
-            --var CORS_ORIGIN:https://fe-${ENV_NAME}.${DOMAIN} \
-            --var MCP_SERVER_URL:https://mcp-${ENV_NAME}.${DOMAIN}/sse
-            
-          # Assign custom domain
-          wrangler routes set --name edustack-backend-${ENV_NAME} --domain be-${ENV_NAME}.${DOMAIN}
+          sed -i "s|^name = \".*\"|name = \"${WORKER_NAME}\"|" wrangler.toml
+          sed -i "s|^database_id = \".*\"|database_id = \"${{ steps.d1.outputs.db_id }}\"|" wrangler.toml
+          sed -i "s|^database_name = \".*\"|database_name = \"${{ steps.d1.outputs.db_name }}\"|" wrangler.toml
+
+          wrangler deploy --name "$WORKER_NAME" \
+            --var "CORS_ORIGIN:https://fe-${ENV_NAME}.${DOMAIN}" \
+            --var "MCP_SERVER_URL:https://mcp-${ENV_NAME}.${DOMAIN}/sse"
+
+          jq -nc \
+            --arg jwt "$JWT_SECRET" \
+            --arg enc "$ENCRYPTION_KEY" \
+            --arg mcp "$MCP_AUTH_TOKEN" \
+            '{JWT_SECRET:$jwt, ENCRYPTION_KEY:$enc, MCP_AUTH_TOKEN:$mcp}' \
+            | wrangler secret bulk --name "$WORKER_NAME"
+
+      - name: Attach Backend custom domain
+        env:
+          WORKER_NAME: edustack-backend-${{ env.ENV_NAME }}
+        run: |
+          HOSTNAME="be-${ENV_NAME}.${DOMAIN}"
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains" \
+            --data "$(jq -nc --arg h "$HOSTNAME" --arg s "$WORKER_NAME" --arg z "${{ steps.zone.outputs.zone_id }}" \
+              '{environment:"production", hostname:$h, service:$s, zone_id:$z}')"
 
       - name: Build and Deploy Frontend
+        env:
+          PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
           cd apps/frontend
-          # Set API URL for the build
           echo "VITE_API_URL=https://be-${ENV_NAME}.${DOMAIN}" > .env
           npm run build
-          
-          # Deploy to Pages
-          PROJECT_NAME="edustack-frontend-${ENV_NAME}"
-          wrangler pages project create $PROJECT_NAME --production-branch main || true
-          wrangler pages deploy dist --project-name $PROJECT_NAME
-          
-          # Assign custom domain
-          wrangler pages domain add --project-name $PROJECT_NAME fe-${ENV_NAME}.${DOMAIN}
+
+          # Create Pages project if it does not exist (API call is idempotent-safe)
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+            --data "$(jq -nc --arg n "$PROJECT_NAME" \
+              '{name:$n, production_branch:"main"}')" \
+            || echo "Pages project create returned non-zero (likely already exists), continuing"
+
+          wrangler pages deploy dist --project-name "$PROJECT_NAME" --branch main
+
+      - name: Attach Frontend custom domain
+        env:
+          PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
+        run: |
+          HOSTNAME="fe-${ENV_NAME}.${DOMAIN}"
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains" \
+            --data "$(jq -nc --arg h "$HOSTNAME" '{name:$h}')" \
+            || echo "Pages domain attach returned non-zero (likely already attached), continuing"
 
       - name: Deploy MailDev Placeholder
+        env:
+          WORKER_NAME: edustack-mail-${{ env.ENV_NAME }}
         run: |
-          # MailDev cannot run on Cloudflare Workers (SMTP protocol).
-          # We deploy a simple worker to show status.
           mkdir -p apps/mail-placeholder
-          cat > apps/mail-placeholder/index.ts <<EOF
+          cat > apps/mail-placeholder/index.ts <<'EOF'
           export default {
-            async fetch(request) {
-              return new Response("MailDev is not available on Cloudflare Workers (SMTP limitation). Use local dev for email testing.", {
-                headers: { "content-type": "text/plain" }
-              });
+            async fetch() {
+              return new Response(
+                "MailDev is not available on Cloudflare Workers (SMTP limitation). Use local dev for email testing.",
+                { headers: { "content-type": "text/plain" } }
+              );
             }
           }
           EOF
           cat > apps/mail-placeholder/wrangler.toml <<EOF
-          name = "edustack-mail-${ENV_NAME}"
+          name = "${WORKER_NAME}"
           main = "index.ts"
           compatibility_date = "2024-04-03"
           EOF
-          
+
           cd apps/mail-placeholder
-          wrangler deploy --name edustack-mail-${ENV_NAME}
-          wrangler routes set --name edustack-mail-${ENV_NAME} --domain mail-${ENV_NAME}.${DOMAIN}
+          wrangler deploy --name "$WORKER_NAME"
+
+      - name: Attach Mail custom domain
+        env:
+          WORKER_NAME: edustack-mail-${{ env.ENV_NAME }}
+        run: |
+          HOSTNAME="mail-${ENV_NAME}.${DOMAIN}"
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains" \
+            --data "$(jq -nc --arg h "$HOSTNAME" --arg s "$WORKER_NAME" --arg z "${{ steps.zone.outputs.zone_id }}" \
+              '{environment:"production", hostname:$h, service:$s, zone_id:$z}')"
+
+      - name: Summary
+        run: |
+          echo "### Environment ${ENV_NAME} deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend: https://fe-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
+          echo "- MCP:      https://mcp-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
+          echo "- Mail:     https://mail-${ENV_NAME}.${DOMAIN}" >> $GITHUB_STEP_SUMMARY
+          echo "- D1:       ${{ steps.d1.outputs.db_name }} (\`${{ steps.d1.outputs.db_id }}\`)" >> $GITHUB_STEP_SUMMARY
 
   teardown:
     if: github.event.inputs.action == 'delete'
@@ -146,21 +229,24 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4
 
       - name: Delete Workers
         run: |
-          wrangler delete --name edustack-backend-${ENV_NAME} || true
-          wrangler delete --name edustack-mcp-${ENV_NAME} || true
-          wrangler delete --name edustack-mail-${ENV_NAME} || true
+          for w in edustack-backend-${ENV_NAME} edustack-mcp-${ENV_NAME} edustack-mail-${ENV_NAME}; do
+            wrangler delete --name "$w" || true
+          done
 
-      - name: Delete Pages Project
+      - name: Delete Pages project
+        env:
+          PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
-          # Pages delete is not yet fully supported via wrangler CLI for production deletion easily
-          # but we can try to remove the domains at least
-          wrangler pages domain remove --project-name edustack-frontend-${ENV_NAME} fe-${ENV_NAME}.${DOMAIN} || true
+          curl -fsS -X DELETE \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}" \
+            || echo "Pages project delete returned non-zero, continuing"
 
       - name: Delete D1 Database
         run: |
           DB_NAME="edustack_db_${ENV_NAME}"
-          wrangler d1 delete $DB_NAME --yes || true
+          wrangler d1 delete "$DB_NAME" --skip-confirmation || true
