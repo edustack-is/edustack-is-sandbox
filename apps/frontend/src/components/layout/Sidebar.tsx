@@ -158,11 +158,10 @@ export const Sidebar: React.FC = () => {
         { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
     ];
 
-    // Principal/Deputy items (also visible to ADMIN)
-    const principalItems = [
-        { path: '/school/users', label: t('common.users'), icon: Users },
-        { path: '/school/audit-log', label: t('sidebar.audit_log', 'Audit log'), icon: History },
-    ];
+    // Both `/school/users` and `/school/audit-log` already live in
+    // `schoolAdminItems` above, so they appear once for every school
+    // admin (PRINCIPAL/DEPUTY/ADMIN). A separate principal-only array
+    // used to duplicate them for PRINCIPAL — removed.
 
     useEffect(() => {
         getMe()
@@ -187,7 +186,6 @@ export const Sidebar: React.FC = () => {
 
     const hasSchoolContext = tokenType === 'TENANT';
     const isSchoolAdmin = role === 'ADMIN' || role === 'DEPUTY' || role === 'PRINCIPAL';
-    const isPrincipalOrAdmin = role === 'ADMIN' || role === 'PRINCIPAL';
     const canSwitchSchool = isSystemAdmin || schoolCount > 1;
 
     return (
@@ -377,16 +375,6 @@ export const Sidebar: React.FC = () => {
                                                     collapsed={false}
                                                 />
                                             ))}
-                                            {isPrincipalOrAdmin &&
-                                                principalItems.map((item) => (
-                                                    <SidebarNavItem
-                                                        key={item.path}
-                                                        to={item.path}
-                                                        icon={item.icon}
-                                                        label={item.label}
-                                                        collapsed={false}
-                                                    />
-                                                ))}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
@@ -405,16 +393,6 @@ export const Sidebar: React.FC = () => {
                                             collapsed={collapsed}
                                         />
                                     ))}
-                                    {isPrincipalOrAdmin &&
-                                        principalItems.map((item) => (
-                                            <SidebarNavItem
-                                                key={item.path}
-                                                to={item.path}
-                                                icon={item.icon}
-                                                label={item.label}
-                                                collapsed={collapsed}
-                                            />
-                                        ))}
                                 </>
                             )}
                         </>
