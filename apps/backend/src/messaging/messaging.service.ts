@@ -418,7 +418,7 @@ export class MessagingService {
     message: string,
   ) {
     const members = await this.db.query<{ userId: string }>(
-      'SELECT userId FROM "SchoolMembership" WHERE schoolId = ? AND status = "ACTIVE" AND userId != ?',
+      `SELECT userId FROM "SchoolMembership" WHERE schoolId = ? AND status = 'ACTIVE' AND userId != ?`,
       [schoolId, senderId],
     );
     return this.createConversation(

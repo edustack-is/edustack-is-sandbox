@@ -540,10 +540,29 @@ export class AuthService {
     provider: string,
     providerId: string,
   ) {
-    const user = await this.db.queryOne<User>(
-      'SELECT * FROM "User" WHERE email = ?',
-      [email],
+    // Match by linked SSO identity first — the user may have linked this
+    // provider while logged in under a different email (e.g. their Google
+    // address differs from the school-issued mailbox). Falling back to email
+    // covers the legacy case where a user was created with an email matching
+    // their SSO provider but never explicitly linked it.
+    const identity = await this.db.queryOne<{ userId: string }>(
+      'SELECT userId FROM "Identity" WHERE provider = ? AND providerId = ?',
+      [provider, providerId],
     );
+
+    let user: User | null = null;
+    if (identity) {
+      user = await this.db.queryOne<User>('SELECT * FROM "User" WHERE id = ?', [
+        identity.userId,
+      ]);
+    }
+
+    if (!user) {
+      user = await this.db.queryOne<User>(
+        'SELECT * FROM "User" WHERE email = ?',
+        [email],
+      );
+    }
 
     if (!user) {
       throw new UnauthorizedException(
@@ -731,11 +750,19 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string) {
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (!normalizedEmail) return { message: 'ok' };
+
     const user = await this.db.queryOne<User>(
-      'SELECT id, email, firstName, lastName FROM "User" WHERE email = ?',
-      [email],
+      'SELECT id, email, firstName, lastName FROM "User" WHERE LOWER(email) = ?',
+      [normalizedEmail],
     );
-    if (!user) return { message: 'ok' };
+    if (!user) {
+      this.logger.warn(
+        `Password reset requested for unknown email: ${normalizedEmail}`,
+      );
+      return { message: 'ok' };
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     const hashedToken = await bcrypt.hash(token, 12);
