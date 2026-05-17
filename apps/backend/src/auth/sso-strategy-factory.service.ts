@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
+import { DatabaseError, DatabaseService } from '../database/database.service';
 import { CryptoService } from '../utils/crypto.service';
 import { SecretType, SystemSecret } from '../database/types';
 import passport from 'passport';
@@ -30,7 +30,17 @@ export class SsoStrategyFactoryService implements OnModuleInit {
         [SecretType.SSO],
       );
     } catch (err: any) {
-      if (err.message?.includes('no such table')) {
+      // DatabaseService wraps SqliteError in DatabaseError, so the wrapper's
+      // own message is always "Database query failed: ..." and never contains
+      // "no such table". Look at the original error to recognise the
+      // fresh-DB-before-migrations case (table missing) and skip gracefully.
+      // Any other error (e.g. SQLITE_NOTADB) must still bubble — the whole DB
+      // is unusable in that case and start.sh's quick_check is the right
+      // place to recover, not silent suppression here.
+      const innerMessage = String(
+        (err instanceof DatabaseError ? err.originalError : err)?.message ?? '',
+      );
+      if (innerMessage.includes('no such table')) {
         this.logger.warn(
           'SystemSecret table not found. Skipping SSO strategy loading.',
         );

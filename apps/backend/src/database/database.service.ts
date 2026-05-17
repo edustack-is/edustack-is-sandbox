@@ -58,6 +58,7 @@ export class DatabaseError extends Error {
 export class DatabaseService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseService.name);
   private localDb: Database.Database | null = null;
+  private localDbPath: string | null = null;
 
   constructor(
     private readonly cls: ClsService,
@@ -66,12 +67,46 @@ export class DatabaseService implements OnModuleInit {
 
   async onModuleInit() {
     if (!this.d1) {
-      const dbPath = this.resolveDatabasePath();
-      this.logger.log(`[Database] 📦 Opening local SQLite: ${dbPath}`);
-      this.localDb = new Database(dbPath);
+      this.localDbPath = this.resolveDatabasePath();
+      this.logger.log(
+        `[Database] 📦 Opening local SQLite: ${this.localDbPath}`,
+      );
+      this.localDb = new Database(this.localDbPath);
     } else {
       this.logger.log('[Database] ☁️ Using Cloudflare D1');
     }
+  }
+
+  /**
+   * Path of the currently-open local SQLite file, or null when running against
+   * Cloudflare D1. Exposed so callers that need to replace the file (e.g.
+   * backup restore) can target the same path the service is actually using.
+   */
+  getLocalDatabasePath(): string | null {
+    return this.localDbPath;
+  }
+
+  /**
+   * Close and reopen the local SQLite connection. Required after the
+   * underlying file is replaced on disk (e.g. atomic rename during backup
+   * restore) so subsequent queries read from the new inode and not via a
+   * stale file handle.
+   */
+  async reload(): Promise<void> {
+    if (this.d1) return;
+    if (this.localDb) {
+      try {
+        this.localDb.close();
+      } catch (err) {
+        this.logger.warn(`Failed to close existing DB connection: ${err}`);
+      }
+      this.localDb = null;
+    }
+    this.localDbPath = this.resolveDatabasePath();
+    this.logger.log(
+      `[Database] 🔄 Reopening local SQLite: ${this.localDbPath}`,
+    );
+    this.localDb = new Database(this.localDbPath);
   }
 
   private resolveDatabasePath(): string {
