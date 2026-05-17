@@ -58,6 +58,13 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'warn',
       '@typescript-eslint/ban-ts-comment': 'warn',
       'no-empty': ['warn', { allowEmptyCatch: true }],
+      // The lint script runs with `--fix`. This rule's auto-fixer
+      // mis-judges `!` as redundant when the underlying type is
+      // actually nullable (e.g. queryOne<T>() returns T | null), and
+      // strips them — which then breaks tsc on the very next step in
+      // CI. Disabling the rule keeps the existing assertions intact;
+      // truly unnecessary ones can still be spotted in code review.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
