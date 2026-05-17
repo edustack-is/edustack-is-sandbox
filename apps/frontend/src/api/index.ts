@@ -30,14 +30,17 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Auto-logout on 401 (expired or invalid cookie).
+// Auto-logout on 401 (expired or invalid cookie). Skip routes that are
+// reachable while logged out — otherwise the unauthenticated session probe
+// fired by SchoolProvider bounces the user off the very page they came
+// here to use (password reset, invitation activation, etc.).
+const PUBLIC_PATHS = ['/login', '/setup', '/reset-password', '/forgot-password', '/activate'];
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
             const currentPath = window.location.pathname;
-            // Don't redirect if already on login/setup to avoid loops.
-            if (currentPath !== '/login' && currentPath !== '/setup') {
+            if (!PUBLIC_PATHS.includes(currentPath)) {
                 // Clean up any legacy localStorage entries from the old
                 // token-in-storage flow. Safe to leave forever; cheap to
                 // do once per 401.

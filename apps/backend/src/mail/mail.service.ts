@@ -2,6 +2,156 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
+const BRAND = {
+  name: 'EduStack IS',
+  primary: '#4F46E5', // indigo-600
+  primaryDark: '#3730A3', // indigo-800
+  text: '#1F2937', // slate-800
+  muted: '#6B7280', // slate-500
+  border: '#E5E7EB', // slate-200
+  background: '#F3F4F6', // slate-100
+  card: '#FFFFFF',
+};
+
+interface EmailLayoutOptions {
+  preheader?: string;
+  heading: string;
+  greeting?: string;
+  intro: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  ctaFallbackLabel?: string;
+  expiryNote?: string;
+  footnote?: string;
+  bodyParagraphs?: string[];
+}
+
+/**
+ * Escape user-supplied strings before they land in an HTML template. Email
+ * clients render HTML directly, so an unsanitised name field would let
+ * `<script>` / unbalanced markup through. Used for everything that
+ * originates from the database or external input.
+ */
+function escapeHtml(value: string | undefined | null): string {
+  if (value == null) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderEmailLayout(opts: EmailLayoutOptions): string {
+  const {
+    preheader = '',
+    heading,
+    greeting,
+    intro,
+    ctaLabel,
+    ctaUrl,
+    ctaFallbackLabel,
+    expiryNote,
+    footnote,
+    bodyParagraphs = [],
+  } = opts;
+
+  const ctaBlock =
+    ctaLabel && ctaUrl
+      ? `
+        <tr>
+          <td align="center" style="padding: 8px 0 16px 0;">
+            <a href="${ctaUrl}" target="_blank" rel="noopener" style="display: inline-block; background-color: ${BRAND.primary}; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px; padding: 14px 28px; border-radius: 8px; mso-padding-alt: 0;">
+              ${escapeHtml(ctaLabel)}
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 0 0 16px 0; color: ${BRAND.muted}; font-size: 13px; line-height: 1.5;">
+            ${escapeHtml(ctaFallbackLabel || 'If the button does not work, copy and paste this link into your browser:')}<br />
+            <a href="${ctaUrl}" style="color: ${BRAND.primary}; word-break: break-all;">${ctaUrl}</a>
+          </td>
+        </tr>`
+      : '';
+
+  const extraParagraphs = bodyParagraphs
+    .map(
+      (p) =>
+        `<tr><td style="padding: 0 0 16px 0; color: ${BRAND.text}; font-size: 15px; line-height: 1.6;">${p}</td></tr>`,
+    )
+    .join('');
+
+  const expiryBlock = expiryNote
+    ? `<tr><td style="padding: 0 0 16px 0; color: ${BRAND.muted}; font-size: 13px; line-height: 1.5;">${escapeHtml(expiryNote)}</td></tr>`
+    : '';
+
+  const footnoteBlock = footnote
+    ? `<tr><td style="padding: 16px 0 0 0; border-top: 1px solid ${BRAND.border}; color: ${BRAND.muted}; font-size: 12px; line-height: 1.5;">${escapeHtml(footnote)}</td></tr>`
+    : '';
+
+  const greetingBlock = greeting
+    ? `<tr><td style="padding: 0 0 12px 0; color: ${BRAND.text}; font-size: 15px; line-height: 1.6;">${escapeHtml(greeting)}</td></tr>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>${escapeHtml(heading)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: ${BRAND.background}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <span style="display: none !important; visibility: hidden; opacity: 0; color: transparent; height: 0; width: 0; overflow: hidden;">${escapeHtml(preheader)}</span>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: ${BRAND.background};">
+    <tr>
+      <td align="center" style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: ${BRAND.card}; border: 1px solid ${BRAND.border}; border-radius: 12px; overflow: hidden;">
+          <tr>
+            <td style="background-color: ${BRAND.primary}; padding: 24px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="color: #ffffff; font-size: 20px; font-weight: 700; letter-spacing: -0.01em;">
+                    ${BRAND.name}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="padding: 0 0 16px 0; color: ${BRAND.text}; font-size: 22px; font-weight: 700; line-height: 1.3;">
+                    ${escapeHtml(heading)}
+                  </td>
+                </tr>
+                ${greetingBlock}
+                <tr>
+                  <td style="padding: 0 0 16px 0; color: ${BRAND.text}; font-size: 15px; line-height: 1.6;">
+                    ${intro}
+                  </td>
+                </tr>
+                ${extraParagraphs}
+                ${ctaBlock}
+                ${expiryBlock}
+                ${footnoteBlock}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 32px; background-color: ${BRAND.background}; border-top: 1px solid ${BRAND.border}; color: ${BRAND.muted}; font-size: 12px; line-height: 1.5; text-align: center;">
+              © ${new Date().getFullYear()} ${BRAND.name}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
@@ -54,54 +204,69 @@ export class MailService {
   }
 
   async sendInvitation(to: string, name: string, token: string) {
-    const subject = 'Pozvánka do EduStack IS';
+    const subject = `Pozvánka do ${BRAND.name}`;
     const frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
       'http://localhost:5173',
     );
-    const setupUrl = `${frontendUrl}/activate?token=${token}`;
+    const setupUrl = `${frontendUrl}/activate?token=${encodeURIComponent(token)}`;
 
-    const text = `Dobrý den, ${name},\n\nbyli jste pozváni do školního systému EduStack IS. Svůj účet si můžete aktivovat na následujícím odkazu:\n\n${setupUrl}\n\nTento odkaz vyprší za 7 dní.`;
+    const text = `Dobrý den, ${name},
 
-    const html = `
-      <h1>Vítejte v EduStack IS</h1>
-      <p>Dobrý den, ${name},</p>
-      <p>byli jste pozváni do školního systému <strong>EduStack IS</strong>.</p>
-      <p>Svůj účet si můžete aktivovat kliknutím na tlačítko níže:</p>
-      <p>
-        <a href="${setupUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Aktivovat účet</a>
-      </p>
-      <p>Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:</p>
-      <p>${setupUrl}</p>
-      <p>Tento odkaz vyprší za 7 dní.</p>
-    `;
+byli jste pozváni do školního systému ${BRAND.name}. Svůj účet si můžete aktivovat na následujícím odkazu:
+
+${setupUrl}
+
+Tento odkaz vyprší za 7 dní. Pokud jste tuto pozvánku neočekávali, e-mail prosím ignorujte.`;
+
+    const html = renderEmailLayout({
+      preheader: 'Aktivujte svůj účet a začněte používat školní systém.',
+      heading: `Vítejte v ${BRAND.name}`,
+      greeting: `Dobrý den, ${name},`,
+      intro: `byli jste pozváni do školního systému <strong>${escapeHtml(BRAND.name)}</strong>. Svůj účet si můžete aktivovat kliknutím na tlačítko níže.`,
+      ctaLabel: 'Aktivovat účet',
+      ctaUrl: setupUrl,
+      ctaFallbackLabel:
+        'Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:',
+      expiryNote: 'Tento aktivační odkaz vyprší za 7 dní.',
+      footnote:
+        'Pokud jste tuto pozvánku neočekávali, e-mail prosím ignorujte – žádný účet nebude vytvořen, dokud odkaz nepoužijete.',
+    });
 
     return this.sendMail(to, subject, text, html);
   }
 
   async sendPasswordReset(to: string, name: string, token: string) {
-    const subject = 'Obnovení hesla – EduStack IS';
+    const subject = `Obnovení hesla – ${BRAND.name}`;
     const frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
       'http://localhost:5173',
     );
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-    const text = `Dobrý den, ${name},\n\nobdrželi jsme žádost o obnovení hesla k vašemu účtu v EduStack IS.\n\nPro nastavení nového hesla klikněte na následující odkaz:\n\n${resetUrl}\n\nTento odkaz vyprší za 1 hodinu.\n\nPokud jste o obnovení hesla nežádali, tento email ignorujte.`;
+    const text = `Dobrý den, ${name},
 
-    const html = `
-      <h1>Obnovení hesla – EduStack IS</h1>
-      <p>Dobrý den, ${name},</p>
-      <p>obdrželi jsme žádost o obnovení hesla k vašemu účtu v <strong>EduStack IS</strong>.</p>
-      <p>Pro nastavení nového hesla klikněte na tlačítko níže:</p>
-      <p>
-        <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Nastavit nové heslo</a>
-      </p>
-      <p>Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:</p>
-      <p>${resetUrl}</p>
-      <p>Tento odkaz vyprší za 1 hodinu.</p>
-      <p style="color: #666; font-size: 12px;">Pokud jste o obnovení hesla nežádali, tento email ignorujte.</p>
-    `;
+obdrželi jsme žádost o obnovení hesla k vašemu účtu v ${BRAND.name}.
+
+Pro nastavení nového hesla otevřete následující odkaz:
+
+${resetUrl}
+
+Tento odkaz vyprší za 1 hodinu. Pokud jste o obnovení hesla nežádali, tento e-mail můžete ignorovat – heslo zůstane beze změny.`;
+
+    const html = renderEmailLayout({
+      preheader: 'Nastavte si nové heslo pomocí jednorázového odkazu.',
+      heading: 'Obnovení hesla',
+      greeting: `Dobrý den, ${name},`,
+      intro: `obdrželi jsme žádost o obnovení hesla k vašemu účtu v <strong>${escapeHtml(BRAND.name)}</strong>. Pro nastavení nového hesla klikněte na tlačítko níže.`,
+      ctaLabel: 'Nastavit nové heslo',
+      ctaUrl: resetUrl,
+      ctaFallbackLabel:
+        'Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:',
+      expiryNote: 'Odkaz je platný jednu hodinu od odeslání tohoto e-mailu.',
+      footnote:
+        'Pokud jste o obnovení hesla nežádali, tento e-mail můžete ignorovat – vaše heslo zůstane beze změny.',
+    });
 
     return this.sendMail(to, subject, text, html);
   }
@@ -112,7 +277,7 @@ export class MailService {
     body?: string,
     linkUrl?: string,
   ) {
-    const subject = `EduStack: ${title}`;
+    const subject = `${BRAND.name}: ${title}`;
     const frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
       'http://localhost:5173',
@@ -121,17 +286,22 @@ export class MailService {
       ? `${frontendUrl}${linkUrl.startsWith('/') ? '' : '/'}${linkUrl}`
       : null;
 
-    const text = `${title}${body ? `\n\n${body}` : ''}${fullLinkUrl ? `\n\nZobrazit v aplikaci: ${fullLinkUrl}` : ''}`;
+    const text = `${title}${body ? `\n\n${body}` : ''}${
+      fullLinkUrl ? `\n\nZobrazit v aplikaci: ${fullLinkUrl}` : ''
+    }`;
 
-    const html = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1a1a1a;">${title}</h2>
-                ${body ? `<p style="color: #4a4a4a;">${body}</p>` : ''}
-                ${fullLinkUrl ? `<p><a href="${fullLinkUrl}" style="display: inline-block; padding: 8px 16px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px;">Zobrazit v aplikaci</a></p>` : ''}
-                <hr style="border-color: #e5e7eb; margin: 20px 0;" />
-                <p style="color: #9ca3af; font-size: 12px;">Tuto notifikaci můžete vypnout v nastavení profilu.</p>
-            </div>
-        `;
+    const html = renderEmailLayout({
+      preheader: title,
+      heading: title,
+      intro: body
+        ? escapeHtml(body).replace(/\n/g, '<br />')
+        : 'V aplikaci na vás čeká nová notifikace.',
+      ctaLabel: fullLinkUrl ? 'Zobrazit v aplikaci' : undefined,
+      ctaUrl: fullLinkUrl || undefined,
+      ctaFallbackLabel:
+        'Pokud tlačítko nefunguje, zkopírujte tento odkaz do prohlížeče:',
+      footnote: 'Tuto notifikaci můžete vypnout v nastavení profilu.',
+    });
 
     return this.sendMail(to, subject, text, html);
   }
