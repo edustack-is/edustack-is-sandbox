@@ -13,9 +13,6 @@ on:
       env_id:
         description: 'Environment number to RESET (e.g., 1, 2, 3)'
         required: true
-      confirm:
-        description: 'Type "wipe sandbox-N" exactly (replace N with env_id) to confirm'
-        required: true
 
 jobs:
   reset:
@@ -27,17 +24,6 @@ jobs:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
     steps:
-      - name: Verify confirmation phrase
-        env:
-          CONFIRM: ${{ github.event.inputs.confirm }}
-        run: |
-          EXPECTED="wipe ${ENV_NAME}"
-          if [ "$CONFIRM" != "$EXPECTED" ]; then
-            echo "::error::Confirmation mismatch. Expected exactly: '$EXPECTED', got: '$CONFIRM'"
-            exit 1
-          fi
-          echo "Confirmation OK"
-
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 

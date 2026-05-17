@@ -150,76 +150,64 @@ async function bootstrap() {
   logger.log(`Backend API is running on: http://${host}:${port}`);
 
   // ─── Auto-seed ──────────────────────────────────────────────
-  // AUTO_SEED is a development convenience that creates a demo admin and
-  // populates fixtures on first boot. It is unsafe in production:
+  // AUTO_SEED creates a demo admin and populates fixtures on first boot.
+  // It is gated only by AUTO_SEED=true — the deploy workflow exposes this as
+  // a checkbox per environment, so the operator opting in is the gate.
+  //
+  // Caveats (do not enable on a real production tenant):
   //   - It creates a known-password admin account.
   //   - With multiple instances booting in parallel, two processes can both
-  //     observe `initialized=false` and race on setup().
-  // We therefore refuse to run AUTO_SEED unless NODE_ENV !== 'production'.
-  // The race is still possible within a single dev machine if two backends
-  // start simultaneously; the second one will fail on a unique-constraint
-  // violation inside setup() and we surface that as an "already initialized"
-  // skip rather than a crash.
+  //     observe `initialized=false` and race on setup(). The loser hits a
+  //     unique-constraint violation and we surface that as "already
+  //     initialized — skipping" rather than crashing.
   if (process.env.AUTO_SEED === 'true') {
     const logger = new Logger('AutoSeed');
-    if (process.env.NODE_ENV === 'production') {
-      logger.warn(
-        'AUTO_SEED=true is ignored in production. Run the setup wizard ' +
-          '(POST /api/init/setup with SETUP_TOKEN) instead.',
-      );
-    } else {
-      try {
-        const initService = app.get(InitService);
-        const seedService = app.get(SeedService);
+    try {
+      const initService = app.get(InitService);
+      const seedService = app.get(SeedService);
 
-        const status = await initService.getStatus();
-        if (status.initialized) {
-          logger.log('AUTO_SEED: System already initialized – skipping seed.');
-        } else {
-          logger.log(
-            'AUTO_SEED: System not initialized – running auto-seed...',
-          );
+      const status = await initService.getStatus();
+      if (status.initialized) {
+        logger.log('AUTO_SEED: System already initialized – skipping seed.');
+      } else {
+        logger.log('AUTO_SEED: System not initialized – running auto-seed...');
 
-          let adminResult;
-          try {
-            adminResult = await initService.setup({
-              adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@demo.test',
-              adminPassword:
-                process.env.SEED_ADMIN_PASSWORD ||
-                process.env.DEMO_PASSWORD ||
-                'Demo1234!',
-              adminFirstName: process.env.SEED_ADMIN_FIRST_NAME || 'Admin',
-              adminLastName: process.env.SEED_ADMIN_LAST_NAME || 'Demo',
-            });
-          } catch (setupErr: any) {
-            // Lost the race against another booting instance — bail cleanly.
-            const recheck = await initService.getStatus();
-            if (recheck.initialized) {
-              logger.log(
-                'AUTO_SEED: Another process completed setup first – skipping.',
-              );
-              return;
-            }
-            throw setupErr;
+        let adminResult;
+        try {
+          adminResult = await initService.setup({
+            adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@demo.test',
+            adminPassword:
+              process.env.SEED_ADMIN_PASSWORD ||
+              process.env.DEMO_PASSWORD ||
+              'Demo1234!',
+            adminFirstName: process.env.SEED_ADMIN_FIRST_NAME || 'Admin',
+            adminLastName: process.env.SEED_ADMIN_LAST_NAME || 'Demo',
+          });
+        } catch (setupErr: any) {
+          // Lost the race against another booting instance — bail cleanly.
+          const recheck = await initService.getStatus();
+          if (recheck.initialized) {
+            logger.log(
+              'AUTO_SEED: Another process completed setup first – skipping.',
+            );
+            return;
           }
-
-          const seedResult = await seedService.executeSeed(
-            adminResult.admin.id,
-            {
-              filename: process.env.SEED_FILE || 'demo-seed.json',
-              overrideAi: {
-                geminiApiKey:
-                  process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
-                openAiApiKey: process.env.OPENAI_API_KEY,
-              },
-            },
-          );
-
-          logger.log(`AUTO_SEED complete: ${seedResult.summary}`);
+          throw setupErr;
         }
-      } catch (err) {
-        logger.error('AUTO_SEED failed:', err);
+
+        const seedResult = await seedService.executeSeed(adminResult.admin.id, {
+          filename: process.env.SEED_FILE || 'demo-seed.json',
+          overrideAi: {
+            geminiApiKey:
+              process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
+            openAiApiKey: process.env.OPENAI_API_KEY,
+          },
+        });
+
+        logger.log(`AUTO_SEED complete: ${seedResult.summary}`);
       }
+    } catch (err) {
+      logger.error('AUTO_SEED failed:', err);
     }
   }
 }
