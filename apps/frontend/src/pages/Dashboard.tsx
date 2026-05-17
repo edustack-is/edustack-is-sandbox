@@ -676,7 +676,7 @@ function SystemAdminDashboard() {
                             </Badge>
                         </div>
                         <Button variant="ghost" size="sm" className="w-full text-blue-600" asChild>
-                            <Link to="/system/backups">
+                            <Link to="/system/settings#backups">
                                 {t('backups.manage_backups', 'Spravovat zálohy')}{' '}
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Link>

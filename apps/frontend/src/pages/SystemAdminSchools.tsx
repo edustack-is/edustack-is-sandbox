@@ -1042,7 +1042,7 @@ export function SystemAdminSchools() {
                             disabled={deleting || deleteConfirmName !== deletingSchool?.name}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {deleting ? t('common.deleting', 'Mazání...') : t('system_schools.delete_confirm')}
+                            {deleting ? t('common.deleting', 'Mazání...') : t('system_schools.delete_title')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

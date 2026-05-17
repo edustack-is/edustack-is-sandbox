@@ -8,15 +8,27 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST', 'localhost'),
-      port: this.configService.get<number>('SMTP_PORT', 1025),
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: this.configService.get<string>('SMTP_USER', ''),
-        pass: this.configService.get<string>('SMTP_PASS', ''),
-      },
-    });
+    const host = this.configService.get<string>('SMTP_HOST', 'localhost');
+    const port = Number(this.configService.get<string>('SMTP_PORT', '1025'));
+    const user = this.configService.get<string>('SMTP_USER', '');
+    const pass = this.configService.get<string>('SMTP_PASS', '');
+
+    const transportOptions: Record<string, any> = {
+      host,
+      port,
+      secure: port === 465,
+    };
+
+    if (user && pass) {
+      transportOptions.auth = { user, pass };
+    }
+
+    this.transporter = nodemailer.createTransport(
+      transportOptions as nodemailer.TransportOptions,
+    );
+    this.logger.log(
+      `SMTP transport configured: ${host}:${port} (auth: ${user ? 'on' : 'off'})`,
+    );
   }
 
   async sendMail(to: string, subject: string, text: string, html?: string) {
