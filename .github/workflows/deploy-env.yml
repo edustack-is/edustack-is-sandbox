@@ -172,6 +172,52 @@ jobs:
               --yes
           fi
 
+      # ───── Cloudflare R2 bucket (per-env backup store) ─────────────
+      # One bucket per sandbox so teardown can delete cleanly and so each
+      # env's backup history is isolated. The S3 endpoint is account-wide,
+      # so we derive it from CLOUDFLARE_ACCOUNT_ID rather than asking the
+      # operator to set R2_ENDPOINT manually. R2_ACCESS_KEY_ID and
+      # R2_SECRET_ACCESS_KEY are S3-compatible keys, separate from the
+      # CLOUDFLARE_API_TOKEN used to create the bucket — both must be set in
+      # GitHub repo secrets for R2 to be wired up. If either is missing the
+      # step skips silently and backups stay on the Fly volume.
+      - name: Provision R2 bucket
+        id: r2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ]; then
+            echo "R2 credentials not set in GitHub secrets — skipping R2 provisioning."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BUCKET_NAME="edustack-${ENV_NAME}-backups"
+          ENDPOINT="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/${BUCKET_NAME}")
+          if [ "$HTTP" = "200" ]; then
+            echo "R2 bucket ${BUCKET_NAME} already exists"
+          elif [ "$HTTP" = "404" ]; then
+            curl -fsS -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets" \
+              --data "$(jq -nc --arg n "$BUCKET_NAME" '{name:$n}')" > /dev/null
+            echo "Created R2 bucket ${BUCKET_NAME}"
+          else
+            echo "::warning::Unexpected status $HTTP checking R2 bucket ${BUCKET_NAME} — make sure CLOUDFLARE_API_TOKEN has the R2 Edit permission. Continuing without R2."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "configured=true"
+            echo "bucket_name=${BUCKET_NAME}"
+            echo "endpoint=${ENDPOINT}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Stage Fly secrets
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
@@ -179,16 +225,12 @@ jobs:
           MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_CONFIGURED: ${{ steps.r2.outputs.configured }}
+          R2_BUCKET_NAME: ${{ steps.r2.outputs.bucket_name }}
+          R2_ENDPOINT: ${{ steps.r2.outputs.endpoint }}
         run: |
           APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
           MAILDEV_APP="${{ steps.fly_maildev_cfg.outputs.app_name }}"
-          # Build secrets list. R2 vars are passed through only when all four
-          # are set in GitHub secrets — partial config would make the S3
-          # client init and then fail on every backup. Without them, the
-          # backend keeps writing backups to /data/backups inside the
-          # container (lost on volume reset).
           SECRETS=(
             "JWT_SECRET=$JWT_SECRET"
             "ENCRYPTION_KEY=$ENCRYPTION_KEY"
@@ -201,15 +243,14 @@ jobs:
             "SMTP_PORT=1025"
             "MAIL_FROM=no-reply@${ENV_NAME}.${DOMAIN}"
           )
-          if [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ] \
-              && [ -n "$R2_ENDPOINT" ] && [ -n "$R2_BUCKET_NAME" ]; then
+          if [ "$R2_CONFIGURED" = "true" ]; then
             SECRETS+=(
               "R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
               "R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY"
               "R2_ENDPOINT=$R2_ENDPOINT"
               "R2_BUCKET_NAME=$R2_BUCKET_NAME"
             )
-            echo "R2 backup storage: configured"
+            echo "R2 backup storage: configured (${R2_BUCKET_NAME})"
           else
             echo "R2 backup storage: not configured (backups will land on container volume)"
           fi
@@ -444,6 +485,43 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}" \
             || echo "Pages project delete returned non-zero, continuing"
 
+      # R2 buckets must be empty before they can be deleted. Empty via the
+      # S3-compatible API (aws CLI is preinstalled on ubuntu-latest), then
+      # delete the bucket itself via the Cloudflare API.
+      - name: Destroy R2 bucket
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          BUCKET_NAME="edustack-${ENV_NAME}-backups"
+          HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/${BUCKET_NAME}")
+          if [ "$HTTP" = "404" ]; then
+            echo "R2 bucket ${BUCKET_NAME} does not exist — nothing to destroy"
+            exit 0
+          fi
+          if [ "$HTTP" != "200" ]; then
+            echo "::warning::Unexpected status $HTTP checking R2 bucket; will still attempt cleanup"
+          fi
+
+          if [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ]; then
+            AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" \
+            AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+            AWS_DEFAULT_REGION="auto" \
+              aws s3 rm "s3://${BUCKET_NAME}/" --recursive \
+                --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+                || echo "::warning::Some objects in ${BUCKET_NAME} may have failed to delete"
+          else
+            echo "::warning::R2 S3 credentials not set; cannot empty bucket — delete will fail if it contains objects"
+          fi
+
+          curl -fsS -X DELETE \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/${BUCKET_NAME}" \
+            && echo "Destroyed R2 bucket ${BUCKET_NAME}" \
+            || echo "::warning::R2 bucket delete returned non-zero (bucket may be non-empty), continuing"
+
       - name: Summary
         run: |
           {
@@ -452,6 +530,7 @@ jobs:
             echo "- Fly apps destroyed: edustack-${ENV_NAME}, mail-edustack-${ENV_NAME}"
             echo "- DNS records removed: be-${ENV_NAME}.${DOMAIN}, ${ENV_NAME}.${DOMAIN}, mail-${ENV_NAME}.${DOMAIN}"
             echo "- Pages project removed: edustack-frontend-${ENV_NAME}"
+            echo "- R2 bucket removed: edustack-${ENV_NAME}-backups"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Update README live-sandbox table
