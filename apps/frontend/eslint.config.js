@@ -20,6 +20,20 @@ export default tseslint.config(
         rules: {
             ...reactHooks.configs.recommended.rules,
             'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+            // Match the backend policy: don't fail CI on `any` or
+            // unused `err` in catch blocks. The codebase uses `any`
+            // intentionally in lots of places (axios payloads, DTOs
+            // returned from raw SQL, etc.); fixing them is a separate
+            // typing pass.
+            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-unused-vars': [
+                'warn',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                },
+            ],
         },
     },
 );

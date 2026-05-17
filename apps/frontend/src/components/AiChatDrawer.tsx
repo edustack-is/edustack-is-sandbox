@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Send, Loader2, Bot, User, Trash2, PanelRightClose } from 'lucide-react';
 import { getAvailableProviders, AiProvider } from '@/api/ai';
+import { getBackendBaseUrl } from '@/api';
 import { cn } from '@/lib/utils';
 import { useSchool } from '@/context/SchoolContext';
 import { useTaskQueue } from '@/context/TaskQueueContext';
@@ -165,7 +166,7 @@ export function AiChatDrawer() {
             const timeout = setTimeout(() => controller.abort(), 180000); // 3min timeout
 
             try {
-                const response = await fetch('/api/ai/chat/stream', {
+                const response = await fetch(`${getBackendBaseUrl()}/api/ai/chat/stream`, {
                     method: 'POST',
                     // Send the session cookie alongside the streaming POST.
                     credentials: 'include',

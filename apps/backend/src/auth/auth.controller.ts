@@ -24,6 +24,7 @@ import { Roles } from './roles.decorator';
 import { UserRole } from '../database/types';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { JWT_COOKIE_NAME } from './jwt.strategy';
 import { setSessionCookie, clearSessionCookie } from './session-cookie';
 import passport from 'passport';
 import {
@@ -118,8 +119,15 @@ export class AuthController {
       if (invitationToken) {
         res.cookie('__edu_inv_token', invitationToken, cookieOpts);
       }
-      if (linkToken) {
-        res.cookie('__edu_link_token', linkToken, cookieOpts);
+      // Auto-detect "link existing account" flow: if the caller is already
+      // logged in (session cookie present), forward that JWT as the link
+      // token so the callback handler runs the link branch instead of a
+      // fresh login. Lets the profile-page "Link Google" button work
+      // without the frontend minting a separate short-lived token.
+      const sessionToken = (req as any).cookies?.[JWT_COOKIE_NAME];
+      const effectiveLinkToken = linkToken || sessionToken;
+      if (effectiveLinkToken) {
+        res.cookie('__edu_link_token', effectiveLinkToken, cookieOpts);
       }
 
       const publicBase = (process.env.BACKEND_PUBLIC_URL || '').replace(

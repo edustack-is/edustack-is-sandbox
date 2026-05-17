@@ -124,7 +124,7 @@ export class DatabaseService implements OnModuleInit {
   }
 
   private resolveDatabasePath(): string {
-    let dbPath = process.env.DATABASE_URL?.replace('file:', '');
+    const dbPath = process.env.DATABASE_URL?.replace('file:', '');
 
     if (!dbPath || !fs.existsSync(dbPath)) {
       let currentPath = process.cwd();

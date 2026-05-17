@@ -1,4 +1,4 @@
-import { api } from './index';
+import { api, getBackendBaseUrl } from './index';
 
 // ─── System Settings ────────────────────────────────────────────
 
@@ -60,13 +60,18 @@ export const listBackups = async () => {
 };
 
 export const downloadBackup = (filename: string) => {
-    const url = `/api/system/backups/${encodeURIComponent(filename)}/download`;
+    // Resolve against the backend origin — a relative URL stays on the
+    // frontend domain (Cloudflare Pages) and Pages returns the SPA's
+    // index.html (~1.3 kB) for unknown routes, so the download silently
+    // saved an HTML file instead of the actual .sqlite blob.
+    const url = `${getBackendBaseUrl()}/api/system/backups/${encodeURIComponent(filename)}/download`;
     const a = document.createElement('a');
-    a.href = url;
     a.download = filename;
-    // Send the session cookie (same-origin) so the backend authenticates.
     fetch(url, { credentials: 'include' })
-        .then((r) => r.blob())
+        .then((r) => {
+            if (!r.ok) throw new Error(`Download failed: HTTP ${r.status}`);
+            return r.blob();
+        })
         .then((blob) => {
             const blobUrl = URL.createObjectURL(blob);
             a.href = blobUrl;
