@@ -7,6 +7,11 @@ import {
 } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  DatabaseService,
+  hasSqliteMagic,
+  quickCheckSqliteFile,
+} from '../database/database.service';
 
 const BACKUP_DIR =
   process.env.BACKUP_DIR || path.resolve(process.cwd(), 'data', 'backups');
@@ -16,7 +21,7 @@ export class BackupService {
   private readonly logger = new Logger(BackupService.name);
   private s3Client: S3Client | null = null;
 
-  constructor() {
+  constructor(private readonly db: DatabaseService) {
     // Ensure local backup directory exists (fallback)
     if (!fs.existsSync(BACKUP_DIR)) {
       fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -54,50 +59,17 @@ export class BackupService {
       filename = filename.replace('.sqlite.sqlite', '.sqlite');
     if (!filename.endsWith('.sqlite')) filename += '.sqlite';
 
-    // 1. Get database path
-    let sourcePath = process.env.DATABASE_URL?.replace('file:', '');
+    // Snapshot the live DB via SQLite's online backup API into the local
+    // backup directory. fs.copyFileSync on a hot DB can yield a torn file
+    // (half-written header, WAL pages outside the main file) that the
+    // consumer then rejects with SQLITE_NOTADB.
+    const localStagePath = path.join(BACKUP_DIR, filename);
+    await this.db.backupTo(localStagePath);
+    const fileContent = fs.readFileSync(localStagePath);
 
-    // Auto-detect if not set or doesn't exist
-    if (!sourcePath || !fs.existsSync(sourcePath)) {
-      let currentPath = process.cwd();
-      let found = false;
-      for (let i = 0; i < 4; i++) {
-        const possibleDirs = [
-          path.join(
-            currentPath,
-            'apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
-          ),
-          path.join(
-            currentPath,
-            '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
-          ),
-        ];
-        for (const dir of possibleDirs) {
-          if (fs.existsSync(dir)) {
-            const files = fs.readdirSync(dir);
-            const dbFile = files.find(
-              (f: string) => f.endsWith('.sqlite') && f !== 'metadata.sqlite',
-            );
-            if (dbFile) {
-              sourcePath = path.join(dir, dbFile);
-              found = true;
-              break;
-            }
-          }
-        }
-        if (found) break;
-        currentPath = path.join(currentPath, '..');
-      }
-    }
-
-    if (!sourcePath || !fs.existsSync(sourcePath)) {
-      throw new Error('Could not find database file to backup');
-    }
-
-    // 2. Upload to R2 if available
+    // Push to R2 if configured, falling back to keeping the local copy.
     if (this.s3Client && process.env.R2_BUCKET_NAME) {
       try {
-        const fileContent = fs.readFileSync(sourcePath);
         await this.s3Client.send(
           new PutObjectCommand({
             Bucket: process.env.R2_BUCKET_NAME,
@@ -105,22 +77,26 @@ export class BackupService {
             Body: fileContent,
           }),
         );
-
         this.logger.log(`Backup uploaded to R2: ${filename}`);
+        // R2 succeeded — we no longer need the local copy.
+        try {
+          fs.unlinkSync(localStagePath);
+        } catch {
+          /* best-effort cleanup */
+        }
         return { filename, size: fileContent.length, storage: 'R2' };
       } catch (err) {
-        this.logger.error('Failed to upload backup to R2:', err);
-        // Fallback to local
+        this.logger.error(
+          'Failed to upload backup to R2; keeping local copy:',
+          err,
+        );
       }
     }
 
-    // 3. Fallback to Local Storage
-    const destPath = path.join(BACKUP_DIR, filename);
-    fs.copyFileSync(sourcePath, destPath);
-
-    const stat = fs.statSync(destPath);
-    this.logger.log(`Backup created locally: ${filename} (${stat.size} bytes)`);
-    return { filename, size: stat.size, storage: 'LOCAL' };
+    this.logger.log(
+      `Backup created locally: ${filename} (${fileContent.length} bytes)`,
+    );
+    return { filename, size: fileContent.length, storage: 'LOCAL' };
   }
 
   /** List all existing backups */
@@ -243,34 +219,50 @@ export class BackupService {
       throw new Error(`Backup file ${filename} not found locally.`);
     }
 
-    // 1. Resolve DB path (Wrangler local storage)
-    let dbPath = process.env.DATABASE_URL?.replace('file:', '');
+    const dbPath = this.db.getLocalDatabasePath();
     if (!dbPath) {
-      const wranglerDir = path.join(
-        process.cwd(),
-        '.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+      throw new Error(
+        'Restore is only supported on local SQLite, not on managed backends.',
       );
-      if (fs.existsSync(wranglerDir)) {
-        const dbFile = fs
-          .readdirSync(wranglerDir)
-          .find((f) => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
-        if (dbFile) dbPath = path.join(wranglerDir, dbFile);
-      }
     }
 
-    if (!dbPath) {
-      throw new Error('Could not find active database file to overwrite');
-    }
-
-    this.logger.log(`Restoring system from backup: ${filename} -> ${dbPath}`);
-
+    // 1. Validate the backup file BEFORE touching the live DB. Without this
+    // a corrupted backup (e.g. a torn snapshot from the pre-online-backup
+    // era) overwrites /data/edustack.db and crashloops the backend on the
+    // next query.
+    const header = Buffer.alloc(16);
+    const fd = fs.openSync(localPath, 'r');
     try {
-      // 2. Overwrite active DB
-      fs.copyFileSync(localPath, dbPath);
-      this.logger.log(
-        'System restored successfully. Application might need restart to clear cache if using better-sqlite3 pooled connections.',
+      fs.readSync(fd, header, 0, 16, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
+    if (!hasSqliteMagic(header)) {
+      throw new Error(
+        `Backup file ${filename} is not a SQLite database (magic header missing).`,
       );
+    }
+    if (!quickCheckSqliteFile(localPath)) {
+      throw new Error(
+        `Backup file ${filename} failed integrity check (quick_check).`,
+      );
+    }
+
+    // 2. Stage to a sibling temp path and atomically swap in. Reload the
+    // live connection so subsequent queries read from the new inode rather
+    // than the stale file handle.
+    const tmpPath = `${dbPath}.restore-${Date.now()}`;
+    fs.copyFileSync(localPath, tmpPath);
+    try {
+      fs.renameSync(tmpPath, dbPath);
+      await this.db.reload();
+      this.logger.log(`Restored system from backup: ${filename} -> ${dbPath}`);
     } catch (err: any) {
+      try {
+        fs.unlinkSync(tmpPath);
+      } catch {
+        /* best-effort cleanup */
+      }
       this.logger.error('Failed to restore database:', err);
       throw new Error(`Restore failed: ${err.message}`);
     }

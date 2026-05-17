@@ -25,6 +25,45 @@ export class DatabaseError extends Error {
   }
 }
 
+/**
+ * The 16-byte SQLite file format magic: "SQLite format 3" + NUL. Written as
+ * hex so the NUL doesn't have to live inside a string literal (tool layers
+ * sometimes mangle embedded NULs).
+ */
+export const SQLITE_MAGIC = Buffer.from(
+  '53514c69746520666f726d6174203300',
+  'hex',
+);
+
+/**
+ * Cheap header check — rejects anything that isn't a SQLite file before we
+ * even write it to disk. Catches accidental .csv/.json/.gz uploads.
+ */
+export function hasSqliteMagic(buffer: Buffer): boolean {
+  return (
+    buffer.length >= SQLITE_MAGIC.length &&
+    buffer.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC)
+  );
+}
+
+/**
+ * Open the file with better-sqlite3 in readonly mode and run PRAGMA
+ * quick_check — forces a real page scan, returns "ok" on a healthy DB.
+ * Used to validate uploaded backups before we let them touch the live file.
+ */
+export function quickCheckSqliteFile(filePath: string): boolean {
+  const probe = new Database(filePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const result = probe.pragma('quick_check', { simple: true });
+    return result === 'ok';
+  } finally {
+    probe.close();
+  }
+}
+
 @Injectable()
 export class DatabaseService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseService.name);
@@ -46,6 +85,20 @@ export class DatabaseService implements OnModuleInit {
    */
   getLocalDatabasePath(): string | null {
     return this.localDbPath;
+  }
+
+  /**
+   * Produce a consistent snapshot of the live database at `destPath` using
+   * SQLite's online backup API. Safe to call while writes are in flight —
+   * unlike fs.copyFileSync, which can yield a torn file with a half-written
+   * header (SQLITE_NOTADB on the consumer side) when WAL or any concurrent
+   * write is active.
+   */
+  async backupTo(destPath: string): Promise<void> {
+    if (!this.localDb) {
+      throw new Error('Cannot back up: local database is not open.');
+    }
+    await this.localDb.backup(destPath);
   }
 
   /**

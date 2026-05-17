@@ -1,6 +1,9 @@
 import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
-import Database from 'better-sqlite3';
+import {
+  DatabaseService,
+  hasSqliteMagic,
+  quickCheckSqliteFile,
+} from '../database/database.service';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -103,14 +106,7 @@ export class InitService {
     // accidental .csv/.json/whatever upload would clobber the live DB and
     // crashloop the backend on the next query - exactly the failure mode
     // .github/workflows/reset-database.yml was written to recover from.
-    // The SQLite file format header is the 15-byte string "SQLite format 3"
-    // followed by a single NUL byte (16 bytes total); written as hex here so
-    // the NUL doesn't have to live inside a string literal.
-    const SQLITE_MAGIC = Buffer.from('53514c69746520666f726d6174203300', 'hex');
-    if (
-      file.buffer.length < SQLITE_MAGIC.length ||
-      !file.buffer.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC)
-    ) {
+    if (!hasSqliteMagic(file.buffer)) {
       throw new Error('Uploaded file is not a SQLite database.');
     }
 
@@ -120,21 +116,9 @@ export class InitService {
     fs.writeFileSync(tmpPath, file.buffer);
 
     try {
-      // Probe with the same driver the runtime uses. quick_check forces a
-      // real page scan (cheaper than full integrity_check) and returns "ok"
-      // on a healthy DB.
-      const probe = new Database(tmpPath, {
-        readonly: true,
-        fileMustExist: true,
-      });
-      let pragmaResult: unknown;
-      try {
-        pragmaResult = probe.pragma('quick_check', { simple: true });
-      } finally {
-        probe.close();
-      }
-      if (pragmaResult !== 'ok') {
-        throw new Error(`quick_check returned: ${String(pragmaResult)}`);
+      // quick_check forces a real page scan, returns "ok" on a healthy DB.
+      if (!quickCheckSqliteFile(tmpPath)) {
+        throw new Error('Uploaded backup failed quick_check.');
       }
 
       // Atomic swap into place, then reload our live connection so subsequent
