@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -200,7 +201,7 @@ export class BackupService {
     return { filename, storage: 'LOCAL' };
   }
 
-  /** Get a backup file for download */
+  /** Get a backup file for download. Falls back to R2 if not on local disk. */
   async getBackupFile(filename: string): Promise<Buffer> {
     // 1. Try local
     const localPath = path.join(BACKUP_DIR, filename);
@@ -208,15 +209,51 @@ export class BackupService {
       return fs.readFileSync(localPath);
     }
 
-    // 2. Try R2 (not implemented yet for simplicity, but could be added here)
-    throw new Error('Backup file not found');
+    // 2. Try R2 — fetch object and collect the streaming body into a Buffer.
+    if (this.s3Client && process.env.R2_BUCKET_NAME) {
+      try {
+        const response = await this.s3Client.send(
+          new GetObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: `backups/${filename}`,
+          }),
+        );
+        const body = response.Body as AsyncIterable<Uint8Array> | undefined;
+        if (!body) {
+          throw new Error('R2 returned an empty response body');
+        }
+        const chunks: Buffer[] = [];
+        for await (const chunk of body) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        return Buffer.concat(chunks);
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to fetch backup ${filename} from R2: ${err.message}`,
+        );
+        throw new Error(
+          `Backup file ${filename} not found locally; R2 fetch failed: ${err.message}`,
+        );
+      }
+    }
+
+    throw new Error(
+      `Backup file ${filename} not found locally and R2 is not configured.`,
+    );
   }
 
-  /** Restore database from a backup file */
+  /** Restore database from a backup file (local disk or R2). */
   async restoreBackup(filename: string): Promise<void> {
     const localPath = path.join(BACKUP_DIR, filename);
+
+    // Cache to local disk if the backup lives on R2, so validation and the
+    // atomic swap operate on a regular file regardless of storage tier.
     if (!fs.existsSync(localPath)) {
-      throw new Error(`Backup file ${filename} not found locally.`);
+      const buffer = await this.getBackupFile(filename);
+      fs.writeFileSync(localPath, buffer);
+      this.logger.log(
+        `Cached R2 backup ${filename} locally for restore (${buffer.length} bytes)`,
+      );
     }
 
     const dbPath = this.db.getLocalDatabasePath();

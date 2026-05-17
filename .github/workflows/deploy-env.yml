@@ -177,22 +177,43 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef' }}
           MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
           APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
           MAILDEV_APP="${{ steps.fly_maildev_cfg.outputs.app_name }}"
-          flyctl secrets set \
-            JWT_SECRET="$JWT_SECRET" \
-            ENCRYPTION_KEY="$ENCRYPTION_KEY" \
-            MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
-            MCP_SERVER_URL="http://127.0.0.1:3001/sse" \
-            CORS_ORIGIN="https://${ENV_NAME}.${DOMAIN}" \
-            FRONTEND_URL="https://${ENV_NAME}.${DOMAIN}" \
-            BACKEND_PUBLIC_URL="https://be-${ENV_NAME}.${DOMAIN}" \
-            SMTP_HOST="${MAILDEV_APP}.internal" \
-            SMTP_PORT="1025" \
-            MAIL_FROM="no-reply@${ENV_NAME}.${DOMAIN}" \
-            --app "$APP_NAME" \
-            --stage
+          # Build secrets list. R2 vars are passed through only when all four
+          # are set in GitHub secrets — partial config would make the S3
+          # client init and then fail on every backup. Without them, the
+          # backend keeps writing backups to /data/backups inside the
+          # container (lost on volume reset).
+          SECRETS=(
+            "JWT_SECRET=$JWT_SECRET"
+            "ENCRYPTION_KEY=$ENCRYPTION_KEY"
+            "MCP_AUTH_TOKEN=$MCP_AUTH_TOKEN"
+            "MCP_SERVER_URL=http://127.0.0.1:3001/sse"
+            "CORS_ORIGIN=https://${ENV_NAME}.${DOMAIN}"
+            "FRONTEND_URL=https://${ENV_NAME}.${DOMAIN}"
+            "BACKEND_PUBLIC_URL=https://be-${ENV_NAME}.${DOMAIN}"
+            "SMTP_HOST=${MAILDEV_APP}.internal"
+            "SMTP_PORT=1025"
+            "MAIL_FROM=no-reply@${ENV_NAME}.${DOMAIN}"
+          )
+          if [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ] \
+              && [ -n "$R2_ENDPOINT" ] && [ -n "$R2_BUCKET_NAME" ]; then
+            SECRETS+=(
+              "R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
+              "R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY"
+              "R2_ENDPOINT=$R2_ENDPOINT"
+              "R2_BUCKET_NAME=$R2_BUCKET_NAME"
+            )
+            echo "R2 backup storage: configured"
+          else
+            echo "R2 backup storage: not configured (backups will land on container volume)"
+          fi
+          flyctl secrets set "${SECRETS[@]}" --app "$APP_NAME" --stage
 
       - name: Deploy to Fly
         run: |
