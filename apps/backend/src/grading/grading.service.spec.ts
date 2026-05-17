@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GradingService } from './grading.service';
 import { DatabaseService } from '../database/database.service';
+import { AiService } from '../ai/ai.service';
 
 describe('GradingService', () => {
   let service: GradingService;
@@ -17,6 +18,16 @@ describe('GradingService', () => {
             execute: jest
               .fn()
               .mockResolvedValue({ lastInsertRowid: 0, changes: 0 }),
+          },
+        },
+        {
+          // GradingService takes AiService as its second constructor arg
+          // (added when AI grade-polish/translate landed). The spec only
+          // verifies wiring — a no-op mock is enough.
+          provide: AiService,
+          useValue: {
+            polishVerbalEvaluation: jest.fn().mockResolvedValue(''),
+            translateText: jest.fn().mockResolvedValue(''),
           },
         },
       ],
