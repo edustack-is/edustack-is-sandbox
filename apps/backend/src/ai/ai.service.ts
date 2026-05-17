@@ -155,16 +155,121 @@ export class AiService {
     return { text: text.trim() };
   }
 
+  /**
+   * Curated pools of real Czech school names, picked per school type. Pure
+   * AI generation tends to converge on the most famous example (the model
+   * returns "Gymnázium Jana Nerudy" for ~every gymnasium prompt), so we
+   * keep a hand-picked pool of believable names and filter it against
+   * existing School names in the DB so subsequent runs never duplicate.
+   */
+  private static readonly SCHOOL_NAME_POOLS: Record<string, string[]> = {
+    elementary: [
+      'ZŠ Komenského',
+      'ZŠ T. G. Masaryka',
+      'ZŠ Jana Amose Komenského',
+      'ZŠ Karla Čapka',
+      'ZŠ Boženy Němcové',
+      'ZŠ Františka Palackého',
+      'ZŠ Jiráskova',
+      'ZŠ Husova',
+      'ZŠ Tyršova',
+      'ZŠ Sokolovská',
+      'ZŠ Nerudova',
+      'ZŠ U Stadionu',
+      'ZŠ Na Pražačce',
+      'ZŠ Bratranců Veverkových',
+      'ZŠ Lyckovo náměstí',
+    ],
+    gymnasium: [
+      'Gymnázium Jana Nerudy',
+      'Gymnázium Jana Keplera',
+      'Gymnázium Jaroslava Heyrovského',
+      'Gymnázium Jana Palacha',
+      'Gymnázium Christiana Dopplera',
+      'Gymnázium Františka Palackého',
+      'Gymnázium Karla Sladkovského',
+      'Gymnázium Botičská',
+      'Gymnázium Voděradská',
+      'Gymnázium Nad Štolou',
+      'Gymnázium Na Vítězné pláni',
+      'Gymnázium Špitálská',
+      'Gymnázium Postupická',
+      'Gymnázium Přípotoční',
+      'Gymnázium Sázavská',
+    ],
+    high_school: [
+      'Střední průmyslová škola Na Třebešíně',
+      'Střední odborná škola Jarov',
+      'Obchodní akademie Heroldovy sady',
+      'Střední škola hotelová Radlická',
+      'Střední průmyslová škola elektrotechnická Ječná',
+      'Střední zdravotnická škola Ruská',
+      'Hotelová škola Vršovická',
+      'Vyšší odborná škola pedagogická Evropská',
+      'Střední uměleckoprůmyslová škola Žižkovo náměstí',
+    ],
+    kindergarten: [
+      'MŠ Sluníčko',
+      'MŠ Pohádka',
+      'MŠ Duha',
+      'MŠ Beruška',
+      'MŠ Krtek',
+      'MŠ U Lesa',
+      'MŠ Na Slovance',
+      'MŠ Klubíčko',
+      'MŠ Větrník',
+    ],
+  };
+
+  private mapSchoolTypeToPoolKey(schoolType?: string): string {
+    const t = (schoolType || '').toLowerCase();
+    if (t.includes('gymnasium') || t.includes('gymná') || t.includes('gymna'))
+      return 'gymnasium';
+    if (
+      t.includes('high_school') ||
+      t.includes('střední') ||
+      t.includes('stredni')
+    )
+      return 'high_school';
+    if (
+      t.includes('kindergarten') ||
+      t.includes('mateřská') ||
+      t.includes('materska')
+    )
+      return 'kindergarten';
+    return 'elementary';
+  }
+
   async generateSchoolName(schoolType?: string) {
-    const prompt = `Vygeneruj jeden stručný a realistický název pro českou školu typu: ${schoolType || 'ZŠ'}. Odpověz POUZE samotným názvem, bez uvozovek, bez vysvětlování a bez jakéhokoliv dalšího textu.`;
-    const text = await this.safeGenerate(prompt);
-    return {
-      name: text
-        .trim()
-        .replace(/^["']|["']$/g, '')
-        .split('\n')[0]
-        .trim(),
-    };
+    const poolKey = this.mapSchoolTypeToPoolKey(schoolType);
+    const pool = AiService.SCHOOL_NAME_POOLS[poolKey];
+
+    // Pull existing names so we don't hand back something the operator
+    // already used for another school in this sandbox.
+    let existing = new Set<string>();
+    try {
+      const rows = await this.db.query<{ name: string }>(
+        'SELECT name FROM "School" WHERE deletedAt IS NULL',
+      );
+      existing = new Set(rows.map((r) => r.name));
+    } catch {
+      // Fresh DB or schema mismatch — fall back to no-dedup behaviour.
+    }
+
+    const available = pool.filter((n) => !existing.has(n));
+    if (available.length > 0) {
+      return {
+        name: available[Math.floor(Math.random() * available.length)],
+      };
+    }
+
+    // Pool exhausted: append a numeric suffix to keep names believable.
+    const base = pool[Math.floor(Math.random() * pool.length)];
+    for (let suffix = 2; suffix < 100; suffix++) {
+      const candidate = `${base} ${suffix}`;
+      if (!existing.has(candidate)) return { name: candidate };
+    }
+    return { name: `${base} ${Math.floor(Math.random() * 10000)}` };
   }
 
   private async safeGenerate(prompt: string, maxTokens = 500): Promise<string> {

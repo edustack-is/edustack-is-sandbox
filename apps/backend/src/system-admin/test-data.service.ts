@@ -164,6 +164,21 @@ function removeDiacritics(s: string): string {
     .toLowerCase();
 }
 
+/**
+ * Czech feminine surname form. Rules applied (covers the pool we use):
+ *   - ends in -\u00fd (adjectival): drop \u00fd, add \u00e1  (\u010cern\u00fd \u2192 \u010cern\u00e1, Vesel\u00fd \u2192 Vesel\u00e1)
+ *   - ends in -ek (with fleeting e): drop ek, add kov\u00e1  (Jel\u00ednek \u2192 Jel\u00ednkov\u00e1)
+ *   - ends in a vowel a/e/o: drop the vowel, add ov\u00e1  (Svoboda \u2192 Svobodov\u00e1)
+ *   - otherwise: append ov\u00e1  (Nov\u00e1k \u2192 Nov\u00e1kov\u00e1, Kratochv\u00edl \u2192 Kratochv\u00edlov\u00e1)
+ * Good enough for sandbox names; a real-world i18n module would need more.
+ */
+function femaleLastName(masculine: string): string {
+  if (masculine.endsWith('\u00fd')) return masculine.slice(0, -1) + '\u00e1';
+  if (masculine.endsWith('ek')) return masculine.slice(0, -2) + 'kov\u00e1';
+  if (/[aeo]$/.test(masculine)) return masculine.slice(0, -1) + 'ov\u00e1';
+  return masculine + 'ov\u00e1';
+}
+
 export interface GenerateConfig {
   schoolName: string;
   schoolType: string;
@@ -555,7 +570,7 @@ export class TestDataService {
         role: UserRole.DEPUTY,
         email: `deputy@${schoolDomain}`,
         first: pick(FEMALE_FIRST),
-        last: pick(LAST_NAMES),
+        last: femaleLastName(pick(LAST_NAMES)),
       },
     ];
     for (const r of staffToCreate) {
@@ -599,7 +614,8 @@ export class TestDataService {
     for (let i = 0; i < teacherCount; i++) {
       const isFemale = Math.random() > 0.5;
       const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
-      const lName = pick(LAST_NAMES);
+      const baseLName = pick(LAST_NAMES);
+      const lName = isFemale ? femaleLastName(baseLName) : baseLName;
       const uid = crypto.randomUUID();
       const pid = crypto.randomUUID();
       const status =
@@ -688,103 +704,150 @@ export class TestDataService {
     const studentUserIds: string[] = [];
     const studentProfileIds: string[] = [];
 
-    for (let i = 0; i < studentCount; i++) {
-      const isFemale = Math.random() > 0.5;
-      const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
-      const lName = pick(LAST_NAMES);
-      const uid = crypto.randomUUID();
-      const pid = crypto.randomUUID();
-      const classroom = pick(classrooms);
-      const status =
-        i < (config.studentActiveCount ?? 80) ? 'ACTIVE' : 'PENDING';
+    // Plan family structure so siblings share a surname and parent(s) within
+    // a school. Most families have one child; some have 2-3 siblings. Each
+    // family has 1 or 2 parents (70% two-parent, 30% single-parent).
+    type FamilyPlan = { childCount: number; parentCount: 1 | 2 };
+    const familyPlan: FamilyPlan[] = [];
+    let remainingStudents = studentCount;
+    while (remainingStudents > 0) {
+      const r = Math.random();
+      const desiredSize = r > 0.95 ? 3 : r > 0.75 ? 2 : 1;
+      const childCount = Math.min(desiredSize, remainingStudents);
+      const parentCount: 1 | 2 = Math.random() > 0.3 ? 2 : 1;
+      familyPlan.push({ childCount, parentCount });
+      remainingStudents -= childCount;
+    }
 
-      await this.db.execute(
-        'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-          uid,
-          `student${i}@zak.${schoolDomain}`,
-          fName,
-          lName,
-          status === 'ACTIVE' ? passwordHash : null,
-          now,
-        ],
-      );
-      await this.db.execute(
-        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), uid, schoolId, UserRole.STUDENT, status, now],
-      );
-      await this.db.execute(
-        'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId) VALUES (?, ?, ?, ?, ?)',
-        [pid, uid, fName, lName, classroom.id],
-      );
-      await this.db.execute(
-        'INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [
-          crypto.randomUUID(),
-          uid,
-          ayId,
-          gradeLevelMap.get(classroom.grade)!,
-          classroom.id,
-          now,
-          now,
-        ],
-      );
+    let globalStudentIdx = 0;
+    let globalParentIdx = 0;
+    for (let famIdx = 0; famIdx < familyPlan.length; famIdx++) {
+      const family = familyPlan[famIdx];
 
-      // Add Identity for student
-      if (i < 10) {
+      // Family surname in both grammatical genders.
+      const maleSurname = pick(LAST_NAMES);
+      const femSurname = femaleLastName(maleSurname);
+
+      // Generate parents first so we can link each child to all of them.
+      const familyParentIds: string[] = [];
+      for (let p = 0; p < family.parentCount; p++) {
+        // Two-parent family: father then mother. Single-parent: random gender.
+        const parentIsFemale =
+          family.parentCount === 2 ? p === 1 : Math.random() > 0.5;
+        const parentFirst = parentIsFemale
+          ? pick(FEMALE_FIRST)
+          : pick(MALE_FIRST);
+        const parentLast = parentIsFemale ? femSurname : maleSurname;
+        const pUid = crypto.randomUUID();
         await this.db.execute(
-          'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
-          [crypto.randomUUID(), 'microsoft', `ms-student-${uid}`, uid, now],
-        );
-        stats.identities++;
-      }
-
-      studentUserIds.push(uid);
-      studentProfileIds.push(pid);
-      stats.students++;
-
-      // Parents
-      const parentName = pick(LAST_NAMES);
-      const pUid = crypto.randomUUID();
-      await this.db.execute(
-        'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-          pUid,
-          `parent${i}@par.${schoolDomain}`,
-          pick(MALE_FIRST),
-          parentName,
-          passwordHash,
-          now,
-        ],
-      );
-      await this.db.execute(
-        'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), pUid, schoolId, UserRole.PARENT, 'ACTIVE', now],
-      );
-      await this.db.execute(
-        'INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)',
-        [crypto.randomUUID(), pUid, uid],
-      );
-      parentUserIds.push(pUid);
-      stats.parents++;
-
-      // Absence Excuse
-      if (i < 5) {
-        await this.db.execute(
-          'INSERT INTO "AbsenceExcuse" (id, reason, dateFrom, dateTo, status, parentId, studentId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
           [
-            crypto.randomUUID(),
-            'Nevolnost',
-            '2026-05-10',
-            '2026-05-12',
-            'PENDING',
             pUid,
-            pid,
-            schoolId,
+            `parent${globalParentIdx}@par.${schoolDomain}`,
+            parentFirst,
+            parentLast,
+            passwordHash,
             now,
           ],
         );
-        stats.excuses++;
+        await this.db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [crypto.randomUUID(), pUid, schoolId, UserRole.PARENT, 'ACTIVE', now],
+        );
+        familyParentIds.push(pUid);
+        parentUserIds.push(pUid);
+        stats.parents++;
+        globalParentIdx++;
+      }
+
+      // Generate children of this family.
+      for (let c = 0; c < family.childCount; c++) {
+        const studentIdx = globalStudentIdx;
+        const isFemale = Math.random() > 0.5;
+        const fName = isFemale ? pick(FEMALE_FIRST) : pick(MALE_FIRST);
+        const lName = isFemale ? femSurname : maleSurname;
+        const uid = crypto.randomUUID();
+        const pid = crypto.randomUUID();
+        const classroom = pick(classrooms);
+        const status =
+          studentIdx < (config.studentActiveCount ?? 80) ? 'ACTIVE' : 'PENDING';
+
+        await this.db.execute(
+          'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            uid,
+            `student${studentIdx}@zak.${schoolDomain}`,
+            fName,
+            lName,
+            status === 'ACTIVE' ? passwordHash : null,
+            now,
+          ],
+        );
+        await this.db.execute(
+          'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+          [crypto.randomUUID(), uid, schoolId, UserRole.STUDENT, status, now],
+        );
+        await this.db.execute(
+          'INSERT INTO "StudentProfile" (id, userId, firstName, lastName, classroomId) VALUES (?, ?, ?, ?, ?)',
+          [pid, uid, fName, lName, classroom.id],
+        );
+        await this.db.execute(
+          'INSERT INTO "StudentEnrollment" (id, studentId, academicYearId, gradeLevelId, classroomId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            uid,
+            ayId,
+            gradeLevelMap.get(classroom.grade)!,
+            classroom.id,
+            now,
+            now,
+          ],
+        );
+
+        // Microsoft identity for the first 10 students globally (kept from
+        // the previous behaviour — used by login-helper demos).
+        if (studentIdx < 10) {
+          await this.db.execute(
+            'INSERT INTO "Identity" (id, provider, providerId, userId, createdAt) VALUES (?, ?, ?, ?, ?)',
+            [crypto.randomUUID(), 'microsoft', `ms-student-${uid}`, uid, now],
+          );
+          stats.identities++;
+        }
+
+        studentUserIds.push(uid);
+        studentProfileIds.push(pid);
+        stats.students++;
+
+        // Link this child to every parent in the family (siblings therefore
+        // share the same parent set).
+        for (const parentId of familyParentIds) {
+          await this.db.execute(
+            'INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)',
+            [crypto.randomUUID(), parentId, uid],
+          );
+        }
+
+        // AbsenceExcuse for the first 5 students globally — submitted by
+        // the first parent in this family.
+        if (studentIdx < 5 && familyParentIds.length > 0) {
+          await this.db.execute(
+            'INSERT INTO "AbsenceExcuse" (id, reason, dateFrom, dateTo, status, parentId, studentId, schoolId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              'Nevolnost',
+              '2026-05-10',
+              '2026-05-12',
+              'PENDING',
+              familyParentIds[0],
+              pid,
+              schoolId,
+              now,
+            ],
+          );
+          stats.excuses++;
+        }
+
+        globalStudentIdx++;
       }
     }
 
