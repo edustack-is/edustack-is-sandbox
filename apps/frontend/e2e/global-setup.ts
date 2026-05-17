@@ -23,7 +23,12 @@ interface DemoUser {
 }
 
 export default async function globalSetup(_config: FullConfig) {
-    const baseURL = 'http://localhost:5173';
+    // globalSetup runs in Node and makes direct API calls (no browser, no
+    // Vite proxy). On a deployed sandbox the backend lives at a *different*
+    // origin from the frontend, so prefer an explicit E2E_API_URL when set.
+    // Fall back to E2E_BASE_URL (works locally: Vite proxies /api/* to the
+    // backend at :3000), then to the hardcoded dev URL.
+    const baseURL = process.env.E2E_API_URL || process.env.E2E_BASE_URL || 'http://localhost:5173';
     const authDir = path.join(__dirname, '.auth');
     fs.mkdirSync(authDir, { recursive: true });
 
