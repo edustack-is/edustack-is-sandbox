@@ -43,6 +43,8 @@ import {
     Server,
     MemoryStick,
     Upload,
+    GitCommit,
+    CalendarClock,
 } from 'lucide-react';
 import { TestDataGenerator } from './TestDataGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -1303,6 +1305,26 @@ function MonitoringTab() {
                     icon={<MemoryStick className="h-5 w-5" />}
                     color="text-purple-500"
                     bg="bg-purple-500/10"
+                />
+                <KpiCard
+                    title={t('system_settings.commit', 'Commit')}
+                    value={health?.commit ? health.commit.slice(0, 7) : '—'}
+                    subtitle={health?.commit && health.commit !== 'unknown' ? health.commit : ''}
+                    icon={<GitCommit className="h-5 w-5" />}
+                    color="text-slate-500"
+                    bg="bg-slate-500/10"
+                />
+                <KpiCard
+                    title={t('system_settings.build_time', 'Build Time')}
+                    value={
+                        health?.buildTime && health.buildTime !== 'unknown'
+                            ? new Date(health.buildTime).toLocaleString()
+                            : '—'
+                    }
+                    subtitle={health?.buildTime && health.buildTime !== 'unknown' ? health.buildTime : ''}
+                    icon={<CalendarClock className="h-5 w-5" />}
+                    color="text-indigo-500"
+                    bg="bg-indigo-500/10"
                 />
             </div>
 

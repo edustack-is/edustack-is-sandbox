@@ -248,7 +248,10 @@ jobs:
           PROJECT_NAME: edustack-frontend-${{ env.ENV_NAME }}
         run: |
           cd apps/frontend
-          echo "VITE_API_URL=https://be-${ENV_NAME}.${DOMAIN}" > .env
+          {
+            echo "VITE_API_URL=https://be-${ENV_NAME}.${DOMAIN}"
+            echo "VITE_APP_TITLE=EduStack - ${ENV_NAME}"
+          } > .env
           npm run build
 
           HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \

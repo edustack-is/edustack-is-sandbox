@@ -20,6 +20,10 @@ export interface HealthStatus {
     database: string;
     memory: { rss: number; heapUsed: number; heapTotal: number };
     version: string;
+    /** Git SHA of the deployed image. "unknown" for local dev (no docker build). */
+    commit?: string;
+    /** ISO UTC timestamp baked into the image at build time. "unknown" for local dev. */
+    buildTime?: string;
     timestamp: string;
 }
 
