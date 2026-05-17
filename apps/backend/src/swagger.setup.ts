@@ -246,10 +246,13 @@ const EXTRA_MODELS = [
 ];
 
 /**
- * Mount Swagger/OpenAPI documentation at `/api/docs`. No-op in production.
+ * Mount Swagger/OpenAPI documentation at `/api/docs`. Enabled in every
+ * environment so the status page's "Open API Documentation" link works on
+ * deployed sandboxes. Set DISABLE_API_DOCS=true to opt out (e.g. on a real
+ * production tenant where the API surface shouldn't be browsable).
  */
 export function setupSwagger(app: INestApplication): void {
-  if (process.env.NODE_ENV === 'production') return;
+  if (process.env.DISABLE_API_DOCS === 'true') return;
 
   const builder = new DocumentBuilder()
     .setTitle('EduStack IS API')

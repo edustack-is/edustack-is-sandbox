@@ -22,6 +22,12 @@ export class AppController {
       dbError = err.message;
     }
 
+    // Build metadata baked into the Docker image at build time. Defaults to
+    // "unknown" for local `npm run dev` (no Docker build args set).
+    const commit = process.env.COMMIT_SHA || 'unknown';
+    const commitShort = commit !== 'unknown' ? commit.slice(0, 7) : 'unknown';
+    const buildTime = process.env.BUILD_TIME || 'unknown';
+
     return `
         <!DOCTYPE html>
         <html>
@@ -62,6 +68,12 @@ export class AppController {
 
                     <div class="label">Runtime:</div>
                     <div class="value">Node.js ${process.version}</div>
+
+                    <div class="label">Commit:</div>
+                    <div class="value"><code title="${commit}">${commitShort}</code></div>
+
+                    <div class="label">Build Time:</div>
+                    <div class="value"><code>${buildTime}</code></div>
                 </div>
 
                 ${dbError ? `<div class="error-box">Database Error: ${dbError}</div>` : ''}

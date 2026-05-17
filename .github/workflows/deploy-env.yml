@@ -194,11 +194,14 @@ jobs:
 
       - name: Deploy to Fly
         run: |
+          BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           flyctl deploy \
             --config "${{ steps.fly_cfg.outputs.config_path }}" \
             --app "${{ steps.fly_cfg.outputs.app_name }}" \
             --remote-only \
-            --wait-timeout 600
+            --wait-timeout 600 \
+            --build-arg "COMMIT_SHA=${{ github.sha }}" \
+            --build-arg "BUILD_TIME=${BUILD_TIME}"
 
       - name: Attach backend custom domain + TLS
         run: |

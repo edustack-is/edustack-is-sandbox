@@ -45,12 +45,21 @@ COPY --from=build /app/apps/mcp-server/dist apps/mcp-server/dist
 COPY scripts/start.sh /app/scripts/start.sh
 RUN chmod +x /app/scripts/start.sh && mkdir -p /data
 
+# Build metadata. Both default to "unknown" so local `docker build` without
+# --build-arg still works; CI passes real values from github.sha and an ISO
+# UTC timestamp at deploy time so the status page and /api/health can
+# identify what's actually running.
+ARG COMMIT_SHA=unknown
+ARG BUILD_TIME=unknown
+
 ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0 \
     MCP_PORT=3001 \
     MCP_HOST=127.0.0.1 \
-    DATABASE_URL=file:/data/edustack.db
+    DATABASE_URL=file:/data/edustack.db \
+    COMMIT_SHA=$COMMIT_SHA \
+    BUILD_TIME=$BUILD_TIME
 
 EXPOSE 3000
 ENTRYPOINT ["/usr/bin/tini", "--"]

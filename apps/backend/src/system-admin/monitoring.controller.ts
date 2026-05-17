@@ -43,6 +43,11 @@ export class MonitoringController {
         heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
       },
       version: process.env.npm_package_version || '1.0.0',
+      // Build metadata baked into the Docker image at build time (via
+      // --build-arg in .github/workflows/deploy-env.yml). Both fall back to
+      // "unknown" for local dev where no Docker build runs.
+      commit: process.env.COMMIT_SHA || 'unknown',
+      buildTime: process.env.BUILD_TIME || 'unknown',
       timestamp: new Date().toISOString(),
     };
   }
