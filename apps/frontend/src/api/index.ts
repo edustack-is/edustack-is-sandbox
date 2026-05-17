@@ -346,12 +346,26 @@ export const getUserSchools = async () => {
     return response.data; // Array of school memberships
 };
 
+/**
+ * Resolve the backend base URL for top-level navigations (SSO redirects).
+ *
+ * Prefer VITE_API_URL — the same value the axios client uses — so dev
+ * (localhost backend or vite proxy) and prod (separate Fly subdomain) stay
+ * consistent. Without this, `window.location.href = '/api/auth/sso/google'`
+ * stayed on the frontend origin (Cloudflare Pages) and got swallowed by SPA
+ * routing instead of reaching the backend.
+ */
+export function getBackendBaseUrl(): string {
+    const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+    if (apiUrl && apiUrl !== '/') return apiUrl.replace(/\/$/, '');
+    return window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
+}
+
 export const linkIdentity = (provider: string) => {
     // Redirects to the backend SSO route. The session cookie is sent on the
     // top-level navigation by the browser (SameSite=Lax allows it for GETs),
     // so the backend can identify the linking user without a query token.
-    const backendUrl = window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
-    window.location.href = `${backendUrl}/api/auth/sso/${provider}`;
+    window.location.href = `${getBackendBaseUrl()}/api/auth/sso/${provider}`;
 };
 
 // System Admin API

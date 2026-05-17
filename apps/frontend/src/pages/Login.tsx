@@ -6,6 +6,7 @@ import {
     exchangeSsoToken,
     getLoginHelperConfig,
     getLoginHelperUsers,
+    getBackendBaseUrl,
     LoginHelperUser,
     LoginHelperConfig,
 } from '../api';
@@ -190,8 +191,7 @@ export const Login = () => {
     };
 
     const handleSsoClick = (provider: string) => {
-        const backendUrl = window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
-        window.location.href = `${backendUrl}/api/auth/sso/${provider}`;
+        window.location.href = `${getBackendBaseUrl()}/api/auth/sso/${provider}`;
     };
 
     const handleHelperLogin = async (user: any) => {

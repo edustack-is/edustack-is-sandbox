@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { acceptInvitation, getSsoOptions } from '../api';
+import { acceptInvitation, getSsoOptions, getBackendBaseUrl } from '../api';
 import { toast } from 'sonner';
 import { PasswordInput } from '../components/ui/password-input';
 import { validatePassword } from '../lib/password-utils';
@@ -77,8 +77,7 @@ export const ActivateAccount = () => {
 
     const handleSsoActivate = (provider: string) => {
         if (!token) return;
-        const backendUrl = window.location.origin === 'http://localhost:5173' ? 'http://localhost:3000' : '';
-        window.location.href = `${backendUrl}/api/auth/sso/${provider}?invitationToken=${encodeURIComponent(token)}`;
+        window.location.href = `${getBackendBaseUrl()}/api/auth/sso/${provider}?invitationToken=${encodeURIComponent(token)}`;
     };
 
     // ---- Invalid / missing token ----
