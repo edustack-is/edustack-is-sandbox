@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
@@ -16,7 +16,7 @@ export class BackupService {
   private readonly logger = new Logger(BackupService.name);
   private s3Client: S3Client | null = null;
 
-  constructor(@Inject('CLOUDFLARE_DB') private readonly d1: any) {
+  constructor() {
     // Ensure local backup directory exists (fallback)
     if (!fs.existsSync(BACKUP_DIR)) {
       fs.mkdirSync(BACKUP_DIR, { recursive: true });
