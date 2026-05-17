@@ -33,7 +33,9 @@
 
 ## 1. Úvod
 
-Tato analýza mapuje funkce, které by měl obsahovat moderní školní informační systém pro základní a střední školy v českém prostředí. Vychází z porovnání s existujícími systémy (Bakaláři, EduPage, Edookit) a požadavků RVP/ŠVP. U každé funkce je vyznačen aktuální stav implementace v systému EduStack IS.
+Tato analýza mapuje funkce, které by měl obsahovat moderní školní informační systém pro základní a střední školy v
+českém prostředí. Vychází z porovnání s existujícími systémy (Bakaláři, EduPage, Edookit) a požadavků RVP/ŠVP. U každé
+funkce je vyznačen aktuální stav implementace v systému EduStack IS.
 
 ---
 
@@ -303,22 +305,22 @@ Tato analýza mapuje funkce, které by měl obsahovat moderní školní informa�
 
 ## 16. Souhrnná tabulka
 
-| Oblast     |     Celkem funkcí      | ✅ Implementováno | 🔶 Částečně | ❌ Chybí |
-| ---------- | :--------------------: | :---------------: | :---------: | :------: | --- |
-| F170       | Autentizace a identity |        17         |     15      |    0     | 2   |
-| F171       |     Správa systému     |        12         |     12      |    0     | 0   |
-| F172       |      Správa školy      |        10         |     10      |    0     | 0   |
-| F173       |    Správa uživatelů    |        17         |     15      |    0     | 2   |
-| F174       |       Kurikulum        |        13         |     13      |    0     | 0   |
-| F175       |         Rozvrh         |        15         |     15      |    0     | 0   |
-| F176       |      Klasifikace       |        17         |     17      |    0     | 0   |
-| F177       |        Docházka        |         8         |      8      |    0     | 0   |
-| F178       |       Komunikace       |        12         |     12      |    0     | 0   |
-| F179       |      Třídní kniha      |         7         |      7      |    0     | 0   |
-| F180       |       AI funkce        |        11         |     11      |    0     | 0   |
-| F181       |          MCP           |        10         |      9      |    0     | 1   |
-| F182       |   Reporty a výstupy    |        10         |     10      |    0     | 0   |
-| F183       |     Infrastruktura     |        10         |      9      |    0     | 1   |
-| **Celkem** |        **169**         |      **163**      |    **0**    |  **6**   |
+|         Oblast         | Celkem funkcí | ✅ Implementováno | 🔶 Částečně | ❌ Chybí |
+| :--------------------: | :-----------: | :---------------: | :---------: | -------- |
+| Autentizace a identity |      17       |        15         |      0      | 2        |
+|     Správa systému     |      12       |        12         |      0      | 0        |
+|      Správa školy      |      10       |        10         |      0      | 0        |
+|    Správa uživatelů    |      17       |        15         |      0      | 2        |
+|       Kurikulum        |      13       |        13         |      0      | 0        |
+|         Rozvrh         |      15       |        15         |      0      | 0        |
+|      Klasifikace       |      17       |        17         |      0      | 0        |
+|        Docházka        |       8       |         8         |      0      | 0        |
+|       Komunikace       |      12       |        12         |      0      | 0        |
+|      Třídní kniha      |       7       |         7         |      0      | 0        |
+|       AI funkce        |      11       |        11         |      0      | 0        |
+|          MCP           |      10       |         9         |      0      | 1        |
+|   Reporty a výstupy    |      10       |        10         |      0      | 0        |
+|     Infrastruktura     |      10       |         9         |      0      | 1        |
+|       **Celkem**       |    **169**    |      **163**      |    **0**    | **6**    |
 
 **Pokrytí:** přibližně **96 %** požadovaných funkcí je plně implementováno.
