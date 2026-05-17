@@ -12,12 +12,10 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 
 <!-- DEPLOYED_ENVS_START -->
 
-| Env       | Frontend                          | Backend                              | MailDev                                | Last deployed        |
-| --------- | --------------------------------- | ------------------------------------ | -------------------------------------- | -------------------- |
+| Env | Frontend | Backend | MailDev | Last deployed |
+| --- | --- | --- | --- | --- |
 | sandbox-1 | https://sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | https://mail-sandbox-1.is-edustack.org | 2026-05-17 11:53 UTC |
-| sandbox-2 | https://sandbox-2.is-edustack.org | https://be-sandbox-2.is-edustack.org | https://mail-sandbox-2.is-edustack.org | 2026-05-16 19:28 UTC |
 | sandbox-3 | https://sandbox-3.is-edustack.org | https://be-sandbox-3.is-edustack.org | https://mail-sandbox-3.is-edustack.org | 2026-05-16 20:05 UTC |
-
 <!-- DEPLOYED_ENVS_END -->
 
 ## Technology
