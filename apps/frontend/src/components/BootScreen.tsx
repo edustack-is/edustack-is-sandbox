@@ -1,80 +1,19 @@
-import { useState, useEffect } from 'react';
-import { getHealth, getInitStatus } from '../api';
 import { Card, CardContent } from './ui/card';
 import { Loader2 } from 'lucide-react';
 
 interface BootScreenProps {
-    onReady: (initialized: boolean) => void;
+    progress: number;
+    status: string;
+    lastError: string | null;
 }
 
 /**
- * BootScreen handles the initial application loading sequence.
- * It waits for the backend service to be alive and then checks the system initialization status.
- * This is crucial for handling slow backend starts or cold starts in serverless environments.
+ * Pure presentational boot screen — the readiness probing happens in App.tsx
+ * so the network calls and retry timer aren't tied to this component's
+ * lifecycle. Mounting/remounting this view (e.g. from a parent re-render)
+ * therefore never duplicates the /health and /init/status requests.
  */
-export const BootScreen = ({ onReady }: BootScreenProps) => {
-    const [progress, setProgress] = useState(0);
-    const [status, setStatus] = useState('Starting application...');
-    const [lastError, setLastError] = useState<string | null>(null);
-
-    useEffect(() => {
-        let isMounted = true;
-        let retryCount = 0;
-
-        const checkReadiness = async () => {
-            try {
-                // First check if backend is even alive
-                console.log('BootScreen: Checking backend health...');
-                const health = await getHealth();
-                console.log('BootScreen: Health response:', health);
-
-                // If health check reports degraded database, we still wait
-                if (health?.status !== 'healthy') {
-                    throw new Error(`Backend reporting ${health?.status || 'unknown'} status`);
-                }
-
-                if (isMounted) {
-                    setStatus('Backend online, checking system status...');
-                    setProgress(50);
-                    setLastError(null);
-                }
-
-                // If alive, check initialization status
-                const res = await getInitStatus();
-                console.log('BootScreen: Init status:', res);
-
-                if (isMounted) {
-                    setProgress(100);
-                    setStatus('System ready!');
-                    // Small delay to show 100%
-                    setTimeout(() => {
-                        if (isMounted) onReady(res.initialized);
-                    }, 500);
-                }
-            } catch (err: any) {
-                console.error('BootScreen: Readiness check failed:', err);
-                if (isMounted) {
-                    retryCount++;
-                    const msg = err.response?.data?.message || err.message || 'Unknown error';
-                    setLastError(msg);
-
-                    // Cap progress at 45% during retries
-                    const nextProgress = Math.min(retryCount * 5, 45);
-                    setProgress(nextProgress);
-                    setStatus(`Waiting for backend service (attempt ${retryCount})...`);
-                    // Poll every 1.5 seconds
-                    setTimeout(checkReadiness, 1500);
-                }
-            }
-        };
-
-        checkReadiness();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [onReady]);
-
+export const BootScreen = ({ progress, status, lastError }: BootScreenProps) => {
     return (
         <div
             className="flex items-center justify-center min-h-screen bg-slate-50 p-4"

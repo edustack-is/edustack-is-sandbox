@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { getHealth, getInitStatus } from './api';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Registry } from './pages/Registry';
@@ -116,9 +117,62 @@ const SystemAdminGuard = () => {
 
 function App() {
     const [initialized, setInitialized] = useState<boolean | null>(null);
+    const [bootProgress, setBootProgress] = useState(0);
+    const [bootStatus, setBootStatus] = useState('Starting application...');
+    const [bootError, setBootError] = useState<string | null>(null);
+    // Boot check must run exactly once per process. The ref guards against
+    // React StrictMode's intentional double-invoke in development *and*
+    // against any future re-render that might cause this effect to re-fire
+    // — without it the user would see /health, /init/status, and the boot
+    // screen itself flash twice on first load.
+    const bootStartedRef = useRef(false);
+
+    useEffect(() => {
+        if (bootStartedRef.current) return;
+        bootStartedRef.current = true;
+
+        let cancelled = false;
+        let retryCount = 0;
+
+        const checkReadiness = async () => {
+            try {
+                const health = await getHealth();
+                if (health?.status !== 'healthy') {
+                    throw new Error(`Backend reporting ${health?.status || 'unknown'} status`);
+                }
+                if (cancelled) return;
+                setBootProgress(50);
+                setBootStatus('Backend online, checking system status...');
+                setBootError(null);
+
+                const res = await getInitStatus();
+                if (cancelled) return;
+                setBootProgress(100);
+                setBootStatus('System ready!');
+                // Brief delay so the 100% state is actually visible.
+                setTimeout(() => {
+                    if (!cancelled) setInitialized(res.initialized);
+                }, 500);
+            } catch (err: any) {
+                if (cancelled) return;
+                retryCount++;
+                const msg = err.response?.data?.message || err.message || 'Unknown error';
+                setBootError(msg);
+                setBootProgress(Math.min(retryCount * 5, 45));
+                setBootStatus(`Waiting for backend service (attempt ${retryCount})...`);
+                setTimeout(checkReadiness, 1500);
+            }
+        };
+
+        checkReadiness();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     if (initialized === null) {
-        return <BootScreen onReady={setInitialized} />;
+        return <BootScreen progress={bootProgress} status={bootStatus} lastError={bootError} />;
     }
 
     return (
