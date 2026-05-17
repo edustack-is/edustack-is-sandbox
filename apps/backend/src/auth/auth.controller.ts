@@ -122,9 +122,13 @@ export class AuthController {
         res.cookie('__edu_link_token', linkToken, cookieOpts);
       }
 
+      const publicBase = (process.env.BACKEND_PUBLIC_URL || '').replace(
+        /\/$/,
+        '',
+      );
       passport.authenticate(provider, {
         session: false,
-        callbackURL: `/api/auth/callback/${provider}`,
+        callbackURL: `${publicBase}/api/auth/callback/${provider}`,
       } as any)(req, res, (err: any) => {
         if (err) {
           res.redirect(

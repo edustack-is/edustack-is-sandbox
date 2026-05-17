@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { InitService } from './init/init.service';
@@ -77,7 +78,14 @@ async function bootstrap() {
     );
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // ─── Trust the upstream proxy (Fly's TLS terminator) ───────────
+  // Without this, req.protocol stays "http" behind Fly, and Passport's
+  // OAuth strategies build callback URLs as http://be-…/api/auth/callback/…
+  // which Google rejects with redirect_uri_mismatch. "1" trusts a single
+  // hop (Fly's edge), which is exactly our topology.
+  app.set('trust proxy', 1);
 
   // ─── Security headers (Helmet) ─────────────────────────────────
   app.use(

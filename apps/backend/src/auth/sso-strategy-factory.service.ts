@@ -87,7 +87,15 @@ export class SsoStrategyFactoryService implements OnModuleInit {
     }
 
     const clientSecret = this.cryptoService.decrypt(encryptedSecret);
-    const callbackURL = `/api/auth/callback/${service.toLowerCase()}`;
+    // Absolute URL when we know our public origin (BACKEND_PUBLIC_URL is set
+    // by deploy-env.yml to https://be-${ENV_NAME}.${DOMAIN}). Otherwise fall
+    // back to a relative path and let passport infer the host — fine for
+    // local dev, broken behind Fly's TLS proxy without it.
+    const publicBase = (process.env.BACKEND_PUBLIC_URL || '').replace(
+      /\/$/,
+      '',
+    );
+    const callbackURL = `${publicBase}/api/auth/callback/${service.toLowerCase()}`;
 
     let strategy: any;
 

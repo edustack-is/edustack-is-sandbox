@@ -186,6 +186,7 @@ jobs:
             MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
             MCP_SERVER_URL="http://127.0.0.1:3001/sse" \
             CORS_ORIGIN="https://${ENV_NAME}.${DOMAIN}" \
+            BACKEND_PUBLIC_URL="https://be-${ENV_NAME}.${DOMAIN}" \
             SMTP_HOST="${MAILDEV_APP}.internal" \
             SMTP_PORT="1025" \
             MAIL_FROM="no-reply@${ENV_NAME}.${DOMAIN}" \
