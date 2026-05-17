@@ -157,12 +157,24 @@ openssl rand -hex 16   # ENCRYPTION_KEY (32 hex chars)
 
 These three values are pushed into Fly with `flyctl secrets set` on every deploy of each env. If you ever rotate them manually in the Fly dashboard, the next workflow run will overwrite them with the GitHub-secret values.
 
+**Conditional — R2 backup storage:**
+
+If both of these are set, the deploy workflow creates a per-env R2 bucket (`edustack-sandbox-N-backups`) for backups; admin-page "Create backup" then writes to R2 instead of the Fly volume. Without them, the workflow logs `R2 backup storage: not configured (backups will land on container volume)` and skips the R2 step — deploy still succeeds.
+
+| Secret                 | What it is                             | Where to get it                                                                                |
+| ---------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `R2_ACCESS_KEY_ID`     | S3-compatible access key ID for R2     | Cloudflare → R2 Object Storage → right sidebar → API Tokens → Manage → **Create R2 API Token** |
+| `R2_SECRET_ACCESS_KEY` | S3-compatible secret access key for R2 | Same dialog as above — copy the **Secret Access Key** once (Cloudflare won't show it again)    |
+
+The R2 token needs **Object Read & Write** permission, scoped to **All buckets** (one set of keys serves every per-env bucket the workflow creates). The bucket itself is created by the workflow — you don't need to pre-create it. `R2_ENDPOINT` and `R2_BUCKET_NAME` are derived from `CLOUDFLARE_ACCOUNT_ID` and the env name, so they aren't separate secrets.
+
 ### 2. Cloudflare API token permissions
 
 Create a **Custom token** with these permissions:
 
 - Account → **Cloudflare Pages** → Edit
 - Account → **Account Settings** → Read
+- Account → **Workers R2 Storage** → Edit _(only needed if you're using R2-backed backups)_
 - Zone → **Zone** → Read (scoped to `is-edustack.org`)
 - Zone → **DNS** → Edit (scoped to `is-edustack.org`)
 - User → **User Details** → Read
@@ -172,7 +184,17 @@ Create a **Custom token** with these permissions:
 1. **Cloudflare:** add the zone `is-edustack.org` (Websites → Add a site) and point your registrar's nameservers to Cloudflare.
 2. **Fly.io:** create an account (`flyctl auth signup`) and confirm your org slug is `personal` (default for personal accounts). If you've created a custom org, update `FLY_ORG` in `.github/workflows/deploy-env.yml`.
 
-### 4. Running the workflow
+### 4. Integrations configured after deploy (not GitHub secrets)
+
+These live in the database (encrypted via `ENCRYPTION_KEY`) and are managed through the system-admin UI after the env is up. They're optional — the app boots without them, but the listed features won't work until they're set.
+
+| Integration             | Where to configure                                         | What it enables                                                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Google OAuth client** | System admin → Settings → SSO → Google                     | "Sign in with Google" + "Link Google account". Add `https://be-sandbox-N.is-edustack.org/api/auth/callback/google` to the OAuth client's Authorized redirect URIs in Google Cloud Console. |
+| **GitHub / Microsoft**  | System admin → Settings → SSO → respective provider        | Same flow, same callback URL pattern (`/api/auth/callback/<provider>`).                                                                                                                    |
+| **AI provider key**     | System admin → Settings → AI → Google / OpenAI / Anthropic | Thematic plans, grade-polish, written tests, school-name AI generator.                                                                                                                     |
+
+### 5. Running the workflow
 
 **GitHub → Actions → Deploy Environment → Run workflow**, pick an `env_id` (e.g. `1`) and one of two actions:
 
@@ -183,7 +205,7 @@ Create a **Custom token** with these permissions:
 
 After a successful `deploy`, the run summary lists the live URLs (`sandbox-N`, `be-sandbox-N`) and the Fly app name.
 
-### 5. Costs
+### 6. Costs
 
 Each environment is one Fly.io machine (`shared-cpu-1x`, 512 MB) that auto-stops when idle, plus a 1 GB volume. Fly.io offers a 7-day trial; afterwards a payment method is required for the pay-as-you-go plan (the old always-free Hobby tier no longer exists). The 1 GB volume (~$0.15/month) accrues even while the machine is stopped — to drop to zero between demos, `delete` the env and `deploy` it again later. Realistic cost at demo / low-traffic usage is roughly **$1–2 per environment per month**. The Cloudflare Pages side stays on the free tier comfortably.
 
