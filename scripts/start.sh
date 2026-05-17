@@ -8,15 +8,20 @@ needs_init=0
 if [ ! -s "$DB_FILE" ]; then
   echo "[start] no DB at $DB_FILE — initialising from schema.sql"
   needs_init=1
-elif ! sqlite3 "$DB_FILE" "SELECT 1" >/dev/null 2>&1; then
-  # File exists but isn't a valid SQLite database (SQLITE_NOTADB). Without this
-  # branch the backend opens it, the first query throws, the process exits, and
-  # Fly burns through its restart budget. Move the bad file aside (don't delete
-  # — leave it for forensics) and re-seed.
-  CORRUPT_PATH="${DB_FILE}.corrupt-$(date +%s)"
-  echo "[start] DB at $DB_FILE is corrupt — moving to $CORRUPT_PATH and re-initialising"
-  mv "$DB_FILE" "$CORRUPT_PATH"
-  needs_init=1
+else
+  # Force a real header + page scan. `SELECT 1` alone isn't sufficient — on
+  # some sqlite builds it's a constant SELECT that succeeds without touching
+  # data pages, so a corrupt-but-openable file slips through. quick_check is
+  # cheap (no cross-page integrity work) and prints "ok" on a healthy DB.
+  echo "[start] validating DB at $DB_FILE"
+  check_output=$(sqlite3 "$DB_FILE" "PRAGMA quick_check" 2>&1) || true
+  if [ "$check_output" != "ok" ]; then
+    CORRUPT_PATH="${DB_FILE}.corrupt-$(date +%s)"
+    echo "[start] DB at $DB_FILE failed quick_check — moving to $CORRUPT_PATH and re-initialising"
+    echo "[start] sqlite3 said: $check_output"
+    mv "$DB_FILE" "$CORRUPT_PATH"
+    needs_init=1
+  fi
 fi
 
 if [ "$needs_init" = 1 ]; then
