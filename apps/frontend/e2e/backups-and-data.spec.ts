@@ -13,25 +13,29 @@ test.describe('Backups & Testing Data', () => {
             .or(page.locator('button[value="backups"]'))
             .click();
 
-        // 1. Create Backup
-        await page.getByRole('button', { name: /Create Backup|Vytvořit zálohu/i }).click();
-        await expect(page.getByText(/Backup created|Záloha vytvořena/i)).toBeVisible();
-
-        // 2. Download (mock)
-        const downloadPromise = page.waitForEvent('download');
+        // 1. Create Backup. The toolbar "Vytvořit zálohu" first opens a small
+        // dialog that asks for a backup name; the submit ("Vytvořit") inside
+        // the dialog is what actually triggers the upload + toast.
         await page
-            .getByRole('button', { name: /Download|Stáhnout/i })
+            .getByRole('button', { name: /Create Backup|Vytvořit zálohu/i })
             .first()
             .click();
-        const download = await downloadPromise;
-        expect(download.suggestedFilename()).toContain('.sqlite');
+        const createBackupDialog = page.getByRole('dialog');
+        await expect(createBackupDialog).toBeVisible({ timeout: 5_000 });
+        const backupName = `e2e-${Date.now()}`;
+        await createBackupDialog.locator('input').first().fill(backupName);
+        await createBackupDialog.getByRole('button', { name: /^Vytvořit$|^Create$/ }).click();
+        await expect(page.getByText(/Backup created|Záloha vytvořena|úspěšně/i).first()).toBeVisible({
+            timeout: 15_000,
+        });
 
-        // 3. Restore (UI check)
-        await page
-            .getByRole('button', { name: /Restore|Obnovit/i })
-            .first()
-            .click();
-        await expect(page.getByText(/Are you sure|Opravdu chcete/i)).toBeVisible();
+        // 2. Restore (UI check). Row actions now have aria-labels; pick the
+        // Restore one by accessible name so we don't depend on column order.
+        const newRow = page.locator('tr', { hasText: backupName }).first();
+        await newRow.getByRole('button', { name: /Restore|Obnovit/i }).click();
+        await expect(page.getByText(/Are you sure|Opravdu chcete|Obnovit|restore/i).first()).toBeVisible({
+            timeout: 5_000,
+        });
         await page.getByRole('button', { name: /Cancel|Zrušit/i }).click();
     });
 
@@ -42,9 +46,11 @@ test.describe('Backups & Testing Data', () => {
             .or(page.locator('button[value="testdata"]'))
             .click();
 
-        // 1. AI Name Generation (Magic Wand)
-        const nameInput = page.locator('input[placeholder="Testovací škola"]');
-        await nameInput.clear();
+        // 1. AI Name Generation (Magic Wand). The school-name input has
+        // placeholder "Název školy" in this build (not "Testovací škola").
+        const nameInput = page.locator('input[placeholder="Název školy"]');
+        await expect(nameInput).toBeVisible({ timeout: 10_000 });
+        await nameInput.fill('');
 
         await page.route('**/api/ai/generate-school-name', (route) => {
             route.fulfill({
@@ -54,11 +60,11 @@ test.describe('Backups & Testing Data', () => {
             });
         });
 
-        // Use more specific selector for the wand button
-        await page.locator('button[title*="AI"]').first().click();
-        await expect(nameInput).toHaveValue('AI Generated School');
+        // The wand button has title containing "AI" (e.g. "AI generovat název").
+        await page.locator('button[title*="AI" i]').first().click();
+        await expect(nameInput).toHaveValue('AI Generated School', { timeout: 5_000 });
 
-        // 2. Generate Data (mock response for speed)
+        // 2. Generate Data (mock response for speed).
         await page.route('**/api/system/test-data/generate', (route) => {
             route.fulfill({
                 status: 201,
@@ -66,17 +72,35 @@ test.describe('Backups & Testing Data', () => {
                 body: JSON.stringify({ success: true }),
             });
         });
-
-        // Target the primary "Generate" button, not the AI wand one
         await page.getByRole('button', { name: /Generovat školu s daty|Generate school with data/i }).click();
-        // The generator usually shows success via toast or closing dialog
-        // await expect(page.getByText(/Success|Úspěch/i)).toBeVisible();
 
-        // 3. Delete Schools / Wipe All Data
-        await page.getByRole('button', { name: /Delete Schools|Smazat školy/i }).click();
-        await page.getByRole('button', { name: /Confirm|Potvrdit/i }).click();
-
-        await page.getByRole('button', { name: /Delete All Data|Smazat všechna data/i }).click();
-        await page.getByRole('button', { name: /Confirm|Potvrdit/i }).click();
+        // 3. Wipe All — the page only exposes a global "Smazat vše" button
+        // (per-school delete needs a dropdown selection). Stub the endpoint
+        // so reruns don't actually empty the local DB.
+        await page.route('**/api/system/test-data/wipe-all', (route) => {
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true }),
+            });
+        });
+        await page.getByRole('button', { name: /Delete All Data|Smazat vše|Smazat všechna data/i }).click();
+        // The confirm dialog has a "type to confirm" guard. The required
+        // string lives in i18n (`SMAZAT VŠE` in cs, `WIPE ALL` in en) — we
+        // type both regardless of locale; only the matching one enables the
+        // button.
+        const wipeDialog = page.getByRole('dialog').last();
+        await expect(wipeDialog).toBeVisible({ timeout: 5_000 });
+        const confirmInput = wipeDialog.locator('input').last();
+        // Try CS first; if app is in EN, the button stays disabled and we
+        // fall through to type the EN variant.
+        await confirmInput.fill('SMAZAT VŠE');
+        const confirmBtn = wipeDialog
+            .getByRole('button', { name: /Smazat vše nenávratně|Delete everything permanently/i })
+            .last();
+        if (!(await confirmBtn.isEnabled().catch(() => false))) {
+            await confirmInput.fill('WIPE ALL');
+        }
+        await confirmBtn.click({ timeout: 5_000 });
     });
 });

@@ -464,7 +464,15 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      // Production: 30 attempts/IP/min (brute-force protection). Dev/test:
+      // lifted so the E2E sweep can fan out across workers without tripping
+      // the limit and turning real failures into noise.
+      limit: process.env.NODE_ENV === 'production' ? 30 : 8000,
+      ttl: 60_000,
+    },
+  })
   @Post('login')
   @ApiOperation({ summary: 'Přihlášení e-mailem a heslem' })
   @ApiResponse({

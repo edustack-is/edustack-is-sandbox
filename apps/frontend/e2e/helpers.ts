@@ -68,9 +68,13 @@ export async function selectSchool(page: Page, schoolName: string, role?: string
 
 export async function loginViaHelper(page: Page, email: string) {
     await page.goto('/login');
-    // Find the button in Quick Login section
-    const helperBtn = page.getByRole('button', { name: email, exact: false });
-    await helperBtn.click();
+    // Helper buttons embed the email; we filter on the exact string so a
+    // substring match (e.g. "rodi@test.cz" inside "cerna.rodi@test.cz")
+    // doesn't grab the wrong card.
+    const helperBtn = page
+        .getByRole('button')
+        .filter({ has: page.locator(`text=/^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$/`) });
+    await helperBtn.first().click();
 
     // Wait for the URL to change and for a key element that indicates the app is loaded
     await page.waitForURL((url) => url.pathname === '/dashboard', { timeout: 15000 });

@@ -126,12 +126,17 @@ function App() {
     // — without it the user would see /health, /init/status, and the boot
     // screen itself flash twice on first load.
     const bootStartedRef = useRef(false);
+    // Cancellation lives in a ref so the StrictMode cleanup (which fires
+    // between the two dev-mode effect invocations) can't abort the still-
+    // in-flight first run. App is the root component; it only unmounts on
+    // a real page navigation, so we never need to cancel mid-boot.
+    const cancelledRef = useRef(false);
 
     useEffect(() => {
         if (bootStartedRef.current) return;
         bootStartedRef.current = true;
+        cancelledRef.current = false;
 
-        let cancelled = false;
         let retryCount = 0;
 
         const checkReadiness = async () => {
@@ -140,21 +145,21 @@ function App() {
                 if (health?.status !== 'healthy') {
                     throw new Error(`Backend reporting ${health?.status || 'unknown'} status`);
                 }
-                if (cancelled) return;
+                if (cancelledRef.current) return;
                 setBootProgress(50);
                 setBootStatus('Backend online, checking system status...');
                 setBootError(null);
 
                 const res = await getInitStatus();
-                if (cancelled) return;
+                if (cancelledRef.current) return;
                 setBootProgress(100);
                 setBootStatus('System ready!');
                 // Brief delay so the 100% state is actually visible.
                 setTimeout(() => {
-                    if (!cancelled) setInitialized(res.initialized);
+                    if (!cancelledRef.current) setInitialized(res.initialized);
                 }, 500);
             } catch (err: any) {
-                if (cancelled) return;
+                if (cancelledRef.current) return;
                 retryCount++;
                 const msg = err.response?.data?.message || err.message || 'Unknown error';
                 setBootError(msg);
@@ -165,10 +170,6 @@ function App() {
         };
 
         checkReadiness();
-
-        return () => {
-            cancelled = true;
-        };
     }, []);
 
     if (initialized === null) {

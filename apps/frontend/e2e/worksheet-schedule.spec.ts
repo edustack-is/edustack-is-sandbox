@@ -238,11 +238,15 @@ test.describe('Worksheet 2: schedule conflict — deputy tries to double-book a 
         });
         const event = (await eventRes.json()) as { id: string };
 
+        // Validate the *same* slot the live event occupies — that's the
+        // collision we want the endpoint to flag. (The previous probe used
+        // Mon/1, but seed data has no events there, so validate correctly
+        // returned valid: true and the assertion below failed.)
         const validateRes = await api.post('/api/schedule/validate', {
             ...authed(creds.tenantToken),
             data: {
-                dayOfWeek: 2,
-                lessonNumber: 1,
+                dayOfWeek: 6,
+                lessonNumber: 98,
                 teacherId: teacherProfileId(teacher),
                 classroomId: classB.id,
                 academicYearId: academicYear.id,

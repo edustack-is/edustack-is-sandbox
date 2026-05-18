@@ -1708,6 +1708,7 @@ function BackupsTab() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => downloadBackup(b.filename)}
+                                                    aria-label={t('common.download', 'Stáhnout')}
                                                 >
                                                     <Download className="h-4 w-4" />
                                                 </Button>
@@ -1716,6 +1717,7 @@ function BackupsTab() {
                                                     size="sm"
                                                     onClick={() => setConfirmRestore(b.filename)}
                                                     disabled={restoring === b.filename}
+                                                    aria-label={t('common.restore', 'Obnovit')}
                                                 >
                                                     {restoring === b.filename ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1728,6 +1730,7 @@ function BackupsTab() {
                                                     size="sm"
                                                     className="text-destructive hover:text-destructive"
                                                     onClick={() => setConfirmDelete(b.filename)}
+                                                    aria-label={t('common.delete', 'Smazat')}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

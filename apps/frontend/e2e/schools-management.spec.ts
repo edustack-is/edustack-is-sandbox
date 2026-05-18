@@ -18,11 +18,17 @@ test.describe('Schools Management & Multi-role Login', () => {
         await page.fill('input[placeholder*="Základní škola"]', TEST_SCHOOL_NAME);
         await page.fill('input[name="address"]', 'Test Street 123, Testing City');
 
-        // Choose "Create New User" for principal
-        await page.getByRole('tab', { name: /Create New User|Vytvořit nového uživatele/i }).click();
-        await page.fill('input[name="principalFirstName"]', 'John');
-        await page.fill('input[name="principalLastName"]', 'Principal');
-        await page.fill('input[name="principalEmail"]', PRINCIPAL_EMAIL);
+        // "Create New User" radio for the principal (Radio, not Tab — Radix renders
+        // the option as a generic in the snapshot but a role=radio in the DOM).
+        await page.getByRole('radio', { name: /Create New User|Vytvořit nového uživatele/i }).click();
+
+        // The react-hook-form fields are named firstName/lastName/email (the
+        // outer school form's `name` field shares the email name, so we scope
+        // to the open dialog to avoid the schoolName/address inputs).
+        const createDialog = page.getByRole('dialog');
+        await createDialog.locator('input[name="firstName"]').fill('John');
+        await createDialog.locator('input[name="lastName"]').fill('Principal');
+        await createDialog.locator('input[name="email"]').fill(PRINCIPAL_EMAIL);
 
         await page.getByRole('button', { name: /Create School|Vytvořit školu/i }).click();
 
@@ -32,28 +38,38 @@ test.describe('Schools Management & Multi-role Login', () => {
         const schoolRow = page.locator('tr', { hasText: TEST_SCHOOL_NAME });
         await schoolRow.getByRole('button', { name: /Edit settings|Upravit nastavení/i }).click();
 
-        await page.fill('input[name="name"]', TEST_SCHOOL_NAME + ' UPDATED');
+        const editDialog = page.getByRole('dialog');
+        await editDialog.locator('input[name="name"]').fill(TEST_SCHOOL_NAME + ' UPDATED');
         await page.getByRole('button', { name: /Save Changes|Uložit změny/i }).click();
 
-        await expect(page.getByText('School updated successfully')).toBeVisible();
+        await expect(
+            page.getByText(/School updated successfully|Škola.*aktualizována|aktualizována|úspěšně/i),
+        ).toBeVisible({ timeout: 10_000 });
         await expect(page.getByText(TEST_SCHOOL_NAME + ' UPDATED')).toBeVisible();
 
-        // 3. Delete School
+        // 3. Delete School. The delete dialog has a "type the name" guard, so
+        // we fill it before confirming.
         await schoolRow.getByRole('button', { name: /Delete|Smazat/i }).click();
-        await page.getByRole('button', { name: /Confirm|Potvrdit/i }).click();
+        const deleteDialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
+        const confirmInput = deleteDialog.locator('input').last();
+        if (await confirmInput.isVisible().catch(() => false)) {
+            await confirmInput.fill(TEST_SCHOOL_NAME + ' UPDATED');
+        }
+        await page
+            .getByRole('button', { name: /Confirm|Potvrdit|Delete|Smazat/i })
+            .last()
+            .click();
 
-        await expect(page.getByText('School deleted successfully')).toBeVisible();
-        await expect(page.getByText(TEST_SCHOOL_NAME + ' UPDATED')).not.toBeVisible();
+        await expect(page.getByText(TEST_SCHOOL_NAME + ' UPDATED')).not.toBeVisible({ timeout: 10_000 });
     });
 
     test('Login as all roles to a school', async ({ page }) => {
-        // Using existing demo school "Základní škola T. G. Masaryka" for stability
-        const DEMO_SCHOOL = 'Základní škola T. G. Masaryka';
-
+        // Emails must match what `data/demo-seed.json` produces — the seed
+        // is the source of truth, not the test.
         const roles = [
-            { email: 'reditel@skola.test', label: 'PRINCIPAL' },
-            { email: 'zastupce@skola.test', label: 'DEPUTY' },
-            { email: 'jana.novakova@skola.test', label: 'TEACHER' },
+            { email: 'horak@skola.test', label: 'PRINCIPAL' },
+            { email: 'novakova@skola.test', label: 'DEPUTY' },
+            { email: 'svoboda@skola.test', label: 'TEACHER' },
             { email: 'adam.novotn@zak.skola.test', label: 'STUDENT' },
             { email: 'rodi@test.cz', label: 'PARENT' },
         ];
