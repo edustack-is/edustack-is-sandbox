@@ -1267,6 +1267,12 @@ function EntryForm({
                     </label>
                 </div>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+                {t(
+                    'curriculum.entry_sync_hint',
+                    'Po uložení se předmět automaticky objeví v plánovači rozvrhu pro všechny školní roky, které tuto verzi ŠVP používají.',
+                )}
+            </p>
 
             {/* RVP + ŠVP */}
             <div className="grid grid-cols-2 gap-4">
