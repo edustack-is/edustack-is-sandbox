@@ -333,7 +333,10 @@ export function SystemAdminSchools() {
         editForm.reset({
             name: school.name,
             address: school.address || '',
-            requireSsoEmailMatch: school.requireSsoEmailMatch ?? false,
+            // SQLite returns booleans as 0|1; coerce so the zod boolean
+            // schema validates (0 ?? false === 0, which would silently fail
+            // form validation and never fire onSubmit).
+            requireSsoEmailMatch: Boolean(school.requireSsoEmailMatch),
             hasPrincipalChange: false,
         });
         setEditDialogOpen(true);

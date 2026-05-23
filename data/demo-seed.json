@@ -752,6 +752,20 @@
       "grade": 9
     }
   ],
+  "parents": [
+    {
+      "firstName": "Marek",
+      "lastName": "Novotný",
+      "email": "rodi@test.cz",
+      "children": ["adam.novotn@zak.skola.test"]
+    },
+    {
+      "firstName": "Pavla",
+      "lastName": "Černá",
+      "email": "cerna.rodi@test.cz",
+      "children": ["barbora.ern@zak.skola.test"]
+    }
+  ],
   "rooms": [
     {
       "name": "Učebna 101",

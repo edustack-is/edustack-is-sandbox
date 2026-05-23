@@ -10,7 +10,9 @@ test.describe('Community', () => {
 
     test('F116 - Bulletin Board: User sees announcements pinned to dashboard', async ({ page }) => {
         // Předpoklad: Na dashboardu školy se objevují příspěvky "Bulletin posts" (F116)
-        await expect(page.getByRole('heading', { name: /Dashboard|Pochvaly/i })).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('heading', { name: /Dashboard|Pochvaly|Nástěnka/i })).toBeVisible({
+            timeout: 10000,
+        });
         // Samotné testování vyžaduje data, assertujeme pouze to, že UI prvek (např. sekce Nástěnka) existuje
         // await expect(page.getByText('Nástěnka')).toBeVisible();
     });

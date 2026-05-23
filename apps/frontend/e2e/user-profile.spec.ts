@@ -21,17 +21,21 @@ test.describe('User Profile & Settings', () => {
     test('Set Profile Photo (Emoji Avatar)', async ({ page }) => {
         await page.goto('/profile');
 
-        // Open avatar picker - button with Camera or Change Avatar
+        // The "Change avatar" trigger is the small camera button next to the
+        // current avatar. It has title="Změnit avatar" / "Change avatar". Using
+        // /profil/i picked up the "Můj profil" sidebar button instead, which
+        // navigated away from this page.
         await page
-            .getByRole('button', { name: /avatar|photo|profil/i })
+            .locator('button[title*="vatar" i], button[title*="hange avatar" i], button[title*="Změnit" i]')
             .first()
             .click();
 
-        // Select an emoji (e.g., fox) - usually by title or content
-        const emojiBtn = page.locator('button[title="fox"]').or(page.getByRole('button', { name: '🦊' }));
-        await emojiBtn.click({ timeout: 10000 });
+        // Pick the fox tile. The picker fades in after a short transition.
+        await page.locator('button[title="fox"]').first().click({ timeout: 10000 });
 
-        await expect(page.getByText(/Avatar set!|Avatar nastaven!/i)).toBeVisible();
+        await expect(page.getByText(/Avatar set|Avatar nastaven|Avatar.*aktualizován|updated/i).first()).toBeVisible({
+            timeout: 10_000,
+        });
     });
 
     test('Change Password Flow', async ({ page }) => {

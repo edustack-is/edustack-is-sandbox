@@ -428,7 +428,7 @@ export function TestDataGenerator() {
                                             {t('test_data.success_title', { name: lastResult.schoolName })}
                                         </p>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-emerald-700 dark:text-emerald-300">
-                                            {Object.entries(lastResult.stats).map(([key, val]: [string, any]) => (
+                                            {Object.entries(lastResult.stats ?? {}).map(([key, val]: [string, any]) => (
                                                 <StatBadge
                                                     key={key}
                                                     label={t(`test_data.stats.${key}`, key)}

@@ -323,9 +323,12 @@ export class SystemAdminService {
       newValues.address = data.address;
     if (
       data.requireSsoEmailMatch !== undefined &&
-      data.requireSsoEmailMatch !== school.requireSsoEmailMatch
+      Boolean(data.requireSsoEmailMatch) !==
+        Boolean(school.requireSsoEmailMatch)
     )
-      newValues.requireSsoEmailMatch = data.requireSsoEmailMatch;
+      // SQLite (via better-sqlite3 / D1) refuses to bind a JS boolean;
+      // store as 0|1 so the UPDATE parameter binding doesn't reject.
+      newValues.requireSsoEmailMatch = data.requireSsoEmailMatch ? 1 : 0;
 
     return this.db.transaction(async (db) => {
       if (Object.keys(newValues).length > 0) {

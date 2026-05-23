@@ -94,6 +94,15 @@ interface SeedStudent {
   grade: number;
 }
 
+interface SeedParent {
+  firstName: string;
+  lastName: string;
+  email: string;
+  // Student emails — must match the auto-generated `<first>.<last>@zak.skola.test`
+  // form (or the `email` override) of an entry in `students`.
+  children: string[];
+}
+
 interface SeedRoom {
   name: string;
   capacity?: number;
@@ -112,6 +121,7 @@ export interface SeedData {
   academicYear?: SeedAcademicYear;
   staff?: SeedStaff[];
   students?: SeedStudent[];
+  parents?: SeedParent[];
   rooms?: SeedRoom[];
 }
 
@@ -123,6 +133,7 @@ export interface SeedResult {
     curriculumEntries: number;
     staff: number;
     students: number;
+    parents: number;
     rooms: number;
     ssoProviders: number;
     aiKeys: number;
@@ -221,6 +232,7 @@ export class SeedService {
       curriculumEntries: 0,
       staff: 0,
       students: 0,
+      parents: 0,
       rooms: 0,
       ssoProviders: 0,
       aiKeys: 0,
@@ -481,13 +493,15 @@ export class SeedService {
         }
       }
 
-      // Students
+      // Students — track email → userId so the parents pass can wire ParentStudent links.
+      const studentEmailToId = new Map<string, string>();
       if (seed.students) {
         for (const st of seed.students) {
           const uId = crypto.randomUUID();
           const email =
             st.email ||
             `${st.firstName.toLowerCase()}.${st.lastName.toLowerCase().replace(/[^a-z]/g, '')}@zak.skola.test`;
+          studentEmailToId.set(email, uId);
           await db.execute(
             'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
             [
@@ -533,6 +547,52 @@ export class SeedService {
               ],
             );
           counts.students++;
+        }
+      }
+
+      // Parents — each parent is a User+SchoolMembership(PARENT) plus one
+      // ParentStudent row per child. We resolve children by email against
+      // the studentEmailToId map populated above; an unknown email is a
+      // seed-file mistake and we surface it with a clear message.
+      if (seed.parents) {
+        for (const p of seed.parents) {
+          const uId = crypto.randomUUID();
+          await db.execute(
+            'INSERT INTO "User" (id, email, firstName, lastName, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+            [
+              uId,
+              p.email,
+              p.firstName,
+              p.lastName,
+              hashedPassword,
+              new Date().toISOString(),
+            ],
+          );
+          await db.execute(
+            'INSERT INTO "SchoolMembership" (id, userId, schoolId, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              crypto.randomUUID(),
+              uId,
+              schoolId,
+              'PARENT',
+              'ACTIVE',
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+          for (const childEmail of p.children) {
+            const studentId = studentEmailToId.get(childEmail);
+            if (!studentId) {
+              throw new BadRequestException(
+                `Seed parent ${p.email}: child "${childEmail}" not found among seeded students.`,
+              );
+            }
+            await db.execute(
+              'INSERT INTO "ParentStudent" (id, parentId, studentId) VALUES (?, ?, ?)',
+              [crypto.randomUUID(), uId, studentId],
+            );
+          }
+          counts.parents++;
         }
       }
 
