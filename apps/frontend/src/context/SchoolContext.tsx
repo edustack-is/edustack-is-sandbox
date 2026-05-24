@@ -10,6 +10,7 @@ interface SchoolInfo {
 interface TokenInfo {
     tokenType: 'GLOBAL' | 'TENANT';
     userId: string | null;
+    email: string | null;
     schoolId: string | null;
     isSystemAdmin: boolean;
     isSysAdminOverride: boolean;
@@ -37,6 +38,7 @@ interface SchoolContextType extends TokenInfo {
 const EMPTY_TOKEN_INFO: TokenInfo = {
     tokenType: 'GLOBAL',
     userId: null,
+    email: null,
     schoolId: null,
     isSystemAdmin: false,
     isSysAdminOverride: false,
@@ -68,6 +70,7 @@ async function fetchSession(): Promise<TokenInfo> {
         return {
             tokenType: (s.type === 'TENANT' ? 'TENANT' : 'GLOBAL') as 'GLOBAL' | 'TENANT',
             userId: s.userId ?? null,
+            email: s.email ?? null,
             schoolId: s.schoolId ?? null,
             isSystemAdmin: !!s.isSystemAdmin,
             isSysAdminOverride: !!s.isSysAdminOverride,
