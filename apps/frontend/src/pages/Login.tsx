@@ -450,7 +450,7 @@ export const Login = () => {
                 so both columns keep matching heights without one of
                 them having to carry the switcher. */}
             <div className="flex justify-center">
-                <InlineLanguageSwitcher floating={false} />
+                <InlineLanguageSwitcher />
             </div>
         </div>
     );

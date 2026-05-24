@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/api';
 import { uploadBackup, restoreBackup } from '@/api/system-admin';
 import { useSchool } from '@/context/SchoolContext';
+import { InlineLanguageSwitcher } from '@/components/InlineLanguageSwitcher';
 
 /**
  * Recovery screen shown when the JWT in the session cookie decodes to a
@@ -117,7 +118,7 @@ export const StaleSession = () => {
     };
 
     return (
-        <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-amber-50 via-white to-indigo-50 px-4 py-12">
+        <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-white to-indigo-50 px-4 py-12 gap-6">
             {isDragging && (
                 <div className="fixed inset-0 z-50 bg-indigo-600/40 backdrop-blur-md pointer-events-none flex items-center justify-center">
                     <div className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
@@ -231,6 +232,9 @@ export const StaleSession = () => {
                         {t('stale_session.logout_button', 'Odhlásit se')}
                     </button>
                 </div>
+            </div>
+            <div className="flex justify-center">
+                <InlineLanguageSwitcher />
             </div>
         </div>
     );
