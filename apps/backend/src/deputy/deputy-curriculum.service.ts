@@ -683,6 +683,63 @@ export class DeputyCurriculumService {
 
   // ─── CURRICULUM ENTRIES ────────────────────────────────────────
 
+  /**
+   * Mirror a CurriculumEntry into a SubjectInstance per academic year that
+   * uses the same curriculum version. The schedule planner reads instances,
+   * not entries, so without this sync a freshly-added subject would never
+   * appear in the planner's "Zbývající hodiny dle ŠVP" list.
+   *
+   * When `hoursPerWeek` is 0 we leave existing instances alone — deleting
+   * could orphan ScheduleEvents that still reference them.
+   */
+  private async syncSubjectInstancesForEntry(opts: {
+    schoolId: string;
+    curriculumVersionId: string;
+    subjectTemplateId: string;
+    gradeLevelId: string;
+    hoursPerWeek: number;
+  }): Promise<number> {
+    if (opts.hoursPerWeek <= 0) return 0;
+
+    const years = await this.db.query<{ id: string }>(
+      'SELECT id FROM "AcademicYear" WHERE curriculumVersionId = ? AND schoolId = ?',
+      [opts.curriculumVersionId, opts.schoolId],
+    );
+    if (years.length === 0) return 0;
+
+    const nowIso = new Date().toISOString();
+    let touched = 0;
+    for (const year of years) {
+      const existing = await this.db.queryOne<{ id: string }>(
+        'SELECT id FROM "SubjectInstance" WHERE templateId = ? AND academicYearId = ? AND gradeLevelId = ?',
+        [opts.subjectTemplateId, year.id, opts.gradeLevelId],
+      );
+      if (existing) {
+        await this.db.execute(
+          'UPDATE "SubjectInstance" SET hoursPerWeek = ?, curriculumVersionId = ?, updatedAt = ? WHERE id = ?',
+          [opts.hoursPerWeek, opts.curriculumVersionId, nowIso, existing.id],
+        );
+      } else {
+        await this.db.execute(
+          'INSERT INTO "SubjectInstance" (id, templateId, academicYearId, gradeLevelId, hoursPerWeek, curriculumVersionId, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            crypto.randomUUID(),
+            opts.subjectTemplateId,
+            year.id,
+            opts.gradeLevelId,
+            opts.hoursPerWeek,
+            opts.curriculumVersionId,
+            opts.schoolId,
+            nowIso,
+            nowIso,
+          ],
+        );
+      }
+      touched++;
+    }
+    return touched;
+  }
+
   async saveCurriculumEntry(
     actorId: string,
     schoolId: string,
@@ -776,21 +833,31 @@ export class DeputyCurriculumService {
     }
 
     const entry = await this.db.queryOne(
-      `SELECT ce.*, st.name as subjectName, st.code as subjectCode, gl.name as gradeName 
-       FROM "CurriculumEntry" ce 
-       JOIN "SubjectTemplate" st ON ce.subjectTemplateId = st.id 
-       JOIN "GradeLevel" gl ON ce.gradeLevelId = gl.id 
+      `SELECT ce.*, st.name as subjectName, st.code as subjectCode, gl.name as gradeName
+       FROM "CurriculumEntry" ce
+       JOIN "SubjectTemplate" st ON ce.subjectTemplateId = st.id
+       JOIN "GradeLevel" gl ON ce.gradeLevelId = gl.id
        WHERE ce.id = ?`,
       [id],
     );
 
-    await this.audit(
-      actorId,
-      'SAVE_CURRICULUM_ENTRY',
-      'CurriculumEntry',
-      id,
-      data,
-    );
+    // Fan out to SubjectInstance for every AcademicYear that uses this
+    // curriculum version. The planner reads from SubjectInstance, so an entry
+    // without instances would be invisible there (worksheet scenario: deputy
+    // adds a subject to ŠVP and expects it to appear in the planner's
+    // "Zbývající hodiny dle ŠVP").
+    const syncedInstances = await this.syncSubjectInstancesForEntry({
+      schoolId,
+      curriculumVersionId: data.curriculumVersionId,
+      subjectTemplateId: data.subjectTemplateId,
+      gradeLevelId: data.gradeLevelId,
+      hoursPerWeek: data.hoursPerWeek,
+    });
+
+    await this.audit(actorId, 'SAVE_CURRICULUM_ENTRY', 'CurriculumEntry', id, {
+      ...data,
+      syncedSubjectInstanceCount: syncedInstances,
+    });
     return {
       ...entry,
       subjectTemplate: {

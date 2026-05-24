@@ -225,7 +225,7 @@ export const deleteSubject = async (id: string) => {
 // ─── SUBJECT INSTANCES (CURRICULUM) ─────────────────────────────
 
 export const getSubjectInstances = async (academicYearId: string) => {
-    const response = await api.get('/api/deputy/subjects/instances', {
+    const response = await api.get('/api/deputy/subject-instances', {
         params: { academicYearId },
     });
     return response.data;
