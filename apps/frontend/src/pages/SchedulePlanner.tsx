@@ -18,6 +18,7 @@ import { Calendar, Save, Trash2, Plus, Clock, Settings2 } from 'lucide-react';
 interface ClassroomOption {
     id: string;
     name: string;
+    grade: number;
 }
 interface TeacherOption {
     id: string;
@@ -29,12 +30,16 @@ interface SubjectInstanceOption {
     hoursPerWeek: number;
     template: { id: string; name: string; code: string };
     gradeLevelId: string;
+    gradeLevel?: { id: string; name: string; levelNumber: number };
+    needsComputerLab?: boolean;
+    equipmentRequirements?: string[];
 }
 interface RoomOption {
     id: string;
     name: string;
     capacity: number;
     isComputerLab: boolean;
+    specialEquipment?: string[];
 }
 interface AcademicYearOption {
     id: string;
@@ -106,20 +111,21 @@ export const SchedulePlanner: React.FC = () => {
             })
             .catch(() => setClassrooms([]));
 
-        // Load teachers
-        api.get('/api/deputy/dashboard')
+        // Load teachers. /api/deputy/dashboard returns aggregate stats and
+        // never includes a teachers array — the picker was permanently empty
+        // until we switched to the dedicated /teachers endpoint.
+        api.get('/api/deputy/teachers')
             .then((res) => {
-                if (res.data?.teachers) {
-                    setTeachers(
-                        res.data.teachers
-                            .filter((u: any) => u.teacherProfile)
-                            .map((u: any) => ({
-                                id: u.teacherProfile.id,
-                                userId: u.id,
-                                user: { firstName: u.firstName, lastName: u.lastName },
-                            })),
-                    );
-                }
+                const list = Array.isArray(res.data) ? res.data : [];
+                setTeachers(
+                    list
+                        .filter((u: any) => u.teacherProfile)
+                        .map((u: any) => ({
+                            id: u.teacherProfile.id,
+                            userId: u.id,
+                            user: { firstName: u.firstName, lastName: u.lastName },
+                        })),
+                );
             })
             .catch(() => setTeachers([]));
 
@@ -267,6 +273,54 @@ export const SchedulePlanner: React.FC = () => {
         return events.filter((e) => e.subject.id === subjectId).length;
     };
 
+    // ─── Derived: subjects scoped to selected class's grade ─
+    // Subjects are filtered by the class's gradeLevel (a 1.A classroom never
+    // teaches a 9-grade subject), then sorted alphabetically. Same list
+    // feeds the "Add lesson" dialog and the "Zbývající hodiny dle ŠVP"
+    // panel so they always stay in sync.
+    const selectedClassroom = classrooms.find((c) => c.id === selectedClassroomId);
+    const subjectsForClass = React.useMemo(() => {
+        const grade = selectedClassroom?.grade;
+        const filtered = grade != null ? subjects.filter((s) => s.gradeLevel?.levelNumber === grade) : subjects;
+        return [...filtered].sort((a, b) =>
+            a.template.name.localeCompare(b.template.name, 'cs', { sensitivity: 'base' }),
+        );
+    }, [subjects, selectedClassroom?.grade]);
+
+    // ─── Derived: rooms scoped to the picked subject's requirements ─
+    // When the subject needs a computer lab, drop non-lab rooms; when it
+    // demands specific equipment, keep only rooms that carry it (case-
+    // insensitive substring match — equipment strings are free-text).
+    // Room.specialEquipment is stored as a JSON string in the DB; the API
+    // forwards it raw, so we normalise here.
+    const pickedSubject = subjectsForClass.find((s) => s.id === addSubjectId);
+    const roomsForSubject = React.useMemo(() => {
+        const equipmentOf = (r: RoomOption): string[] => {
+            const raw = r.specialEquipment as unknown;
+            if (Array.isArray(raw)) return raw as string[];
+            if (typeof raw === 'string' && raw.trim()) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    return [];
+                }
+            }
+            return [];
+        };
+        if (!pickedSubject) return rooms;
+        const needsLab = !!pickedSubject.needsComputerLab;
+        const required = (pickedSubject.equipmentRequirements ?? []).map((s) => s.toLowerCase());
+        return rooms.filter((r) => {
+            if (needsLab && !r.isComputerLab) return false;
+            if (required.length > 0) {
+                const haves = equipmentOf(r).map((s) => s.toLowerCase());
+                if (!required.every((req) => haves.some((h) => h.includes(req)))) return false;
+            }
+            return true;
+        });
+    }, [rooms, pickedSubject]);
+
     // ─── Render ─────────────────────────────────────────────
 
     if (!canPlan) {
@@ -413,7 +467,7 @@ export const SchedulePlanner: React.FC = () => {
             </Card>
 
             {/* Remaining hours panel */}
-            {subjects.length > 0 && (
+            {subjectsForClass.length > 0 && (
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -422,7 +476,7 @@ export const SchedulePlanner: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
-                            {subjects.map((sub) => {
+                            {subjectsForClass.map((sub) => {
                                 const used = getUsedHours(sub.id);
                                 const remaining = sub.hoursPerWeek - used;
                                 return (
@@ -458,12 +512,20 @@ export const SchedulePlanner: React.FC = () => {
                     <div className="space-y-4">
                         <div>
                             <Label>{t('grading.subject')} *</Label>
-                            <Select value={addSubjectId} onValueChange={setAddSubjectId}>
+                            <Select
+                                value={addSubjectId}
+                                onValueChange={(val) => {
+                                    setAddSubjectId(val);
+                                    // Selected room may no longer satisfy the new subject's
+                                    // requirements (e.g. swapping to a computer-lab subject).
+                                    setAddRoomId('');
+                                }}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder={t('common.select_subject', 'Vyberte předmět')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {subjects
+                                    {subjectsForClass
                                         .filter((s) => s.id)
                                         .map((s) => (
                                             <SelectItem key={s.id} value={s.id}>
@@ -504,7 +566,7 @@ export const SchedulePlanner: React.FC = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">— {t('common.none', 'Žádná')} —</SelectItem>
-                                    {rooms
+                                    {roomsForSubject
                                         .filter((r) => r.id)
                                         .map((r) => (
                                             <SelectItem key={r.id} value={r.id}>
@@ -514,6 +576,16 @@ export const SchedulePlanner: React.FC = () => {
                                         ))}
                                 </SelectContent>
                             </Select>
+                            {pickedSubject &&
+                                (pickedSubject.needsComputerLab ||
+                                    (pickedSubject.equipmentRequirements ?? []).length > 0) && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {t(
+                                            'schedule.room_filter_hint',
+                                            'Zobrazeny jen učebny splňující požadavky předmětu.',
+                                        )}
+                                    </p>
+                                )}
                         </div>
                     </div>
 

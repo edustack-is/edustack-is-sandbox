@@ -160,12 +160,17 @@ export class DeputyCurriculumService {
   // ─── GET: TEACHERS ──────────────────────────────────────────
 
   async getTeachers(schoolId: string) {
+    // PENDING teachers are intentionally included: the deputy needs to plan
+    // a schedule against newly-invited staff before they activate their
+    // account. ScheduleEvent.teacherId references the TeacherProfile that
+    // is created at invite time, so the FK is valid regardless of
+    // membership status.
     const teachers = await this.db.query(
-      `SELECT u.id, u.firstName, u.lastName, u.email, tp.degree, tp.approbation, tp.id as profileId 
-       FROM "SchoolMembership" m 
-       JOIN "User" u ON m.userId = u.id 
-       LEFT JOIN "TeacherProfile" tp ON u.id = tp.userId 
-       WHERE m.schoolId = ? AND m.role = 'TEACHER' AND m.status = 'ACTIVE'`,
+      `SELECT u.id, u.firstName, u.lastName, u.email, tp.degree, tp.approbation, tp.id as profileId, m.status
+       FROM "SchoolMembership" m
+       JOIN "User" u ON m.userId = u.id
+       LEFT JOIN "TeacherProfile" tp ON u.id = tp.userId
+       WHERE m.schoolId = ? AND m.role = 'TEACHER' AND m.status IN ('ACTIVE', 'PENDING')`,
       [schoolId],
     );
     return teachers.map((t: any) => ({
@@ -173,6 +178,7 @@ export class DeputyCurriculumService {
       firstName: t.firstName,
       lastName: t.lastName,
       email: t.email,
+      membershipStatus: t.status,
       teacherProfile: t.profileId
         ? { id: t.profileId, degree: t.degree, approbation: t.approbation }
         : null,
@@ -273,24 +279,54 @@ export class DeputyCurriculumService {
     if (!year)
       throw new NotFoundException('Academic year not found in this school.');
 
+    // Surface gradeLevel.levelNumber and the matching CurriculumEntry's
+    // room requirements so the planner can filter subjects by class grade
+    // and rooms by the subject's equipment needs without N+1 queries.
     const instances = await this.db.query(
-      `SELECT si.*, st.name as templateName, st.code as templateCode, gl.name as gradeName 
-       FROM "SubjectInstance" si 
-       JOIN "SubjectTemplate" st ON si.templateId = st.id 
-       JOIN "GradeLevel" gl ON si.gradeLevelId = gl.id 
+      `SELECT si.*,
+              st.name as templateName,
+              st.code as templateCode,
+              gl.name as gradeName,
+              gl.levelNumber as gradeLevelNumber,
+              ce.needsComputerLab as ceNeedsComputerLab,
+              ce.equipmentRequirements as ceEquipmentRequirements
+       FROM "SubjectInstance" si
+       JOIN "SubjectTemplate" st ON si.templateId = st.id
+       JOIN "GradeLevel" gl ON si.gradeLevelId = gl.id
+       LEFT JOIN "CurriculumEntry" ce
+         ON ce.curriculumVersionId = si.curriculumVersionId
+        AND ce.subjectTemplateId = si.templateId
+        AND ce.gradeLevelId = si.gradeLevelId
        WHERE si.schoolId = ? AND si.academicYearId = ?`,
       [schoolId, academicYearId],
     );
 
-    return instances.map((si: any) => ({
-      ...si,
-      template: {
-        id: si.templateId,
-        name: si.templateName,
-        code: si.templateCode,
-      },
-      gradeLevel: { id: si.gradeLevelId, name: si.gradeName },
-    }));
+    return instances.map((si: any) => {
+      let equipmentRequirements: string[] = [];
+      if (si.ceEquipmentRequirements) {
+        try {
+          const parsed = JSON.parse(si.ceEquipmentRequirements);
+          if (Array.isArray(parsed)) equipmentRequirements = parsed;
+        } catch {
+          /* malformed JSON — treat as no requirements rather than 500 */
+        }
+      }
+      return {
+        ...si,
+        template: {
+          id: si.templateId,
+          name: si.templateName,
+          code: si.templateCode,
+        },
+        gradeLevel: {
+          id: si.gradeLevelId,
+          name: si.gradeName,
+          levelNumber: si.gradeLevelNumber,
+        },
+        needsComputerLab: !!si.ceNeedsComputerLab,
+        equipmentRequirements,
+      };
+    });
   }
 
   // ─── CREATE: ACADEMIC YEAR ──────────────────────────────────────
