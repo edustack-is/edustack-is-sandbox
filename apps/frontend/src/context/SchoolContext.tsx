@@ -22,6 +22,13 @@ interface SchoolContextType extends TokenInfo {
     currentSchool: SchoolInfo | null;
     schoolCount: number;
     sessionLoading: boolean;
+    /**
+     * Tri-state: null while we haven't checked yet, true if /api/auth/me
+     * succeeded, false if the JWT decodes to a userId that no longer exists
+     * in the DB (typical after a database restore). The route layer renders
+     * a stale-session recovery screen when this is false.
+     */
+    userExistsInDb: boolean | null;
     selectSchool: (schoolId: string, role?: string) => Promise<void>;
     leaveSchool: () => Promise<void>;
     refreshTokenInfo: () => Promise<TokenInfo>;
@@ -43,6 +50,7 @@ const SchoolContext = createContext<SchoolContextType>({
     currentSchool: null,
     schoolCount: 0,
     sessionLoading: true,
+    userExistsInDb: null,
     selectSchool: async () => {},
     leaveSchool: async () => {},
     refreshTokenInfo: async () => EMPTY_TOKEN_INFO,
@@ -75,6 +83,7 @@ async function fetchSession(): Promise<TokenInfo> {
 export function SchoolProvider({ children }: { children: ReactNode }) {
     const [tokenInfo, setTokenInfo] = useState<TokenInfo>(EMPTY_TOKEN_INFO);
     const [sessionLoading, setSessionLoading] = useState(true);
+    const [userExistsInDb, setUserExistsInDb] = useState<boolean | null>(null);
     const [currentSchool, setCurrentSchool] = useState<SchoolInfo | null>(null);
     const [schoolCount, setSchoolCount] = useState(0);
 
@@ -97,6 +106,37 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
             cancelled = true;
         };
     }, []);
+
+    // After we know the userId, probe /api/auth/me to see whether the User
+    // row still exists. A 404 here means the DB was swapped underneath us
+    // (typical after a restore) and we need to render the recovery UI
+    // instead of the normal protected routes.
+    useEffect(() => {
+        if (sessionLoading) return;
+        if (!tokenInfo.userId) {
+            setUserExistsInDb(null);
+            return;
+        }
+        let cancelled = false;
+        api.get('/api/auth/me')
+            .then(() => {
+                if (!cancelled) setUserExistsInDb(true);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                if (err?.response?.status === 404) {
+                    setUserExistsInDb(false);
+                } else {
+                    // Network errors / 5xx should not trigger the stale-session
+                    // screen — treat as unknown and let the normal error paths
+                    // surface the issue.
+                    setUserExistsInDb(true);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [sessionLoading, tokenInfo.userId]);
 
     // Fetch school details when we have a schoolId
     useEffect(() => {
@@ -178,6 +218,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
                 currentSchool,
                 schoolCount,
                 sessionLoading,
+                userExistsInDb,
                 selectSchool,
                 leaveSchool,
                 refreshTokenInfo,

@@ -13,6 +13,11 @@ primary_region = "ams"
   DATABASE_URL = "file:/data/edustack.db"
   ENABLE_LOGIN_HELPER = "__ENABLE_LOGIN_HELPER__"
   AUTO_SEED = "__AUTO_SEED__"
+  # Public URL of the deployed frontend. Used for SSO callback redirects
+  # and email links — without it the backend defaults to localhost:5173
+  # and the browser is bounced off the live sandbox after Google login.
+  FRONTEND_URL = "__FRONTEND_URL__"
+  CORS_ORIGIN = "__FRONTEND_URL__"
 
 [[mounts]]
   source = "edustack_data"

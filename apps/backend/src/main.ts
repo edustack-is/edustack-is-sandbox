@@ -24,6 +24,22 @@ async function bootstrap() {
       'ENCRYPTION_KEY   (generate with: openssl rand -base64 32)',
     );
 
+  // FRONTEND_URL must be set in production. Without it, every SSO callback
+  // and email link silently falls back to http://localhost:5173, which
+  // bounces real users off the deployed sandbox the moment they finish
+  // Google login.
+  if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+    missingVars.push(
+      'FRONTEND_URL     (public URL of the frontend, e.g. https://sandbox.is-edustack.org)',
+    );
+  }
+  // Looser check in dev: warn but don't block.
+  if (process.env.NODE_ENV !== 'production' && !process.env.FRONTEND_URL) {
+    warnings.push(
+      'FRONTEND_URL not set — SSO callbacks and email links will use http://localhost:5173',
+    );
+  }
+
   // Validate CORS_ORIGIN format if set
   if (process.env.CORS_ORIGIN) {
     const origins = process.env.CORS_ORIGIN.split(',').map((o) => o.trim());

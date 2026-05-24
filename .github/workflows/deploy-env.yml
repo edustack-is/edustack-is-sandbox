@@ -141,11 +141,13 @@ jobs:
           AUTO_SEED: ${{ github.event.inputs.auto_seed }}
         run: |
           APP_NAME="edustack-${ENV_NAME}"
+          FRONTEND_URL="https://${ENV_NAME}.${DOMAIN}"
           mkdir -p .fly
           sed \
             -e "s/__APP_NAME__/${APP_NAME}/g" \
             -e "s/__ENABLE_LOGIN_HELPER__/${ENABLE_LOGIN_HELPER}/g" \
             -e "s/__AUTO_SEED__/${AUTO_SEED}/g" \
+            -e "s|__FRONTEND_URL__|${FRONTEND_URL}|g" \
             fly.toml.template > ".fly/${APP_NAME}.toml"
           echo "app_name=${APP_NAME}" >> "$GITHUB_OUTPUT"
           echo "config_path=.fly/${APP_NAME}.toml" >> "$GITHUB_OUTPUT"

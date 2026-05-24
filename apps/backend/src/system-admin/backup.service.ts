@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
@@ -17,15 +22,25 @@ import {
 const BACKUP_DIR =
   process.env.BACKUP_DIR || path.resolve(process.cwd(), 'data', 'backups');
 
+// Restore staging lives in its own dir so the cached R2 download is never
+// surfaced by listBackups (the previous behaviour duplicated every R2 file
+// as a LOCAL row after the first restore).
+const RESTORE_CACHE_DIR = path.join(BACKUP_DIR, '.restore-cache');
+
 @Injectable()
 export class BackupService {
   private readonly logger = new Logger(BackupService.name);
   private s3Client: S3Client | null = null;
 
   constructor(private readonly db: DatabaseService) {
-    // Ensure local backup directory exists (fallback)
+    // Local dir is still needed as a staging area: createBackup uses it for
+    // the online-backup snapshot before uploading, restoreBackup caches the
+    // R2 download here so the atomic-swap operates on a regular file.
     if (!fs.existsSync(BACKUP_DIR)) {
       fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(RESTORE_CACHE_DIR)) {
+      fs.mkdirSync(RESTORE_CACHE_DIR, { recursive: true });
     }
 
     // Initialize S3 Client for R2 if configured
@@ -46,7 +61,34 @@ export class BackupService {
     }
   }
 
-  /** Create a database backup */
+  /**
+   * R2 is the canonical store when configured. When it isn't (typical for
+   * local dev), backups stay on disk. The key invariant is "no silent
+   * fallback" — once R2 env vars are set, any failure to write to R2 is a
+   * hard error, never a quiet downgrade to LOCAL.
+   */
+  private r2Configured(): boolean {
+    return !!(this.s3Client && process.env.R2_BUCKET_NAME);
+  }
+
+  private getR2() {
+    if (!this.r2Configured()) {
+      throw new ServiceUnavailableException(
+        'R2 backup storage is not configured.',
+      );
+    }
+    return {
+      client: this.s3Client!,
+      bucket: process.env.R2_BUCKET_NAME!,
+    };
+  }
+
+  /**
+   * Create a database backup.
+   * - If R2 is configured, push to R2 and remove the local staging file.
+   *   R2 failure is fatal — no silent downgrade to LOCAL.
+   * - Otherwise (typical local dev) keep the backup on disk.
+   */
   async createBackup(
     customName?: string,
   ): Promise<{ filename: string; size: number; storage: 'R2' | 'LOCAL' }> {
@@ -68,30 +110,28 @@ export class BackupService {
     await this.db.backupTo(localStagePath);
     const fileContent = fs.readFileSync(localStagePath);
 
-    // Push to R2 if configured, falling back to keeping the local copy.
-    if (this.s3Client && process.env.R2_BUCKET_NAME) {
+    if (this.r2Configured()) {
+      const { client, bucket } = this.getR2();
       try {
-        await this.s3Client.send(
+        await client.send(
           new PutObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
+            Bucket: bucket,
             Key: `backups/${filename}`,
             Body: fileContent,
           }),
         );
         this.logger.log(`Backup uploaded to R2: ${filename}`);
-        // R2 succeeded — we no longer need the local copy.
-        try {
-          fs.unlinkSync(localStagePath);
-        } catch {
-          /* best-effort cleanup */
-        }
-        return { filename, size: fileContent.length, storage: 'R2' };
-      } catch (err) {
-        this.logger.error(
-          'Failed to upload backup to R2; keeping local copy:',
-          err,
+      } catch (err: any) {
+        this.logger.error(`Failed to upload backup ${filename} to R2`, err);
+        this.safeUnlink(localStagePath);
+        throw new InternalServerErrorException(
+          `Backup upload to R2 failed: ${err.message ?? err}`,
         );
       }
+      // R2 owns the canonical copy — staging file would otherwise pollute
+      // listBackups as a LOCAL duplicate.
+      this.safeUnlink(localStagePath);
+      return { filename, size: fileContent.length, storage: 'R2' };
     }
 
     this.logger.log(
@@ -100,7 +140,7 @@ export class BackupService {
     return { filename, size: fileContent.length, storage: 'LOCAL' };
   }
 
-  /** List all existing backups */
+  /** List all existing backups. */
   async listBackups(): Promise<
     Array<{
       filename: string;
@@ -109,9 +149,16 @@ export class BackupService {
       storage: 'R2' | 'LOCAL';
     }>
   > {
-    const backups: any[] = [];
+    const byFilename = new Map<
+      string,
+      {
+        filename: string;
+        size: number;
+        createdAt: string;
+        storage: 'R2' | 'LOCAL';
+      }
+    >();
 
-    // List from R2
     if (this.s3Client && process.env.R2_BUCKET_NAME) {
       try {
         const data = await this.s3Client.send(
@@ -122,38 +169,43 @@ export class BackupService {
         );
 
         if (data.Contents) {
-          data.Contents.forEach((item) => {
-            backups.push({
-              filename: path.basename(item.Key!),
-              size: item.Size,
-              createdAt: item.LastModified?.toISOString(),
+          for (const item of data.Contents) {
+            const filename = path.basename(item.Key!);
+            byFilename.set(filename, {
+              filename,
+              size: item.Size ?? 0,
+              createdAt: item.LastModified?.toISOString() ?? '',
               storage: 'R2',
             });
-          });
+          }
         }
       } catch (err) {
         this.logger.error('Failed to list backups from R2:', err);
       }
     }
 
-    // List from Local
+    // Local files remain visible (legacy installs, dev mode without R2) but
+    // R2 wins on filename collision so the restore cache never appears as a
+    // duplicate row. The cache dir itself is hidden (dotfile).
     if (fs.existsSync(BACKUP_DIR)) {
       const localFiles = fs
-        .readdirSync(BACKUP_DIR)
-        .filter((f) => f.endsWith('.sqlite'))
-        .map((filename) => {
-          const stat = fs.statSync(path.join(BACKUP_DIR, filename));
-          return {
-            filename,
-            size: stat.size,
-            createdAt: stat.mtime.toISOString(),
-            storage: 'LOCAL' as const,
-          };
+        .readdirSync(BACKUP_DIR, { withFileTypes: true })
+        .filter((e) => e.isFile() && e.name.endsWith('.sqlite'));
+      for (const entry of localFiles) {
+        if (byFilename.has(entry.name)) continue;
+        const stat = fs.statSync(path.join(BACKUP_DIR, entry.name));
+        byFilename.set(entry.name, {
+          filename: entry.name,
+          size: stat.size,
+          createdAt: stat.mtime.toISOString(),
+          storage: 'LOCAL',
         });
-      backups.push(...localFiles);
+      }
     }
 
-    return backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return [...byFilename.values()].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
   }
 
   /** Delete a backup file */
@@ -179,20 +231,37 @@ export class BackupService {
     }
   }
 
-  /** Handle manual backup file upload */
+  /**
+   * Handle manual backup file upload. Behaves like createBackup: R2 when
+   * configured (fatal on failure), local disk otherwise.
+   */
   async uploadBackup(
     file: Express.Multer.File,
   ): Promise<{ filename: string; storage: 'R2' | 'LOCAL' }> {
+    if (!hasSqliteMagic(file.buffer)) {
+      throw new InternalServerErrorException(
+        'Uploaded file is not a SQLite database (magic header missing).',
+      );
+    }
+
     const filename = `upload-${new Date().getTime()}-${file.originalname}`;
 
-    if (this.s3Client && process.env.R2_BUCKET_NAME) {
-      await this.s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
-          Key: `backups/${filename}`,
-          Body: file.buffer,
-        }),
-      );
+    if (this.r2Configured()) {
+      const { client, bucket } = this.getR2();
+      try {
+        await client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: `backups/${filename}`,
+            Body: file.buffer,
+          }),
+        );
+      } catch (err: any) {
+        this.logger.error(`Failed to upload ${filename} to R2`, err);
+        throw new InternalServerErrorException(
+          `Backup upload to R2 failed: ${err.message ?? err}`,
+        );
+      }
       return { filename, storage: 'R2' };
     }
 
@@ -242,22 +311,32 @@ export class BackupService {
     );
   }
 
-  /** Restore database from a backup file (local disk or R2). */
+  /**
+   * Restore database from a backup file (local disk or R2).
+   * The R2 download is cached into a hidden sibling dir (not BACKUP_DIR)
+   * so listBackups never reports the cached copy as a separate row.
+   */
   async restoreBackup(filename: string): Promise<void> {
     const localPath = path.join(BACKUP_DIR, filename);
+    const cachePath = path.join(RESTORE_CACHE_DIR, filename);
+    let stagedFromR2: string | null = null;
 
-    // Cache to local disk if the backup lives on R2, so validation and the
-    // atomic swap operate on a regular file regardless of storage tier.
-    if (!fs.existsSync(localPath)) {
+    let sourcePath: string;
+    if (fs.existsSync(localPath)) {
+      sourcePath = localPath;
+    } else {
       const buffer = await this.getBackupFile(filename);
-      fs.writeFileSync(localPath, buffer);
+      fs.writeFileSync(cachePath, buffer);
+      stagedFromR2 = cachePath;
+      sourcePath = cachePath;
       this.logger.log(
-        `Cached R2 backup ${filename} locally for restore (${buffer.length} bytes)`,
+        `Cached R2 backup ${filename} into restore cache (${buffer.length} bytes)`,
       );
     }
 
     const dbPath = this.db.getLocalDatabasePath();
     if (!dbPath) {
+      if (stagedFromR2) this.safeUnlink(stagedFromR2);
       throw new Error(
         'Restore is only supported on local SQLite, not on managed backends.',
       );
@@ -268,18 +347,20 @@ export class BackupService {
     // era) overwrites /data/edustack.db and crashloops the backend on the
     // next query.
     const header = Buffer.alloc(16);
-    const fd = fs.openSync(localPath, 'r');
+    const fd = fs.openSync(sourcePath, 'r');
     try {
       fs.readSync(fd, header, 0, 16, 0);
     } finally {
       fs.closeSync(fd);
     }
     if (!hasSqliteMagic(header)) {
+      if (stagedFromR2) this.safeUnlink(stagedFromR2);
       throw new Error(
         `Backup file ${filename} is not a SQLite database (magic header missing).`,
       );
     }
-    if (!quickCheckSqliteFile(localPath)) {
+    if (!quickCheckSqliteFile(sourcePath)) {
+      if (stagedFromR2) this.safeUnlink(stagedFromR2);
       throw new Error(
         `Backup file ${filename} failed integrity check (quick_check).`,
       );
@@ -289,19 +370,25 @@ export class BackupService {
     // live connection so subsequent queries read from the new inode rather
     // than the stale file handle.
     const tmpPath = `${dbPath}.restore-${Date.now()}`;
-    fs.copyFileSync(localPath, tmpPath);
+    fs.copyFileSync(sourcePath, tmpPath);
     try {
       fs.renameSync(tmpPath, dbPath);
       await this.db.reload();
       this.logger.log(`Restored system from backup: ${filename} -> ${dbPath}`);
     } catch (err: any) {
-      try {
-        fs.unlinkSync(tmpPath);
-      } catch {
-        /* best-effort cleanup */
-      }
+      this.safeUnlink(tmpPath);
       this.logger.error('Failed to restore database:', err);
       throw new Error(`Restore failed: ${err.message}`);
+    } finally {
+      if (stagedFromR2) this.safeUnlink(stagedFromR2);
+    }
+  }
+
+  private safeUnlink(p: string) {
+    try {
+      fs.unlinkSync(p);
+    } catch {
+      /* best-effort cleanup */
     }
   }
 }

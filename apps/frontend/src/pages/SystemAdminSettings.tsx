@@ -1531,10 +1531,15 @@ function BackupsTab() {
         try {
             setRestoring(filename);
             await restoreBackup(filename);
-            toast.success(t('system_settings.restore_success', 'Databáze obnovena'));
+            toast.success(t('system_settings.restore_success', 'Databáze obnovena. Načítám…'));
+            // The JWT cookie now points to a User row that may not exist in
+            // the restored DB. Force a hard reload so SchoolContext re-probes
+            // /me and either continues normally or renders StaleSession.
+            setTimeout(() => {
+                window.location.assign('/');
+            }, 800);
         } catch {
             toast.error(t('system_settings.restore_error', 'Obnova selhala'));
-        } finally {
             setRestoring(null);
             setConfirmRestore(null);
         }
