@@ -285,9 +285,11 @@ export class TestDataService {
     );
 
     // 1. SCHOOL
-    // Search for all schools with this name to handle potential legacy duplicates
+    // Match every school with this name — including soft-deleted ones. Their
+    // name still occupies the School.name unique constraint, so we must reuse
+    // (and revive) or remove them, otherwise a fresh INSERT collides.
     const existingSchools = await this.db.query(
-      'SELECT * FROM "School" WHERE name = ? AND deletedAt IS NULL',
+      'SELECT * FROM "School" WHERE name = ?',
       [config.schoolName],
     );
 
@@ -303,10 +305,11 @@ export class TestDataService {
       const primarySchool = existingSchools[0] as any;
       schoolId = primarySchool.id;
 
-      // Wipe and update address for the primary (preserve school entry)
+      // Wipe and update address for the primary (preserve school entry).
+      // Clear deletedAt too, so reusing a soft-deleted school revives it.
       await this.wipeSchoolData(schoolId, false);
       await this.db.execute(
-        'UPDATE "School" SET address = ?, updatedAt = ? WHERE id = ?',
+        'UPDATE "School" SET address = ?, deletedAt = NULL, updatedAt = ? WHERE id = ?',
         [schoolAddress, now, schoolId],
       );
 
