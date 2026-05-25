@@ -101,6 +101,14 @@ function adminer_object() {
             }
             return true;
         }
+
+        // Stable secret used to sign/encrypt the "permanent login" cookie.
+        // Without this Adminer shows "master password expired" on every revisit
+        // and forces re-login. Must return the SAME value across requests, so
+        // we derive it from the Adminer password (stable per deployment).
+        function permanentLogin($create = false) {
+            return hash('sha256', 'edustack-adminer:' . (getenv('ADMINER_PASSWORD') ?: ''));
+        }
     }
 
     $plugins = array(
