@@ -10,7 +10,7 @@ import {
     LoginHelperUser,
     LoginHelperConfig,
 } from '../api';
-import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2, Database, Copy, Check, Activity } from 'lucide-react';
+import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2, Database, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,10 +88,6 @@ export const Login = () => {
         new Set(helperUsers.flatMap((u) => u.memberships.map((m) => m.schoolName))),
     ).sort();
     const uniqueRoles = Array.from(new Set(helperUsers.flatMap((u) => u.memberships.map((m) => m.role)))).sort();
-
-    // First system-admin demo account — used by the "System Monitoring" quick
-    // link, which logs in as this user and jumps to the monitoring tab.
-    const sysAdminUser = helperUsers.find((u) => u.memberships.some((m) => m.role === 'SYSTEM_ADMIN'));
 
     // Apply filters
     const filteredUsers = helperUsers.filter((user) => {
@@ -212,7 +208,7 @@ export const Login = () => {
         }
     };
 
-    const handleHelperLogin = async (user: any, redirectTo: string = '/') => {
+    const handleHelperLogin = async (user: any) => {
         if (!helperConfig?.defaultPassword) return;
 
         setSubmitting(true);
@@ -223,7 +219,7 @@ export const Login = () => {
             });
             if (data.access_token) {
                 await refreshTokenInfo();
-                navigate(redirectTo);
+                navigate('/');
             } else {
                 toast.error(t('login.login_failed'));
             }
@@ -492,52 +488,6 @@ export const Login = () => {
                                             className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all"
                                         >
                                             {copiedKey === 'adminer' ? (
-                                                <>
-                                                    <Check className="h-3 w-3 text-green-600" />
-                                                    {t('login.adminer_copied', 'Zkopírováno')}
-                                                </>
-                                            ) : (
-                                                <Copy className="h-3 w-3" />
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {/* ─── System Monitoring quick link ───────────────
-                            The monitoring view lives behind the system-admin
-                            app login, so this logs in as the system-admin demo
-                            user and jumps to the monitoring tab. The login
-                            password (shared demo password) is shown + copyable,
-                            mirroring the Adminer row. */}
-                        {sysAdminUser && (
-                            <div className="mt-3">
-                                <button
-                                    type="button"
-                                    onClick={() => handleHelperLogin(sysAdminUser, '/system/settings#monitoring')}
-                                    disabled={submitting}
-                                    className="group w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-indigo-50 hover:border-indigo-200 transition-all disabled:opacity-50"
-                                >
-                                    <span className="flex items-center gap-2 text-sm font-medium text-gray-700 group-hover:text-indigo-900">
-                                        <Activity className="h-4 w-4 text-indigo-600" />
-                                        {t('login.monitoring_link', 'Monitoring systému')}
-                                    </span>
-                                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 transition-transform group-hover:translate-x-1" />
-                                </button>
-                                {helperConfig?.defaultPassword && (
-                                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
-                                        <span>{t('login.monitoring_login', 'Přihlášení')}:</span>
-                                        <code className="font-mono text-gray-700">{sysAdminUser.email}</code>
-                                        <span>/</span>
-                                        <code className="font-mono text-gray-700">{helperConfig.defaultPassword}</code>
-                                        <button
-                                            type="button"
-                                            onClick={() => copyValue('monitoring', helperConfig?.defaultPassword)}
-                                            title={t('login.adminer_copy', 'Kopírovat heslo')}
-                                            aria-label={t('login.adminer_copy', 'Kopírovat heslo')}
-                                            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all"
-                                        >
-                                            {copiedKey === 'monitoring' ? (
                                                 <>
                                                     <Check className="h-3 w-3 text-green-600" />
                                                     {t('login.adminer_copied', 'Zkopírováno')}
