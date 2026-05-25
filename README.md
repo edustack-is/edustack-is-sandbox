@@ -14,7 +14,7 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 
 | Env       | Frontend                          | Backend                              | MailDev                                | Last deployed        |
 | --------- | --------------------------------- | ------------------------------------ | -------------------------------------- | -------------------- |
-| sandbox-1 | https://sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | https://mail-sandbox-1.is-edustack.org | 2026-05-25 08:42 UTC |
+| sandbox-1 | https://sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | https://mail-sandbox-1.is-edustack.org | 2026-05-25 19:59 UTC |
 | sandbox-2 | https://sandbox-2.is-edustack.org | https://be-sandbox-2.is-edustack.org | https://mail-sandbox-2.is-edustack.org | 2026-05-17 21:01 UTC |
 | sandbox-3 | https://sandbox-3.is-edustack.org | https://be-sandbox-3.is-edustack.org | https://mail-sandbox-3.is-edustack.org | 2026-05-17 16:24 UTC |
 
@@ -47,11 +47,11 @@ The application uses a single shared environment file in the project root.
 cp .env.example .env
 ```
 
-| Variable              | Description                                  | How to generate           |
-| --------------------- | -------------------------------------------- | ------------------------- |
-| `JWT_SECRET`          | Key used to sign JWT tokens                  | `openssl rand -base64 64` |
-| `ENCRYPTION_KEY`      | AES-256 key for encrypting secrets           | `openssl rand -base64 32` |
-| `ENABLE_LOGIN_HELPER` | Shows a demo-users panel on the login screen | `true` or `false`         |
+| Variable              | Description                                                                                       | How to generate                 |
+| --------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `JWT_SECRET`          | Key used to sign JWT tokens                                                                       | `openssl rand -base64 64`       |
+| `ENCRYPTION_KEY`      | AES-256 key for encrypting secrets                                                                | `openssl rand -base64 32`       |
+| `ENABLE_LOGIN_HELPER` | Shows a demo-users panel on the login screen                                                      | `true` or `false`               |
 | `ADMINER_PASSWORD`    | Enables the Adminer DB viewer + seeds its permanent-login cookie (Adminer itself is passwordless) | any string (default `edustack`) |
 
 **SMTP (emails):**
