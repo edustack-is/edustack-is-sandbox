@@ -331,7 +331,11 @@ test.describe('Worksheet 2: schedule conflict — deputy tries to double-book a 
             return (await r.json()) as { id: string };
         }
         const instanceA = await createInstance(gradeOfA!.id);
-        const instanceB = gradeOfA!.id === gradeOfB!.id ? instanceA : await createInstance(gradeOfB!.id);
+        // classB needs the AI subject in its grade too, so the dropdown offers
+        // it later; only create a separate instance when the grades differ.
+        if (gradeOfA!.id !== gradeOfB!.id) {
+            await createInstance(gradeOfB!.id);
+        }
 
         // ── Krok 3 (API): pre-create the blocking event so the UI step ──
         // can target the exact same (day, lesson, teacher) and trigger 409.
