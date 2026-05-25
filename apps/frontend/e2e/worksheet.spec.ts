@@ -357,4 +357,77 @@ test.describe('Worksheet: deputy creates a student family and assigns to a class
         // Verify role-select default and workload input are wired up.
         await expect(page.locator('#staff-workload')).toBeVisible();
     });
+
+    test('Krok 4: teacher creation differs from student-family — PENDING status, no parents', async ({ page }) => {
+        // The worksheet asks the deputy to notice the differences between the
+        // family registration (student is ACTIVE immediately, no email required,
+        // parent cards) and the staff invitation flow (PENDING until accepted,
+        // email is required, no parent cards). This test pins those exact
+        // differences so a future regression — e.g. accidentally activating
+        // invited teachers — would fail loudly.
+        const consoleErrors: string[] = [];
+        watchConsoleErrors(page, consoleErrors);
+
+        await loginAsDeputy(page, creds);
+        await page.goto('/school/users#staff');
+        await page.waitForLoadState('networkidle');
+
+        const suffix = Date.now().toString().slice(-6);
+        const teacherFirstName = 'Petr';
+        const teacherLastName = `Svoboda${suffix}`;
+        const teacherEmail = `petr.svoboda.${suffix}@e2e.test`;
+
+        await page
+            .getByRole('button', { name: /Přidat uživatele|Add user/i })
+            .first()
+            .dispatchEvent('click');
+        await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5_000 });
+
+        // Diff #1: the staff tab has no "Add parent" button (the family flow
+        // shows one to attach guardians; staff have no parents).
+        await expect(
+            page.locator('[role="dialog"]').getByRole('button', { name: /Přidat rodiče|Add parent/i }),
+        ).toHaveCount(0);
+
+        // Diff #2: email is required for staff (the student family form has
+        // no email input on the student card — only on parent cards).
+        await expect(page.locator('#staff-email')).toBeVisible();
+
+        await page.locator('#staff-firstName').fill(teacherFirstName);
+        await page.locator('#staff-lastName').fill(teacherLastName);
+        await page.locator('#staff-email').fill(teacherEmail);
+        // Workload defaults to 1.0; submit as-is to mirror the worksheet path.
+
+        await page
+            .locator('[role="dialog"]')
+            .getByRole('button', { name: /Vytvořit zaměstnance|Create employee/i })
+            .evaluate((btn) => (btn as HTMLButtonElement).click());
+
+        await expect(page.getByText(/Zaměstnanec.*vytvořen|Employee.*created/i).first()).toBeVisible({
+            timeout: 10_000,
+        });
+        await expect(page.locator('[role="dialog"]')).toBeHidden({ timeout: 5_000 });
+
+        // Confirm staff sub-tab is shown (the page tabs are Students / Staff).
+        // Search and assert on the freshly created row.
+        await page
+            .getByPlaceholder(/Hledat|Search/i)
+            .first()
+            .fill(teacherLastName);
+
+        const row = page.getByRole('row').filter({ hasText: `${teacherLastName} ${teacherFirstName}` });
+        await expect(row).toBeVisible({ timeout: 10_000 });
+
+        // Diff #3: status badge is "Čekající" / "Pending" — invitation flow
+        // means the user hasn't activated yet. Student-family rows would be
+        // "Aktivní" immediately.
+        await expect(row.getByText(/Čekající|Pending/i)).toBeVisible({ timeout: 5_000 });
+
+        // Diff #4: a "Resend invitation" action is exposed on PENDING rows
+        // (only renders when status === 'PENDING' in Users.tsx).
+        await expect(row.getByRole('button', { name: /pozvánk|invitation/i })).toBeVisible();
+
+        const fatal = fatalOnly(consoleErrors);
+        expect(fatal, `Unexpected console errors during teacher creation:\n${fatal.join('\n')}`).toEqual([]);
+    });
 });

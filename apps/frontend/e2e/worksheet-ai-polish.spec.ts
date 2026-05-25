@@ -1,4 +1,4 @@
-import { test, expect, request as playwrightRequest, APIRequestContext } from '@playwright/test';
+import { test, expect, request as playwrightRequest, APIRequestContext, Page } from '@playwright/test';
 
 // ─── Test helpers ─────────────────────────────────────────────
 
@@ -51,6 +51,26 @@ async function buildTenantCreds(baseURL: string, role: 'TEACHER' | 'DEPUTY'): Pr
 
 function authed(token: string) {
     return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+/**
+ * Drop the tenant JWT into the browser as the session cookie so the
+ * Grading page renders immediately after navigation. Mirrors the same
+ * pattern used by other worksheet UI tests.
+ */
+async function attachSessionCookie(page: Page, token: string, baseURL: string) {
+    const url = new URL(baseURL);
+    await page.context().addCookies([
+        {
+            name: '__edu_session',
+            value: token,
+            domain: url.hostname,
+            path: '/',
+            httpOnly: true,
+            secure: url.protocol === 'https:',
+            sameSite: 'Lax',
+        },
+    ]);
 }
 
 // ─── Tests ────────────────────────────────────────────────────
@@ -113,5 +133,55 @@ test.describe('Worksheet 3: AI Polish — teacher rewrites a verbal evaluation',
             data: { text: UNPROFESSIONAL_TEXT },
         });
         expect(res.status()).toBe(401);
+    });
+
+    test('Krok 1-2 (UI): grading page exposes the AI Polish button when verbal text is filled', async ({
+        page,
+        baseURL,
+    }) => {
+        // Smoke for the worksheet's Krok 1-2: the teacher reaches the Grading
+        // page and the "Učesat pomocí AI" button is wired to the add-grade
+        // dialog. Browsing the cell grid + opening the dialog from a real
+        // student row is brittle (one tiny `+` icon button per cell, no aria
+        // label) — those cell-click flows are covered by the API tests above.
+        const root = baseURL ?? 'http://localhost:5173';
+        await attachSessionCookie(page, teacherCreds.tenantToken, root);
+        await page.goto('/grading');
+
+        await expect(page.getByRole('heading', { name: /Klasifikace|Grading/i })).toBeVisible({ timeout: 15_000 });
+
+        // The teacher dashboard finishes loading once at least one subject
+        // row appears. If the seed didn't expose any teaching for this
+        // teacher we skip — the worksheet assumes a class is taught.
+        const subjectRow = page.locator('table tbody tr').first();
+        if (!(await subjectRow.isVisible().catch(() => false))) {
+            test.skip(true, 'No subjects assigned to this teacher; seed cannot exercise the polish UI.');
+        }
+
+        // Open the add-grade dialog from the first available cell. The
+        // tiny `+` button has no accessible name, so locate by its lucide
+        // icon class wrapped in the button.
+        const addButton = page.locator('table tbody button:has(svg.lucide-plus)').first();
+        await expect(addButton).toBeVisible({ timeout: 10_000 });
+        await addButton.click();
+
+        const dialog = page.locator('[role="dialog"]');
+        await expect(dialog).toBeVisible({ timeout: 5_000 });
+
+        // Type the unprofessional sentence into the verbal text area.
+        const verbalTextarea = dialog.locator('textarea').first();
+        await verbalTextarea.fill(UNPROFESSIONAL_TEXT);
+
+        // The polish button is disabled until verbal text is non-empty;
+        // after filling, it must become enabled and clickable.
+        const polishBtn = dialog.getByRole('button', { name: /Učesat pomocí AI|AI Polish/i });
+        await expect(polishBtn).toBeEnabled();
+        await polishBtn.click();
+
+        // The polish dialog opens. The implementation hosts both modals;
+        // assert by the dedicated title that only the polish modal has.
+        await expect(page.getByText(/AI návrhy slovního hodnocení|AI suggestions/i)).toBeVisible({
+            timeout: 10_000,
+        });
     });
 });

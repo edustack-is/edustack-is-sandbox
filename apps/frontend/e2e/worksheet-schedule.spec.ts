@@ -1,4 +1,4 @@
-import { test, expect, request as playwrightRequest, APIRequestContext } from '@playwright/test';
+import { test, expect, request as playwrightRequest, APIRequestContext, Page } from '@playwright/test';
 
 // ─── Test helpers ─────────────────────────────────────────────
 
@@ -76,7 +76,7 @@ async function fetchPrereqs(api: APIRequestContext, token: string) {
     return {
         academicYears: (await aysRes.json()) as Array<{ id: string; isCurrent: boolean }>,
         gradeLevels: (await glsRes.json()) as Array<{ id: string; name: string; levelNumber: number }>,
-        classrooms: (await csRes.json()) as Array<{ id: string; name: string }>,
+        classrooms: (await csRes.json()) as Array<{ id: string; name: string; grade: number }>,
         teachers: (await teachersRes.json()) as Array<{
             id: string; // User.id
             firstName?: string;
@@ -84,6 +84,26 @@ async function fetchPrereqs(api: APIRequestContext, token: string) {
             teacherProfile: { id: string } | null;
         }>,
     };
+}
+
+/**
+ * Authenticate the browser context as the deputy by setting the httpOnly
+ * session cookie we already obtained via the API. Avoids running the
+ * login UI form for every UI-level test.
+ */
+async function loginAsDeputy(page: Page, token: string, baseURL: string) {
+    const url = new URL(baseURL);
+    await page.context().addCookies([
+        {
+            name: '__edu_session',
+            value: token,
+            domain: url.hostname,
+            path: '/',
+            httpOnly: true,
+            secure: url.protocol === 'https:',
+            sameSite: 'Lax',
+        },
+    ]);
 }
 
 function teacherProfileId(t: { teacherProfile: { id: string } | null }): string {
@@ -263,5 +283,127 @@ test.describe('Worksheet 2: schedule conflict — deputy tries to double-book a 
         expect(validateBody.reason).toBeTruthy();
 
         await api.delete(`/api/schedule/events/${event.id}`, authed(creds.tenantToken));
+    });
+
+    test('Kroky 1-4 (UI): planner shows a localized Czech toast when the deputy double-books a teacher', async ({
+        page,
+        baseURL,
+    }) => {
+        const root = baseURL ?? 'http://localhost:5173';
+        const prereqs = await fetchPrereqs(api, creds.tenantToken);
+        const academicYear = prereqs.academicYears.find((a) => a.isCurrent) ?? prereqs.academicYears[0];
+        expect(prereqs.classrooms.length).toBeGreaterThanOrEqual(2);
+        expect(prereqs.teachers.length).toBeGreaterThan(0);
+
+        const teacher = prereqs.teachers.find((t) => t.teacherProfile)!;
+        const [classA, classB] = prereqs.classrooms;
+        const gradeOfA = prereqs.gradeLevels.find((g) => g.levelNumber === classA.grade);
+        const gradeOfB = prereqs.gradeLevels.find((g) => g.levelNumber === classB.grade);
+        expect(gradeOfA, 'classA grade must match a GradeLevel').toBeTruthy();
+        expect(gradeOfB, 'classB grade must match a GradeLevel').toBeTruthy();
+
+        // Seed populates lessons 1-6 (1-4 on Fri); lesson 7 on Monday is the
+        // first slot the bell schedule still renders but no seeded event
+        // occupies — perfect target for the UI conflict.
+        const dayOfWeek = 1; // Monday
+        const lessonNumber = 7;
+
+        // ── Krok 1+2: subject template + instances per grade ────
+        const suffix = Date.now().toString().slice(-6);
+        const subjectRes = await api.post('/api/deputy/subjects', {
+            ...authed(creds.tenantToken),
+            data: { name: `AI UI ${suffix}`, code: `AIU${suffix}` },
+        });
+        expect(subjectRes.ok()).toBeTruthy();
+        const subjectTemplate = (await subjectRes.json()) as { id: string };
+
+        async function createInstance(gradeLevelId: string) {
+            const r = await api.post('/api/deputy/subjects/instances', {
+                ...authed(creds.tenantToken),
+                data: {
+                    templateId: subjectTemplate.id,
+                    academicYearId: academicYear.id,
+                    gradeLevelId,
+                    hoursPerWeek: 2,
+                },
+            });
+            expect(r.ok()).toBeTruthy();
+            return (await r.json()) as { id: string };
+        }
+        const instanceA = await createInstance(gradeOfA!.id);
+        // classB needs the AI subject in its grade too, so the dropdown offers
+        // it later; only create a separate instance when the grades differ.
+        if (gradeOfA!.id !== gradeOfB!.id) {
+            await createInstance(gradeOfB!.id);
+        }
+
+        // ── Krok 3 (API): pre-create the blocking event so the UI step ──
+        // can target the exact same (day, lesson, teacher) and trigger 409.
+        const blockingRes = await api.post('/api/schedule/events', {
+            ...authed(creds.tenantToken),
+            data: {
+                dayOfWeek,
+                lessonNumber,
+                subjectInstanceId: instanceA.id,
+                classroomId: classA.id,
+                teacherId: teacherProfileId(teacher),
+                academicYearId: academicYear.id,
+            },
+        });
+        expect(blockingRes.ok(), `blocking event HTTP ${blockingRes.status()}`).toBeTruthy();
+        const blockingEvent = (await blockingRes.json()) as { id: string };
+
+        try {
+            // ── Krok 4 (UI): the deputy attempts the hack from the planner.
+            await loginAsDeputy(page, creds.tenantToken, root);
+            await page.goto('/schedule/planner');
+            await expect(page.getByRole('heading', { name: /Plánování rozvrhu/i })).toBeVisible({
+                timeout: 10_000,
+            });
+
+            // Switch to the second classroom — the grid only shows events the
+            // current class is part of, so classB's Mon/7 cell stays empty.
+            await page.locator('button[role="combobox"]').first().click();
+            await page
+                .getByRole('option', { name: new RegExp(`^${classB.name}$`) })
+                .evaluate((el) => (el as HTMLElement).click());
+
+            // Click Mon/7 cell. The first <td> in each row is the lesson
+            // label; cells for Mon..Fri follow as nth(1)..nth(5).
+            const row = page.locator('tr').filter({ hasText: new RegExp(`^${lessonNumber}\\.`) });
+            await expect(row.first()).toBeVisible({ timeout: 10_000 });
+            await row.first().locator('td').nth(1).click();
+
+            // The "Add lesson" modal opens.
+            const dialog = page.locator('[role="dialog"]');
+            await expect(dialog.getByText(/Přidat hodinu — Pondělí/)).toBeVisible({ timeout: 5_000 });
+
+            // Subject dropdown is filtered to classB's grade; pick the AI row.
+            const selects = dialog.locator('button[role="combobox"]');
+            await selects.nth(0).click();
+            await page
+                .getByRole('option', { name: new RegExp(`AIU${suffix}`) })
+                .first()
+                .evaluate((el) => (el as HTMLElement).click());
+
+            // Teacher dropdown — pick the same teacher that's already booked.
+            await selects.nth(1).click();
+            const teacherLabelRegex = new RegExp(`${teacher.lastName ?? '.'} ${teacher.firstName ?? ''}`.trim() || '.');
+            await page
+                .getByRole('option', { name: teacherLabelRegex })
+                .first()
+                .evaluate((el) => (el as HTMLElement).click());
+
+            // Submit; expect the localized collision toast.
+            await dialog
+                .getByRole('button', { name: /^Přidat$/i })
+                .evaluate((btn) => (btn as HTMLButtonElement).click());
+
+            await expect(
+                page.getByText('Učitel už má v tento čas naplánovanou jinou hodinu.', { exact: false }),
+            ).toBeVisible({ timeout: 10_000 });
+        } finally {
+            await api.delete(`/api/schedule/events/${blockingEvent.id}`, authed(creds.tenantToken));
+        }
     });
 });
