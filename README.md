@@ -20,6 +20,7 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 | sandbox-4 | https://sandbox-4.is-edustack.org | https://be-sandbox-4.is-edustack.org | https://mail-sandbox-4.is-edustack.org | 2026-05-25 20:29 UTC |
 | sandbox-5 | https://sandbox-5.is-edustack.org | https://be-sandbox-5.is-edustack.org | https://mail-sandbox-5.is-edustack.org | 2026-05-25 20:35 UTC |
 | sandbox-6 | https://sandbox-6.is-edustack.org | https://be-sandbox-6.is-edustack.org | https://mail-sandbox-6.is-edustack.org | 2026-05-25 20:38 UTC |
+| sandbox-7 | https://sandbox-7.is-edustack.org | https://be-sandbox-7.is-edustack.org | https://mail-sandbox-7.is-edustack.org | 2026-05-25 20:42 UTC |
 
 <!-- DEPLOYED_ENVS_END -->
 
