@@ -13,29 +13,24 @@ import { DatabaseError } from '../../database/database.service';
  * Derive a stable, human-readable error code from an HTTP status so the
  * API contract isn't "every error is INTERNAL_ERROR." Callers (the
  * frontend toasts, integration tests) can branch on the code without
- * scraping the message string.
+ * scraping the message string. Encoded as a lookup map rather than a
+ * switch because `status` arrives as a plain `number` from
+ * `HttpException.getStatus()` and ESLint's no-unsafe-enum-comparison
+ * rule rejects mixing it with `HttpStatus` cases.
  */
+const STATUS_CODES: Record<number, string> = {
+  [HttpStatus.BAD_REQUEST]: 'BAD_REQUEST',
+  [HttpStatus.UNAUTHORIZED]: 'UNAUTHORIZED',
+  [HttpStatus.FORBIDDEN]: 'FORBIDDEN',
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
+  [HttpStatus.CONFLICT]: 'CONFLICT',
+  [HttpStatus.UNPROCESSABLE_ENTITY]: 'UNPROCESSABLE_ENTITY',
+  [HttpStatus.TOO_MANY_REQUESTS]: 'TOO_MANY_REQUESTS',
+  [HttpStatus.SERVICE_UNAVAILABLE]: 'SERVICE_UNAVAILABLE',
+};
+
 function codeFromStatus(status: number): string {
-  switch (status) {
-    case HttpStatus.BAD_REQUEST:
-      return 'BAD_REQUEST';
-    case HttpStatus.UNAUTHORIZED:
-      return 'UNAUTHORIZED';
-    case HttpStatus.FORBIDDEN:
-      return 'FORBIDDEN';
-    case HttpStatus.NOT_FOUND:
-      return 'NOT_FOUND';
-    case HttpStatus.CONFLICT:
-      return 'CONFLICT';
-    case HttpStatus.UNPROCESSABLE_ENTITY:
-      return 'UNPROCESSABLE_ENTITY';
-    case HttpStatus.TOO_MANY_REQUESTS:
-      return 'TOO_MANY_REQUESTS';
-    case HttpStatus.SERVICE_UNAVAILABLE:
-      return 'SERVICE_UNAVAILABLE';
-    default:
-      return 'INTERNAL_ERROR';
-  }
+  return STATUS_CODES[status] ?? 'INTERNAL_ERROR';
 }
 
 @Catch()
