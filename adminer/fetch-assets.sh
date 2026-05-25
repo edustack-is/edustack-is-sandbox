@@ -15,9 +15,6 @@ BASE="https://raw.githubusercontent.com/vrana/adminer/v${VER}"
 # intentionally omitted: it only exists for Adminer 5.x and would fatal here —
 # dark mode is provided through the dark designs below instead.
 PLUGINS=(plugin table-structure table-indexes-structure tables-filter designs)
-# konya = requested alternative design; dracula is a dark theme that stands in
-# for the (5.x-only) dark-switcher plugin.
-DESIGNS=(konya dracula)
 
 dl() { # dl <url> <dest>
   if command -v curl >/dev/null 2>&1; then
@@ -38,9 +35,11 @@ for p in "${PLUGINS[@]}"; do
   [ -f "$DIR/plugins/$p.php" ] || dl "$BASE/plugins/$p.php" "$DIR/plugins/$p.php"
 done
 
-for d in "${DESIGNS[@]}"; do
-  mkdir -p "$DIR/designs/$d"
-  [ -f "$DIR/designs/$d/adminer.css" ] || dl "$BASE/designs/$d/adminer.css" "$DIR/designs/$d/adminer.css"
-done
+# Designs. konya is the default view style (pinned to the v5.4.2 build — its
+# CSS targets the same stable selectors and renders fine on 4.8.1); dracula is
+# a dark theme offered in the switcher.
+mkdir -p "$DIR/designs/konya" "$DIR/designs/dracula"
+[ -f "$DIR/designs/konya/adminer.css" ] || dl "https://www.adminer.org/download/v5.4.2/designs/konya/adminer.css" "$DIR/designs/konya/adminer.css"
+[ -f "$DIR/designs/dracula/adminer.css" ] || dl "$BASE/designs/dracula/adminer.css" "$DIR/designs/dracula/adminer.css"
 
-echo "[adminer] assets ready in $DIR (adminer ${VER}, ${#PLUGINS[@]} plugins, ${#DESIGNS[@]} designs)"
+echo "[adminer] assets ready in $DIR (adminer ${VER}, ${#PLUGINS[@]} plugins, konya+dracula designs)"

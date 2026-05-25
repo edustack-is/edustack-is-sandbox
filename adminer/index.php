@@ -103,6 +103,17 @@ function adminer_object() {
         function permanentLogin($create = false) {
             return hash('sha256', 'edustack-adminer:' . (getenv('ADMINER_PASSWORD') ?: 'edustack'));
         }
+
+        // Default the view style to Konya. parent::css() returns the design the
+        // user picked in the switcher (or [] for none) — so we only fall back to
+        // Konya when nothing else is selected, keeping the switcher functional.
+        function css() {
+            $css = parent::css();
+            if (empty($css)) {
+                $css[] = 'designs/konya/adminer.css';
+            }
+            return $css;
+        }
     }
 
     $plugins = array(
