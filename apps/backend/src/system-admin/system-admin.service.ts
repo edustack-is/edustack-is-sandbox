@@ -18,6 +18,7 @@ import * as os from 'os';
 import { MailService } from '../mail/mail.service';
 import { SystemAdminAiService } from './system-admin-ai.service';
 import { BackupService } from './backup.service';
+import { TestDataService } from './test-data.service';
 
 export interface DashboardStats {
   schoolCount: number;
@@ -55,6 +56,7 @@ export class SystemAdminService {
     private mailService: MailService,
     private aiService: SystemAdminAiService,
     private backupService: BackupService,
+    private testDataService: TestDataService,
   ) {}
 
   async createSchool(dto: CreateSchoolDto) {
@@ -477,13 +479,13 @@ export class SystemAdminService {
       [schoolId],
     );
     if (!school) throw new NotFoundException('School not found');
-    if (school.deletedAt)
-      throw new BadRequestException('School is already deleted');
 
-    await this.db.execute('UPDATE "School" SET deletedAt = ? WHERE id = ?', [
-      new Date().toISOString(),
-      schoolId,
-    ]);
+    // Hard delete: remove the school and all its data so an identically named
+    // school can be created again. A soft delete leaves the row in place and
+    // its name keeps occupying the School.name unique constraint, which then
+    // collides on re-creation. The admin UI already warns this is irreversible
+    // and wipes all school data.
+    await this.testDataService.wipeSchoolData(schoolId, true);
     return { message: `Škola '${school.name}' byla úspěšně smazána.` };
   }
 
