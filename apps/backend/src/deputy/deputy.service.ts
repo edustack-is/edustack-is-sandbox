@@ -1383,6 +1383,38 @@ export class DeputyService {
     return result;
   }
 
+  // ─── SEARCH EXISTING PARENTS ────────────────────────────────────
+
+  /**
+   * Find existing PARENT users in the school by partial first/last name so a
+   * deputy can attach an already-registered guardian to a new student instead
+   * of re-entering (and duplicating) their details.
+   */
+  async searchParents(schoolId: string, query: string) {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return [];
+    }
+    const like = `%${trimmed.toLowerCase()}%`;
+    return this.db.query<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    }>(
+      `SELECT u.id, u.firstName, u.lastName, u.email
+       FROM "SchoolMembership" m
+       JOIN "User" u ON m.userId = u.id
+       WHERE m.schoolId = ? AND m.role = 'PARENT' AND u.deletedAt IS NULL
+         AND (LOWER(u.firstName) LIKE ?
+              OR LOWER(u.lastName) LIKE ?
+              OR LOWER(u.firstName || ' ' || u.lastName) LIKE ?)
+       ORDER BY u.lastName ASC, u.firstName ASC
+       LIMIT 20`,
+      [schoolId, like, like, like],
+    );
+  }
+
   // ─── CREATE STUDENT + FAMILY ────────────────────────────────────
 
   async createStudentFamily(
@@ -1391,6 +1423,9 @@ export class DeputyService {
     data: {
       student: { firstName: string; lastName: string; email?: string };
       parents: Array<{
+        // When set, link this already-registered parent instead of creating a
+        // new user; the name/email fields are then ignored.
+        existingUserId?: string;
         firstName: string;
         lastName: string;
         email: string;
@@ -1448,6 +1483,50 @@ export class DeputyService {
 
       const createdParents = [];
       for (const parentData of data.parents) {
+        // ── Link an already-registered parent ──────────────────────
+        // No new user, no token reset, no invitation email — just attach
+        // the existing guardian (verified to belong to this school) to the
+        // student. The email-based creation path below is skipped entirely.
+        if (parentData.existingUserId) {
+          const existing = await db.queryOne<User>(
+            'SELECT * FROM "User" WHERE id = ? AND deletedAt IS NULL',
+            [parentData.existingUserId],
+          );
+          const membership = existing
+            ? await db.queryOne(
+                `SELECT id FROM "SchoolMembership"
+                 WHERE userId = ? AND schoolId = ? AND role = 'PARENT'`,
+                [existing.id, schoolId],
+              )
+            : null;
+          if (!existing || !membership) {
+            throw ApiException.notFound(
+              'userInSchool',
+              'Parent not found in this school',
+            );
+          }
+
+          await db.execute(
+            'INSERT INTO "ParentStudent" (id, parentId, studentId, createdAt) SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM "ParentStudent" WHERE parentId = ? AND studentId = ?)',
+            [
+              crypto.randomUUID(),
+              existing.id,
+              studentId,
+              new Date().toISOString(),
+              existing.id,
+              studentId,
+            ],
+          );
+
+          createdParents.push({
+            userId: existing.id,
+            email: existing.email,
+            token: null,
+            linkedExisting: true,
+          });
+          continue;
+        }
+
         let parentUser = await db.queryOne<User>(
           'SELECT * FROM "User" WHERE email = ?',
           [parentData.email],

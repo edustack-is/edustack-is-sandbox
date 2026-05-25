@@ -14,6 +14,10 @@ i18n.use(HttpBackend)
         },
         backend: {
             loadPath: '/locales/{{lng}}/translation.json',
+            // Locale JSON lives in public/ with a stable name, so browsers/CDN
+            // cache it across deploys. The per-build id busts that cache so new
+            // translation keys show up without a manual hard refresh.
+            queryStringParams: { v: __BUILD_ID__ },
         },
         detection: {
             order: ['localStorage', 'cookie', 'htmlTag', 'navigator'],

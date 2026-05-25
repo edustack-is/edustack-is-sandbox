@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
 export default defineConfig({
+    // Unique per build: used to cache-bust un-hashed public assets (locale
+    // JSON) so deploys don't serve stale translations from browser/CDN cache.
+    define: {
+        __BUILD_ID__: JSON.stringify(Date.now().toString(36)),
+    },
     plugins: [react()],
     resolve: {
         alias: {
