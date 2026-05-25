@@ -14,7 +14,7 @@ BASE="https://raw.githubusercontent.com/vrana/adminer/v${VER}"
 # Adminer 4.8.1-compatible plugins (non-namespaced API). dark-switcher is
 # intentionally omitted: it only exists for Adminer 5.x and would fatal here —
 # dark mode is provided through the dark designs below instead.
-PLUGINS=(plugin table-structure table-indexes-structure tables-filter designs login-password-less)
+PLUGINS=(plugin table-structure table-indexes-structure tables-filter designs)
 # konya = requested alternative design; dracula is a dark theme that stands in
 # for the (5.x-only) dark-switcher plugin.
 DESIGNS=(konya dracula)

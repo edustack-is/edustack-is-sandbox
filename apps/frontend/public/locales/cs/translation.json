@@ -507,11 +507,7 @@
     "filter_all_schools": "Všechny školy",
     "filter_all_roles": "Všechny role",
     "no_users_found": "Žádní uživatelé nevyhovují filtrům",
-    "adminer_link": "Databáze (Adminer)",
-    "adminer_password": "Heslo do Admineru",
-    "adminer_copy": "Kopírovat heslo",
-    "adminer_copied": "Zkopírováno",
-    "adminer_copy_failed": "Kopírování se nezdařilo"
+    "adminer_link": "Databáze (Adminer)"
   },
   "materials": {
     "title": "Elektronické materiály",

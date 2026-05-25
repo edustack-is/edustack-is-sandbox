@@ -11,21 +11,20 @@
  *
  *   1. Pins the driver to `sqlite` and the database to $ADMINER_DB_PATH, so the
  *      connection is fully prefilled — there is nothing to choose.
- *   2. Replaces Adminer's normal login (which for SQLite has no real
- *      credentials) with a single password field checked against
- *      $ADMINER_PASSWORD. That password is the "credential" surfaced in the
- *      login helper / monitoring page on the frontend.
+ *   2. Logs in passwordless (this is an educational sandbox; SQLite has no
+ *      credentials anyway). The login form auto-submits, so opening Adminer
+ *      drops you straight into the database.
  *   3. Loads a set of Adminer plugins (table/index structure, tables filter,
  *      design switcher) by extending AdminerPlugin. Plugin/design files are
  *      fetched by fetch-assets.sh into ./plugins and ./designs.
  *
  * Required env:
  *   ADMINER_DB_PATH   absolute path to the SQLite file Adminer should open
- *   ADMINER_PASSWORD  password the user must type to get in
+ *   ADMINER_PASSWORD  not a login gate anymore — start.sh uses it as the
+ *                     "Adminer enabled" flag and it seeds permanentLogin()
  */
 
 $ADMINER_DB_PATH = getenv('ADMINER_DB_PATH') ?: '';
-$ADMINER_PASSWORD = getenv('ADMINER_PASSWORD') ?: '';
 
 // Default landing: send the browser straight at the SQLite driver so the
 // driver/server/db selectors never render.
@@ -43,7 +42,6 @@ function adminer_object() {
             'table-indexes-structure',
             'tables-filter',
             'designs',
-            'login-password-less', // loaded but not activated — see note below
         ) as $p
     ) {
         $file = __DIR__ . "/plugins/$p.php";
@@ -76,38 +74,34 @@ function adminer_object() {
             return array(getenv('ADMINER_DB_PATH') ?: '');
         }
 
-        // Password-only form; hidden fields pin the connection so the user never
-        // picks a driver or types a path — the connection is fully prefilled.
+        // Passwordless (educational sandbox — no credentials by design). The
+        // connection is fully pinned via hidden fields; the form auto-submits so
+        // opening Adminer drops you straight into the DB. The button is a
+        // no-JS fallback.
         function loginForm() {
-            echo "<table cellspacing='0' class='layout'>\n";
-            echo "<tr><th>Password<td><input type='password' name='auth[password]' autocomplete='current-password' autofocus>\n";
-            echo "</table>\n";
             echo "<input type='hidden' name='auth[driver]' value='sqlite'>\n";
             echo "<input type='hidden' name='auth[server]' value=''>\n";
             echo "<input type='hidden' name='auth[username]' value=''>\n";
+            echo "<input type='hidden' name='auth[password]' value=''>\n";
             echo "<input type='hidden' name='auth[db]' value='" . htmlspecialchars(getenv('ADMINER_DB_PATH') ?: '') . "'>\n";
-            echo "<p><input type='submit' value='Login'>\n";
             echo "<input type='hidden' name='auth[permanent]' value='1'>\n";
+            echo "<p><input type='submit' value='Otevřít databázi'>\n";
+            $nonce = function_exists('nonce') ? nonce() : '';
+            echo "<script$nonce>document.currentScript.closest('form').submit();</script>\n";
         }
 
-        // The only real gate: the shared Adminer password.
+        // Passwordless: no gate. SQLite has no credentials and this is an
+        // educational sandbox, so any login attempt is accepted.
         function login($login, $password) {
-            $expected = getenv('ADMINER_PASSWORD') ?: '';
-            if ($expected === '') {
-                return 'Adminer is not configured (ADMINER_PASSWORD is empty).';
-            }
-            if (!hash_equals($expected, (string) $password)) {
-                return false;
-            }
             return true;
         }
 
         // Stable secret used to sign/encrypt the "permanent login" cookie.
-        // Without this Adminer shows "master password expired" on every revisit
-        // and forces re-login. Must return the SAME value across requests, so
-        // we derive it from the Adminer password (stable per deployment).
+        // Without this Adminer shows "master password expired" on every revisit.
+        // Must return the SAME value across requests; seeded from ADMINER_PASSWORD
+        // (which is still set per deployment) so it's stable.
         function permanentLogin($create = false) {
-            return hash('sha256', 'edustack-adminer:' . (getenv('ADMINER_PASSWORD') ?: ''));
+            return hash('sha256', 'edustack-adminer:' . (getenv('ADMINER_PASSWORD') ?: 'edustack'));
         }
     }
 
@@ -124,13 +118,6 @@ function adminer_object() {
             'designs/dracula/adminer.css' => 'Dracula (dark)',
         )),
     );
-
-    // NOTE: AdminerLoginPasswordLess is vendored and loaded above but NOT
-    // enabled. Activating it (push it onto $plugins, drop the login()/loginForm
-    // overrides) makes Adminer passwordless — and because SQLite ignores DB
-    // credentials, that means *anyone with the link* gets full DB access. When
-    // you switch to it, also stop showing the password in the login helper /
-    // monitoring page and just show the link.
 
     return new EduStackAdminer($plugins);
 }

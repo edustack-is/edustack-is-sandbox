@@ -39,7 +39,6 @@ import {
     RotateCcw,
     Plus,
     ExternalLink,
-    Copy,
     Clock,
     Server,
     MemoryStick,
@@ -1240,8 +1239,7 @@ function MonitoringTab() {
     const { t } = useTranslation();
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [auditLog, setAuditLog] = useState<any>(null);
-    const [adminer, setAdminer] = useState<{ url?: string; password?: string }>({});
-    const [adminerPwCopied, setAdminerPwCopied] = useState(false);
+    const [adminer, setAdminer] = useState<{ url?: string }>({});
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState({
         dateFrom: '',
@@ -1270,26 +1268,15 @@ function MonitoringTab() {
     useEffect(() => {
         fetchHealth();
         fetchAuditLog();
-        // Adminer (DB viewer) URL + password come from the same config the
-        // login screen uses; they're sourced from backend env, independent of
-        // whether the demo login helper is enabled.
+        // Adminer (DB viewer) URL comes from the same config the login screen
+        // uses; sourced from backend env. Adminer is passwordless, so we only
+        // need the link.
         getLoginHelperConfig()
-            .then((c) => setAdminer({ url: c.adminerUrl, password: c.adminerPassword }))
+            .then((c) => setAdminer({ url: c.adminerUrl }))
             .catch(() => setAdminer({}));
         const healthInterval = setInterval(fetchHealth, 30000);
         return () => clearInterval(healthInterval);
     }, [fetchHealth, fetchAuditLog]);
-
-    const copyAdminerPw = async () => {
-        if (!adminer.password) return;
-        try {
-            await navigator.clipboard.writeText(adminer.password);
-            setAdminerPwCopied(true);
-            setTimeout(() => setAdminerPwCopied(false), 2000);
-        } catch {
-            toast.error(t('login.adminer_copy_failed', 'Kopírování se nezdařilo'));
-        }
-    };
 
     return (
         <div className="space-y-6">
@@ -1348,8 +1335,7 @@ function MonitoringTab() {
                     bg="bg-indigo-500/10"
                 />
                 {/* Database viewer (Adminer) — KPI-sized tile matching the
-                    others. Opens the SQLite DB with a prefilled connection; the
-                    Adminer login password is shown below with a copy button. */}
+                    others. Passwordless: the link opens straight into the DB. */}
                 {adminer.url && (
                     <Card>
                         <CardContent className="pt-6">
@@ -1367,24 +1353,6 @@ function MonitoringTab() {
                                         {t('system_settings.adminer_open', 'Otevřít')}
                                         <ExternalLink className="h-4 w-4" />
                                     </a>
-                                    {adminer.password && (
-                                        <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
-                                            <code className="font-mono break-all">{adminer.password}</code>
-                                            <button
-                                                type="button"
-                                                onClick={copyAdminerPw}
-                                                title={t('login.adminer_copy', 'Kopírovat heslo')}
-                                                aria-label={t('login.adminer_copy', 'Kopírovat heslo')}
-                                                className="shrink-0 hover:text-foreground"
-                                            >
-                                                {adminerPwCopied ? (
-                                                    <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                                ) : (
-                                                    <Copy className="h-3.5 w-3.5" />
-                                                )}
-                                            </button>
-                                        </p>
-                                    )}
                                 </div>
                                 <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-500">
                                     <Database className="h-5 w-5" />

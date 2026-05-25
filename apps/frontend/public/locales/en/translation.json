@@ -507,11 +507,7 @@
     "filter_all_schools": "All schools",
     "filter_all_roles": "All roles",
     "no_users_found": "No users match the filters",
-    "adminer_link": "Database (Adminer)",
-    "adminer_password": "Adminer password",
-    "adminer_copy": "Copy password",
-    "adminer_copied": "Copied",
-    "adminer_copy_failed": "Copy failed"
+    "adminer_link": "Database (Adminer)"
   },
   "materials": {
     "title": "Teaching Materials",

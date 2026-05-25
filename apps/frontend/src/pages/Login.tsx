@@ -10,7 +10,7 @@ import {
     LoginHelperUser,
     LoginHelperConfig,
 } from '../api';
-import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2, Database, Copy, Check } from 'lucide-react';
+import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,9 +75,6 @@ export const Login = () => {
     const [helperConfig, setHelperConfig] = useState<LoginHelperConfig | null>(null);
     const [helperUsers, setHelperUsers] = useState<LoginHelperUser[]>([]);
     const [loadingHelper, setLoadingHelper] = useState(false);
-    // Which inline secret (if any) was just copied — keyed so the Adminer and
-    // monitoring rows show their own "copied" state independently.
-    const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
     // ─── Filter state ───────────────────────────────────────
     const [selectedSchool, setSelectedSchool] = useState<string>('all');
@@ -195,17 +192,6 @@ export const Login = () => {
 
     const handleSsoClick = (provider: string) => {
         window.location.href = `${getBackendBaseUrl()}/api/auth/sso/${provider}`;
-    };
-
-    const copyValue = async (key: string, value?: string) => {
-        if (!value) return;
-        try {
-            await navigator.clipboard.writeText(value);
-            setCopiedKey(key);
-            setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
-        } catch {
-            toast.error(t('login.adminer_copy_failed', 'Kopírování se nezdařilo'));
-        }
     };
 
     const handleHelperLogin = async (user: any) => {
@@ -457,9 +443,9 @@ export const Login = () => {
                             )}
                         </div>{' '}
                         {/* ─── Adminer (DB viewer) link ──────────────────
-                            SQLite is just a file, so there's no DB login —
-                            the connection is prefilled and Adminer is gated
-                            by its own password, shown here. */}
+                            SQLite is just a file with no DB login; Adminer is
+                            passwordless (educational sandbox), so the link opens
+                            straight into the database. */}
                         {helperConfig?.adminerUrl && (
                             <div className="mt-4 pt-4 border-t border-gray-100">
                                 <a
@@ -474,30 +460,6 @@ export const Login = () => {
                                     </span>
                                     <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 transition-transform group-hover:translate-x-1" />
                                 </a>
-                                {helperConfig.adminerPassword && (
-                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
-                                        <span>{t('login.adminer_password', 'Heslo do Admineru')}:</span>
-                                        <code className="font-mono text-gray-700">
-                                            {helperConfig.adminerPassword}
-                                        </code>
-                                        <button
-                                            type="button"
-                                            onClick={() => copyValue('adminer', helperConfig.adminerPassword)}
-                                            title={t('login.adminer_copy', 'Kopírovat heslo')}
-                                            aria-label={t('login.adminer_copy', 'Kopírovat heslo')}
-                                            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all"
-                                        >
-                                            {copiedKey === 'adminer' ? (
-                                                <>
-                                                    <Check className="h-3 w-3 text-green-600" />
-                                                    {t('login.adminer_copied', 'Zkopírováno')}
-                                                </>
-                                            ) : (
-                                                <Copy className="h-3 w-3" />
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         )}
                     </div>

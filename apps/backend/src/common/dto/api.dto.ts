@@ -1248,12 +1248,4 @@ export class LoginHelperConfigDto {
   @IsOptional()
   @IsString()
   adminerUrl?: string;
-
-  @ApiProperty({
-    example: 'edustack-admin',
-    description: 'Password for the Adminer DB viewer',
-  })
-  @IsOptional()
-  @IsString()
-  adminerPassword?: string;
 }
