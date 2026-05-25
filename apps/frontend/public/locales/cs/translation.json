@@ -506,7 +506,9 @@
     "helper_searching": "Hledám demo účty...",
     "filter_all_schools": "Všechny školy",
     "filter_all_roles": "Všechny role",
-    "no_users_found": "Žádní uživatelé nevyhovují filtrům"
+    "no_users_found": "Žádní uživatelé nevyhovují filtrům",
+    "adminer_link": "Databáze (Adminer)",
+    "adminer_password": "Heslo do Admineru"
   },
   "materials": {
     "title": "Elektronické materiály",

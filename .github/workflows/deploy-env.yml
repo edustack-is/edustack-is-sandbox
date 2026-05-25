@@ -225,6 +225,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-at-least-32-characters-long' }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef' }}
           MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN || 'test-mcp-token' }}
+          ADMINER_PASSWORD: ${{ secrets.ADMINER_PASSWORD || 'edustack-admin' }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_CONFIGURED: ${{ steps.r2.outputs.configured }}
@@ -244,6 +245,10 @@ jobs:
             "SMTP_HOST=${MAILDEV_APP}.internal"
             "SMTP_PORT=1025"
             "MAIL_FROM=no-reply@${ENV_NAME}.${DOMAIN}"
+            # Adminer DB viewer: gate password + the public URL the login
+            # helper links to (Adminer rides on port 8443 of the backend host).
+            "ADMINER_PASSWORD=$ADMINER_PASSWORD"
+            "ADMINER_PUBLIC_URL=https://be-${ENV_NAME}.${DOMAIN}:8443"
           )
           if [ "$R2_CONFIGURED" = "true" ]; then
             SECRETS+=(
@@ -395,6 +400,7 @@ jobs:
             echo ""
             echo "- Frontend: https://${ENV_NAME}.${DOMAIN}"
             echo "- Backend:  https://be-${ENV_NAME}.${DOMAIN}"
+            echo "- Adminer:  https://be-${ENV_NAME}.${DOMAIN}:8443 (SQLite DB viewer, password-gated)"
             echo "- MailDev:  https://mail-${ENV_NAME}.${DOMAIN}"
             echo "- Fly app:  ${{ steps.fly_cfg.outputs.app_name }} (region $FLY_REGION)"
             echo "- MailDev Fly app: ${{ steps.fly_maildev_cfg.outputs.app_name }}"

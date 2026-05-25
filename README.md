@@ -52,12 +52,21 @@ cp .env.example .env
 | `JWT_SECRET`          | Key used to sign JWT tokens                  | `openssl rand -base64 64` |
 | `ENCRYPTION_KEY`      | AES-256 key for encrypting secrets           | `openssl rand -base64 32` |
 | `ENABLE_LOGIN_HELPER` | Shows a demo-users panel on the login screen | `true` or `false`         |
+| `ADMINER_PASSWORD`    | Password gate for the Adminer DB viewer      | any string (default `edustack`) |
 
 **SMTP (emails):**
 For local email testing, MailDev starts automatically with the application:
 
 - **SMTP server:** port 1025
 - **Web UI:** http://localhost:1081 (inspect delivered messages)
+
+**Database viewer (Adminer):**
+For inspecting the SQLite schema and data, Adminer starts automatically with `npm run dev` (needs either `php` or `docker` available):
+
+- **Web UI:** http://localhost:8080 — the connection is **prefilled** (SQLite, pointed at the local DB file); just enter the password.
+- **Password:** value of `ADMINER_PASSWORD` (default `edustack`).
+
+On deployed sandboxes Adminer rides along inside the backend container (SQLite is a file on the backend's volume, so it can't be a standalone app like MailDev) and is published at **`https://be-<env>.is-edustack.org:8443`**, password-gated by the `ADMINER_PASSWORD` repo secret. The login screen's helper panel links straight to it.
 
 ### 2. Install and prepare the database
 

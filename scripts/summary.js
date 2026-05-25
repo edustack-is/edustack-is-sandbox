@@ -17,7 +17,8 @@ ${chalk.gray('──────────────────────
   ${chalk.blue('➜  Backend API:')}    ${chalk.bold('http://127.0.0.1:3000')}
   ${chalk.yellow('➜  MCP Server:')}     ${chalk.bold('http://127.0.0.1:3001')}
   ${chalk.magenta('➜  MailDev Web:')}    ${chalk.bold('http://127.0.0.1:1081')}
-  
+  ${chalk.gray('➜  Adminer (DB):')}   ${chalk.bold('http://127.0.0.1:8080')}  ${chalk.gray('(password: edustack)')}
+
   ${chalk.cyan('➜  API Specs:')}      ${chalk.bold('http://127.0.0.1:3000/api/docs')}
 
 ${chalk.gray('───────────────────────────────────────────────────')}

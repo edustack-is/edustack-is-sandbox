@@ -506,7 +506,9 @@
     "helper_searching": "Searching for demo accounts...",
     "filter_all_schools": "All schools",
     "filter_all_roles": "All roles",
-    "no_users_found": "No users match the filters"
+    "no_users_found": "No users match the filters",
+    "adminer_link": "Database (Adminer)",
+    "adminer_password": "Adminer password"
   },
   "materials": {
     "title": "Teaching Materials",

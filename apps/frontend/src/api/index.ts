@@ -11,6 +11,10 @@ export interface LoginHelperUser {
 export interface LoginHelperConfig {
     enabled: boolean;
     defaultPassword?: string;
+    /** Adminer (SQLite DB viewer) URL — empty when not configured. */
+    adminerUrl?: string;
+    /** Password for the Adminer DB viewer. */
+    adminerPassword?: string;
 }
 
 export const api = axios.create({

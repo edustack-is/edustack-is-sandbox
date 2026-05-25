@@ -10,7 +10,7 @@ import {
     LoginHelperUser,
     LoginHelperConfig,
 } from '../api';
-import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2 } from 'lucide-react';
+import { Loader2, UserCircle, ChevronRight, GraduationCap, Building2, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -442,6 +442,34 @@ export const Login = () => {
                                 </div>
                             )}
                         </div>{' '}
+                        {/* ─── Adminer (DB viewer) link ──────────────────
+                            SQLite is just a file, so there's no DB login —
+                            the connection is prefilled and Adminer is gated
+                            by its own password, shown here. */}
+                        {helperConfig?.adminerUrl && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <a
+                                    href={helperConfig.adminerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group flex items-center justify-between gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-indigo-50 hover:border-indigo-200 transition-all"
+                                >
+                                    <span className="flex items-center gap-2 text-sm font-medium text-gray-700 group-hover:text-indigo-900">
+                                        <Database className="h-4 w-4 text-indigo-600" />
+                                        {t('login.adminer_link', 'Databáze (Adminer)')}
+                                    </span>
+                                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 transition-transform group-hover:translate-x-1" />
+                                </a>
+                                {helperConfig.adminerPassword && (
+                                    <p className="mt-2 text-[11px] text-gray-500">
+                                        {t('login.adminer_password', 'Heslo do Admineru')}:{' '}
+                                        <code className="font-mono text-gray-700">
+                                            {helperConfig.adminerPassword}
+                                        </code>
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

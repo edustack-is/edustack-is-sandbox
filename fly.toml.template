@@ -13,6 +13,11 @@ primary_region = "ams"
   DATABASE_URL = "file:/data/edustack.db"
   ENABLE_LOGIN_HELPER = "__ENABLE_LOGIN_HELPER__"
   AUTO_SEED = "__AUTO_SEED__"
+  # Adminer (SQLite DB viewer) runs as a second in-container process and opens
+  # the same file the backend uses. ADMINER_PASSWORD + ADMINER_PUBLIC_URL are
+  # injected as Fly secrets by the deploy workflow.
+  ADMINER_PORT = "8080"
+  ADMINER_DB_PATH = "/data/edustack.db"
   # Public URL of the deployed frontend. Used for SSO callback redirects
   # and email links — without it the backend defaults to localhost:5173
   # and the browser is bounced off the live sandbox after Google login.
@@ -30,7 +35,24 @@ primary_region = "ams"
   auto_start_machines = true
   min_machines_running = 1
 
+# Adminer DB viewer. SQLite is a file on this app's volume, so Adminer can't be
+# a standalone sibling app the way MailDev is — it rides along in this same
+# container on internal port 8080, published on external 8443 of the existing
+# be-<env> hostname. Fly terminates TLS using the be-<env> cert already
+# attached to this app, so no extra DNS record or certificate is needed.
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 8443
+    handlers = ["tls", "http"]
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 512
+  # +256MB over the API-only baseline to cover the PHP/Adminer process.
+  memory_mb = 768

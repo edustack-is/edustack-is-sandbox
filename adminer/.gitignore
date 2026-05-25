@@ -1,0 +1,3 @@
+# Adminer ships as one big PHP file we fetch at build/run time rather than
+# vendoring a ~500KB third-party blob into the repo.
+adminer.php

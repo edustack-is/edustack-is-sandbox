@@ -1240,4 +1240,20 @@ export class LoginHelperConfigDto {
   @IsOptional()
   @IsString()
   defaultPassword?: string;
+
+  @ApiProperty({
+    example: 'https://be-sandbox-1.is-edustack.org:8443',
+    description: 'Adminer (SQLite DB viewer) URL, empty if not configured',
+  })
+  @IsOptional()
+  @IsString()
+  adminerUrl?: string;
+
+  @ApiProperty({
+    example: 'edustack-admin',
+    description: 'Password for the Adminer DB viewer',
+  })
+  @IsOptional()
+  @IsString()
+  adminerPassword?: string;
 }
