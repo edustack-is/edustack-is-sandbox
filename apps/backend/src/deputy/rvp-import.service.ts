@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { ApiException } from '../common/exceptions/api.exception';
 import { CryptoService } from '../utils/crypto.service';
 import { generateObject } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -116,7 +117,10 @@ export class RvpImportService {
     await parser.load();
     const text = (await parser.getText()).text || '';
     if (text.trim().length < 100)
-      throw new BadRequestException('PDF neobsahuje dostatek textu.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.pdfNotEnoughText',
+        'PDF does not contain enough text.',
+      );
     return text;
   }
 

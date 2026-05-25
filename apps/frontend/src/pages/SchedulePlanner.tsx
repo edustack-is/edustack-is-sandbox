@@ -239,19 +239,12 @@ export const SchedulePlanner: React.FC = () => {
             setAddDialog(null);
             loadEvents();
         } catch (err: any) {
-            // The collision detector returns a structured `conflict.reason`
-            // on 409 — surface a localized line instead of the raw English
-            // string. Other failures fall back to whatever the server said.
-            const reason = err?.response?.data?.error?.conflict?.reason as string | undefined;
-            const localized =
-                reason === 'teacher is already scheduled'
-                    ? 'Učitel už má v tento čas naplánovanou jinou hodinu.'
-                    : reason === 'classroom is already scheduled'
-                      ? 'Třída už má v tento čas naplánovanou jinou hodinu.'
-                      : reason === 'room is already in use'
-                        ? 'Učebna je v tento čas obsazená.'
-                        : null;
-            toast.error(localized || err?.response?.data?.message || 'Nepodařilo se přidat hodinu.');
+            // Backend ships an i18n messageKey; the axios interceptor
+            // resolves it via i18next and mirrors the localised text to
+            // `data.message`. The generic Czech string is the last-resort
+            // fallback if the catalogue and English fallback are both
+            // missing.
+            toast.error(err?.response?.data?.message || 'Nepodařilo se přidat hodinu.');
         } finally {
             setSaving(false);
         }

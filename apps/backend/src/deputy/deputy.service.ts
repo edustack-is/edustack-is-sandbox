@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { ApiException } from '../common/exceptions/api.exception';
 import {
   UserRole,
   UserStatus,
@@ -367,7 +368,8 @@ export class DeputyService {
       'SELECT * FROM "Task" WHERE id = ? AND userId = ?',
       [id, userId],
     );
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task)
+      throw ApiException.notFound('apiErrors.notFound.task', 'Task not found.');
 
     const newStatus = task.completed ? 0 : 1;
     await this.db.execute(
@@ -460,7 +462,11 @@ export class DeputyService {
       'SELECT * FROM "Classroom" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Classroom not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.classroom',
+        'Classroom not found.',
+      );
 
     const fields: string[] = [];
     const values: any[] = [];
@@ -500,7 +506,11 @@ export class DeputyService {
       'SELECT * FROM "Classroom" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Classroom not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.classroom',
+        'Classroom not found.',
+      );
 
     await this.db.execute('DELETE FROM "Classroom" WHERE id = ?', [id]);
     await this.audit(
@@ -552,7 +562,11 @@ export class DeputyService {
       'SELECT * FROM "SubjectTemplate" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Subject template not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.subjectTemplate',
+        'Subject template not found.',
+      );
 
     const fields: string[] = [];
     const values: any[] = [];
@@ -596,7 +610,11 @@ export class DeputyService {
       'SELECT * FROM "SubjectTemplate" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Subject template not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.subjectTemplate',
+        'Subject template not found.',
+      );
 
     await this.db.execute('DELETE FROM "SubjectTemplate" WHERE id = ?', [id]);
     await this.audit(
@@ -685,7 +703,8 @@ export class DeputyService {
       'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Room not found');
+    if (!existing)
+      throw ApiException.notFound('apiErrors.notFound.room', 'Room not found.');
 
     const fields = ['updatedAt = ?'];
     const values: any[] = [new Date().toISOString()];
@@ -733,7 +752,8 @@ export class DeputyService {
       'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Room not found');
+    if (!existing)
+      throw ApiException.notFound('apiErrors.notFound.room', 'Room not found.');
 
     await this.db.execute('DELETE FROM "Room" WHERE id = ?', [id]);
     await this.audit(actorId, 'DELETE_ROOM', 'Room', id, null, existing);
@@ -795,7 +815,11 @@ export class DeputyService {
       'SELECT * FROM "Building" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Building not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.building',
+        'Building not found.',
+      );
 
     const fields = ['updatedAt = ?'];
     const values: any[] = [new Date().toISOString()];
@@ -838,7 +862,11 @@ export class DeputyService {
       'SELECT * FROM "Building" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Building not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.building',
+        'Building not found.',
+      );
 
     await this.db.execute('DELETE FROM "Building" WHERE id = ?', [id]);
     await this.audit(
@@ -864,9 +892,16 @@ export class DeputyService {
       'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
       [roomId, schoolId],
     );
-    if (!room) throw new NotFoundException('Room not found in your school');
+    if (!room)
+      throw ApiException.notFound(
+        'apiErrors.notFound.roomInSchool',
+        'Room not found in your school.',
+      );
     if (schoolId === targetSchoolId)
-      throw new BadRequestException('Cannot share room with the same school');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.shareRoomSameSchool',
+        'Cannot share room with the same school.',
+      );
 
     const id = crypto.randomUUID();
     await this.db.execute(
@@ -895,13 +930,21 @@ export class DeputyService {
       'SELECT * FROM "Room" WHERE id = ? AND schoolId = ?',
       [roomId, schoolId],
     );
-    if (!room) throw new NotFoundException('Room not found in your school');
+    if (!room)
+      throw ApiException.notFound(
+        'apiErrors.notFound.roomInSchool',
+        'Room not found in your school.',
+      );
 
     const sharing = await this.db.queryOne<RoomSharing>(
       'SELECT * FROM "RoomSharing" WHERE roomId = ? AND sharedWithSchoolId = ?',
       [roomId, targetSchoolId],
     );
-    if (!sharing) throw new NotFoundException('Sharing not found');
+    if (!sharing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.sharing',
+        'Sharing not found.',
+      );
 
     await this.db.execute('DELETE FROM "RoomSharing" WHERE id = ?', [
       sharing.id,
@@ -1017,7 +1060,11 @@ export class DeputyService {
       'SELECT * FROM "SchoolEvent" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Event not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.event',
+        'Event not found.',
+      );
 
     const fields = ['updatedAt = ?'];
     const values: any[] = [new Date().toISOString()];
@@ -1072,7 +1119,11 @@ export class DeputyService {
       'SELECT * FROM "SchoolEvent" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Event not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.event',
+        'Event not found.',
+      );
 
     await this.db.execute('DELETE FROM "SchoolEvent" WHERE id = ?', [id]);
     await this.audit(
@@ -1100,7 +1151,8 @@ export class DeputyService {
     },
   ) {
     if (!['TEACHER', 'STUDENT', 'DEPUTY', 'PRINCIPAL'].includes(data.role)) {
-      throw new BadRequestException(
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.inviteRoleNotAllowed',
         'Can only invite TEACHER, STUDENT, DEPUTY, or PRINCIPAL roles.',
       );
     }
@@ -1111,7 +1163,8 @@ export class DeputyService {
         [schoolId],
       );
       if (existingPrincipal) {
-        throw new BadRequestException(
+        throw ApiException.badRequest(
+          'apiErrors.badRequest.principalAlreadyExists',
           'This school already has a principal. Only one principal per school is allowed.',
         );
       }
@@ -1638,9 +1691,15 @@ export class DeputyService {
       [userId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User not found in this school');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userInSchool',
+        'User not found in this school.',
+      );
     if ((membership as any).status !== 'PENDING')
-      throw new BadRequestException('User is already active or not pending');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.userAlreadyActiveOrNotPending',
+        'User is already active or not pending.',
+      );
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = await bcrypt.hash(invitationToken, 12);
@@ -1681,11 +1740,18 @@ export class DeputyService {
       [targetUserId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userNotMember',
+        'User is not a member of this school.',
+      );
     if (actorId === targetUserId)
-      throw new BadRequestException('Cannot remove yourself from the school.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.cannotRemoveSelf',
+        'Cannot remove yourself from the school.',
+      );
     if ((membership as any).role === 'PRINCIPAL')
-      throw new BadRequestException(
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.removePrincipalContactAdmin',
         'Cannot remove the principal. Contact system admin.',
       );
 
@@ -1724,11 +1790,20 @@ export class DeputyService {
       [targetUserId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userNotMember',
+        'User is not a member of this school.',
+      );
     if ((membership as any).role !== 'STUDENT')
-      throw new BadRequestException('Only students can be set as alumni.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.onlyStudentsCanBeAlumni',
+        'Only students can be set as alumni.',
+      );
     if ((membership as any).status === 'ALUMNI')
-      throw new BadRequestException('User is already marked as alumni.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.userAlreadyAlumni',
+        'User is already marked as alumni.',
+      );
 
     const oldStatus = (membership as any).status;
     await this.db.execute(
@@ -1767,9 +1842,15 @@ export class DeputyService {
       [targetUserId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userNotMember',
+        'User is not a member of this school.',
+      );
     if (['PRINCIPAL', 'DEPUTY'].includes((membership as any).role))
-      throw new BadRequestException('Cannot impersonate school management.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.cannotImpersonateManagement',
+        'Cannot impersonate school management.',
+      );
 
     await this.audit(actorId, 'IMPERSONATE_SCHOOL_USER', 'User', targetUserId, {
       email: (membership as any).email,
@@ -1811,7 +1892,10 @@ export class DeputyService {
       [userId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User is not a member of this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userNotMember',
+        'User is not a member of this school.',
+      );
 
     const isStudent = (membership as any).role === 'STUDENT';
     const oldStudentProfile = isStudent
@@ -1825,7 +1909,8 @@ export class DeputyService {
     // to this school before we touch anything.
     if (data.classroomId !== undefined && data.classroomId !== null) {
       if (!isStudent) {
-        throw new BadRequestException(
+        throw ApiException.badRequest(
+          'apiErrors.badRequest.classroomOnlyForStudent',
           'classroomId can only be set for users with role STUDENT.',
         );
       }
@@ -1834,10 +1919,14 @@ export class DeputyService {
         [data.classroomId],
       );
       if (!classroom) {
-        throw new NotFoundException('Classroom not found.');
+        throw ApiException.notFound(
+          'apiErrors.notFound.classroom',
+          'Classroom not found.',
+        );
       }
       if (classroom.schoolId !== schoolId) {
-        throw new BadRequestException(
+        throw ApiException.badRequest(
+          'apiErrors.badRequest.classroomDifferentSchool',
           'Classroom belongs to a different school.',
         );
       }
@@ -1927,13 +2016,25 @@ export class DeputyService {
       [userId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User not found in this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userInSchool',
+        'User not found in this school.',
+      );
     if ((membership as any).role === 'PRINCIPAL')
-      throw new BadRequestException('Cannot suspend the principal.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.cannotSuspendPrincipal',
+        'Cannot suspend the school principal.',
+      );
     if (actorId === userId)
-      throw new BadRequestException('Cannot suspend yourself.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.cannotSuspendSelf',
+        'Cannot suspend yourself.',
+      );
     if ((membership as any).status === 'SUSPENDED')
-      throw new BadRequestException('User is already suspended.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.userAlreadySuspended',
+        'User is already suspended.',
+      );
 
     await this.db.execute(
       'UPDATE "SchoolMembership" SET status = ?, updatedAt = ? WHERE id = ?',
@@ -1960,9 +2061,15 @@ export class DeputyService {
       [userId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User not found in this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userInSchool',
+        'User not found in this school.',
+      );
     if ((membership as any).status !== 'SUSPENDED')
-      throw new BadRequestException('User is not suspended.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.userNotSuspended',
+        'User is not suspended.',
+      );
 
     await this.db.execute(
       'UPDATE "SchoolMembership" SET status = ?, updatedAt = ? WHERE id = ?',
@@ -1993,8 +2100,10 @@ export class DeputyService {
   ) {
     const validRoles = ['TEACHER', 'STUDENT', 'DEPUTY', 'PARENT'];
     if (!validRoles.includes(newRole))
-      throw new BadRequestException(
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.invalidRole',
         `Invalid role. Allowed: ${validRoles.join(', ')}`,
+        { roles: validRoles.join(', ') },
       );
 
     const membership = await this.db.queryOne(
@@ -2002,11 +2111,20 @@ export class DeputyService {
       [userId, schoolId],
     );
     if (!membership)
-      throw new NotFoundException('User not found in this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userInSchool',
+        'User not found in this school.',
+      );
     if ((membership as any).role === 'PRINCIPAL')
-      throw new BadRequestException('Cannot change the principal role.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.cannotChangePrincipalRole',
+        'Cannot change the principal role.',
+      );
     if (actorId === userId)
-      throw new BadRequestException('Cannot change your own role.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.cannotChangeOwnRole',
+        'Cannot change your own role.',
+      );
 
     const oldRole = (membership as any).role;
     await this.db.execute(
@@ -2130,7 +2248,11 @@ export class DeputyService {
        WHERE tp.id = ? AND tp.schoolId = ?`,
       [id, schoolId],
     );
-    if (!plan) throw new NotFoundException('Thematic plan not found');
+    if (!plan)
+      throw ApiException.notFound(
+        'apiErrors.notFound.thematicPlan',
+        'Thematic plan not found.',
+      );
 
     const weeks = await this.db.query(
       'SELECT * FROM "ThematicPlanWeek" WHERE planId = ? ORDER BY weekNumber ASC',
@@ -2204,7 +2326,11 @@ export class DeputyService {
       'SELECT * FROM "ThematicPlan" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Thematic plan not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.thematicPlan',
+        'Thematic plan not found.',
+      );
 
     await this.db.execute(
       'UPDATE "ThematicPlan" SET title = ?, updatedAt = ? WHERE id = ?',
@@ -2230,7 +2356,11 @@ export class DeputyService {
       'SELECT * FROM "ThematicPlan" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Thematic plan not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.thematicPlan',
+        'Thematic plan not found.',
+      );
     await this.db.execute('DELETE FROM "ThematicPlan" WHERE id = ?', [id]);
     await this.audit(
       actorId,
@@ -2261,7 +2391,11 @@ export class DeputyService {
       'SELECT id FROM "ThematicPlan" WHERE id = ? AND schoolId = ?',
       [planId, schoolId],
     );
-    if (!plan) throw new NotFoundException('Thematic plan not found');
+    if (!plan)
+      throw ApiException.notFound(
+        'apiErrors.notFound.thematicPlan',
+        'Thematic plan not found.',
+      );
 
     return this.db.transaction(async (db) => {
       await db.execute('DELETE FROM "ThematicPlanWeek" WHERE planId = ?', [
@@ -2402,7 +2536,11 @@ export class DeputyService {
       'SELECT * FROM "LessonPreparation" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Lesson preparation not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.lessonPreparation',
+        'Lesson preparation not found.',
+      );
 
     const fields = ['updatedAt = ?'];
     const values: any[] = [new Date().toISOString()];
@@ -2451,7 +2589,11 @@ export class DeputyService {
       'SELECT * FROM "LessonPreparation" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Lesson preparation not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.lessonPreparation',
+        'Lesson preparation not found.',
+      );
     await this.db.execute('DELETE FROM "LessonPreparation" WHERE id = ?', [id]);
     await this.audit(
       actorId,
@@ -2566,7 +2708,11 @@ export class DeputyService {
       'SELECT * FROM "TeachingMaterial" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Teaching material not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.teachingMaterial',
+        'Teaching material not found.',
+      );
 
     const fields: string[] = [];
     const values: any[] = [];
@@ -2611,7 +2757,11 @@ export class DeputyService {
       'SELECT * FROM "TeachingMaterial" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Teaching material not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.teachingMaterial',
+        'Teaching material not found.',
+      );
     await this.db.execute('DELETE FROM "TeachingMaterial" WHERE id = ?', [id]);
     await this.audit(
       actorId,
@@ -2672,7 +2822,11 @@ export class DeputyService {
       'SELECT * FROM "RvpCompetency" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Competency not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.competency',
+        'Competency not found.',
+      );
 
     const fields: string[] = [];
     const values: any[] = [];
@@ -2709,7 +2863,11 @@ export class DeputyService {
       'SELECT * FROM "RvpCompetency" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Competency not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.competency',
+        'Competency not found.',
+      );
     await this.db.execute('DELETE FROM "RvpCompetency" WHERE id = ?', [id]);
     await this.audit(
       actorId,
@@ -2783,7 +2941,10 @@ export class DeputyService {
       [data.competencyId, schoolId],
     );
     if (!comp)
-      throw new NotFoundException('Competency not found in this school');
+      throw ApiException.notFound(
+        'apiErrors.notFound.competencyInSchool',
+        'Competency not found in this school.',
+      );
 
     const existing = await this.db.queryOne(
       'SELECT id FROM "CompetencyMapping" WHERE competencyId = ? AND subjectTemplateId = ? AND gradeLevelId = ?',
@@ -2831,7 +2992,11 @@ export class DeputyService {
       'SELECT cm.* FROM "CompetencyMapping" cm JOIN "RvpCompetency" c ON cm.competencyId = c.id WHERE cm.id = ? AND c.schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Mapping not found');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.mapping',
+        'Mapping not found.',
+      );
     await this.db.execute('DELETE FROM "CompetencyMapping" WHERE id = ?', [id]);
     await this.audit(
       actorId,

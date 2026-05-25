@@ -39,19 +39,41 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         // The backend's AllExceptionsFilter wraps every error as
-        // `{ success: false, error: { code, message }, ... }`, but
-        // the codebase has ~80 callsites still reading the legacy
-        // `data.message` shape. Mirror the wrapped message back so
-        // those toasts surface the real server error instead of
-        // their generic fallback string. Validation errors arrive as
-        // an array; join into one line so toast text isn't `[object`.
+        // `{ success: false, error: { code, message, messageKey?, messageParams?, ... } }`.
+        // When the backend ships a `messageKey`, look it up in the
+        // current i18n catalogue so the user sees a localised line;
+        // fall back to the raw English message otherwise. Mirror the
+        // resolved text and code onto `data.message` / `data.code`
+        // because ~80 existing callsites still read the legacy shape.
+        // Validation errors arrive as an array; join into one line so
+        // the toast text isn't `[object Object]`.
         const data = error.response?.data;
         if (data && typeof data === 'object') {
-            const wrapped = (data as { error?: { code?: string; message?: unknown } }).error;
+            const wrapped = (
+                data as {
+                    error?: {
+                        code?: string;
+                        message?: unknown;
+                        messageKey?: string;
+                        messageParams?: Record<string, unknown>;
+                    };
+                }
+            ).error;
             if (wrapped && (data as any).message === undefined) {
-                const raw = wrapped.message;
-                if (Array.isArray(raw)) (data as any).message = raw.filter(Boolean).join('; ');
-                else if (typeof raw === 'string') (data as any).message = raw;
+                let resolved: string | undefined;
+                if (wrapped.messageKey) {
+                    const translated = i18n.t(wrapped.messageKey, {
+                        ...(wrapped.messageParams ?? {}),
+                        defaultValue: '',
+                    });
+                    if (translated) resolved = translated as string;
+                }
+                if (!resolved) {
+                    const raw = wrapped.message;
+                    if (Array.isArray(raw)) resolved = raw.filter(Boolean).join('; ');
+                    else if (typeof raw === 'string') resolved = raw;
+                }
+                if (resolved) (data as any).message = resolved;
             }
             if (wrapped?.code && (data as any).code === undefined) {
                 (data as any).code = wrapped.code;

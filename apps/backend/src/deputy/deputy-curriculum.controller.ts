@@ -14,6 +14,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiException } from '../common/exceptions/api.exception';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -928,7 +929,10 @@ export class DeputyCurriculumController {
 
   private ensureTenant(req: any) {
     if (req.user.type !== 'TENANT' || !req.user.schoolId) {
-      throw new ForbiddenException('School context required.');
+      throw ApiException.forbidden(
+        'apiErrors.forbidden.schoolContextRequired',
+        'School context required.',
+      );
     }
   }
 }

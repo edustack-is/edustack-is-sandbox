@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { ApiException } from '../common/exceptions/api.exception';
 import {
   AcademicYear,
   GradeLevel,
@@ -54,8 +55,10 @@ export class DeputyCurriculumService {
       [schoolId, data.levelNumber],
     );
     if (existing) {
-      throw new BadRequestException(
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.gradeLevelDuplicate',
         `Grade level #${data.levelNumber} already exists.`,
+        { levelNumber: data.levelNumber },
       );
     }
 
@@ -90,7 +93,11 @@ export class DeputyCurriculumService {
       'SELECT * FROM "GradeLevel" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Grade level not found.');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.gradeLevel',
+        'Grade level not found.',
+      );
 
     if (
       data.levelNumber !== undefined &&
@@ -101,8 +108,10 @@ export class DeputyCurriculumService {
         [schoolId, data.levelNumber, id],
       );
       if (conflict) {
-        throw new BadRequestException(
+        throw ApiException.badRequest(
+          'apiErrors.badRequest.gradeLevelDuplicate',
           `Grade level #${data.levelNumber} already exists.`,
+          { levelNumber: data.levelNumber! },
         );
       }
     }
@@ -143,7 +152,11 @@ export class DeputyCurriculumService {
       'SELECT * FROM "GradeLevel" WHERE id = ? AND schoolId = ?',
       [id, schoolId],
     );
-    if (!existing) throw new NotFoundException('Grade level not found.');
+    if (!existing)
+      throw ApiException.notFound(
+        'apiErrors.notFound.gradeLevel',
+        'Grade level not found.',
+      );
 
     await this.db.execute('DELETE FROM "GradeLevel" WHERE id = ?', [id]);
     await this.audit(
@@ -193,7 +206,10 @@ export class DeputyCurriculumService {
       [academicYearId, schoolId],
     );
     if (!year)
-      throw new NotFoundException('Academic year not found in this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYearInSchool',
+        'Academic year not found in this school.',
+      );
 
     const workloads = await this.db.query(
       `SELECT tw.*, u.firstName, u.lastName, u.email 
@@ -227,7 +243,10 @@ export class DeputyCurriculumService {
       [data.academicYearId, schoolId],
     );
     if (!year)
-      throw new NotFoundException('Academic year not found in this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYearInSchool',
+        'Academic year not found in this school.',
+      );
 
     const existing = await this.db.queryOne(
       'SELECT id FROM "TeacherWorkload" WHERE teacherId = ? AND academicYearId = ?',
@@ -277,7 +296,10 @@ export class DeputyCurriculumService {
       [academicYearId, schoolId],
     );
     if (!year)
-      throw new NotFoundException('Academic year not found in this school.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYearInSchool',
+        'Academic year not found in this school.',
+      );
 
     // Surface gradeLevel.levelNumber and the matching CurriculumEntry's
     // room requirements so the planner can filter subjects by class grade
@@ -345,7 +367,10 @@ export class DeputyCurriculumService {
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);
     if (end <= start)
-      throw new BadRequestException('endDate must be after startDate.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.endDateAfterStart',
+        'End date must be after start date.',
+      );
 
     if (data.curriculumVersionId) {
       const version = await this.db.queryOne(
@@ -353,7 +378,8 @@ export class DeputyCurriculumService {
         [data.curriculumVersionId, schoolId],
       );
       if (!version)
-        throw new NotFoundException(
+        throw ApiException.notFound(
+          'apiErrors.notFound.curriculumVersion',
           'Curriculum version not found in this school.',
         );
     }
@@ -436,11 +462,26 @@ export class DeputyCurriculumService {
       ),
     ]);
 
-    if (!template) throw new NotFoundException('Subject template not found.');
-    if (!academicYear) throw new NotFoundException('Academic year not found.');
-    if (!gradeLevel) throw new NotFoundException('Grade level not found.');
+    if (!template)
+      throw ApiException.notFound(
+        'apiErrors.notFound.subjectTemplate',
+        'Subject template not found.',
+      );
+    if (!academicYear)
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYear',
+        'Academic year not found.',
+      );
+    if (!gradeLevel)
+      throw ApiException.notFound(
+        'apiErrors.notFound.gradeLevel',
+        'Grade level not found.',
+      );
     if (data.hoursPerWeek < 1)
-      throw new BadRequestException('hoursPerWeek must be at least 1.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.hoursAtLeastOne',
+        'Hours per week must be at least 1.',
+      );
 
     const id = crypto.randomUUID();
     await this.db.execute(
@@ -497,7 +538,11 @@ export class DeputyCurriculumService {
       'SELECT * FROM "CurriculumVersion" WHERE id = ? AND schoolId = ?',
       [versionId, schoolId],
     );
-    if (!version) throw new NotFoundException('Curriculum version not found.');
+    if (!version)
+      throw ApiException.notFound(
+        'apiErrors.notFound.curriculumVersion',
+        'Curriculum version not found.',
+      );
 
     const entries = await this.db.query(
       `SELECT ce.*, st.name as subjectName, st.code as subjectCode, gl.name as gradeName, gl.levelNumber 
@@ -576,7 +621,11 @@ export class DeputyCurriculumService {
       'SELECT id FROM "CurriculumVersion" WHERE id = ? AND schoolId = ?',
       [versionId, schoolId],
     );
-    if (!version) throw new NotFoundException('Curriculum version not found.');
+    if (!version)
+      throw ApiException.notFound(
+        'apiErrors.notFound.curriculumVersion',
+        'Curriculum version not found.',
+      );
 
     const fields = ['updatedAt = ?'];
     const values = [new Date().toISOString()];
@@ -618,7 +667,11 @@ export class DeputyCurriculumService {
       'SELECT id FROM "CurriculumVersion" WHERE id = ? AND schoolId = ?',
       [versionId, schoolId],
     );
-    if (!version) throw new NotFoundException('Curriculum version not found.');
+    if (!version)
+      throw ApiException.notFound(
+        'apiErrors.notFound.curriculumVersion',
+        'Curriculum version not found.',
+      );
 
     await this.db.execute('DELETE FROM "CurriculumVersion" WHERE id = ?', [
       versionId,
@@ -643,7 +696,11 @@ export class DeputyCurriculumService {
       'SELECT * FROM "CurriculumVersion" WHERE id = ? AND schoolId = ?',
       [sourceVersionId, schoolId],
     );
-    if (!source) throw new NotFoundException('Source version not found.');
+    if (!source)
+      throw ApiException.notFound(
+        'apiErrors.notFound.curriculumVersionSource',
+        'Source curriculum version not found.',
+      );
 
     const sourceEntries = await this.db.query<CurriculumEntry>(
       'SELECT * FROM "CurriculumEntry" WHERE curriculumVersionId = ?',
@@ -807,9 +864,15 @@ export class DeputyCurriculumService {
     ]);
 
     if (!version || !template || !gradeLevel)
-      throw new NotFoundException('Version, template or grade not found.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.subjectTemplateOrGradeOrVersion',
+        'Version, template or grade not found.',
+      );
     if (data.hoursPerWeek < 0)
-      throw new BadRequestException('hoursPerWeek must be non-negative.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.hoursNonNegative',
+        'Hours per week must be non-negative.',
+      );
 
     const existing = await this.db.queryOne(
       'SELECT id FROM "CurriculumEntry" WHERE curriculumVersionId = ? AND subjectTemplateId = ? AND gradeLevelId = ?',
@@ -917,7 +980,11 @@ export class DeputyCurriculumService {
       'SELECT ce.id FROM "CurriculumEntry" ce JOIN "CurriculumVersion" cv ON ce.curriculumVersionId = cv.id WHERE ce.id = ? AND cv.schoolId = ?',
       [entryId, schoolId],
     );
-    if (!entry) throw new NotFoundException('Curriculum entry not found.');
+    if (!entry)
+      throw ApiException.notFound(
+        'apiErrors.notFound.curriculumEntry',
+        'Curriculum entry not found.',
+      );
 
     await this.db.execute('DELETE FROM "CurriculumEntry" WHERE id = ?', [
       entryId,
@@ -975,7 +1042,11 @@ export class DeputyCurriculumService {
       'SELECT id FROM "AcademicYear" WHERE id = ? AND schoolId = ?',
       [data.academicYearId, schoolId],
     );
-    if (!year) throw new NotFoundException('Academic year not found.');
+    if (!year)
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYear',
+        'Academic year not found.',
+      );
 
     return this.db.transaction(async (db) => {
       const results = [];
@@ -1041,7 +1112,10 @@ export class DeputyCurriculumService {
     },
   ) {
     if (!data.studentIds.length)
-      throw new BadRequestException('studentIds must not be empty.');
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.studentIdsEmpty',
+        'Student list must not be empty.',
+      );
 
     const [academicYear, gradeLevel] = await Promise.all([
       this.db.queryOne<AcademicYear>(
@@ -1055,7 +1129,10 @@ export class DeputyCurriculumService {
     ]);
 
     if (!academicYear || !gradeLevel)
-      throw new NotFoundException('Academic year or grade level not found.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYearOrGradeLevel',
+        'Academic year or grade level not found.',
+      );
 
     // Validate students
     const memberships = await this.db.query(
@@ -1067,8 +1144,10 @@ export class DeputyCurriculumService {
     const validIds = memberships.map((m: any) => m.userId);
     const invalidIds = data.studentIds.filter((id) => !validIds.includes(id));
     if (invalidIds.length > 0)
-      throw new BadRequestException(
+      throw ApiException.badRequest(
+        'apiErrors.badRequest.invalidStudentIds',
         `Invalid student IDs: ${invalidIds.join(', ')}`,
+        { ids: invalidIds.join(', ') },
       );
 
     return this.db.transaction(async (db) => {
@@ -1146,7 +1225,11 @@ export class DeputyCurriculumService {
       'SELECT id FROM "AcademicYear" WHERE id = ? AND schoolId = ?',
       [academicYearId, schoolId],
     );
-    if (!year) throw new NotFoundException('Academic year not found.');
+    if (!year)
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYear',
+        'Academic year not found.',
+      );
 
     const workloads = await this.db.query(
       `SELECT sw.*, u.firstName, u.lastName, u.email 
@@ -1203,14 +1286,21 @@ export class DeputyCurriculumService {
       'SELECT id FROM "AcademicYear" WHERE id = ? AND schoolId = ?',
       [data.academicYearId, schoolId],
     );
-    if (!year) throw new NotFoundException('Academic year not found.');
+    if (!year)
+      throw ApiException.notFound(
+        'apiErrors.notFound.academicYear',
+        'Academic year not found.',
+      );
 
     const membership = await this.db.queryOne(
       'SELECT id FROM "SchoolMembership" WHERE userId = ? AND schoolId = ? AND status = ? AND role NOT IN (?, ?)',
       [data.userId, schoolId, 'ACTIVE', 'STUDENT', 'PARENT'],
     );
     if (!membership)
-      throw new NotFoundException('User is not an active staff member.');
+      throw ApiException.notFound(
+        'apiErrors.notFound.userNotActiveStaff',
+        'User is not an active staff member.',
+      );
 
     const id = crypto.randomUUID();
     await this.db.execute(
@@ -1256,7 +1346,11 @@ export class DeputyCurriculumService {
       'SELECT sw.id FROM "StaffWorkload" sw JOIN "AcademicYear" ay ON sw.academicYearId = ay.id WHERE sw.id = ? AND ay.schoolId = ?',
       [workloadId, schoolId],
     );
-    if (!workload) throw new NotFoundException('Staff workload not found.');
+    if (!workload)
+      throw ApiException.notFound(
+        'apiErrors.notFound.staffWorkload',
+        'Staff workload not found.',
+      );
 
     return this.db.transaction(async (db) => {
       await db.execute(
