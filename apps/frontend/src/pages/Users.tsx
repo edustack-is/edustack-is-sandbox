@@ -16,6 +16,8 @@ import {
     ShieldCheck,
     Download,
     School as SchoolIcon,
+    Search,
+    X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +26,8 @@ import { getUsers, api } from '../api';
 import {
     getDeputyUsers,
     createStudentFamily,
+    searchParents,
+    type ParentSearchResult,
     createStaff,
     resendInvitation,
     removeSchoolUser,
@@ -91,7 +95,15 @@ interface SchoolUser {
 
 interface StudentFamilyFormData {
     student: { firstName: string; lastName: string; email: string };
-    parents: Array<{ firstName: string; lastName: string; email: string; phone: string }>;
+    parents: Array<{
+        // Set when an existing parent was picked via search; the fields below
+        // are then prefilled & read-only and the backend just links the user.
+        existingUserId: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+    }>;
 }
 
 interface StaffFormData {
@@ -134,6 +146,88 @@ function statusBadgeVariant(status: string) {
         default:
             return 'outline';
     }
+}
+
+// ─── Existing-parent search box ─────────────────────────────────
+// Lets a deputy attach an already-registered guardian to a new student
+// instead of re-typing (and duplicating) their details. Searches by partial
+// first/last name with a small debounce.
+function ParentSearchBox({ onSelect }: { onSelect: (parent: ParentSearchResult) => void }) {
+    const { t } = useTranslation();
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<ParentSearchResult[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        const q = query.trim();
+        if (q.length < 2) {
+            setResults([]);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        const handle = setTimeout(async () => {
+            try {
+                const data = await searchParents(q);
+                setResults(data);
+                setOpen(true);
+            } catch {
+                setResults([]);
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+        return () => clearTimeout(handle);
+    }, [query]);
+
+    return (
+        <div className="relative space-y-1">
+            <Label>{t('users_page.search_existing_parent')}</Label>
+            <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    className="pl-8"
+                    placeholder={t('users_page.search_existing_parent_placeholder')}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => results.length > 0 && setOpen(true)}
+                    onBlur={() => setTimeout(() => setOpen(false), 150)}
+                />
+            </div>
+            {open && query.trim().length >= 2 && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-56 overflow-auto">
+                    {loading ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">{t('common.loading')}</p>
+                    ) : results.length === 0 ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">{t('users_page.no_parents_found')}</p>
+                    ) : (
+                        results.map((p) => (
+                            <button
+                                key={p.id}
+                                type="button"
+                                className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-accent"
+                                onMouseDown={(e) => {
+                                    // onMouseDown fires before the input's onBlur, so the
+                                    // selection isn't lost to the blur-driven close.
+                                    e.preventDefault();
+                                    onSelect(p);
+                                    setQuery('');
+                                    setResults([]);
+                                    setOpen(false);
+                                }}
+                            >
+                                <span className="font-medium">
+                                    {p.firstName} {p.lastName}
+                                </span>
+                                <span className="text-xs text-muted-foreground">{p.email}</span>
+                            </button>
+                        ))
+                    )}
+                </div>
+            )}
+        </div>
+    );
 }
 
 // ─── Component ──────────────────────────────────────────────────
@@ -498,6 +592,9 @@ export default function Users() {
         }
         for (let i = 0; i < data.parents.length; i++) {
             const p = data.parents[i];
+            // Linked existing parents are pre-filled & read-only, so only
+            // manually entered guardians need their fields validated.
+            if (p.existingUserId) continue;
             if (!p.firstName.trim() || !p.lastName.trim() || !p.email.trim()) {
                 toast.error(t('users_page.parent_fields_required', { number: i + 1 }));
                 return;
@@ -512,6 +609,7 @@ export default function Users() {
                     email: data.student.email || undefined,
                 },
                 parents: data.parents.map((p) => ({
+                    existingUserId: p.existingUserId || undefined,
                     firstName: p.firstName,
                     lastName: p.lastName,
                     email: p.email,
@@ -976,7 +1074,13 @@ export default function Users() {
                                             variant="outline"
                                             size="sm"
                                             onClick={() =>
-                                                addParent({ firstName: '', lastName: '', email: '', phone: '' })
+                                                addParent({
+                                                    existingUserId: '',
+                                                    firstName: '',
+                                                    lastName: '',
+                                                    email: '',
+                                                    phone: '',
+                                                })
                                             }
                                         >
                                             <Plus className="h-3 w-3 mr-1" /> {t('users_page.add_parent')}
@@ -989,57 +1093,118 @@ export default function Users() {
                                         </p>
                                     )}
 
-                                    {parentFields.map((field, index) => (
-                                        <div key={field.id} className="rounded-lg border p-4 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium">
-                                                    {t('users_page.parent_number', { number: index + 1 })}
-                                                </span>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => removeParent(index)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
+                                    {parentFields.map((field, index) => {
+                                        const linkedId = studentForm.watch(`parents.${index}.existingUserId`);
+                                        const linkExisting = (p: ParentSearchResult) => {
+                                            studentForm.setValue(`parents.${index}.existingUserId`, p.id, {
+                                                shouldDirty: true,
+                                            });
+                                            studentForm.setValue(`parents.${index}.firstName`, p.firstName);
+                                            studentForm.setValue(`parents.${index}.lastName`, p.lastName);
+                                            studentForm.setValue(`parents.${index}.email`, p.email);
+                                        };
+                                        const unlinkExisting = () => {
+                                            studentForm.setValue(`parents.${index}.existingUserId`, '');
+                                            studentForm.setValue(`parents.${index}.firstName`, '');
+                                            studentForm.setValue(`parents.${index}.lastName`, '');
+                                            studentForm.setValue(`parents.${index}.email`, '');
+                                        };
+                                        return (
+                                            <div key={field.id} className="rounded-lg border p-4 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium">
+                                                        {t('users_page.parent_number', { number: index + 1 })}
+                                                    </span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => removeParent(index)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+
+                                                {linkedId ? (
+                                                    // Existing parent linked — show a read-only summary
+                                                    // with an option to unlink and enter someone new.
+                                                    <div className="flex items-center justify-between rounded-md border border-dashed bg-muted/40 px-3 py-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Link2 className="h-4 w-4 text-muted-foreground" />
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-medium">
+                                                                    {studentForm.watch(`parents.${index}.firstName`)}{' '}
+                                                                    {studentForm.watch(`parents.${index}.lastName`)}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {studentForm.watch(`parents.${index}.email`)} ·{' '}
+                                                                    {t('users_page.existing_parent_badge')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={unlinkExisting}
+                                                        >
+                                                            <X className="h-3 w-3 mr-1" />
+                                                            {t('users_page.unlink_parent')}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <ParentSearchBox onSelect={linkExisting} />
+                                                        <div className="relative my-1 flex items-center">
+                                                            <div className="flex-grow border-t" />
+                                                            <span className="mx-2 text-[11px] uppercase text-muted-foreground">
+                                                                {t('users_page.or_new_parent')}
+                                                            </span>
+                                                            <div className="flex-grow border-t" />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="space-y-1">
+                                                                <Label>{t('users_page.first_name_required')}</Label>
+                                                                <Input
+                                                                    placeholder="Jana"
+                                                                    {...studentForm.register(
+                                                                        `parents.${index}.firstName`,
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label>{t('users_page.last_name_required')}</Label>
+                                                                <Input
+                                                                    placeholder="Nováková"
+                                                                    {...studentForm.register(
+                                                                        `parents.${index}.lastName`,
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="space-y-1">
+                                                                <Label>{t('users_page.email_required')}</Label>
+                                                                <Input
+                                                                    type="email"
+                                                                    placeholder="jana@email.cz"
+                                                                    {...studentForm.register(`parents.${index}.email`)}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label>{t('common.phone')}</Label>
+                                                                <Input
+                                                                    type="tel"
+                                                                    placeholder="+420 ..."
+                                                                    {...studentForm.register(`parents.${index}.phone`)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1">
-                                                    <Label>{t('users_page.first_name_required')}</Label>
-                                                    <Input
-                                                        placeholder="Jana"
-                                                        {...studentForm.register(`parents.${index}.firstName`)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label>{t('users_page.last_name_required')}</Label>
-                                                    <Input
-                                                        placeholder="Nováková"
-                                                        {...studentForm.register(`parents.${index}.lastName`)}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1">
-                                                    <Label>{t('users_page.email_required')}</Label>
-                                                    <Input
-                                                        type="email"
-                                                        placeholder="jana@email.cz"
-                                                        {...studentForm.register(`parents.${index}.email`)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label>{t('common.phone')}</Label>
-                                                    <Input
-                                                        type="tel"
-                                                        placeholder="+420 ..."
-                                                        {...studentForm.register(`parents.${index}.phone`)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
 
                                 <DialogFooter className="mt-6">

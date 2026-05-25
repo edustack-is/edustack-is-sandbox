@@ -416,9 +416,28 @@ export const getDeputyUsers = async () => {
 
 export const createStudentFamily = async (data: {
     student: { firstName: string; lastName: string; email?: string };
-    parents: Array<{ firstName: string; lastName: string; email: string; phone?: string }>;
+    parents: Array<{
+        existingUserId?: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone?: string;
+    }>;
 }) => {
     const response = await api.post('/api/deputy/users/student-family', data);
+    return response.data;
+};
+
+export interface ParentSearchResult {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+}
+
+// Search existing parents in the school by partial first/last name.
+export const searchParents = async (q: string): Promise<ParentSearchResult[]> => {
+    const response = await api.get('/api/deputy/users/parents/search', { params: { q } });
     return response.data;
 };
 

@@ -1082,6 +1082,15 @@ export class DeputyController {
     return this.deputyService.getSchoolUsers(req.user.schoolId);
   }
 
+  // ─── PARENT SEARCH (for linking existing guardians) ─────────────
+
+  @Get('users/parents/search')
+  @ApiOperation({ summary: 'Vyhledání existujících rodičů podle jména' })
+  async searchParents(@Req() req: any, @Query('q') q: string) {
+    this.ensureTenant(req);
+    return this.deputyService.searchParents(req.user.schoolId, q ?? '');
+  }
+
   // ─── STUDENT + FAMILY CREATION ──────────────────────────────────
 
   @Post('users/student-family')
@@ -1091,6 +1100,7 @@ export class DeputyController {
     body: {
       student: { firstName: string; lastName: string; email?: string };
       parents: Array<{
+        existingUserId?: string;
         firstName: string;
         lastName: string;
         email: string;
