@@ -38,6 +38,26 @@ const PUBLIC_PATHS = ['/login', '/setup', '/reset-password', '/forgot-password',
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        // The backend's AllExceptionsFilter wraps every error as
+        // `{ success: false, error: { code, message }, ... }`, but
+        // the codebase has ~80 callsites still reading the legacy
+        // `data.message` shape. Mirror the wrapped message back so
+        // those toasts surface the real server error instead of
+        // their generic fallback string. Validation errors arrive as
+        // an array; join into one line so toast text isn't `[object`.
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+            const wrapped = (data as { error?: { code?: string; message?: unknown } }).error;
+            if (wrapped && (data as any).message === undefined) {
+                const raw = wrapped.message;
+                if (Array.isArray(raw)) (data as any).message = raw.filter(Boolean).join('; ');
+                else if (typeof raw === 'string') (data as any).message = raw;
+            }
+            if (wrapped?.code && (data as any).code === undefined) {
+                (data as any).code = wrapped.code;
+            }
+        }
+
         if (error.response?.status === 401) {
             const currentPath = window.location.pathname;
             if (!PUBLIC_PATHS.includes(currentPath)) {
