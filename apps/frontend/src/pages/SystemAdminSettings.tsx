@@ -1347,56 +1347,53 @@ function MonitoringTab() {
                     color="text-indigo-500"
                     bg="bg-indigo-500/10"
                 />
-            </div>
-
-            {/* Database viewer (Adminer) — opens the SQLite DB with a prefilled
-                connection; the password below is the Adminer login. */}
-            {adminer.url && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Database className="h-5 w-5" />
-                            {t('login.adminer_link', 'Databáze (Adminer)')}
-                        </CardTitle>
-                        <CardDescription>
-                            {t(
-                                'system_settings.adminer_desc',
-                                'Prohlížeč databáze s předvyplněným připojením. Přihlaste se heslem níže.',
-                            )}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap items-center gap-3">
-                        <Button asChild variant="outline" size="sm">
-                            <a href={adminer.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                {t('system_settings.adminer_open', 'Otevřít Adminer')}
-                            </a>
-                        </Button>
-                        {adminer.password && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span>{t('login.adminer_password', 'Heslo do Admineru')}:</span>
-                                <code className="font-mono text-foreground">{adminer.password}</code>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 px-2"
-                                    onClick={copyAdminerPw}
-                                    title={t('login.adminer_copy', 'Kopírovat heslo')}
-                                >
-                                    {adminerPwCopied ? (
-                                        <>
-                                            <Check className="h-3.5 w-3.5 text-emerald-500 mr-1" />
-                                            {t('login.adminer_copied', 'Zkopírováno')}
-                                        </>
-                                    ) : (
-                                        <Copy className="h-3.5 w-3.5" />
+                {/* Database viewer (Adminer) — KPI-sized tile matching the
+                    others. Opens the SQLite DB with a prefilled connection; the
+                    Adminer login password is shown below with a copy button. */}
+                {adminer.url && (
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        {t('login.adminer_link', 'Databáze (Adminer)')}
+                                    </p>
+                                    <a
+                                        href={adminer.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-2xl font-bold mt-1 inline-flex items-center gap-1.5 text-primary hover:underline"
+                                    >
+                                        {t('system_settings.adminer_open', 'Otevřít')}
+                                        <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                    {adminer.password && (
+                                        <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                                            <code className="font-mono break-all">{adminer.password}</code>
+                                            <button
+                                                type="button"
+                                                onClick={copyAdminerPw}
+                                                title={t('login.adminer_copy', 'Kopírovat heslo')}
+                                                aria-label={t('login.adminer_copy', 'Kopírovat heslo')}
+                                                className="shrink-0 hover:text-foreground"
+                                            >
+                                                {adminerPwCopied ? (
+                                                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                ) : (
+                                                    <Copy className="h-3.5 w-3.5" />
+                                                )}
+                                            </button>
+                                        </p>
                                     )}
-                                </Button>
+                                </div>
+                                <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-500">
+                                    <Database className="h-5 w-5" />
+                                </div>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
 
             {/* Audit Log */}
             <Card>
