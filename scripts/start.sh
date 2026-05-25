@@ -43,9 +43,24 @@ echo "[start] launching MCP server on ${MCP_HOST:-127.0.0.1}:${MCP_PORT:-3001}"
 ( cd /app/apps/mcp-server && node dist/index.js ) &
 MCP_PID=$!
 
+# Adminer (SQLite DB viewer) — only when a password gate is configured, so it
+# is never exposed unauthenticated. It's a developer convenience, so it's
+# best-effort: `disown` keeps a crash here from tripping the `wait -n` below
+# and taking down the backend. ADMINER_DB_PATH/ADMINER_PASSWORD come from env.
+ADMINER_PID=""
+if [ -n "${ADMINER_PASSWORD:-}" ] && [ -f /app/adminer/adminer.php ]; then
+  echo "[start] launching Adminer on 0.0.0.0:${ADMINER_PORT:-8080} (db ${ADMINER_DB_PATH:-$DB_FILE})"
+  ADMINER_DB_PATH="${ADMINER_DB_PATH:-$DB_FILE}" \
+    php -d display_errors=0 -S "0.0.0.0:${ADMINER_PORT:-8080}" -t /app/adminer &
+  ADMINER_PID=$!
+  disown "$ADMINER_PID" 2>/dev/null || true
+else
+  echo "[start] Adminer disabled (ADMINER_PASSWORD unset) — skipping"
+fi
+
 shutdown() {
   echo "[start] shutting down…"
-  kill -TERM "$MCP_PID" "$BACKEND_PID" 2>/dev/null || true
+  kill -TERM "$MCP_PID" "$BACKEND_PID" ${ADMINER_PID:+"$ADMINER_PID"} 2>/dev/null || true
   wait || true
 }
 trap shutdown TERM INT

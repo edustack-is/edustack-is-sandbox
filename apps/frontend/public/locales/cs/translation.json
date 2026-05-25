@@ -506,7 +506,8 @@
     "helper_searching": "Hledám demo účty...",
     "filter_all_schools": "Všechny školy",
     "filter_all_roles": "Všechny role",
-    "no_users_found": "Žádní uživatelé nevyhovují filtrům"
+    "no_users_found": "Žádní uživatelé nevyhovují filtrům",
+    "adminer_link": "Databáze (Adminer)"
   },
   "materials": {
     "title": "Elektronické materiály",
@@ -991,6 +992,7 @@
     "disable_without_losing": "Poskytovatele lze deaktivovat bez ztráty přihlašovacích údajů.",
     "system_audit_log": "Systémový audit log",
     "system_events": "Systémové události (bez školy)",
+    "adminer_open": "Otevřít",
     "filter_action": "Akce...",
     "filter_entity": "Entita...",
     "filter_user_id": "ID uživatele...",

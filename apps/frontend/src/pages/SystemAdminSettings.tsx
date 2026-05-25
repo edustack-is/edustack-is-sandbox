@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { TestDataGenerator } from './TestDataGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { getLoginHelperConfig } from '@/api';
 import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
 import { getSsoSettings, updateSsoProvider, deleteSsoProvider } from '@/api/system-sso';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -1238,6 +1239,7 @@ function MonitoringTab() {
     const { t } = useTranslation();
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [auditLog, setAuditLog] = useState<any>(null);
+    const [adminer, setAdminer] = useState<{ url?: string }>({});
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState({
         dateFrom: '',
@@ -1266,6 +1268,12 @@ function MonitoringTab() {
     useEffect(() => {
         fetchHealth();
         fetchAuditLog();
+        // Adminer (DB viewer) URL comes from the same config the login screen
+        // uses; sourced from backend env. Adminer is passwordless, so we only
+        // need the link.
+        getLoginHelperConfig()
+            .then((c) => setAdminer({ url: c.adminerUrl }))
+            .catch(() => setAdminer({}));
         const healthInterval = setInterval(fetchHealth, 30000);
         return () => clearInterval(healthInterval);
     }, [fetchHealth, fetchAuditLog]);
@@ -1326,6 +1334,33 @@ function MonitoringTab() {
                     color="text-indigo-500"
                     bg="bg-indigo-500/10"
                 />
+                {/* Database viewer (Adminer) — KPI-sized tile matching the
+                    others. Passwordless: the link opens straight into the DB. */}
+                {adminer.url && (
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        {t('login.adminer_link', 'Databáze (Adminer)')}
+                                    </p>
+                                    <a
+                                        href={adminer.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-2xl font-bold mt-1 inline-flex items-center gap-1.5 text-primary hover:underline"
+                                    >
+                                        {t('system_settings.adminer_open', 'Otevřít')}
+                                        <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                </div>
+                                <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-500">
+                                    <Database className="h-5 w-5" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             {/* Audit Log */}

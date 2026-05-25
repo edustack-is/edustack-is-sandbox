@@ -1,0 +1,6 @@
+# Adminer ships as one big PHP file, and its plugins/designs are separate
+# third-party files. We fetch them at build/run time (fetch-assets.sh) rather
+# than vendoring third-party blobs into the repo.
+adminer.php
+plugins/
+designs/

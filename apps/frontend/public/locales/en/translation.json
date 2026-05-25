@@ -506,7 +506,8 @@
     "helper_searching": "Searching for demo accounts...",
     "filter_all_schools": "All schools",
     "filter_all_roles": "All roles",
-    "no_users_found": "No users match the filters"
+    "no_users_found": "No users match the filters",
+    "adminer_link": "Database (Adminer)"
   },
   "materials": {
     "title": "Teaching Materials",
@@ -991,6 +992,7 @@
     "disable_without_losing": "Providers can be disabled without losing credentials.",
     "system_audit_log": "System Audit Log",
     "system_events": "System events (no school)",
+    "adminer_open": "Open",
     "filter_action": "Action...",
     "filter_entity": "Entity...",
     "filter_user_id": "User ID...",

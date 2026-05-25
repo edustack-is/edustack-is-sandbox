@@ -52,12 +52,22 @@ cp .env.example .env
 | `JWT_SECRET`          | Key used to sign JWT tokens                  | `openssl rand -base64 64` |
 | `ENCRYPTION_KEY`      | AES-256 key for encrypting secrets           | `openssl rand -base64 32` |
 | `ENABLE_LOGIN_HELPER` | Shows a demo-users panel on the login screen | `true` or `false`         |
+| `ADMINER_PASSWORD`    | Enables the Adminer DB viewer + seeds its permanent-login cookie (Adminer itself is passwordless) | any string (default `edustack`) |
 
 **SMTP (emails):**
 For local email testing, MailDev starts automatically with the application:
 
 - **SMTP server:** port 1025
 - **Web UI:** http://localhost:1081 (inspect delivered messages)
+
+**Database viewer (Adminer):**
+For inspecting the SQLite schema and data, Adminer starts automatically with `npm run dev` (needs either `php` or `docker` available):
+
+- **Web UI:** http://localhost:8080 — the connection is **prefilled** (SQLite, pointed at the local DB file) and **passwordless**; the page auto-submits straight into the database. This is an educational sandbox, so no credentials are required.
+
+The Adminer binary, plugins and designs are third-party files fetched (not vendored) by `adminer/fetch-assets.sh` on first run. Bundled plugins: `table-structure` + `table-indexes-structure` (expanded schema/index info), `tables-filter` (filter the tables list), `designs` (theme switcher, bottom-right). The default view style is **Konya** (pinned to the v5.4.2 CSS); **Dracula** (dark) is also offered in the switcher. (The standalone `dark-switcher` plugin needs Adminer 5.x, so dark mode is provided via the dark design instead.)
+
+On deployed sandboxes Adminer rides along inside the backend container (SQLite is a file on the backend's volume, so it can't be a standalone app like MailDev) and is published at **`https://be-<env>.is-edustack.org:8443`**. The login screen's helper panel and the System Monitoring tab link straight to it. **Note:** Adminer is passwordless and publicly reachable — anyone with the link has full read/write access to that sandbox's database. Fine for throwaway educational sandboxes; don't put sensitive data in them.
 
 ### 2. Install and prepare the database
 

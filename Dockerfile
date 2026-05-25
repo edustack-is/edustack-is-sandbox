@@ -25,8 +25,9 @@ RUN npm run build --workspace=backend --workspace=mcp-server
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 WORKDIR /app
 
+# php-cli + php-sqlite3 power Adminer (the DB viewer); curl fetches its binary.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tini sqlite3 ca-certificates \
+    tini sqlite3 ca-certificates curl php-cli php-sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
@@ -45,6 +46,13 @@ COPY --from=build /app/apps/mcp-server/dist apps/mcp-server/dist
 COPY scripts/start.sh /app/scripts/start.sh
 RUN chmod +x /app/scripts/start.sh && mkdir -p /data
 
+# Adminer (SQLite DB viewer). Runs as a second process from start.sh, reachable
+# on the db-<env> service port. index.php pins the connection to our SQLite
+# file; the Adminer binary + plugins + designs are fetched at build time by
+# fetch-assets.sh (all gitignored, never committed).
+COPY adminer/index.php adminer/fetch-assets.sh /app/adminer/
+RUN bash /app/adminer/fetch-assets.sh /app/adminer
+
 # Build metadata. Both default to "unknown" so local `docker build` without
 # --build-arg still works; CI passes real values from github.sha and an ISO
 # UTC timestamp at deploy time so the status page and /api/health can
@@ -58,9 +66,11 @@ ENV NODE_ENV=production \
     MCP_PORT=3001 \
     MCP_HOST=127.0.0.1 \
     DATABASE_URL=file:/data/edustack.db \
+    ADMINER_PORT=8080 \
+    ADMINER_DB_PATH=/data/edustack.db \
     COMMIT_SHA=$COMMIT_SHA \
     BUILD_TIME=$BUILD_TIME
 
-EXPOSE 3000
+EXPOSE 3000 8080
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/app/scripts/start.sh"]

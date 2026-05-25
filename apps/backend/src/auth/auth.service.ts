@@ -828,6 +828,9 @@ export class AuthService {
     return {
       enabled: process.env.ENABLE_LOGIN_HELPER === 'true',
       defaultPassword: process.env.DEMO_PASSWORD || 'Demo1234!',
+      // Adminer (SQLite DB viewer) link, surfaced in the login-helper card and
+      // monitoring page. Adminer is passwordless, so only the URL is exposed.
+      adminerUrl: process.env.ADMINER_PUBLIC_URL || '',
     };
   }
 
