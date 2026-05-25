@@ -39,6 +39,7 @@ import {
     RotateCcw,
     Plus,
     ExternalLink,
+    Copy,
     Clock,
     Server,
     MemoryStick,
@@ -48,6 +49,7 @@ import {
 } from 'lucide-react';
 import { TestDataGenerator } from './TestDataGenerator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { getLoginHelperConfig } from '@/api';
 import { getAiSettings, updateAiSettings, getAiUsage } from '@/api/system-ai';
 import { getSsoSettings, updateSsoProvider, deleteSsoProvider } from '@/api/system-sso';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -1238,6 +1240,8 @@ function MonitoringTab() {
     const { t } = useTranslation();
     const [health, setHealth] = useState<HealthStatus | null>(null);
     const [auditLog, setAuditLog] = useState<any>(null);
+    const [adminer, setAdminer] = useState<{ url?: string; password?: string }>({});
+    const [adminerPwCopied, setAdminerPwCopied] = useState(false);
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState({
         dateFrom: '',
@@ -1266,9 +1270,26 @@ function MonitoringTab() {
     useEffect(() => {
         fetchHealth();
         fetchAuditLog();
+        // Adminer (DB viewer) URL + password come from the same config the
+        // login screen uses; they're sourced from backend env, independent of
+        // whether the demo login helper is enabled.
+        getLoginHelperConfig()
+            .then((c) => setAdminer({ url: c.adminerUrl, password: c.adminerPassword }))
+            .catch(() => setAdminer({}));
         const healthInterval = setInterval(fetchHealth, 30000);
         return () => clearInterval(healthInterval);
     }, [fetchHealth, fetchAuditLog]);
+
+    const copyAdminerPw = async () => {
+        if (!adminer.password) return;
+        try {
+            await navigator.clipboard.writeText(adminer.password);
+            setAdminerPwCopied(true);
+            setTimeout(() => setAdminerPwCopied(false), 2000);
+        } catch {
+            toast.error(t('login.adminer_copy_failed', 'Kopírování se nezdařilo'));
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -1327,6 +1348,55 @@ function MonitoringTab() {
                     bg="bg-indigo-500/10"
                 />
             </div>
+
+            {/* Database viewer (Adminer) — opens the SQLite DB with a prefilled
+                connection; the password below is the Adminer login. */}
+            {adminer.url && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Database className="h-5 w-5" />
+                            {t('login.adminer_link', 'Databáze (Adminer)')}
+                        </CardTitle>
+                        <CardDescription>
+                            {t(
+                                'system_settings.adminer_desc',
+                                'Prohlížeč databáze s předvyplněným připojením. Přihlaste se heslem níže.',
+                            )}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap items-center gap-3">
+                        <Button asChild variant="outline" size="sm">
+                            <a href={adminer.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                {t('system_settings.adminer_open', 'Otevřít Adminer')}
+                            </a>
+                        </Button>
+                        {adminer.password && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>{t('login.adminer_password', 'Heslo do Admineru')}:</span>
+                                <code className="font-mono text-foreground">{adminer.password}</code>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2"
+                                    onClick={copyAdminerPw}
+                                    title={t('login.adminer_copy', 'Kopírovat heslo')}
+                                >
+                                    {adminerPwCopied ? (
+                                        <>
+                                            <Check className="h-3.5 w-3.5 text-emerald-500 mr-1" />
+                                            {t('login.adminer_copied', 'Zkopírováno')}
+                                        </>
+                                    ) : (
+                                        <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Audit Log */}
             <Card>

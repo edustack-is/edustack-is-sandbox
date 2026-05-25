@@ -998,6 +998,8 @@
     "disable_without_losing": "Providers can be disabled without losing credentials.",
     "system_audit_log": "System Audit Log",
     "system_events": "System events (no school)",
+    "adminer_desc": "Database viewer with a prefilled connection. Log in with the password below.",
+    "adminer_open": "Open Adminer",
     "filter_action": "Action...",
     "filter_entity": "Entity...",
     "filter_user_id": "User ID...",
