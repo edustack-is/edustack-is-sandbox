@@ -511,7 +511,9 @@
     "adminer_password": "Adminer password",
     "adminer_copy": "Copy password",
     "adminer_copied": "Copied",
-    "adminer_copy_failed": "Copy failed"
+    "adminer_copy_failed": "Copy failed",
+    "monitoring_link": "System Monitoring",
+    "monitoring_login": "Login"
   },
   "materials": {
     "title": "Teaching Materials",

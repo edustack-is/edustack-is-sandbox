@@ -511,7 +511,9 @@
     "adminer_password": "Heslo do Admineru",
     "adminer_copy": "Kopírovat heslo",
     "adminer_copied": "Zkopírováno",
-    "adminer_copy_failed": "Kopírování se nezdařilo"
+    "adminer_copy_failed": "Kopírování se nezdařilo",
+    "monitoring_link": "Monitoring systému",
+    "monitoring_login": "Přihlášení"
   },
   "materials": {
     "title": "Elektronické materiály",
