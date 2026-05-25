@@ -66,7 +66,9 @@ For inspecting the SQLite schema and data, Adminer starts automatically with `np
 - **Web UI:** http://localhost:8080 — the connection is **prefilled** (SQLite, pointed at the local DB file); just enter the password.
 - **Password:** value of `ADMINER_PASSWORD` (default `edustack`).
 
-On deployed sandboxes Adminer rides along inside the backend container (SQLite is a file on the backend's volume, so it can't be a standalone app like MailDev) and is published at **`https://be-<env>.is-edustack.org:8443`**, password-gated by the `ADMINER_PASSWORD` repo secret. The login screen's helper panel links straight to it.
+The Adminer binary, plugins and designs are third-party files fetched (not vendored) by `adminer/fetch-assets.sh` on first run. Bundled plugins: `table-structure` + `table-indexes-structure` (expanded schema/index info), `tables-filter` (filter the tables list), `designs` (theme switcher, bottom-right). Themes include **Konya** and **Dracula** (dark). `login-password-less` is fetched but left inactive — enabling it makes Adminer passwordless, which for SQLite means anyone with the link gets full DB access. (The standalone `dark-switcher` plugin needs Adminer 5.x, so dark mode is provided via the dark design instead.)
+
+On deployed sandboxes Adminer rides along inside the backend container (SQLite is a file on the backend's volume, so it can't be a standalone app like MailDev) and is published at **`https://be-<env>.is-edustack.org:8443`**, password-gated by the `ADMINER_PASSWORD` repo secret. The login screen's helper panel and the System Monitoring tab link straight to it.
 
 ### 2. Install and prepare the database
 

@@ -21,7 +21,6 @@ set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ADMINER_DIR="$ROOT_DIR/adminer"
-ADMINER_VERSION="4.8.1"
 ADMINER_PORT="${ADMINER_PORT:-8080}"
 ADMINER_PASSWORD="${ADMINER_PASSWORD:-edustack}"
 
@@ -56,19 +55,9 @@ if [ ! -f "$DB_PATH" ]; then
   echo "[adminer]   Adminer will still start; reconnect once the file exists."
 fi
 
-# ─── Fetch the Adminer binary if missing ────────────────────────────────────
+# ─── Fetch the Adminer binary + plugins + designs if missing ────────────────
 fetch_adminer() {
-  [ -f "$ADMINER_DIR/adminer.php" ] && return 0
-  local url="https://github.com/vrana/adminer/releases/download/v${ADMINER_VERSION}/adminer-${ADMINER_VERSION}.php"
-  echo "[adminer] downloading Adminer ${ADMINER_VERSION}…"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o "$ADMINER_DIR/adminer.php"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$ADMINER_DIR/adminer.php" "$url"
-  else
-    echo "[adminer] ✗ need curl or wget to download Adminer — skipping."
-    return 1
-  fi
+  bash "$ADMINER_DIR/fetch-assets.sh" "$ADMINER_DIR"
 }
 
 # ─── Serve ───────────────────────────────────────────────────────────────────

@@ -47,12 +47,11 @@ COPY scripts/start.sh /app/scripts/start.sh
 RUN chmod +x /app/scripts/start.sh && mkdir -p /data
 
 # Adminer (SQLite DB viewer). Runs as a second process from start.sh, reachable
-# on the db-<env> service port. The single-file binary is fetched at build time
-# (it is gitignored, never committed); index.php pins it to our SQLite file.
-ARG ADMINER_VERSION=4.8.1
-COPY adminer/index.php /app/adminer/index.php
-RUN curl -fsSL "https://github.com/vrana/adminer/releases/download/v${ADMINER_VERSION}/adminer-${ADMINER_VERSION}.php" \
-      -o /app/adminer/adminer.php
+# on the db-<env> service port. index.php pins the connection to our SQLite
+# file; the Adminer binary + plugins + designs are fetched at build time by
+# fetch-assets.sh (all gitignored, never committed).
+COPY adminer/index.php adminer/fetch-assets.sh /app/adminer/
+RUN bash /app/adminer/fetch-assets.sh /app/adminer
 
 # Build metadata. Both default to "unknown" so local `docker build` without
 # --build-arg still works; CI passes real values from github.sha and an ISO
