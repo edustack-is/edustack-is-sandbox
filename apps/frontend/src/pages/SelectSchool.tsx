@@ -119,8 +119,7 @@ export function SelectSchool() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-background p-4">
-            <InlineLanguageSwitcher />
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 gap-6">
             <div className="w-full max-w-lg space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl font-bold tracking-tight">
@@ -217,6 +216,9 @@ export function SelectSchool() {
                         )}
                     </>
                 )}
+            </div>
+            <div className="flex justify-center">
+                <InlineLanguageSwitcher />
             </div>
         </div>
     );

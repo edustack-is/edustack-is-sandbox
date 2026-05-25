@@ -46,8 +46,7 @@ export const ForgotPassword = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <InlineLanguageSwitcher />
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 gap-6">
             <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
                 {submitted ? (
                     // Success state
@@ -122,6 +121,9 @@ export const ForgotPassword = () => {
                         </form>
                     </>
                 )}
+            </div>
+            <div className="flex justify-center">
+                <InlineLanguageSwitcher />
             </div>
         </div>
     );

@@ -7,26 +7,22 @@ const languages = [
     { code: 'en', label: 'EN', flag: '🇬🇧' },
 ];
 
-interface Props {
-    /**
-     * When true (default) the switcher pins itself to the top-right
-     * corner of the viewport. Pass `floating={false}` to drop the
-     * positioning so the parent can place it inline (e.g. underneath
-     * a form).
-     */
-    floating?: boolean;
-}
-
-export const InlineLanguageSwitcher: React.FC<Props> = ({ floating = true }) => {
+/**
+ * Inline language switcher used outside the main app shell (auth pages,
+ * setup, school picker, stale-session recovery). The shell itself has its
+ * own switcher inside the sidebar, so there are only ever two placements
+ * across the app: this one (centered under the page content) and the
+ * sidebar one.
+ *
+ * Callers control positioning by wrapping the component; the switcher
+ * does not pin itself to the viewport.
+ */
+export const InlineLanguageSwitcher: React.FC = () => {
     const { i18n } = useTranslation();
     const currentLang = i18n.language?.split('-')[0] || 'cs';
 
     return (
-        <div
-            className={`${
-                floating ? 'fixed top-4 right-4 z-40 flex' : 'inline-flex'
-            } items-center gap-1.5 bg-white/80 dark:bg-card/80 backdrop-blur-md rounded-full border border-border/60 shadow-sm px-2 py-1`}
-        >
+        <div className="inline-flex items-center gap-1.5 bg-white/80 dark:bg-card/80 backdrop-blur-md rounded-full border border-border/60 shadow-sm px-2 py-1">
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
             {languages.map((lang) => (
                 <button

@@ -64,8 +64,7 @@ export const ResetPassword = () => {
     // Invalid / missing token
     if (!token) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-                <InlineLanguageSwitcher />
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 gap-6">
                 <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-gray-100 text-center">
                     <div className="mx-auto h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
                         <Shield className="h-6 w-6 text-red-600" />
@@ -75,13 +74,15 @@ export const ResetPassword = () => {
                         {t('reset_password.back_to_login')}
                     </a>
                 </div>
+                <div className="flex justify-center">
+                    <InlineLanguageSwitcher />
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <InlineLanguageSwitcher />
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 gap-6">
             <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-gray-100">
                 <div className="text-center mb-8">
                     <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
@@ -131,6 +132,9 @@ export const ResetPassword = () => {
                         )}
                     </Button>
                 </form>
+            </div>
+            <div className="flex justify-center">
+                <InlineLanguageSwitcher />
             </div>
         </div>
     );

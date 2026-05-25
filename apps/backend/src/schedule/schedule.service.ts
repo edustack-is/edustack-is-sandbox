@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { ApiException } from '../common/exceptions/api.exception';
 import {
   LessonTimeSlot,
   ScheduleEvent,
@@ -142,10 +143,17 @@ export class ScheduleService {
       schoolId,
     );
     if (collision) {
-      throw new ConflictException({
-        message: `Schedule collision: ${collision.reason}`,
-        conflict: collision,
-      });
+      const keyByReason: Record<string, string> = {
+        'teacher is already scheduled': 'apiErrors.conflict.scheduleTeacher',
+        'classroom is already scheduled':
+          'apiErrors.conflict.scheduleClassroom',
+        'room is already in use': 'apiErrors.conflict.scheduleRoom',
+      };
+      throw ApiException.conflict(
+        keyByReason[collision.reason] ?? 'apiErrors.conflict.scheduleTeacher',
+        `Schedule collision: ${collision.reason}`,
+        { conflict: collision },
+      );
     }
 
     const id = crypto.randomUUID();

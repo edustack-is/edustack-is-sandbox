@@ -233,7 +233,7 @@ export const Setup = () => {
 
     // ─── Main setup form ────────────────────────────────────
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 py-12 px-4 relative overflow-hidden gap-6">
             {/* ─── Global Drag Overlay ───────────────────────── */}
             {isDragging && !isAnyLocalDragging && (
                 <div className="fixed inset-0 z-[100] bg-indigo-600/40 backdrop-blur-md pointer-events-none flex items-center justify-center border-[16px] border-white/30 m-4 rounded-[40px] animate-in fade-in duration-300">
@@ -252,8 +252,6 @@ export const Setup = () => {
                     </div>
                 </div>
             )}
-
-            <InlineLanguageSwitcher />
 
             <div
                 className={cn(
@@ -535,6 +533,9 @@ export const Setup = () => {
                         </form>
                     )}
                 </div>
+            </div>
+            <div className="flex justify-center">
+                <InlineLanguageSwitcher />
             </div>
         </div>
     );

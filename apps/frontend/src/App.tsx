@@ -38,6 +38,7 @@ import { ResetPassword } from './pages/ResetPassword';
 import { SelectSchool } from './pages/SelectSchool';
 import { UserProfile } from './pages/UserProfile';
 import { Login } from './pages/Login';
+import { StaleSession } from './pages/StaleSession';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { RoleThemeProvider } from './components/RoleThemeProvider';
@@ -51,12 +52,18 @@ const ProtectedRoute = () => {
     // While the initial /api/auth/session call is in flight, sessionLoading
     // is true — we render nothing rather than bounce to /login, which would
     // make the auth check race the network.
-    const { userId, sessionLoading } = useSchool();
+    const { userId, sessionLoading, userExistsInDb } = useSchool();
     if (sessionLoading) {
         return <div className="flex h-dvh items-center justify-center text-muted-foreground">…</div>;
     }
     if (!userId) {
         return <Navigate to="/login" replace />;
+    }
+    // The JWT decodes to a user that no longer exists in the DB (typical
+    // immediately after a sysadmin restored a backup). Render the recovery
+    // screen instead of the routed page so we don't fire 404s everywhere.
+    if (userExistsInDb === false) {
+        return <StaleSession />;
     }
     return (
         <div className="flex flex-col h-dvh overflow-hidden">
