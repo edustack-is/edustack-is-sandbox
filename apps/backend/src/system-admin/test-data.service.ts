@@ -179,6 +179,55 @@ function femaleLastName(masculine: string): string {
   return masculine + 'ov\u00e1';
 }
 
+interface GeneratedGrade {
+  levelNumber: number;
+  levelName: string;
+  classrooms: string[];
+}
+
+// Grade levels + parallel classes per school type. Gymnasiums follow the
+// Czech naming convention: an eight-year gymnasium uses the Latin grade names
+// (prima\u2026okt\u00e1va), while a standalone four-year gymnasium and the basic schools
+// use ordinal "N. ro\u010dn\u00edk" grades. Keep this in sync with the MCP seeding tool
+// (apps/mcp-server/src/tools/seeding.ts getGrades).
+function buildGrades(schoolType: string): GeneratedGrade[] {
+  const ordinal = (count: number): GeneratedGrade[] =>
+    Array.from({ length: count }, (_, i) => ({
+      levelNumber: i + 1,
+      levelName: `${i + 1}. ro\u010dn\u00edk`,
+      classrooms: [`${i + 1}.A`, `${i + 1}.B`],
+    }));
+
+  switch (schoolType) {
+    case 'gymnasium_8': {
+      const names = [
+        'Prima',
+        'Sekunda',
+        'Tercie',
+        'Kvarta',
+        'Kvinta',
+        'Sexta',
+        'Septima',
+        'Okt\u00e1va',
+      ];
+      return names.map((name, i) => ({
+        levelNumber: i + 1,
+        levelName: name,
+        classrooms: [`${name} A`, `${name} B`],
+      }));
+    }
+    case 'gymnasium_4':
+      return ordinal(4);
+    case 'elementary_1':
+      return ordinal(5);
+    case 'elementary_full':
+      return ordinal(9);
+    default:
+      // Backwards-compatible fallback for legacy/unknown type strings.
+      return ordinal(schoolType.toLowerCase().includes('full') ? 9 : 5);
+  }
+}
+
 export interface GenerateConfig {
   schoolName: string;
   schoolType: string;
@@ -285,9 +334,11 @@ export class TestDataService {
     );
 
     // 1. SCHOOL
-    // Search for all schools with this name to handle potential legacy duplicates
+    // Match every school with this name — including soft-deleted ones. Their
+    // name still occupies the School.name unique constraint, so we must reuse
+    // (and revive) or remove them, otherwise a fresh INSERT collides.
     const existingSchools = await this.db.query(
-      'SELECT * FROM "School" WHERE name = ? AND deletedAt IS NULL',
+      'SELECT * FROM "School" WHERE name = ?',
       [config.schoolName],
     );
 
@@ -303,10 +354,11 @@ export class TestDataService {
       const primarySchool = existingSchools[0] as any;
       schoolId = primarySchool.id;
 
-      // Wipe and update address for the primary (preserve school entry)
+      // Wipe and update address for the primary (preserve school entry).
+      // Clear deletedAt too, so reusing a soft-deleted school revives it.
       await this.wipeSchoolData(schoolId, false);
       await this.db.execute(
-        'UPDATE "School" SET address = ?, updatedAt = ? WHERE id = ?',
+        'UPDATE "School" SET address = ?, deletedAt = NULL, updatedAt = ? WHERE id = ?',
         [schoolAddress, now, schoolId],
       );
 
@@ -520,15 +572,14 @@ export class TestDataService {
     }
 
     const gradeLevelMap = new Map<number, string>();
-    const maxGrade =
-      config.schoolType.includes('Full') || config.schoolType.includes('full')
-        ? 9
-        : 5;
-    for (let i = 1; i <= maxGrade; i++) {
+    const grades = buildGrades(config.schoolType);
+    const maxGrade = grades.length;
+    for (const g of grades) {
+      const i = g.levelNumber;
       const glId = crypto.randomUUID();
       await this.db.execute(
         'INSERT INTO "GradeLevel" (id, name, levelNumber, schoolId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [glId, `${i}. ročník`, i, schoolId, now, now],
+        [glId, g.levelName, i, schoolId, now, now],
       );
       gradeLevelMap.set(i, glId);
       stats.gradeLevels++;
@@ -679,10 +730,10 @@ export class TestDataService {
 
     // 5. CLASSES & STUDENTS & PARENTS
     const classrooms: Array<{ id: string; grade: number; name: string }> = [];
-    for (let i = 1; i <= maxGrade; i++) {
-      for (const letter of ['A', 'B']) {
+    for (const g of grades) {
+      const i = g.levelNumber;
+      for (const cName of g.classrooms) {
         const cId = crypto.randomUUID();
-        const cName = `${i}.${letter}`;
         await this.db.execute(
           'INSERT INTO "Classroom" (id, name, grade, schoolId) VALUES (?, ?, ?, ?)',
           [cId, cName, i, schoolId],
