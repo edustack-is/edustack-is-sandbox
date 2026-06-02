@@ -285,6 +285,20 @@ jobs:
           fi
           flyctl secrets set "${SECRETS[@]}" --app "$APP_NAME" --stage
 
+      # `flyctl deploy` usually auto-allocates IPs, but with apps created
+      # back-to-back it intermittently doesn't — leaving the app unroutable
+      # (dead <app>.fly.dev and failed be-<env> cert validation) even though the
+      # deploy reports success. Allocate explicitly and idempotently. A shared
+      # v4 allocation is a no-op if one already exists; the v6 is guarded since
+      # repeated allocate-v6 would add duplicates.
+      - name: Ensure Fly IPs allocated (idempotent)
+        run: |
+          APP_NAME="${{ steps.fly_cfg.outputs.app_name }}"
+          IPS=$(flyctl ips list --app "$APP_NAME" 2>/dev/null || true)
+          echo "$IPS" | grep -q 'v4' || flyctl ips allocate-v4 --shared --app "$APP_NAME"
+          echo "$IPS" | grep -qw 'v6' || flyctl ips allocate-v6 --app "$APP_NAME"
+          flyctl ips list --app "$APP_NAME"
+
       - name: Deploy to Fly
         run: |
           BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -431,25 +445,35 @@ jobs:
             echo "MailDev SMTP is internal-only on ${{ steps.fly_maildev_cfg.outputs.app_name }}.internal:1025."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Update README live-sandbox table
-        env:
-          ACTION: ${{ inputs.action }}
-        run: python3 scripts/update_envs_in_readme.py
-
-      - name: Commit README change
+      # Regenerate the table row against the LATEST main and push, retrying on
+      # rejection. Batch runs touch the same table region in adjacent jobs, so a
+      # plain commit + rebase of a stale checkout conflicts; rebuilding from
+      # fresh main each attempt sidesteps that entirely.
+      - name: Update README live-sandbox table and push
         env:
           ACTION: ${{ inputs.action }}
         run: |
-          if git diff --quiet README.md; then
-            echo "README already up-to-date — nothing to commit"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "docs(envs): ${ACTION} ${ENV_NAME}"
-          git pull --rebase --autostash origin main
-          git push origin main
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard FETCH_HEAD
+            python3 scripts/update_envs_in_readme.py
+            if git diff --quiet README.md; then
+              echo "README already up-to-date — nothing to commit"
+              exit 0
+            fi
+            git add README.md
+            git commit -m "docs(envs): ${ACTION} ${ENV_NAME}"
+            if git push origin HEAD:main; then
+              echo "Pushed README update on attempt ${attempt}"
+              exit 0
+            fi
+            echo "Push rejected (concurrent update) — retrying (${attempt}/5)..."
+            sleep $(( (RANDOM % 5) + 1 ))
+          done
+          echo "::error::Could not push README update after 5 attempts"
+          exit 1
 
   teardown:
     if: inputs.action == 'delete'
@@ -563,22 +587,32 @@ jobs:
             echo "- R2 bucket removed: edustack-${ENV_NAME}-backups"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Update README live-sandbox table
-        env:
-          ACTION: ${{ inputs.action }}
-        run: python3 scripts/update_envs_in_readme.py
-
-      - name: Commit README change
+      # Regenerate the table row against the LATEST main and push, retrying on
+      # rejection. Batch runs touch the same table region in adjacent jobs, so a
+      # plain commit + rebase of a stale checkout conflicts; rebuilding from
+      # fresh main each attempt sidesteps that entirely.
+      - name: Update README live-sandbox table and push
         env:
           ACTION: ${{ inputs.action }}
         run: |
-          if git diff --quiet README.md; then
-            echo "README already up-to-date — nothing to commit"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "docs(envs): ${ACTION} ${ENV_NAME}"
-          git pull --rebase --autostash origin main
-          git push origin main
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard FETCH_HEAD
+            python3 scripts/update_envs_in_readme.py
+            if git diff --quiet README.md; then
+              echo "README already up-to-date — nothing to commit"
+              exit 0
+            fi
+            git add README.md
+            git commit -m "docs(envs): ${ACTION} ${ENV_NAME}"
+            if git push origin HEAD:main; then
+              echo "Pushed README update on attempt ${attempt}"
+              exit 0
+            fi
+            echo "Push rejected (concurrent update) — retrying (${attempt}/5)..."
+            sleep $(( (RANDOM % 5) + 1 ))
+          done
+          echo "::error::Could not push README update after 5 attempts"
+          exit 1
