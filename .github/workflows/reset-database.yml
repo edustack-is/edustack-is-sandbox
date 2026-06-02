@@ -13,14 +13,22 @@ on:
       env_id:
         description: 'Environment number to RESET (e.g., 1, 2, 3)'
         required: true
+  # Reusable entry point so the batch workflow (reset-databases.yml) can fan out
+  # one call per environment number.
+  workflow_call:
+    inputs:
+      env_id:
+        description: 'Environment number to RESET (e.g., 1, 2, 3)'
+        required: true
+        type: string
 
 jobs:
   reset:
-    name: Reset DB for sandbox-${{ github.event.inputs.env_id }}
+    name: Reset DB for sandbox-${{ inputs.env_id }}
     runs-on: ubuntu-latest
     env:
-      ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
-      APP_NAME: edustack-sandbox-${{ github.event.inputs.env_id }}
+      ENV_NAME: sandbox-${{ inputs.env_id }}
+      APP_NAME: edustack-sandbox-${{ inputs.env_id }}
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
     steps:

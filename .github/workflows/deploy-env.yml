@@ -25,16 +25,38 @@ on:
         required: false
         default: true
         type: boolean
+  # Reusable entry point so the batch workflow (deploy-envs.yml) can fan out
+  # one call per environment number. Inputs mirror the workflow_dispatch ones.
+  workflow_call:
+    inputs:
+      env_id:
+        description: 'Environment number (e.g., 1, 2, 3)'
+        required: true
+        type: string
+      action:
+        description: 'Action to perform: deploy or delete'
+        required: true
+        type: string
+      enable_login_helper:
+        description: 'Enable login helper — deploy only'
+        required: false
+        default: true
+        type: boolean
+      auto_seed:
+        description: 'Auto-seed demo data on first boot — deploy only'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   deploy:
-    if: github.event.inputs.action == 'deploy'
-    name: Deploy Environment ${{ github.event.inputs.env_id }}
+    if: inputs.action == 'deploy'
+    name: Deploy Environment ${{ inputs.env_id }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
-      ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
+      ENV_NAME: sandbox-${{ inputs.env_id }}
       DOMAIN: is-edustack.org
       FLY_ORG: personal
       FLY_REGION: ams
@@ -137,8 +159,8 @@ jobs:
       - name: Render fly.toml
         id: fly_cfg
         env:
-          ENABLE_LOGIN_HELPER: ${{ github.event.inputs.enable_login_helper }}
-          AUTO_SEED: ${{ github.event.inputs.auto_seed }}
+          ENABLE_LOGIN_HELPER: ${{ inputs.enable_login_helper }}
+          AUTO_SEED: ${{ inputs.auto_seed }}
         run: |
           APP_NAME="edustack-${ENV_NAME}"
           FRONTEND_URL="https://${ENV_NAME}.${DOMAIN}"
@@ -411,12 +433,12 @@ jobs:
 
       - name: Update README live-sandbox table
         env:
-          ACTION: ${{ github.event.inputs.action }}
+          ACTION: ${{ inputs.action }}
         run: python3 scripts/update_envs_in_readme.py
 
       - name: Commit README change
         env:
-          ACTION: ${{ github.event.inputs.action }}
+          ACTION: ${{ inputs.action }}
         run: |
           if git diff --quiet README.md; then
             echo "README already up-to-date — nothing to commit"
@@ -430,13 +452,13 @@ jobs:
           git push origin main
 
   teardown:
-    if: github.event.inputs.action == 'delete'
-    name: Delete Environment ${{ github.event.inputs.env_id }}
+    if: inputs.action == 'delete'
+    name: Delete Environment ${{ inputs.env_id }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
-      ENV_NAME: sandbox-${{ github.event.inputs.env_id }}
+      ENV_NAME: sandbox-${{ inputs.env_id }}
       DOMAIN: is-edustack.org
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -543,12 +565,12 @@ jobs:
 
       - name: Update README live-sandbox table
         env:
-          ACTION: ${{ github.event.inputs.action }}
+          ACTION: ${{ inputs.action }}
         run: python3 scripts/update_envs_in_readme.py
 
       - name: Commit README change
         env:
-          ACTION: ${{ github.event.inputs.action }}
+          ACTION: ${{ inputs.action }}
         run: |
           if git diff --quiet README.md; then
             echo "README already up-to-date — nothing to commit"

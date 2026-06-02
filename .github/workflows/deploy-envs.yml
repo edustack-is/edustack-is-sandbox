@@ -1,0 +1,82 @@
+name: Deploy Environments (batch)
+
+# Deploy or delete MANY sandboxes in one run. Enter a comma-separated list of
+# environment numbers (e.g. "1,2,5") and one stack is deployed/deleted per
+# number by fanning out to the reusable deploy-env.yml workflow.
+#
+# For a single environment you can still use the "Deploy Environment" workflow
+# directly; this one just loops over it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      env_ids:
+        description: 'Comma-separated environment numbers (e.g., 1,2,5)'
+        required: true
+        default: '1,2,3'
+      action:
+        description: 'Action to perform on every listed environment'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - delete
+      enable_login_helper:
+        description: 'Enable login helper (demo-user picker on login screen) — deploy only'
+        required: false
+        default: true
+        type: boolean
+      auto_seed:
+        description: 'Auto-seed demo data on first boot — deploy only'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  # Turn the free-text "1, 2, 5" list into a clean JSON array of numbers that a
+  # matrix can iterate over. Strips spaces/non-digits, drops blanks, dedupes,
+  # and sorts ascending.
+  prepare:
+    name: Parse environment list
+    runs-on: ubuntu-latest
+    outputs:
+      env_ids: ${{ steps.parse.outputs.env_ids }}
+    steps:
+      - name: Parse env_ids
+        id: parse
+        env:
+          RAW: ${{ inputs.env_ids }}
+        run: |
+          IDS=$(printf '%s' "$RAW" | jq -Rc '
+            split(",")
+            | map(gsub("[^0-9]"; ""))
+            | map(select(length > 0))
+            | unique_by(tonumber)
+            | sort_by(tonumber)
+          ')
+          COUNT=$(printf '%s' "$IDS" | jq 'length')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No valid environment numbers found in '$RAW'. Use a comma-separated list like 1,2,5." >&2
+            exit 1
+          fi
+          echo "env_ids=$IDS" >> "$GITHUB_OUTPUT"
+          echo "Will ${{ inputs.action }} $COUNT environment(s): $IDS"
+
+  run:
+    name: ${{ inputs.action }} sandbox-${{ matrix.env_id }}
+    needs: prepare
+    # Serialised on purpose: each call commits the README live-sandbox table to
+    # main, so parallel pushes would race. Bump this if you drop that commit.
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        env_id: ${{ fromJson(needs.prepare.outputs.env_ids) }}
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      env_id: ${{ matrix.env_id }}
+      action: ${{ inputs.action }}
+      enable_login_helper: ${{ inputs.enable_login_helper }}
+      auto_seed: ${{ inputs.auto_seed }}
+    secrets: inherit
