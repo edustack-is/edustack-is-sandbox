@@ -33,6 +33,12 @@ on:
         default: true
         type: boolean
 
+# The called deploy-env.yml commits the README live-sandbox table, so it needs
+# contents: write. A reusable workflow can't be granted more than its caller,
+# so we must declare it here too.
+permissions:
+  contents: write
+
 jobs:
   # Turn the free-text "1, 2, 5" list into a clean JSON array of numbers that a
   # matrix can iterate over. Strips spaces/non-digits, drops blanks, dedupes,
