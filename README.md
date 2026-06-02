@@ -15,7 +15,6 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 | Env | Frontend | Backend | MailDev | Last deployed |
 | --- | --- | --- | --- | --- |
 | sandbox-1 | https://sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | https://mail-sandbox-1.is-edustack.org | 2026-05-26 08:03 UTC |
-| sandbox-8 | https://sandbox-8.is-edustack.org | https://be-sandbox-8.is-edustack.org | https://mail-sandbox-8.is-edustack.org | 2026-06-02 09:55 UTC |
 | sandbox-9 | https://sandbox-9.is-edustack.org | https://be-sandbox-9.is-edustack.org | https://mail-sandbox-9.is-edustack.org | 2026-06-02 09:57 UTC |
 | sandbox-10 | https://sandbox-10.is-edustack.org | https://be-sandbox-10.is-edustack.org | https://mail-sandbox-10.is-edustack.org | 2026-06-02 10:00 UTC |
 <!-- DEPLOYED_ENVS_END -->
