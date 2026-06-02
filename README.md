@@ -12,14 +12,16 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 
 <!-- DEPLOYED_ENVS_START -->
 
-| Env | Frontend | Backend | MailDev | Last deployed |
-| --- | --- | --- | --- | --- |
-| sandbox-1 | https://sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | https://mail-sandbox-1.is-edustack.org | 2026-05-26 08:03 UTC |
-| sandbox-2 | https://sandbox-2.is-edustack.org | https://be-sandbox-2.is-edustack.org | https://mail-sandbox-2.is-edustack.org | 2026-05-25 20:10 UTC |
-| sandbox-3 | https://sandbox-3.is-edustack.org | https://be-sandbox-3.is-edustack.org | https://mail-sandbox-3.is-edustack.org | 2026-05-25 20:25 UTC |
-| sandbox-4 | https://sandbox-4.is-edustack.org | https://be-sandbox-4.is-edustack.org | https://mail-sandbox-4.is-edustack.org | 2026-05-25 20:29 UTC |
-| sandbox-9 | https://sandbox-9.is-edustack.org | https://be-sandbox-9.is-edustack.org | https://mail-sandbox-9.is-edustack.org | 2026-05-25 21:37 UTC |
+| Env        | Frontend                           | Backend                               | MailDev                                 | Last deployed        |
+| ---------- | ---------------------------------- | ------------------------------------- | --------------------------------------- | -------------------- |
+| sandbox-1  | https://sandbox-1.is-edustack.org  | https://be-sandbox-1.is-edustack.org  | https://mail-sandbox-1.is-edustack.org  | 2026-05-26 08:03 UTC |
+| sandbox-2  | https://sandbox-2.is-edustack.org  | https://be-sandbox-2.is-edustack.org  | https://mail-sandbox-2.is-edustack.org  | 2026-05-25 20:10 UTC |
+| sandbox-3  | https://sandbox-3.is-edustack.org  | https://be-sandbox-3.is-edustack.org  | https://mail-sandbox-3.is-edustack.org  | 2026-05-25 20:25 UTC |
+| sandbox-4  | https://sandbox-4.is-edustack.org  | https://be-sandbox-4.is-edustack.org  | https://mail-sandbox-4.is-edustack.org  | 2026-05-25 20:29 UTC |
+| sandbox-5  | https://sandbox-5.is-edustack.org  | https://be-sandbox-5.is-edustack.org  | https://mail-sandbox-5.is-edustack.org  | 2026-06-02 09:28 UTC |
+| sandbox-9  | https://sandbox-9.is-edustack.org  | https://be-sandbox-9.is-edustack.org  | https://mail-sandbox-9.is-edustack.org  | 2026-05-25 21:37 UTC |
 | sandbox-10 | https://sandbox-10.is-edustack.org | https://be-sandbox-10.is-edustack.org | https://mail-sandbox-10.is-edustack.org | 2026-05-25 21:41 UTC |
+
 <!-- DEPLOYED_ENVS_END -->
 
 ## Technology
