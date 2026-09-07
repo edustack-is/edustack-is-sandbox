@@ -12,9 +12,8 @@ The table below is maintained automatically by the **Deploy Environment** workfl
 
 <!-- DEPLOYED_ENVS_START -->
 
-| Env | Frontend | Backend | MailDev | Last deployed |
-| --- | --- | --- | --- | --- |
-| sandbox-1 | https://sandbox-1.is-edustack.org | https://be-sandbox-1.is-edustack.org | https://mail-sandbox-1.is-edustack.org | 2026-05-26 08:03 UTC |
+_No environments deployed._
+
 <!-- DEPLOYED_ENVS_END -->
 
 ## Technology
